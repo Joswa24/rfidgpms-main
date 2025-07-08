@@ -273,21 +273,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         });
 
         // Handle print button click
-        $('#btn_print').on('click', function() {
-            var iframe = $('<iframe>', {
-                id: 'printFrame',
-                style: 'visibility:hidden; display:none'
-            }).appendTo('body');
-
-            iframe.attr('src', 'print.php');
-
-            iframe.on('load', function() {
-                this.contentWindow.print();
-                setTimeout(function() {
-                    iframe.remove();
-                }, 1000);
-            });
-        });
+        // Replace your current print button handler with this:
+$('#btn_print').on('click', function() {
+    // Submit the form to print.php in a new window
+    $('#filterForm').attr('action', 'print.php').attr('target', '_blank').submit();
+    // Reset the form action for normal filtering
+    $('#filterForm').attr('action', '').removeAttr('target');
+});
     });
     </script>
 </body>

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jun 20, 2025 at 01:14 PM
+-- Generation Time: Jul 01, 2025 at 07:20 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -97,6 +97,168 @@ INSERT INTO `admin_sessions` (`id`, `location`, `ip_address`, `device`, `date_lo
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `archived_attendance_logs`
+--
+
+CREATE TABLE `archived_attendance_logs` (
+  `id` int(11) NOT NULL,
+  `student_id` int(11) NOT NULL,
+  `id_number` varchar(50) NOT NULL,
+  `time_in` datetime NOT NULL,
+  `time_out` datetime DEFAULT NULL,
+  `department` varchar(255) NOT NULL,
+  `location` varchar(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `archived_attendance_logs`
+--
+
+INSERT INTO `archived_attendance_logs` (`id`, `student_id`, `id_number`, `time_in`, `time_out`, `department`, `location`) VALUES
+(1, 11, '2025-3030', '2025-06-25 08:37:48', '2025-06-25 08:38:09', 'BSIT', 'LR1'),
+(2, 7, '2023-0007', '2025-06-25 08:42:00', '2025-06-25 08:47:49', 'BSIT', 'LR1'),
+(3, 6, '2023-0006', '2025-06-25 09:01:49', '2025-06-25 09:02:17', 'BSIT', 'LR1'),
+(4, 8, '2023-0008', '2025-06-25 09:53:19', '2025-06-25 10:52:09', 'BSIT', 'LR1'),
+(5, 1, '2023-0001', '2025-06-25 10:51:44', '2025-06-25 10:51:53', 'BSIT', 'LR1'),
+(6, 4, '2023-0004', '2025-06-25 11:01:30', '2025-06-25 11:31:09', 'BSIT', 'LR1'),
+(7, 3, '2023-0003', '2025-06-25 11:02:44', '2025-06-25 11:30:28', 'BSIT', 'LR1'),
+(8, 5, '2023-0005', '2025-06-25 11:19:45', '2025-06-25 11:30:11', 'BSIT', 'LR1'),
+(9, 2, '2023-0002', '2025-06-25 15:39:15', NULL, 'BSIT', 'LR1'),
+(10, 12, '2025-8989', '2025-06-25 16:48:08', '2025-06-25 16:48:30', 'Department', 'Location'),
+(11, 10, '132424', '2025-06-25 17:07:41', '2025-06-25 17:09:44', 'Department', 'Location'),
+(12, 15, '1111-1111', '2025-06-25 19:20:51', '2025-06-25 19:54:55', 'Department', 'Location'),
+(13, 2, '2023-0002', '2025-06-25 19:55:06', '2025-06-25 19:55:19', 'Department', 'Location'),
+(14, 17, '2020-1111', '2025-06-25 20:00:14', '2025-06-25 20:03:26', 'Department', 'Location'),
+(15, 18, '1234-1234', '2025-06-25 20:04:05', NULL, 'Department', 'Location'),
+(16, 19, '1212-1212', '2025-06-25 20:06:53', NULL, 'Department', 'Location'),
+(17, 20, '1122-1122', '2025-06-25 20:08:31', NULL, 'BSIT', 'LR1'),
+(18, 11, '2025-3030', '2025-06-25 20:59:49', NULL, 'BSIT', 'LR1'),
+(19, 12, '2025-8989', '2025-06-25 21:01:31', NULL, 'BSIT', 'LR1'),
+(20, 8, '2023-0008', '2025-06-25 21:02:01', NULL, 'BSIT', 'LR1'),
+(21, 11, '2025-3030', '2025-06-25 21:14:21', NULL, 'BSIT', 'LR1'),
+(22, 1, '2023-0001', '2025-06-25 21:14:32', NULL, 'BSIT', 'LR1'),
+(23, 11, '2025-3030', '2025-06-25 21:15:26', NULL, 'BSIT', 'LR1'),
+(24, 12, '2025-8989', '2025-06-25 21:15:42', NULL, 'BSIT', 'LR1'),
+(25, 8, '2023-0008', '2025-06-25 21:16:04', NULL, 'BSIT', 'LR1'),
+(26, 11, '2025-3030', '2025-06-25 21:39:31', NULL, 'BSIT', 'LR1'),
+(27, 11, '2025-3030', '2025-06-25 21:50:14', NULL, 'BSIT', 'LR1'),
+(28, 11, '2025-3030', '2025-06-25 22:05:41', NULL, 'BSIT', 'LR1'),
+(29, 11, '2025-3030', '2025-06-25 22:17:38', NULL, 'BSIT', 'LR1'),
+(30, 5, '2023-0005', '2025-06-25 22:18:02', NULL, 'BSIT', 'LR1'),
+(31, 11, '2025-3030', '2025-06-25 22:39:08', '2025-06-25 22:45:37', 'BSIT', 'LR1'),
+(32, 6, '2023-0006', '2025-06-25 22:39:37', NULL, 'BSIT', 'LR1'),
+(33, 4, '2023-0004', '2025-06-25 22:40:07', NULL, 'BSIT', 'LR1'),
+(34, 3, '2023-0003', '2025-06-25 22:45:49', NULL, 'BSIT', 'LR1'),
+(35, 11, '2025-3030', '2025-06-26 11:11:50', '2025-06-26 11:20:44', 'BSIT', 'LR1'),
+(36, 6, '2023-0006', '2025-06-26 11:29:18', '2025-06-26 11:31:16', 'BSIT', 'LR1'),
+(37, 1, '2023-0001', '2025-06-26 11:35:47', '2025-06-26 11:36:05', 'BSIT', 'LR1'),
+(38, 3, '2023-0003', '2025-06-26 11:41:06', NULL, 'BSIT', 'LR1'),
+(39, 5, '2023-0005', '2025-06-26 11:53:21', '2025-06-26 11:55:25', 'BSIT', 'LR1'),
+(40, 2, '2023-0002', '2025-06-26 12:01:31', '2025-06-26 12:11:31', 'BSIT', 'LR1'),
+(41, 7, '2023-0007', '2025-06-26 12:09:06', '2025-06-26 12:18:51', 'BSIT', 'LR1'),
+(42, 11, '2025-3030', '2025-06-26 12:26:06', NULL, 'BSIT', 'LR1'),
+(43, 1, '2023-0001', '2025-06-26 12:26:18', NULL, 'BSIT', 'LR1'),
+(44, 11, '2025-3030', '2025-06-26 12:31:55', NULL, 'BSIT', 'LR1'),
+(45, 12, '2025-8989', '2025-06-26 12:32:45', NULL, 'BSIT', 'LR1'),
+(47, 11, '2025-3030', '2025-06-26 15:51:59', NULL, 'BSIT', 'LR1'),
+(48, 24, '2025-8989', '2025-06-26 16:38:33', NULL, 'BSIT', 'LR1'),
+(49, 26, '8888-8888', '2025-06-26 16:40:35', NULL, 'BSIT', 'LR1'),
+(50, 29, '9999-9999', '2025-06-26 16:47:24', NULL, 'BSIT', 'LR1'),
+(51, 29, '9999-9999', '2025-06-26 16:51:23', '2025-06-26 17:10:28', 'BSIT', 'LR1'),
+(52, 26, '8888-8888', '2025-06-26 17:46:08', '2025-06-26 17:46:21', 'BSIT', 'LR1'),
+(53, 31, '1111-1110', '2025-06-26 18:23:46', '2025-06-26 18:24:15', 'BSIT', 'LR1'),
+(54, 32, '5505-7878', '2025-06-26 18:25:13', '2025-06-26 18:34:33', 'BSIT', 'LR1'),
+(55, 24, '2025-8989', '2025-06-26 18:32:16', '2025-06-26 18:33:26', 'BSIT', 'LR1'),
+(56, 33, '2232-1111', '2025-06-26 19:00:55', '2025-06-26 19:01:13', 'BSIT', 'LR1'),
+(57, 26, '8888-8888', '2025-06-27 18:32:12', '2025-06-27 18:33:38', 'BSIT', 'LR1'),
+(58, 32, '5505-7878', '2025-06-27 18:33:24', NULL, 'BSIT', 'LR1'),
+(59, 26, '8888-8888', '2025-06-28 10:30:19', '2025-06-28 10:31:23', 'BSIT', 'LR1'),
+(60, 32, '5505-7878', '2025-06-28 14:56:52', '2025-06-28 15:27:18', 'BSIT', 'LR1'),
+(61, 37, '2024-1697', '2025-06-28 16:02:12', '2025-06-28 16:02:24', 'BSIT', 'LR1'),
+(62, 37, '2024-1697', '2025-06-28 16:07:17', '2025-06-28 16:08:03', 'BSIT', 'LR1'),
+(63, 37, '2024-1697', '2025-06-28 16:11:06', '2025-06-28 16:12:57', 'BSIT', 'LR1'),
+(64, 37, '2024-1697', '2025-06-28 16:14:16', '2025-06-28 16:14:52', 'BSIT', 'LR1'),
+(65, 37, '2024-1697', '2025-06-28 16:20:21', '2025-06-28 16:20:24', 'BSIT', 'LR1'),
+(66, 37, '2024-1697', '2025-06-28 16:21:27', '2025-06-28 16:23:01', 'BSIT', 'LR1'),
+(67, 37, '2024-1697', '2025-06-28 16:38:32', '2025-06-28 16:40:28', 'BSIT', 'LR1'),
+(68, 37, '2024-1697', '2025-06-28 16:40:47', '2025-06-28 16:42:10', 'BSIT', 'LR1'),
+(69, 36, '2024-1570', '2025-06-28 16:44:20', '2025-06-28 16:45:18', 'BSIT', 'LR1'),
+(70, 37, '2024-1697', '2025-06-28 16:45:43', '2025-06-28 16:52:31', 'BSIT', 'LR1'),
+(71, 36, '2024-1570', '2025-06-28 16:46:36', '2025-06-28 16:52:10', 'BSIT', 'LR1'),
+(72, 38, '2024-0117', '2025-06-28 17:09:00', '2025-06-28 17:10:07', 'BSIT', 'LR1'),
+(73, 37, '2024-1697', '2025-06-28 17:12:34', '2025-06-28 17:15:45', 'BSIT', 'LR1'),
+(74, 36, '2024-1570', '2025-06-28 17:14:58', '2025-06-28 17:17:24', 'BSIT', 'LR1'),
+(75, 37, '2024-1697', '2025-06-28 17:18:00', '2025-06-28 17:22:40', 'BSIT', 'LR1'),
+(76, 36, '2024-1570', '2025-06-28 17:24:51', '2025-06-28 17:25:17', 'BSIT', 'LR1'),
+(77, 40, '2024-1697', '2025-06-28 18:30:15', '2025-06-28 22:11:00', 'BSIT', 'LR1'),
+(78, 41, '2024-1570', '2025-06-28 22:12:49', '2025-06-28 22:13:14', 'BSIT', 'LR1'),
+(79, 40, '2024-1697', '2025-06-28 22:16:08', '2025-06-28 22:16:08', 'BSIT', 'LR1'),
+(80, 41, '2024-1570', '2025-06-28 22:16:43', '2025-06-28 22:16:43', 'BSIT', 'LR1'),
+(84, 41, '2024-1570', '2025-06-29 11:40:47', NULL, 'BSIT', 'LR1'),
+(85, 40, '2024-1697', '2025-06-29 11:42:11', '2025-06-29 11:42:11', 'BSIT', 'LR1'),
+(86, 40, '2024-1697', '2025-06-29 11:47:00', '2025-06-29 11:47:12', 'BSIT', 'LR1'),
+(87, 40, '2024-1697', '2025-06-29 11:56:32', '2025-06-29 11:56:32', 'BSIT', 'LR1'),
+(88, 40, '2024-1697', '2025-06-29 12:00:15', NULL, 'BSIT', 'LR1'),
+(89, 43, '8749-8887', '2025-06-29 13:42:37', NULL, 'BSIT', 'LR1'),
+(90, 40, '2024-1697', '2025-06-29 14:47:00', '2025-06-29 14:49:33', 'BSHRM', 'KitchenLab1'),
+(91, 41, '2024-1570', '2025-06-29 14:47:18', '2025-06-29 14:48:46', 'BSHRM', 'KitchenLab1'),
+(92, 40, '2024-1697', '2025-06-29 19:51:12', '2025-06-29 19:51:12', 'BSIT', 'ComLab2'),
+(93, 40, '2024-1697', '2025-06-29 20:28:43', NULL, 'BSIT', 'ComLab2'),
+(94, 40, '2024-1697', '2025-06-29 20:30:03', '2025-06-29 20:30:03', 'Department', 'Location'),
+(95, 40, '2024-1697', '2025-06-29 20:32:19', '2025-06-29 20:32:19', 'Department', 'Location'),
+(96, 40, '2024-1697', '2025-06-29 20:43:10', '2025-06-29 20:43:27', 'BSHRM', 'KitchenLab1'),
+(97, 40, '2024-1697', '2025-06-29 20:59:40', '2025-06-29 20:59:40', 'Department', 'Location'),
+(98, 41, '2024-1570', '2025-06-29 21:00:37', '2025-06-29 21:00:37', 'Department', 'Location'),
+(99, 40, '2024-1697', '2025-06-29 21:02:27', '2025-06-29 21:02:27', 'BSIT', 'ComLab1'),
+(100, 40, '2024-1697', '2025-06-29 21:05:12', '2025-06-29 21:05:12', 'BSIT', 'ComLab1'),
+(101, 40, '2024-1697', '2025-06-29 21:08:12', '2025-06-29 21:08:12', 'BSIT', 'ComLab1'),
+(102, 40, '2024-1697', '2025-06-29 21:09:44', '2025-06-29 21:09:44', 'BSIT', 'ComLab1'),
+(103, 40, '2024-1697', '2025-06-29 21:11:32', '2025-06-29 21:11:32', 'BSIT', 'ComLab1'),
+(104, 41, '2024-1570', '2025-06-29 21:12:20', '2025-06-29 21:12:20', 'BSIT', 'ComLab1'),
+(105, 40, '2024-1697', '2025-06-29 21:13:30', '2025-06-29 21:13:30', 'BSIT', 'ComLab1'),
+(106, 40, '2024-1697', '2025-06-29 21:14:07', '2025-06-29 21:14:07', 'BSIT', 'ComLab1'),
+(108, 42, '2024-0117', '2025-06-30 13:53:36', '2025-06-30 13:56:05', 'BSIT', 'ComLab1'),
+(109, 40, '2024-1697', '2025-06-30 16:56:39', '2025-06-30 16:56:39', 'BSIT', 'ComLab1'),
+(110, 40, '2024-1697', '2025-06-30 16:57:41', '2025-06-30 16:57:41', 'BSIT', 'ComLab1'),
+(111, 40, '2024-1697', '2025-06-30 17:12:55', '2025-06-30 17:12:55', 'BSIT', 'ComLab1'),
+(112, 40, '2024-1697', '2025-06-30 17:16:43', '2025-06-30 17:16:43', 'BSIT', 'ComLab1'),
+(113, 40, '2024-1697', '2025-06-30 17:18:33', '2025-06-30 17:18:33', 'BSIT', 'ComLab1'),
+(114, 41, '2024-1570', '2025-06-30 17:21:00', '2025-06-30 17:23:05', 'BSIT', 'ComLab1'),
+(115, 40, '2024-1697', '2025-06-30 17:23:41', '2025-06-30 17:23:41', 'BSIT', 'ComLab1'),
+(116, 41, '2024-1570', '2025-06-30 17:24:00', '2025-06-30 17:24:01', 'BSIT', 'ComLab1'),
+(117, 40, '2024-1697', '2025-06-30 17:25:54', '2025-06-30 17:25:55', 'BSIT', 'ComLab1'),
+(118, 41, '2024-1570', '2025-06-30 17:26:14', '2025-06-30 17:27:51', 'BSIT', 'ComLab1'),
+(119, 40, '2024-1697', '2025-06-30 17:32:01', '2025-06-30 17:32:01', 'BSIT', 'ComLab1'),
+(120, 41, '2024-1570', '2025-06-30 17:34:47', '2025-06-30 17:36:09', 'BSIT', 'ComLab1'),
+(121, 40, '2024-1697', '2025-06-30 17:37:03', '2025-06-30 17:37:04', 'BSIT', 'ComLab1'),
+(122, 41, '2024-1570', '2025-06-30 17:38:13', '2025-06-30 17:38:13', 'BSIT', 'ComLab1'),
+(123, 40, '2024-1697', '2025-06-30 17:41:05', '2025-06-30 17:41:05', 'BSIT', 'ComLab1'),
+(124, 41, '2024-1570', '2025-06-30 17:41:18', '2025-06-30 17:41:42', 'BSIT', 'ComLab1'),
+(125, 40, '2024-1697', '2025-07-01 07:50:45', '2025-07-01 07:50:45', 'BSIT', 'ComLab3'),
+(126, 41, '2024-1570', '2025-07-01 07:50:56', '2025-07-01 07:53:08', 'BSIT', 'ComLab3'),
+(127, 40, '2024-1697', '2025-07-01 07:56:24', '2025-07-01 07:56:24', 'BSIT', 'ComLab3'),
+(128, 41, '2024-1570', '2025-07-01 07:56:47', NULL, 'BSIT', 'ComLab3'),
+(129, 40, '2024-1697', '2025-07-01 07:57:39', NULL, 'BSIT', 'ComLab3');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `attendance_logs`
+--
+
+CREATE TABLE `attendance_logs` (
+  `id` int(11) NOT NULL,
+  `student_id` int(11) NOT NULL,
+  `id_number` varchar(50) NOT NULL,
+  `time_in` datetime NOT NULL,
+  `time_out` datetime DEFAULT NULL,
+  `department` varchar(255) NOT NULL,
+  `location` varchar(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `department`
 --
 
@@ -113,104 +275,33 @@ CREATE TABLE `department` (
 INSERT INTO `department` (`department_id`, `department_name`, `department_desc`) VALUES
 (33, 'BSIT', 'Bachelor in Science and Information Technology'),
 (56, 'BSBA', 'Bachelor in Science and Business Administration'),
-(57, 'SECURITY', 'Security Guard'),
-(59, 'BSCS', 'Bachelor of Science in Computer Science'),
 (60, 'BSHRM', 'Bachelor of Science in Hotel and Restaurant Manage'),
-(61, 'BSA', 'Bachelor of Science in Accountancy'),
 (62, 'BEED', 'Bachelor of Elementary Education'),
-(63, 'BSED', 'Bachelor of Secondary Education'),
-(64, 'BSN', 'Bachelor of Science in Nursing'),
-(65, 'BSP', 'Bachelor of Science in Psychology'),
-(66, 'BSBIO', 'Bachelor of Science in Biology'),
-(67, 'BSCHE', 'Bachelor of Science in Chemistry'),
-(68, 'BSEE', 'Bachelor of Science in Electrical Engineering'),
-(69, 'BSCE', 'Bachelor of Science in Civil Engineering'),
-(70, 'BSME', 'Bachelor of Science in Mechanical Engineering'),
-(71, 'BSARCH', 'Bachelor of Science in Architecture'),
-(72, 'BSPHYS', 'Bachelor of Science in Physics'),
-(73, 'BSMATH', 'Bachelor of Science in Mathematics'),
-(74, 'ABENG', 'Bachelor of Arts in English'),
-(75, 'ABCOMM', 'Bachelor of Arts in Communication'),
-(76, 'ABPOLSCI', 'Bachelor of Arts in Political Science'),
-(77, 'ABPSY', 'Bachelor of Arts in Psychology'),
-(78, 'BSAGRI', 'Bachelor of Science in Agriculture'),
-(79, 'BSAENG', 'Bachelor of Science in Agricultural Engineering'),
-(80, 'BSFORE', 'Bachelor of Science in Forestry'),
-(81, 'BSFT', 'Bachelor of Science in Food Technology'),
-(82, 'BSMAR', 'Bachelor of Science in Marine Biology'),
-(83, 'BSED-ENG', 'Bachelor of Secondary Education Major in English'),
-(84, 'BSED-MATH', 'Bachelor of Secondary Education Major in Mathemati'),
-(85, 'BSED-SCI', 'Bachelor of Secondary Education Major in Science'),
-(86, 'BSED-SS', 'Bachelor of Secondary Education Major in Social St'),
-(87, 'BSCOE', 'Bachelor of Science in Computer Engineering'),
-(88, 'BSIT-ECE', 'Bachelor of Science in Electronics and Communicati'),
-(89, 'BSM', 'Bachelor of Science in Management'),
-(90, 'BSTM', 'Bachelor of Science in Tourism Management'),
-(91, 'BSED-PE', 'Bachelor of Secondary Education Major in Physical '),
-(92, 'BSED-FIL', 'Bachelor of Secondary Education Major in Filipino'),
-(93, 'BSEN', 'Bachelor of Science in Environmental Science'),
-(94, 'BS-STAT', 'Bachelor of Science in Statistics'),
-(95, 'BSIS', 'Bachelor of Science in Information Systems'),
-(96, 'BS-TCM', 'Bachelor of Science in Technical Communications'),
-(97, 'BSED-MAPEH', 'Bachelor of Secondary Education Major in Music, Ar'),
-(98, 'BS-PH', 'Bachelor of Science in Public Health'),
-(99, 'ABFIL', 'Bachelor of Arts in Filipino'),
-(100, 'BSMMA', 'Bachelor of Science in Multimedia Arts'),
-(101, 'AB-LIT', 'Bachelor of Arts in Literature'),
-(102, 'AB-PHI', 'Bachelor of Arts in Philosophy'),
-(103, 'ABHIST', 'Bachelor of Arts in History'),
-(104, 'ABTHEO', 'Bachelor of Arts in Theology'),
-(105, 'ABJS', 'Bachelor of Arts in Journalism'),
-(106, 'BSBA-HR', 'Bachelor of Science in Business Administration Maj'),
-(107, 'BSBA-FM', 'Bachelor of Science in Business Administration Maj'),
-(108, 'BSBA-MM', 'Bachelor of Science in Business Administration Maj'),
-(109, 'BSECE', 'Bachelor of Science in Electronics and Communicati'),
-(110, 'BSIE', 'Bachelor of Science in Industrial Engineering'),
-(111, 'BSF', 'Bachelor of Science in Fisheries'),
-(112, 'BSNUT', 'Bachelor of Science in Nutrition'),
-(113, 'BSOT', 'Bachelor of Science in Occupational Therapy'),
-(114, 'BSMLT', 'Bachelor of Science in Medical Laboratory Technolo'),
-(115, 'BSPT', 'Bachelor of Science in Physical Therapy'),
-(116, 'BSRAD', 'Bachelor of Science in Radiologic Technology'),
-(117, 'BSDS', 'Bachelor of Science in Dental Surgery'),
-(118, 'BSPH', 'Bachelor of Science in Pharmacy'),
-(119, 'BSMID', 'Bachelor of Science in Midwifery'),
-(120, 'BSMARE', 'Bachelor of Science in Maritime Engineering'),
-(121, 'ABREL', 'Bachelor of Arts in Religious Studies'),
-(122, 'BSHRIM', 'Bachelor of Science in Hospitality and Restaurant '),
-(123, 'BSCP', 'Bachelor of Science in Criminology and Police Admi'),
-(124, 'BSMATH-AP', 'Bachelor of Science in Mathematics Major in Applie'),
-(125, 'BSF-CF', 'Bachelor of Science in Forestry Major in Conservat'),
-(126, 'BS-LIT', 'Bachelor of Science in Literature'),
-(127, 'BSRES', 'Bachelor of Science in Renewable Energy Systems'),
-(128, 'BSOS', 'Bachelor of Science in Ocean Studies'),
-(129, 'BSAE', 'Bachelor of Science in Aeronautical Engineering'),
-(130, 'BSFASHION', 'Bachelor of Science in Fashion and Design'),
-(131, 'BSFNB', 'Bachelor of Science in Food and Nutrition Biotechn'),
-(132, 'BSCD', 'Bachelor of Science in Community Development'),
-(133, 'BS-JD', 'Bachelor of Science in Justice Development'),
-(134, 'BSAI', 'Bachelor of Science in Artificial Intelligence'),
-(135, 'BSCEG', 'Bachelor of Science in Civil Engineering and Geoin'),
-(136, 'BSCSAI', 'Bachelor of Science in Computer Science with Artif'),
-(137, 'BSIB', 'Bachelor of Science in International Business'),
-(138, 'BSFMM', 'Bachelor of Science in Fisheries and Marine Manage'),
-(139, 'BSED-ARTS', 'Bachelor of Secondary Education Major in Arts'),
-(140, 'BSWD', 'Bachelor of Science in Web Development'),
-(141, 'BSGAME', 'Bachelor of Science in Game Development'),
-(142, 'BSSE', 'Bachelor of Science in Software Engineering'),
-(143, 'BSAI-ROBOTICS', 'Bachelor of Science in Artificial Intelligence and'),
-(144, 'BSCS-NET', 'Bachelor of Science in Computer Science Major in N'),
-(145, 'BSCS-SEC', 'Bachelor of Science in Computer Science Major in C'),
-(146, 'BSCYBERLAW', 'Bachelor of Science in Cyber Law'),
-(147, 'BSDS-ENT', 'Bachelor of Science in Data Science and Entreprene'),
-(148, 'LIBRARY', 'Library'),
-(149, 'CLINIC', 'Clinic'),
-(152, 'REGISTRAR', 'Registrar'),
-(153, 'HD', 'Head'),
-(154, 'BSMT', 'Bachelor of Science in Medical Technology'),
-(155, 'BSPharma', 'Bachelor of Science in Pharmacy'),
-(156, 'BSPsych', 'Bachelor of Science in Psychology'),
-(157, 'BSAero', 'Bachelor of Science in Aeronautics');
+(63, 'BSED', 'Bachelor of Secondary Education');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `instructor`
+--
+
+CREATE TABLE `instructor` (
+  `id` int(11) NOT NULL,
+  `fullname` varchar(50) NOT NULL,
+  `rfid_number` int(10) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `instructor`
+--
+
+INSERT INTO `instructor` (`id`, `fullname`, `rfid_number`, `created_at`, `updated_at`) VALUES
+(8, 'Mr.Richard Bracero', 2147483647, '2025-06-27 08:19:43', '2025-06-28 14:37:38'),
+(9, 'Mr.Jared Cueva', 1122334455, '2025-06-27 08:54:03', '2025-06-27 08:55:00'),
+(10, 'Mr.Alvin Billiones', 1234567899, '2025-06-27 08:55:17', '2025-06-27 08:55:17'),
+(11, 'Mr.Kurt Alegre', 2147483647, '2025-06-28 11:52:22', '2025-06-28 11:52:55');
 
 -- --------------------------------------------------------
 
@@ -232,107 +323,51 @@ CREATE TABLE `lostcard` (
 
 INSERT INTO `lostcard` (`id`, `personnel_id`, `date_requested`, `status`, `verification_photo`) VALUES
 (1, 6, '2024-12-11 12:14:51', 1, '675911bb36e38.jpeg'),
-(2, 3, '2024-12-11 12:22:51', 0, '6759139bb7421.jpeg'),
-(3, 5, '2024-12-15 00:00:00', 1, 'photo3.jpg'),
-(4, 6, '2025-01-07 00:00:00', 0, 'photo4.jpg'),
-(5, 3, '2024-12-24 00:00:00', 1, 'photo1.jpg'),
-(6, 5, '2025-01-04 00:00:00', 1, 'photo4.jpg'),
-(7, 1172, '2024-12-15 00:00:00', 0, 'photo3.jpg'),
-(8, 4, '2024-12-18 00:00:00', 0, 'photo3.jpg'),
-(9, 3, '2024-12-20 00:00:00', 1, 'photo5.jpg'),
-(10, 5, '2025-01-07 00:00:00', 0, 'photo2.jpg'),
-(11, 5, '2025-01-03 00:00:00', 0, 'photo4.jpg'),
-(12, 37, '2024-12-20 00:00:00', 1, 'photo4.jpg'),
-(13, 5, '2024-12-31 00:00:00', 1, 'photo3.jpg'),
-(14, 5, '2024-12-21 00:00:00', 1, 'photo5.jpg'),
+(4, 6, '2025-01-07 00:00:00', 1, 'photo4.jpg'),
+(7, 1172, '2024-12-15 00:00:00', 1, 'photo3.jpg'),
+(8, 4, '2024-12-18 00:00:00', 1, 'photo3.jpg'),
 (15, 1172, '2024-12-28 00:00:00', 1, 'photo2.jpg'),
 (16, 1172, '2024-12-27 00:00:00', 1, 'photo5.jpg'),
-(17, 1172, '2024-12-25 00:00:00', 0, 'photo2.jpg'),
-(18, 5, '2024-12-23 00:00:00', 1, 'photo1.jpg'),
+(17, 1172, '2024-12-25 00:00:00', 1, 'photo2.jpg'),
 (19, 6, '2024-12-19 00:00:00', 1, 'photo2.jpg'),
-(20, 3, '2024-12-21 00:00:00', 0, 'photo2.jpg'),
-(21, 1172, '2024-12-25 00:00:00', 0, 'photo4.jpg'),
-(22, 37, '2024-12-15 00:00:00', 0, 'photo1.jpg'),
+(21, 1172, '2024-12-25 00:00:00', 1, 'photo4.jpg'),
 (23, 1172, '2024-12-26 00:00:00', 1, 'photo1.jpg'),
-(24, 6, '2025-01-11 00:00:00', 0, 'photo1.jpg'),
+(24, 6, '2025-01-11 00:00:00', 1, 'photo1.jpg'),
 (25, 6, '2024-12-23 00:00:00', 1, 'photo2.jpg'),
 (26, 6, '2024-12-18 00:00:00', 1, 'photo1.jpg'),
-(27, 1172, '2025-01-11 00:00:00', 0, 'photo5.jpg'),
-(28, 5, '2024-12-15 00:00:00', 0, 'photo1.jpg'),
-(29, 3, '2024-12-29 00:00:00', 1, 'photo4.jpg'),
-(30, 6, '2025-01-13 00:00:00', 0, 'photo2.jpg'),
-(31, 37, '2024-12-27 00:00:00', 1, 'photo1.jpg'),
-(32, 1172, '2025-01-09 00:00:00', 0, 'photo5.jpg'),
+(27, 1172, '2025-01-11 00:00:00', 1, 'photo5.jpg'),
+(30, 6, '2025-01-13 00:00:00', 1, 'photo2.jpg'),
+(32, 1172, '2025-01-09 00:00:00', 1, 'photo5.jpg'),
 (33, 4, '2025-01-12 00:00:00', 1, 'photo4.jpg'),
 (34, 4, '2025-01-02 00:00:00', 1, 'photo4.jpg'),
-(35, 3, '2024-12-15 00:00:00', 0, 'photo4.jpg'),
-(36, 5, '2024-12-15 00:00:00', 0, 'photo4.jpg'),
-(37, 37, '2024-12-17 00:00:00', 0, 'photo3.jpg'),
 (38, 1172, '2025-01-09 00:00:00', 1, 'photo5.jpg'),
 (39, 6, '2025-01-06 00:00:00', 1, 'photo3.jpg'),
-(40, 5, '2025-01-12 00:00:00', 0, 'photo1.jpg'),
-(41, 3, '2025-01-06 00:00:00', 0, 'photo1.jpg'),
-(42, 37, '2025-01-01 00:00:00', 0, 'photo5.jpg'),
-(43, 37, '2024-12-16 00:00:00', 0, 'photo3.jpg'),
-(44, 3, '2024-12-26 00:00:00', 0, 'photo1.jpg'),
-(45, 37, '2024-12-15 00:00:00', 1, 'photo4.jpg'),
-(46, 6, '2024-12-27 00:00:00', 0, 'photo2.jpg'),
-(47, 5, '2024-12-26 00:00:00', 1, 'photo4.jpg'),
-(48, 37, '2024-12-18 00:00:00', 1, 'photo4.jpg'),
-(49, 6, '2025-01-13 00:00:00', 0, 'photo5.jpg'),
-(50, 37, '2024-12-23 00:00:00', 1, 'photo2.jpg'),
-(51, 6, '2024-12-23 00:00:00', 0, 'photo3.jpg'),
-(52, 3, '2024-12-30 00:00:00', 1, 'photo3.jpg'),
-(53, 5, '2025-01-11 00:00:00', 1, 'photo2.jpg'),
+(46, 6, '2024-12-27 00:00:00', 1, 'photo2.jpg'),
+(49, 6, '2025-01-13 00:00:00', 1, 'photo5.jpg'),
+(51, 6, '2024-12-23 00:00:00', 1, 'photo3.jpg'),
 (54, 1172, '2025-01-04 00:00:00', 1, 'photo4.jpg'),
-(55, 37, '2024-12-21 00:00:00', 1, 'photo2.jpg'),
-(56, 4, '2025-01-01 00:00:00', 0, 'photo3.jpg'),
-(57, 4, '2025-01-03 00:00:00', 0, 'photo3.jpg'),
+(56, 4, '2025-01-01 00:00:00', 1, 'photo3.jpg'),
+(57, 4, '2025-01-03 00:00:00', 1, 'photo3.jpg'),
 (58, 4, '2025-01-07 00:00:00', 1, 'photo1.jpg'),
-(59, 3, '2025-01-02 00:00:00', 0, 'photo4.jpg'),
-(60, 3, '2024-12-17 00:00:00', 1, 'photo3.jpg'),
 (61, 1172, '2025-01-08 00:00:00', 1, 'photo1.jpg'),
 (62, 4, '2024-12-30 00:00:00', 1, 'photo5.jpg'),
-(63, 5, '2025-01-05 00:00:00', 0, 'photo1.jpg'),
-(64, 5, '2024-12-30 00:00:00', 1, 'photo1.jpg'),
-(65, 5, '2024-12-21 00:00:00', 1, 'photo3.jpg'),
-(66, 6, '2024-12-25 00:00:00', 0, 'photo3.jpg'),
-(67, 3, '2024-12-20 00:00:00', 1, 'photo3.jpg'),
+(66, 6, '2024-12-25 00:00:00', 1, 'photo3.jpg'),
 (68, 1172, '2025-01-11 00:00:00', 1, 'photo4.jpg'),
-(69, 37, '2024-12-17 00:00:00', 1, 'photo1.jpg'),
 (70, 4, '2025-01-07 00:00:00', 1, 'photo2.jpg'),
-(71, 5, '2024-12-15 00:00:00', 1, 'photo3.jpg'),
-(72, 37, '2025-01-12 00:00:00', 1, 'photo3.jpg'),
 (73, 6, '2024-12-30 00:00:00', 1, 'photo5.jpg'),
-(74, 5, '2025-01-11 00:00:00', 1, 'photo2.jpg'),
 (75, 1172, '2025-01-01 00:00:00', 1, 'photo5.jpg'),
-(76, 3, '2024-12-20 00:00:00', 1, 'photo5.jpg'),
-(77, 5, '2025-01-02 00:00:00', 1, 'photo2.jpg'),
-(78, 4, '2025-01-07 00:00:00', 0, 'photo2.jpg'),
-(79, 3, '2025-01-01 00:00:00', 0, 'photo2.jpg'),
+(78, 4, '2025-01-07 00:00:00', 1, 'photo2.jpg'),
 (80, 6, '2024-12-16 00:00:00', 1, 'photo4.jpg'),
-(81, 5, '2024-12-26 00:00:00', 1, 'photo4.jpg'),
-(82, 3, '2024-12-30 00:00:00', 0, 'photo5.jpg'),
-(83, 3, '2024-12-30 00:00:00', 1, 'photo5.jpg'),
 (84, 6, '2025-01-01 00:00:00', 1, 'photo3.jpg'),
-(85, 5, '2024-12-27 00:00:00', 1, 'photo4.jpg'),
-(86, 4, '2024-12-15 00:00:00', 0, 'photo4.jpg'),
-(87, 3, '2024-12-27 00:00:00', 1, 'photo1.jpg'),
-(88, 1172, '2025-01-08 00:00:00', 0, 'photo1.jpg'),
-(89, 5, '2024-12-27 00:00:00', 0, 'photo1.jpg'),
-(90, 3, '2024-12-20 00:00:00', 0, 'photo5.jpg'),
-(91, 6, '2025-01-01 00:00:00', 0, 'photo4.jpg'),
+(86, 4, '2024-12-15 00:00:00', 1, 'photo4.jpg'),
+(88, 1172, '2025-01-08 00:00:00', 1, 'photo1.jpg'),
+(91, 6, '2025-01-01 00:00:00', 1, 'photo4.jpg'),
 (92, 4, '2024-12-19 00:00:00', 1, 'photo5.jpg'),
-(93, 3, '2025-01-02 00:00:00', 0, 'photo3.jpg'),
 (94, 4, '2024-12-31 00:00:00', 1, 'photo3.jpg'),
-(95, 1172, '2024-12-25 00:00:00', 0, 'photo3.jpg'),
-(96, 37, '2025-01-12 00:00:00', 0, 'photo2.jpg'),
-(97, 3, '2024-12-28 00:00:00', 0, 'photo5.jpg'),
+(95, 1172, '2024-12-25 00:00:00', 1, 'photo3.jpg'),
 (98, 4, '2025-01-10 00:00:00', 1, 'photo5.jpg'),
-(99, 4, '2024-12-26 00:00:00', 0, 'photo2.jpg'),
-(100, 4, '2025-01-01 00:00:00', 0, 'photo1.jpg'),
-(101, 37, '2025-01-08 00:00:00', 0, 'photo1.jpg'),
-(102, 37, '2025-01-03 00:00:00', 1, 'photo5.jpg');
+(99, 4, '2024-12-26 00:00:00', 1, 'photo2.jpg'),
+(100, 4, '2025-01-01 00:00:00', 1, 'photo1.jpg');
 
 -- --------------------------------------------------------
 
@@ -384,16 +419,12 @@ CREATE TABLE `personell` (
 --
 
 INSERT INTO `personell` (`id`, `id_no`, `rfid_number`, `last_name`, `first_name`, `middle_name`, `date_of_birth`, `role`, `sex`, `civil_status`, `contact_number`, `email_address`, `department`, `section`, `status`, `complete_address`, `photo`, `place_of_birth`, `category`, `date_added`, `deleted`) VALUES
-(1, '', '0009549683', 'Amonte', 'Jerald', '', '1990-01-09', 'Security Personnel', 'Female', 'Married', '', '', 'SECURITY', '', 'Active', 'Bantigue, Bantayan, Cebu', 'b3.jpg', 'Bantigue,Bantayan', 'Contractual', '2024-11-25 23:36:35', 0),
-(3, '23456789', '0009503615', 'Anderson', 'Abigail Nicole', '', '2010-04-08', 'Student', 'Female', 'Single', '', '', 'BSBA', '', 'Active', 'Manila City', 'g1.jpg', 'Manila City', 'Student', '2024-11-25 23:36:35', 0),
-(4, '09876544', '0009534646', 'Smith', 'David', '', '1978-03-11', 'Instructor', 'Male', 'Married', '', '', 'BSIT', '', 'Active', 'USA', 'b1.jpg', 'USA', 'Regular', '2024-11-25 23:36:35', 0),
-(5, '456784332', '0009693525', 'Santillian', 'Miguel', '', '1998-03-07', 'Instructor', 'Male', 'Single', '', '', 'BSBA', '', 'Active', 'Cebu City', 'b2.jpg', 'Cebu City', 'Regular', '2024-11-25 23:36:35', 0),
-(6, '35627819', '0009693526', 'Park', 'Mary', '', '2004-02-10', 'Student', 'Male', 'Single', '', '', 'BSIT', '', 'Block', 'Santa Fe', '3.jpg', 'Santa Fe', 'Student', '2024-11-25 23:36:35', 0),
+(1, '', '0009549683', 'Amonte', 'Jerald', '', '1990-01-09', '', 'Female', 'Married', '', '', 'BSIT', '', 'Active', 'Bantigue, Bantayan, Cebu', '685d01b732cef.png', 'Bantigue,Bantayan', '', '2025-07-01 02:17:42', 0),
+(5, '456784332', '0009693525', 'Santillian', 'Miguel', '', '1998-03-07', '', 'Male', 'Single', '', '', 'BSBA', '', 'Active', 'Cebu City', 'b2.jpg', 'Cebu City', '', '2025-06-27 07:25:43', 0),
+(6, '35627819', '0009693563', 'Park', 'Mary', '', '2004-02-10', '', 'Male', 'Single', '', '', 'BSIT', '', 'Block', 'Santa Fe', '3.jpg', 'Santa Fe', '', '2025-06-28 11:51:35', 0),
 (8, '', '4576879854', 'kjhkh', 'jgjk', '', '2006-12-05', 'Student', '', '', '', '', 'BSBA', '', 'Active', '', 'b2.jpg', '', 'Student', '2024-12-10 21:02:56', 1),
-(37, '', '0009500932', 'Cruz', 'Jane', '', '2006-12-01', 'Student', '', '', '', '', 'BSIT', '', 'Active', '', '6.jpg', '', 'Student', '2024-12-10 19:35:39', 0),
-(39, '', '0976654567', 'tet', 'tet', '', '2006-12-05', 'Student', '', '', '', '', 'BSIT', '', 'Active', '', 'header1.png', '', 'Student', '2024-12-22 19:44:05', 1),
-(1172, '', '3553453453', 'Ungon', 'Kath', 'Jean', '2006-10-05', 'Staff', 'Male', 'Single', '', '', 'HD', '', 'Block', 'Conception Street', '65.jpg  ', 'Kyebe', 'Regular', '2024-11-25 23:36:35', 0),
-(78393, '', '2445645645', 'nerw', 'new', '', '2006-11-28', 'Student', '', '', '', '', 'SECURITY', '', 'Active', '', '9.jpg', '', 'Student', '2024-12-18 19:01:15', 1);
+(39, '', '0976654564', 'tet', 'tet', '', '2006-12-05', '', '', '', '', '', 'BSIT', '', 'Active', '', '68556ff4e8800.png', '', '', '2025-06-27 05:35:11', 1),
+(1172, '', '3553453453', 'Ungon', 'Kath', 'Jean', '2006-10-05', '', 'Male', 'Single', '', '', 'BSIT', '', 'Block', 'Conception Street', '65.jpg  ', 'Kyebe', '', '2025-07-01 05:05:03', 0);
 
 -- --------------------------------------------------------
 
@@ -603,7 +634,7 @@ INSERT INTO `personell_logs` (`id`, `photo`, `rfid_number`, `full_name`, `time_i
 
 CREATE TABLE `role` (
   `id` int(11) NOT NULL,
-  `role` varchar(50) NOT NULL
+  `role` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -615,7 +646,6 @@ INSERT INTO `role` (`id`, `role`) VALUES
 (5, 'Instructor'),
 (6, 'Security Personnel'),
 (8, 'Staff'),
-(19, 'Utility'),
 (20, 'Logistics'),
 (21, 'Director'),
 (22, 'Manager'),
@@ -632,7 +662,6 @@ INSERT INTO `role` (`id`, `role`) VALUES
 (33, 'Supervisor'),
 (34, 'Designer'),
 (35, 'Quality Assurance'),
-(36, 'Supervisor'),
 (37, 'Designer'),
 (38, 'Manager'),
 (39, 'Developer'),
@@ -644,7 +673,6 @@ INSERT INTO `role` (`id`, `role`) VALUES
 (45, 'Receptionist'),
 (46, 'Receptionist'),
 (47, 'Client Relations'),
-(48, 'Visitor'),
 (49, 'Supervisor'),
 (50, 'Assistant'),
 (51, 'Support'),
@@ -656,15 +684,11 @@ INSERT INTO `role` (`id`, `role`) VALUES
 (57, 'Director'),
 (58, 'Researcher'),
 (59, 'Driver'),
-(60, 'Technician'),
 (61, 'HR'),
 (62, 'Security Officer'),
 (63, 'Logistics'),
 (64, 'Director'),
-(65, 'Team Lead'),
-(66, 'Trainer'),
 (67, 'Service Manager'),
-(68, 'Team Member'),
 (69, 'Engineer'),
 (70, 'Operations Manager'),
 (71, 'Project Manager'),
@@ -673,13 +697,11 @@ INSERT INTO `role` (`id`, `role`) VALUES
 (74, 'Administrator'),
 (75, 'Quality Assurance'),
 (76, 'Inventory Manager'),
-(77, 'Trainer'),
 (78, 'Instructor'),
 (79, 'Receptionist'),
 (80, 'Project Manager'),
 (81, 'Customer Service'),
 (82, 'Engineer'),
-(83, 'Team Lead'),
 (84, 'Developer'),
 (85, 'Leader'),
 (86, 'Researcher'),
@@ -704,20 +726,19 @@ INSERT INTO `role` (`id`, `role`) VALUES
 (105, 'Supervisor'),
 (106, 'Director'),
 (107, 'Manager'),
-(108, 'Trainer Lead'),
-(109, 'Support'),
 (110, 'Clerk'),
 (111, 'Clerk'),
 (112, 'Supervisor Lead'),
 (113, 'Operator'),
 (114, 'Customer Service'),
-(115, 'asdqwe'),
-(116, 'qeqweqweqwe'),
-(117, 'qweqe'),
 (118, 'RE'),
 (119, 'jkkjjkkj'),
 (120, 'oiyi'),
-(121, 'jkjkjjkjjnjk');
+(124, 'Nilhig'),
+(125, 'Cutter'),
+(126, 'Magician'),
+(129, 'bubu'),
+(136, '1111');
 
 -- --------------------------------------------------------
 
@@ -734,121 +755,6 @@ CREATE TABLE `rooms` (
   `descr` varchar(255) DEFAULT NULL,
   `authorized_personnel` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `rooms`
---
-
-INSERT INTO `rooms` (`id`, `room`, `department`, `password`, `desc`, `descr`, `authorized_personnel`) VALUES
-(5, 'LAB1', 'BSIT', '$2y$10$p.Jj.IpfWnmU.RXfHtzZ8eX8V33o3yn0rvGx6cPa1xvMi0EcNDUQm', '', 'Laboratory 1', 'Instructor'),
-(34, 'LR1', 'BSBA', '$2y$10$P72/i78SX.VxjCHZDeuq.uymygRmhJ3LUl9OdlaFGPtXindUSu/DG', '', 'Lecture Room 1', 'Instructor'),
-(35, 'LR1', 'BSIT', '$2y$10$dkTiH6wkG6alNMXZHuunBO6Mu8V1oQU6jMVMsojepz.Qy02cnr9GW', '', 'Lecture Room 1', 'Instructor'),
-(36, 'LAB2', 'BSIT', '$2y$10$98HbeCRXk7yu0rNS7AO83O6DLIYr44RSsQjuYdZ9ui8gem03oK.Tm', '', 'Laboratory 2', 'Instructor'),
-(37, 'CL1', 'BSIT', '$2y$10$r9LzuPmE.OiE1W83zPsMIeBLPgotqM/HLnQOkQbYEPb3dlGksnaYy', '', 'Com Lab 1', 'Instructor'),
-(39, 'ComLab1', 'BSIT', 'bsitcomlab1', 'Computer Laboratory 1', '', 'Instructor'),
-(40, 'ComLab2', 'BSIT', 'bsitcomlab2', 'Computer Laboratory 2', '', 'Instructor'),
-(41, 'NetLab1', 'BSIT', 'bsitnetlab1', 'Networking Laboratory 1', '', 'Instructor'),
-(42, 'NetLab2', 'BSIT', 'bsitnetlab2', 'Networking Laboratory 2', '', 'Instructor'),
-(43, 'LectureHall', 'BSIT', 'bsitlecturehall', 'Lecture Hall', '', 'Instructor'),
-(44, 'CSLab1', 'BSCS', 'bscscomlab1', 'Computer Science Laboratory 1', '', 'Instructor'),
-(45, 'CSLab2', 'BSCS', 'bscscomlab2', 'Computer Science Laboratory 2', '', 'Instructor'),
-(46, 'AlgoRoom', 'BSCS', 'bscsalgo', 'Algorithms Room', '', 'Instructor'),
-(47, 'LogicLab', 'BSCS', 'bscslogiclab', 'Logic Laboratory', '', 'Instructor'),
-(48, 'DataLab', 'BSCS', 'bscsdatalab', 'Data Structures Laboratory', '', 'Instructor'),
-(49, 'AccountLab', 'BSBA', 'bsbaaccountlab', 'Accounting Laboratory', '', 'Instructor'),
-(50, 'FinanceRoom', 'BSBA', 'bsbafinance', 'Finance Room', '', 'Instructor'),
-(51, 'ManagementRoom', 'BSBA', 'bsbamanagement', 'Management Room', '', 'Instructor'),
-(52, 'MarketingLab', 'BSBA', 'bsbamarketinglab', 'Marketing Laboratory', '', 'Instructor'),
-(53, 'BusinessHall', 'BSBA', 'bsbabusinesshall', 'Business Hall', '', 'Instructor'),
-(54, 'KitchenLab1', 'BSHRM', 'bshrmlab1', 'Kitchen Laboratory 1', '', 'Instructor'),
-(55, 'KitchenLab2', 'BSHRM', 'bshrmlab2', 'Kitchen Laboratory 2', '', 'Instructor'),
-(56, 'FrontOffice', 'BSHRM', 'bshrmfrontoffice', 'Front Office Training Room', '', 'Instructor'),
-(57, 'HotelRoom', 'BSHRM', 'bshrmhotelroom', 'Hotel Room Training Facility', '', 'Instructor'),
-(58, 'DiningLab', 'BSHRM', 'bshrmdininglab', 'Dining Laboratory', '', 'Instructor'),
-(59, 'NursingLab1', 'BSN', '$2y$10$QzwcPkgpT09u6EN4KqHfouVLMMcK.MuEh3dLQMcO/kuIRC/D3wNRS', 'Nursing Laboratory 1', 'Nursing Laboratory 1', 'Instructor'),
-(60, 'NursingLab2', 'BSN', '$2y$10$kckA.Rx5FEYSsy33bSffiuDTH4XDZA14RVgG0gNJygOzRRdcG9AHu', 'Nursing Laboratory 2', 'Nursing Laboratory 2', 'Instructor'),
-(61, 'AnatomyLab', 'BSN', '$2y$10$.IgOLWuDwRFxLAHGY2s5rOg/NRnDUXk2OtDvlfS/NO2YO389s0uLa', 'Anatomy Laboratory', 'Anatomy Laboratory', 'Instructor'),
-(62, 'SimulationRoom', 'BSN', '$2y$10$NKePENRIfuz1ySmY1mHeeuz99PoKUxh7jQQ1fHU7WxcihjUDqHOYO', 'Simulation Room', 'Simulation Room', 'Instructor'),
-(63, 'HealthHall', 'BSN', '$2y$10$MF5San7NmIymUJ1FF3jw/uK6h6YA7ooTNahTEq2wkRH40nWyu6//e', 'Health Hall', 'Health Hall', 'Instructor'),
-(64, 'MechLab1', 'BSME', 'bsmechlab1', 'Mechanical Laboratory 1', '', 'Instructor'),
-(65, 'MechLab2', 'BSME', 'bsmechlab2', 'Mechanical Laboratory 2', '', 'Instructor'),
-(66, 'ThermoRoom', 'BSME', 'bsmethermoroom', 'Thermodynamics Room', '', 'Instructor'),
-(67, 'AutoLab', 'BSME', 'bsmeautolab', 'Automotive Laboratory', '', 'Instructor'),
-(68, 'EngHall', 'BSME', 'bsmeenghall', 'Engineering Hall', '', 'Instructor'),
-(69, 'ElecLab1', 'BSEE', 'bseeeleclab1', 'Electrical Laboratory 1', '', 'Instructor'),
-(70, 'ElecLab2', 'BSEE', 'bseeeleclab2', 'Electrical Laboratory 2', '', 'Instructor'),
-(71, 'CircuitRoom', 'BSEE', 'bseecircuit', 'Circuit Design Room', '', 'Instructor'),
-(72, 'PowerLab', 'BSEE', 'bseepowerlab', 'Power Systems Laboratory', '', 'Instructor'),
-(73, 'EnergyHall', 'BSEE', 'bseeenergyhall', 'Energy Hall', '', 'Instructor'),
-(74, 'CivilLab1', 'BSCE', 'bscecivlab1', 'Civil Engineering Laboratory 1', '', 'Instructor'),
-(75, 'CivilLab2', 'BSCE', 'bscecivlab2', 'Civil Engineering Laboratory 2', '', 'Instructor'),
-(76, 'StructuralLab', 'BSCE', 'bscestructlab', 'Structural Design Laboratory', '', 'Instructor'),
-(77, 'SoilLab', 'BSCE', 'bscesoillab', 'Soil Testing Laboratory', '', 'Instructor'),
-(78, 'GeoRoom', 'BSCE', 'bscegeoroom', 'Geotechnical Room', '', 'Instructor'),
-(79, 'DesignStudio1', 'BSARCH', 'bsarchdesign1', 'Design Studio 1', '', 'Instructor'),
-(80, 'DesignStudio2', 'BSARCH', 'bsarchdesign2', 'Design Studio 2', '', 'Instructor'),
-(81, 'RenderLab', 'BSARCH', 'bsarchrender', 'Rendering Laboratory', '', 'Instructor'),
-(82, 'ModelRoom', 'BSARCH', 'bsarchmodel', 'Model Making Room', '', 'Instructor'),
-(83, 'ArchHall', 'BSARCH', 'bsarchhall', 'Architecture Hall', '', 'Instructor'),
-(84, 'TeachLab1', 'BEED', 'beedteachlab1', 'Teaching Laboratory 1', '', 'Instructor'),
-(85, 'TeachLab2', 'BEED', 'beedteachlab2', 'Teaching Laboratory 2', '', 'Instructor'),
-(86, 'EarlyEdRoom', 'BEED', 'beedearlyed', 'Early Education Room', '', 'Instructor'),
-(87, 'LitLab', 'BEED', 'beedlitlab', 'Literacy Laboratory', '', 'Instructor'),
-(88, 'EdHall', 'BEED', 'beededhall', 'Education Hall', '', 'Instructor'),
-(89, 'ComLab3', 'BSIT', 'bsitcomlab3', 'Computer Laboratory 3', '', 'Instructor'),
-(90, 'ComLab4', 'BSIT', 'bsitcomlab4', 'Computer Laboratory 4', '', 'Instructor'),
-(91, 'NetLab3', 'BSIT', 'bsitnetlab3', 'Networking Laboratory 3', '', 'Instructor'),
-(92, 'ResearchLab', 'BSIT', 'bsitresearchlab', 'Research Laboratory', '', 'Instructor'),
-(93, 'AI_Lab', 'BSIT', 'bsitailab', 'Artificial Intelligence Lab', '', 'Instructor'),
-(94, 'CSLab3', 'BSCS', 'bscscomlab3', 'Computer Science Laboratory 3', '', 'Instructor'),
-(95, 'SoftEngLab', 'BSCS', 'bscssoftenglab', 'Software Engineering Lab', '', 'Instructor'),
-(96, 'GraphicsLab', 'BSCS', 'bscsgraphicslab', 'Graphics and Visualization Lab', '', 'Instructor'),
-(97, 'TheoryRoom', 'BSCS', 'bscstheoryroom', 'Theory of Computation Room', '', 'Instructor'),
-(98, 'DatabaseLab', 'BSCS', 'bscsdatabaselab', 'Database Systems Laboratory', '', 'Instructor'),
-(99, 'EcoLab', 'BSBA', 'bsbaecolab', 'Economics Laboratory', '', 'Instructor'),
-(100, 'EntreRoom', 'BSBA', 'bsbaentreroom', 'Entrepreneurship Room', '', 'Instructor'),
-(101, 'HRRoom', 'BSBA', 'bsbahrroom', 'Human Resources Room', '', 'Instructor'),
-(102, 'SalesLab', 'BSBA', 'bsbasaleslab', 'Sales and Marketing Laboratory', '', 'Instructor'),
-(103, 'ConfRoom', 'BSBA', 'bsbaconfroom', 'Conference Room', '', 'Instructor'),
-(104, 'DiningLab2', 'BSHRM', 'bshrmdininglab2', 'Advanced Dining Laboratory', '', 'Instructor'),
-(105, 'BakingLab', 'BSHRM', 'bshrmbakinglab', 'Baking Laboratory', '', 'Instructor'),
-(106, 'HospitalityRoom', 'BSHRM', 'bshrmhospitality', 'Hospitality Room', '', 'Instructor'),
-(107, 'LaundryLab', 'BSHRM', 'bshrmlaundrylab', 'Laundry Training Laboratory', '', 'Instructor'),
-(108, 'EventRoom', 'BSHRM', 'bshrmeventroom', 'Event Management Room', '', 'Instructor'),
-(109, 'PediatricsLab', 'BSN', '$2y$10$cv9Jt0OQxltK9P4UrOw3/urChNZ9WUO4Nje3u2yvCQacpva0DlrUG', 'Pediatrics Laboratory', 'Pediatrics Laboratory', 'Instructor'),
-(110, 'ERLab', 'BSN', '$2y$10$ldEriWtiT7GHRBSSe7dxdOmFzdREzUD9hFWyTYQen3UyjegSb99MG', 'Emergency Room Simulation', 'ER Laboratory', 'Instructor'),
-(111, 'OBLab', 'BSN', '$2y$10$ENmRuvYuBD9ZCkwfq6XOmeTzd6KedNkCj0XCxAMODCVZdjhuc1A6S', 'Obstetrics Laboratory', 'OB Laboratory', 'Instructor'),
-(112, 'ICURoom', 'BSN', '$2y$10$n1p7z5dj5jUoxccUOzCTGOEDUCI/tGTtu9PH.Ps2g3veedpjgEcjy', 'Intensive Care Unit Simulation', 'ICU Room', 'Instructor'),
-(113, 'PharmaLab', 'BSN', '$2y$10$34k/GAgEMeHlN848miE9F.Xn8zi7GjUcVeTPqgeSVrMdQN5D9/pXi', 'Pharmaceutical Laboratory', 'Pharmacy Laboratory  3', 'Student'),
-(114, 'FluidLab', 'BSME', 'bsmefluidlab', 'Fluid Mechanics Laboratory', '', 'Instructor'),
-(115, 'CADLab', 'BSME', 'bsmecadlab', 'CAD Design Laboratory', '', 'Instructor'),
-(116, 'MaterialsLab', 'BSME', 'bsmematerialslab', 'Materials Science Laboratory', '', 'Instructor'),
-(117, 'WeldingLab', 'BSME', 'bsmeweldinglab', 'Welding Laboratory', '', 'Instructor'),
-(118, 'ThermalLab', 'BSME', 'bsmethermallab', 'Thermal Engineering Laboratory', '', 'Instructor'),
-(119, 'ControlsLab', 'BSEE', 'bseecontrolslab', 'Controls Engineering Laboratory', '', 'Instructor'),
-(120, 'RenewableLab', 'BSEE', 'bseerenewablelab', 'Renewable Energy Laboratory', '', 'Instructor'),
-(121, 'RoboticsLab', 'BSEE', 'bseeroboticslab', 'Robotics Laboratory', '', 'Instructor'),
-(122, 'SignalLab', 'BSEE', 'bseesignallab', 'Signal Processing Lab', '', 'Instructor'),
-(123, 'CircuitDesignLab', 'BSEE', 'bseecircuitdesignlab', 'Advanced Circuit Design Laboratory', '', 'Instructor'),
-(124, 'TransportLab', 'BSCE', 'bsctransportlab', 'Transportation Engineering Laboratory', '', 'Instructor'),
-(125, 'HydraulicsLab', 'BSCE', 'bscehydraulicslab', 'Hydraulics Engineering Lab', '', 'Instructor'),
-(126, 'ConcreteLab', 'BSCE', 'bsceconcretelab', 'Concrete Testing Laboratory', '', 'Instructor'),
-(127, 'EnviroLab', 'BSCE', 'bsceenvirolab', 'Environmental Engineering Lab', '', 'Instructor'),
-(128, 'SurveyRoom', 'BSCE', 'bscesurveyroom', 'Surveying Room', '', 'Instructor'),
-(129, 'UrbanLab', 'BSARCH', 'bsarchurbanlab', 'Urban Design Lab', '', 'Instructor'),
-(130, 'GreenLab', 'BSARCH', 'bsarchgreenlab', 'Green Architecture Lab', '', 'Instructor'),
-(131, 'HistoryRoom', 'BSARCH', 'bsarchhistory', 'Architectural History Room', '', 'Instructor'),
-(132, 'LightLab', 'BSARCH', 'bsarchlightlab', 'Lighting Design Laboratory', '', 'Instructor'),
-(133, 'InteriorRoom', 'BSARCH', 'bsarchinterior', 'Interior Design Room', '', 'Instructor'),
-(134, 'TechRoom', 'BEED', 'beedtechroom', 'Technology in Education Room', '', 'Instructor'),
-(135, 'ScienceLab', 'BEED', 'beedsciencelab', 'Science Teaching Lab', '', 'Instructor'),
-(136, 'ArtsRoom', 'BEED', 'beedartsroom', 'Art in Education Room', '', 'Instructor'),
-(137, 'LangLab', 'BEED', 'beedlanglab', 'Language Teaching Lab', '', 'Instructor'),
-(138, 'MathRoom', 'BEED', 'beedmathroom', 'Mathematics Teaching Room', '', 'Instructor'),
-(139, '1', 'BSIT', '$2y$10$.MbPdQwi.B3cpNRD8EFd5.D0wUL/skMen19g6lgTgwyOAAYn4D1jq', NULL, 'ws', 'Student'),
-(140, '45', 'BSIT', '$2y$10$IeazOXW0N4oi1qIKJmtZCuTWGlQAcCUKBi6g7md3LCq8zX7EK/c9a', NULL, 'HAlll', 'Student'),
-(141, '23', 'BSIT', '$2y$10$7Zn.YF8dbwHSrUd3IA3Y3eDy8mOW37SoR0fmIYu2/3kzxrnCkfcpK', NULL, 'ss', 'Student'),
-(142, '109', 'BSIT', '$2y$10$Y.3toSaG3UyO87VFi2OBLOknamxcBZBe/8VR193Q5C.n9Ceo2wBWO', NULL, 's', 'Student');
 
 -- --------------------------------------------------------
 
@@ -965,6 +871,38 @@ INSERT INTO `room_logs` (`id`, `date_logged`, `location`, `time_in`, `time_out`,
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `room_schedules`
+--
+
+CREATE TABLE `room_schedules` (
+  `department` varchar(5155) NOT NULL,
+  `id` int(11) NOT NULL,
+  `room_name` varchar(100) DEFAULT NULL,
+  `room_location` varchar(255) DEFAULT NULL,
+  `room_password` varchar(255) DEFAULT NULL,
+  `subject` varchar(100) DEFAULT NULL,
+  `section` varchar(50) DEFAULT NULL,
+  `year_level` varchar(20) DEFAULT NULL,
+  `start_time` time DEFAULT NULL,
+  `end_time` time DEFAULT NULL,
+  `day` varchar(20) DEFAULT NULL,
+  `instructor` varchar(58) NOT NULL,
+  `instructor_rfid` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `room_schedules`
+--
+
+INSERT INTO `room_schedules` (`department`, `id`, `room_name`, `room_location`, `room_password`, `subject`, `section`, `year_level`, `start_time`, `end_time`, `day`, `instructor`, `instructor_rfid`) VALUES
+('BSED', 8, 'EDUC-101', NULL, NULL, 'Filipino', 'North', '1st', '08:40:00', '10:40:00', 'Monday', 'Mr.Richard Bracero', NULL),
+('BSHRM', 9, 'KitchenLab1', NULL, NULL, 'dqwewq', 'West', '1st', '21:40:00', '11:40:00', 'Wednesday', 'Mr.Jared Cueva', NULL),
+('BSIT', 10, 'ComLab1', NULL, NULL, 'Networking', 'West', '4th', '09:30:00', '11:30:00', 'Friday', 'Mr.Jared Cueva', NULL),
+('BSBA', 12, 'AccountLab', NULL, NULL, 'Business Acc.', 'West', '4th', '13:20:00', '15:20:00', 'Wednesday', 'Mr.Alvin Billiones', NULL);
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `stranger_logs`
 --
 
@@ -994,6 +932,33 @@ INSERT INTO `stranger_logs` (`id`, `attempts`, `last_log`, `rfid_number`) VALUES
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `students`
+--
+
+CREATE TABLE `students` (
+  `id` int(11) NOT NULL,
+  `id_number` varchar(20) NOT NULL,
+  `fullname` varchar(100) NOT NULL,
+  `section` varchar(50) NOT NULL,
+  `year` varchar(20) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `department_id` varchar(144) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `students`
+--
+
+INSERT INTO `students` (`id`, `id_number`, `fullname`, `section`, `year`, `created_at`, `updated_at`, `department_id`) VALUES
+(40, '2024-1697', 'Devora A. Maquiling', 'West', '1st Year', '2025-06-28 10:25:15', '2025-06-28 10:25:26', '60'),
+(41, '2024-1570', 'Rich T. Gaid', 'West', '1st Year', '2025-06-28 10:26:01', '2025-06-28 10:26:01', '60'),
+(42, '2024-0117', 'Mitshelne M. Illut', 'North', '1st Year', '2025-06-28 10:27:52', '2025-06-28 10:27:52', '63'),
+(43, '8749-8887', 'Elmer V. Espinosa', 'West', '4th Year', '2025-06-29 04:58:27', '2025-06-29 04:58:27', '33');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `user`
 --
 
@@ -1002,17 +967,18 @@ CREATE TABLE `user` (
   `contact` varchar(15) NOT NULL,
   `email` varchar(255) NOT NULL,
   `username` varchar(255) NOT NULL,
-  `password` varchar(255) NOT NULL
+  `password` varchar(255) NOT NULL,
+  `rfid_number` varchar(50) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `user`
 --
 
-INSERT INTO `user` (`id`, `contact`, `email`, `username`, `password`) VALUES
-(2, '09560379350', 'kyebejeanu@gmail.com', '', ''),
-(23, '09483733246', 'try@gmail.com', 'admin', '$2y$10$D8v4FQ3C.vwydQAoZCIIGuGlMY6ms/v1JseI/KHT1ZLV/WTjtyPHO'),
-(20240331, '', 'kyebejeanungon@gmail.com', 'rfidgpms', '$2y$10$m9ROK7ZsYPeI8APkyJVxhO8n7sSMeqaV93aOXvX3t7QRkjcmhJ48W');
+INSERT INTO `user` (`id`, `contact`, `email`, `username`, `password`, `rfid_number`) VALUES
+(2, '09560379350', 'kyebejeanu@gmail.com', 'admin', '$2y$10$jcAd4HtKBXyVxRRGNf39sOmX6FzsDb4hOcu6DGRnISwPGNSs6YM4.', '1234567899'),
+(23, '09483733246', 'try@gmail.com', 'admin', '$2y$10$SVcfbC0I/jGhtwrU8ajneeKdEAPv7QpStuWCXXJeG7.r2ZrK5SOwa', '9876543211'),
+(20240331, '', 'kyebejeanungon@gmail.com', 'rfidgpms', '$2y$10$NOm2di8hyRuWXbopq10XTunGgHflPyjE.g//WGND0hmuW/MBIIXb.', '1122334455');
 
 -- --------------------------------------------------------
 
@@ -1053,8 +1019,6 @@ INSERT INTO `visitor` (`id`, `name`, `department`, `contact_number`, `address`, 
 (39, '', '', '', '', '', '', '', '', '7474490588', ''),
 (40, '', '', '', '', '', '', '', '', '4298813407', ''),
 (41, '', '', '', '', '', '', '', '', '8564213767', ''),
-(42, '', '', '', '', '', '', '', '', '8789783676', ''),
-(43, '', '', '', '', '', '', '', '', '9295119984', ''),
 (44, '', '', '', '', '', '', '', '', '2884576225', ''),
 (45, '', '', '', '', '', '', '', '', '1357115735', ''),
 (46, '', '', '', '', '', '', '', '', '7224178482', ''),
@@ -1065,24 +1029,20 @@ INSERT INTO `visitor` (`id`, `name`, `department`, `contact_number`, `address`, 
 (51, '', '', '', '', '', '', '', '', '6404604576', ''),
 (52, '', '', '', '', '', '', '', '', '0413214449', ''),
 (53, '', '', '', '', '', '', '', '', '0662845200', ''),
-(54, '', '', '', '', '', '', '', '', '8731328333', ''),
 (55, '', '', '', '', '', '', '', '', '4302506668', ''),
 (56, '', '', '', '', '', '', '', '', '3240643840', ''),
 (57, '', '', '', '', '', '', '', '', '6604314909', ''),
 (58, '', '', '', '', '', '', '', '', '2453068181', ''),
 (59, '', '', '', '', '', '', '', '', '0495361030', ''),
 (60, '', '', '', '', '', '', '', '', '7250421127', ''),
-(61, '', '', '', '', '', '', '', '', '9420361502', ''),
 (62, '', '', '', '', '', '', '', '', '2533812870', ''),
 (63, '', '', '', '', '', '', '', '', '4232848677', ''),
 (64, '', '', '', '', '', '', '', '', '0734831735', ''),
 (65, '', '', '', '', '', '', '', '', '4167105671', ''),
 (66, '', '', '', '', '', '', '', '', '5215972187', ''),
-(67, '', '', '', '', '', '', '', '', '9406402965', ''),
 (68, '', '', '', '', '', '', '', '', '1251842896', ''),
 (69, '', '', '', '', '', '', '', '', '0325614706', ''),
 (70, '', '', '', '', '', '', '', '', '0383030484', ''),
-(71, '', '', '', '', '', '', '', '', '9896650810', ''),
 (72, '', '', '', '', '', '', '', '', '3681595736', ''),
 (73, '', '', '', '', '', '', '', '', '4873628718', ''),
 (74, '', '', '', '', '', '', '', '', '5516043504', ''),
@@ -1097,7 +1057,7 @@ INSERT INTO `visitor` (`id`, `name`, `department`, `contact_number`, `address`, 
 (83, '', '', '', '', '', '', '', '', '6806531704', ''),
 (84, '', '', '', '', '', '', '', '', '3875995871', ''),
 (85, '', '', '', '', '', '', '', '', '2785011108', ''),
-(86, '', '', '', '', '', '', '', '', '9881691337', ''),
+(86, '', '', '', '', '', '', '', '', '2343243423', ''),
 (87, '', '', '', '', '', '', '', '', '4064709907', ''),
 (88, '', '', '', '', '', '', '', '', '3412143639', ''),
 (89, '', '', '', '', '', '', '', '', '1174443772', ''),
@@ -1115,7 +1075,6 @@ INSERT INTO `visitor` (`id`, `name`, `department`, `contact_number`, `address`, 
 (101, '', '', '', '', '', '', '', '', '6246485118', ''),
 (102, '', '', '', '', '', '', '', '', '0239874705', ''),
 (103, '', '', '', '', '', '', '', '', '0556589801', ''),
-(104, '', '', '', '', '', '', '', '', '9747372768', ''),
 (105, '', '', '', '', '', '', '', '', '3482548405', ''),
 (106, '', '', '', '', '', '', '', '', '7493563613', ''),
 (107, '', '', '', '', '', '', '', '', '2484248566', ''),
@@ -1125,7 +1084,6 @@ INSERT INTO `visitor` (`id`, `name`, `department`, `contact_number`, `address`, 
 (111, '', '', '', '', '', '', '', '', '6111609690', ''),
 (112, '', '', '', '', '', '', '', '', '2256382014', ''),
 (113, '', '', '', '', '', '', '', '', '5768050518', ''),
-(114, '', '', '', '', '', '', '', '', '8893271798', ''),
 (115, '', '', '', '', '', '', '', '', '4639438742', ''),
 (116, '', '', '', '', '', '', '', '', '4407780893', ''),
 (117, '', '', '', '', '', '', '', '', '1941451470', ''),
@@ -1136,9 +1094,10 @@ INSERT INTO `visitor` (`id`, `name`, `department`, `contact_number`, `address`, 
 (122, '', '', '', '', '', '', '', '', '8462915688', ''),
 (123, '', '', '', '', '', '', '', '', '5119967235', ''),
 (124, '', '', '', '', '', '', '', '', '5995391685', ''),
-(125, '', '', '', '', '', '', '', '', '9604496474', ''),
+(125, '', '', '', '', '', '', '', '', '3434343434', ''),
 (126, '', '', '', '', '', '', '', '', '5152297351', ''),
-(127, '', '', '', '', '', '', '', '', '7218905170', '');
+(127, '', '', '', '', '', '', '', '', '7218905170', ''),
+(128, '', '', '', '', '', '', '', '', '1233212121', '');
 
 -- --------------------------------------------------------
 
@@ -1298,10 +1257,30 @@ ALTER TABLE `admin_sessions`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `archived_attendance_logs`
+--
+ALTER TABLE `archived_attendance_logs`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `student_id` (`student_id`);
+
+--
+-- Indexes for table `attendance_logs`
+--
+ALTER TABLE `attendance_logs`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `student_id` (`student_id`);
+
+--
 -- Indexes for table `department`
 --
 ALTER TABLE `department`
   ADD PRIMARY KEY (`department_id`);
+
+--
+-- Indexes for table `instructor`
+--
+ALTER TABLE `instructor`
+  ADD PRIMARY KEY (`id`);
 
 --
 -- Indexes for table `lostcard`
@@ -1346,10 +1325,23 @@ ALTER TABLE `room_logs`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `room_schedules`
+--
+ALTER TABLE `room_schedules`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indexes for table `stranger_logs`
 --
 ALTER TABLE `stranger_logs`
   ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `students`
+--
+ALTER TABLE `students`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `id_number` (`id_number`);
 
 --
 -- Indexes for table `user`
@@ -1386,10 +1378,28 @@ ALTER TABLE `admin_sessions`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=52;
 
 --
+-- AUTO_INCREMENT for table `archived_attendance_logs`
+--
+ALTER TABLE `archived_attendance_logs`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=130;
+
+--
+-- AUTO_INCREMENT for table `attendance_logs`
+--
+ALTER TABLE `attendance_logs`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=130;
+
+--
 -- AUTO_INCREMENT for table `department`
 --
 ALTER TABLE `department`
-  MODIFY `department_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=159;
+  MODIFY `department_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=164;
+
+--
+-- AUTO_INCREMENT for table `instructor`
+--
+ALTER TABLE `instructor`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `lostcard`
@@ -1407,7 +1417,7 @@ ALTER TABLE `lost_found`
 -- AUTO_INCREMENT for table `personell`
 --
 ALTER TABLE `personell`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7949458;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2147483648;
 
 --
 -- AUTO_INCREMENT for table `personell_logs`
@@ -1419,13 +1429,13 @@ ALTER TABLE `personell_logs`
 -- AUTO_INCREMENT for table `role`
 --
 ALTER TABLE `role`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=122;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=139;
 
 --
 -- AUTO_INCREMENT for table `rooms`
 --
 ALTER TABLE `rooms`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=143;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=150;
 
 --
 -- AUTO_INCREMENT for table `room_logs`
@@ -1434,10 +1444,22 @@ ALTER TABLE `room_logs`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=91;
 
 --
+-- AUTO_INCREMENT for table `room_schedules`
+--
+ALTER TABLE `room_schedules`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+
+--
 -- AUTO_INCREMENT for table `stranger_logs`
 --
 ALTER TABLE `stranger_logs`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+
+--
+-- AUTO_INCREMENT for table `students`
+--
+ALTER TABLE `students`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=44;
 
 --
 -- AUTO_INCREMENT for table `user`
@@ -1449,13 +1471,23 @@ ALTER TABLE `user`
 -- AUTO_INCREMENT for table `visitor`
 --
 ALTER TABLE `visitor`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=128;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=129;
 
 --
 -- AUTO_INCREMENT for table `visitor_logs`
 --
 ALTER TABLE `visitor_logs`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=114;
+
+--
+-- Constraints for dumped tables
+--
+
+--
+-- Constraints for table `attendance_logs`
+--
+ALTER TABLE `attendance_logs`
+  ADD CONSTRAINT `attendance_logs_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`);
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

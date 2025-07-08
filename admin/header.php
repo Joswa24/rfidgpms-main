@@ -22,7 +22,7 @@
       <meta content="width=device-width, initial-scale=1.0" name="viewport">
       <meta content="" name="keywords">
       <meta content="" name="description">
-      <link rel="icon" href="uploads/logo.png" type="image/png">
+      <link rel="icon" href="uploads/logo.jpg" type="image/jpg">
 
       <!-- Favicon -->
       <!--     <link href="img/favicon.ico" rel="icon"> -->

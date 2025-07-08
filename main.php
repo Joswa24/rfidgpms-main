@@ -1,7 +1,27 @@
-
 <?php
+
 /*
- date_default_timezone_set('Asia/Manila');
+// Security check 
+if (!isset($_SESSION['user'])) {
+    header("Location: index.php");
+    exit();
+}
+
+$department = $_SESSION['user']['department'] ?? '';
+$location = $_SESSION['user']['location'] ?? '';
+
+// Redirect non-Gate users
+if ($department !== 'Main' || $location !== 'Gate') {
+    header("Location: main1.php");
+    exit();
+}
+
+// ... rest of your RFID-based Gate system code ...*/
+?>
+<?php
+/*include 'connection.php';
+
+ //('Asia/Manila');
 
 
 
@@ -11,16 +31,12 @@ if (isset($_SESSION['location'])) {
   $descr = $_SESSION['descr'];
 }
 else {
-   /* header("Location: index");
+    header("Location: index.php");
     exit();
 }*/
 ?>
 <?php
 include 'connection.php';
-
-
-
-
 
 $logo1 = "";
     $nameo = "";
@@ -1345,7 +1361,7 @@ var capturedImage =  document.getElementById('capturedImage').value;
                 showConfirmButton: false,
                 timer: 1500
             }).then(() => {
-                window.location.href = 'main'; // Redirect after 1.5 seconds
+                window.location.href = 'main.php'; // Redirect after 1.5 seconds
             });
                     } else {
                         Swal.fire({

@@ -1,4 +1,3 @@
-
 <?php
 include('../connection.php');
 date_default_timezone_set('Asia/Manila');
@@ -14,6 +13,28 @@ function jsonResponse($status, $message, $data = []) {
     ]);
     exit;
 }
+function normalizeFacultyId($id) {
+    // Convert to uppercase
+    $id = strtoupper(trim($id));
+    
+    // Remove any spaces around the dash
+    $id = str_replace(' - ', '-', $id);
+    $id = str_replace(' -', '-', $id);
+    $id = str_replace('- ', '-', $id);
+    
+    // Ensure FAC- prefix
+    if (strpos($id, 'FAC-') !== 0) {
+        // Add FAC- prefix if missing
+        if (strpos($id, 'FAC') === 0) {
+            $id = 'FAC-' . substr($id, 3);
+        } else {
+            $id = 'FAC-' . $id;
+        }
+    }
+    
+    return $id;
+}
+
 
 // Function to validate and sanitize input
 function sanitizeInput($db, $input) {
@@ -26,35 +47,36 @@ if (!isset($_GET['action'])) {
 }
 
 switch ($_GET['action']) {
-   case 'add_visitor':
+case 'add_visitor':
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         jsonResponse('error', 'Invalid request method');
     }
 
     // Validate required field
-    if (empty($_POST['rfid_number'])) {
+    if (!isset($_POST['rfid_number']) || empty(trim($_POST['rfid_number']))) {
         jsonResponse('error', 'RFID number is required');
     }
 
-    // Sanitize and validate input
     $rfid_number = trim($_POST['rfid_number']);
-    if (strlen($rfid_number) !== 10 || !ctype_digit($rfid_number)) {
+
+    // Validate format: exactly 10 digits
+    if (!preg_match('/^\d{10}$/', $rfid_number)) {
         jsonResponse('error', 'RFID must be exactly 10 digits');
     }
 
-    // Check for duplicate RFID
+    // Check if RFID already exists
     $check = $db->prepare("SELECT id FROM visitor WHERE rfid_number = ?");
     $check->bind_param("s", $rfid_number);
     $check->execute();
     $check->store_result();
-    
     if ($check->num_rows > 0) {
+        $check->close();
         jsonResponse('error', 'RFID number already exists');
     }
     $check->close();
 
-    // Insert new visitor (default status = 1 for active)
-    $stmt = $db->prepare("INSERT INTO visitor (rfid_number, status) VALUES (?, 1)");
+    // Insert new visitor card
+    $stmt = $db->prepare("INSERT INTO visitor (rfid_number) VALUES (?)");
     $stmt->bind_param("s", $rfid_number);
 
     if ($stmt->execute()) {
@@ -390,35 +412,62 @@ switch ($_GET['action']) {
         } else {
             jsonResponse('error', 'Failed to delete visitor card: ' . $db->error);
         }
+        break;
         
     case 'add_role':
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        jsonResponse('error', 'Invalid request method');
-    }
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            jsonResponse('error', 'Invalid request method');
+        }
 
-    $role = sanitizeInput($db, $_POST['role']);
+        // Validate required field
+        if (!isset($_POST['role']) || empty(trim($_POST['role']))) {
+            jsonResponse('error', 'Role name is required');
+        }
 
-    // Check if role exists
-    $check = $db->prepare("SELECT id FROM role WHERE role = ?");
-    $check->bind_param("s", $role);
-    $check->execute();
-    $check->store_result();
+        // Sanitize input
+        $role = sanitizeInput($db, trim($_POST['role']));
 
-    if ($check->num_rows > 0) {
-        jsonResponse('error', 'Role already exists');
-    }
-    $check->close();
+        // Validate length
+        if (strlen($role) > 100) {
+            jsonResponse('error', 'Role name must be less than 100 characters');
+        }
 
-    // Insert role
-    $stmt = $db->prepare("INSERT INTO role (role) VALUES (?)");
-    $stmt->bind_param("s", $role);
+        // Check if role exists (case-insensitive)
+        $check = $db->prepare("SELECT id FROM role WHERE LOWER(role) = LOWER(?)");
+        if (!$check) {
+            jsonResponse('error', 'Database error: ' . $db->error);
+        }
+        
+        $check->bind_param("s", $role);
+        if (!$check->execute()) {
+            jsonResponse('error', 'Database error: ' . $check->error);
+        }
+        
+        $check->store_result();
+        
+        if ($check->num_rows > 0) {
+            $check->close();
+            jsonResponse('error', 'Role already exists');
+        }
+        $check->close();
 
-    if ($stmt->execute()) {
-        jsonResponse('success', 'Role added successfully');
-    } else {
-        jsonResponse('error', 'Failed to add role');
-    }
-    break;
+        // Insert role with prepared statement
+        $stmt = $db->prepare("INSERT INTO role (role) VALUES (?)");
+        if (!$stmt) {
+            jsonResponse('error', 'Database error: ' . $db->error);
+        }
+        
+        $stmt->bind_param("s", $role);
+        
+        if ($stmt->execute()) {
+            jsonResponse('success', 'Role added successfully', [
+                'id' => $stmt->insert_id,
+                'role' => $role
+            ]);
+        } else {
+            jsonResponse('error', 'Failed to add role: ' . $stmt->error);
+        }
+        break;
 
     case 'add_room':
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -429,7 +478,7 @@ switch ($_GET['action']) {
         $department = sanitizeInput($db, $_POST['roomdpt']);
         $descr = sanitizeInput($db, $_POST['roomdesc']);
         $role = sanitizeInput($db, $_POST['roomrole']);
-        $password = password_hash($_POST['roompass'], PASSWORD_DEFAULT);
+        $password = sanitizeInput($db, $_POST['roompass']);
 
         // Check if room exists in department
         $check = $db->prepare("SELECT id FROM rooms WHERE room = ? AND department = ?");
@@ -491,13 +540,84 @@ switch ($_GET['action']) {
             jsonResponse('error', 'Failed to save verification image');
         }
         break;
-        case 'add_student':
+ // Define this function at the top of your transac.php file
+function normalizeFacultyId($id) {
+    // Convert to uppercase
+    $id = strtoupper(trim($id));
+    
+    // Remove any spaces around the dash
+    $id = str_replace(' - ', '-', $id);
+    $id = str_replace(' -', '-', $id);
+    $id = str_replace('- ', '-', $id);
+    
+    // Ensure FAC- prefix
+    if (strpos($id, 'FAC-') !== 0) {
+        // Add FAC- prefix if missing
+        if (strpos($id, 'FAC') === 0) {
+            $id = 'FAC-' . substr($id, 3);
+        } else {
+            $id = 'FAC-' . $id;
+        }
+    }
+    
+    return $id;
+}
+
+// Then in your case block
+case 'add_instructor':
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         jsonResponse('error', 'Invalid request method');
     }
 
     // Validate required fields
-    $required = ['id_number', 'fullname', 'section', 'year'];
+    if (empty($_POST['fullname'])) {
+        jsonResponse('error', 'Full name is required');
+    }
+
+    // Sanitize inputs
+    $fullname = sanitizeInput($db, trim($_POST['fullname']));
+    $rfid_number = isset($_POST['rfid_number']) ? trim($_POST['rfid_number']) : '';
+
+    // Validate RFID format if provided
+    if ($rfid_number !== '' && !preg_match('/^[0-9A-F]{8,14}$/i', $rfid_number)) {
+        jsonResponse('error', 'Invalid RFID format. Use 8-14 hex characters');
+    }
+
+    // Check if RFID exists in instructor table
+    if ($rfid_number !== '') {
+        $check_rfid = $db->prepare("SELECT id FROM instructor WHERE rfid_number = ?");
+        $check_rfid->bind_param("s", $rfid_number);
+        $check_rfid->execute();
+        $check_rfid->store_result();
+        if ($check_rfid->num_rows > 0) {
+            $check_rfid->close();
+            jsonResponse('error', 'RFID number already assigned to another instructor');
+        }
+        $check_rfid->close();
+    }
+
+    // Insert new instructor
+    $stmt = $db->prepare("INSERT INTO instructor (fullname, rfid_number, created_at) VALUES (?, ?, NOW())");
+    $stmt->bind_param("ss", $fullname, $rfid_number);
+
+    if ($stmt->execute()) {
+        jsonResponse('success', 'Instructor added successfully', [
+            'id' => $stmt->insert_id,
+            'fullname' => $fullname,
+            'rfid_number' => $rfid_number
+        ]);
+    } else {
+        jsonResponse('error', 'Failed to add instructor: ' . $db->error);
+    }
+    break;
+
+       case 'add_student':
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        jsonResponse('error', 'Invalid request method');
+    }
+
+    // Validate required fields
+    $required = ['department_id', 'id_number', 'fullname', 'section', 'year'];
     foreach ($required as $field) {
         if (empty($_POST[$field])) {
             jsonResponse('error', "Missing required field: $field");
@@ -505,11 +625,11 @@ switch ($_GET['action']) {
     }
 
     // Sanitize inputs
+    $department_id = sanitizeInput($db, $_POST['department_id']);
     $id_number = sanitizeInput($db, $_POST['id_number']);
     $fullname = sanitizeInput($db, $_POST['fullname']);
     $section = sanitizeInput($db, $_POST['section']);
     $year = sanitizeInput($db, $_POST['year']);
-    $rfid_uid = isset($_POST['rfid_uid']) ? sanitizeInput($db, $_POST['rfid_uid']) : null;
 
     // Validate ID number format (adjust regex as needed)
     if (!preg_match('/^[A-Za-z0-9-]+$/', $id_number)) {
@@ -527,24 +647,11 @@ switch ($_GET['action']) {
     }
     $check_id->close();
 
-    // Check if RFID UID is provided and unique
-    if ($rfid_uid) {
-        $check_rfid = $db->prepare("SELECT id FROM students WHERE rfid_uid = ?");
-        $check_rfid->bind_param("s", $rfid_uid);
-        $check_rfid->execute();
-        $check_rfid->store_result();
-        
-        if ($check_rfid->num_rows > 0) {
-            jsonResponse('error', 'RFID UID already assigned to another student');
-        }
-        $check_rfid->close();
-    }
-
     // Insert new student
     $stmt = $db->prepare("INSERT INTO students 
-                         (id_number, fullname, section, year, rfid_uid, created_at) 
+                         (department_id, id_number, fullname, section, year, created_at) 
                          VALUES (?, ?, ?, ?, ?, NOW())");
-    $stmt->bind_param("sssss", $id_number, $fullname, $section, $year, $rfid_uid);
+    $stmt->bind_param("sssss", $department_id, $id_number, $fullname, $section, $year);
 
     if ($stmt->execute()) {
         jsonResponse('success', 'Student added successfully', [
@@ -555,10 +662,85 @@ switch ($_GET['action']) {
     }
     break;
 
+    // Add this case to handle adding a room schedule via AJAX
+    case 'add_schedule':
+        
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            jsonResponse('error', 'Invalid request method');
+        }
+
+        // Validate required fields
+        $required = ['department', 'room_name', 'subject', 'section', 'year_level', 'day', 'instructor', 'start_time', 'end_time'];
+        foreach ($required as $field) {
+            if (empty($_POST[$field])) {
+                jsonResponse('error', "Missing required field: $field");
+            }
+        }
+
+        // Sanitize inputs
+        
+        $department = sanitizeInput($db, $_POST['department']);
+        $room_name = sanitizeInput($db, $_POST['room_name']);
+        $subject = sanitizeInput($db, $_POST['subject']);
+        $section = sanitizeInput($db, $_POST['section']);
+        $year_level = sanitizeInput($db, $_POST['year_level']);
+        $day = sanitizeInput($db, $_POST['day']);
+        $instructor = sanitizeInput($db, $_POST['instructor']);
+        $start_time = sanitizeInput($db, $_POST['start_time']);
+        $end_time = sanitizeInput($db, $_POST['end_time']);
+
+        // Optional: Check for duplicate schedule (same room, day, and time overlap)
+        $check = $db->prepare("SELECT id FROM room_schedules WHERE room_name = ? AND day = ? AND (
+            (start_time <= ? AND end_time > ?) OR
+            (start_time < ? AND end_time >= ?) OR
+            (start_time >= ? AND end_time <= ?)
+        )");
+        $check->bind_param("ssssssss", $room_name, $day, $start_time, $start_time, $end_time, $end_time, $start_time, $end_time);
+        $check->execute();
+        $check->store_result();
+        if ($check->num_rows > 0) {
+            jsonResponse('error', 'Schedule conflict: This room already has a schedule at the selected time.');
+        }
+        $check->close();
+
+        // Insert new schedule
+        $stmt = $db->prepare("INSERT INTO room_schedules (department, room_name, subject, section, year_level, day, instructor, start_time, end_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("sssssssss", $department, $room_name, $subject, $section, $year_level, $day, $instructor, $start_time, $end_time);
+
+        if ($stmt->execute()) {
+            jsonResponse('success', 'Schedule added successfully');
+        } else {
+            jsonResponse('error', 'Failed to add schedule: ' . $db->error);
+        }
+        break;
+        case 'get_schedule':
+    if (!isset($_GET['id'])) {
+        jsonResponse('error', 'Missing ID parameter');
+    }
+    
+    $id = (int)$_GET['id'];
+    if ($id <= 0) {
+        jsonResponse('error', 'Invalid ID');
+    }
+    
+    $stmt = $db->prepare("SELECT * FROM room_schedules WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result->num_rows === 0) {
+        jsonResponse('error', 'Schedule not found');
+    }
+    
+    $data = $result->fetch_assoc();
+    jsonResponse('success', 'Schedule retrieved', $data);
+    break;
+
     default:
         jsonResponse('error', 'Invalid action');
         break;
 }
+
 
 $db->close();
 

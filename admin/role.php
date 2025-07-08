@@ -79,67 +79,167 @@ include 'header.php';
             </div>
             <script>
 $(document).ready(function() {
-    $('#myDataTable').DataTable({
-        order: [[0, 'desc']] // Adjust the index (0) to the appropriate column
-    });
-});
-</script>
-            <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-            <script>
- // Event delegation: Bind click event to a parent element that always exists
-$(document).on('click', '#d_role_id', function(){
-    var id = $(this).attr('data-id');
-    var roleName = $(this).attr('role');
+    $('#myDataTable').DataTable({ order: [[0, 'desc']] });
 
-    Swal.fire({
-        title: "Delete Role",
-        text: "Are you sure you want to delete the role: " + roleName + "?",
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonColor: "#3085d6",
-        cancelButtonColor: "#d33",
-        confirmButtonText: "Yes, delete it!"
-    }).then((result) => {
-        if (result.isConfirmed) {
-            $.ajax({
-                type: "POST",
-                url: "del.php",
-                data: {
-                    type: 'role',
-                    id: id
-                },
-                dataType: 'json',
-                success: function(response){
-                    if (response.status == 'success') {
-                        Swal.fire({
-                            title: "Deleted!",
-                            text: response.message,
-                            icon: "success"
-                        }).then(() => {
-                            window.location.href = 'role.php';
-                        });
-                    } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: response.message
-                        });
-                    }
-                },
-                error: function(xhr, status, error) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'An error occurred: ' + error
-                    });
-                }
+    // ==============
+    // CREATE (ADD)
+    // ==============
+    $('#btn-role').click(function(){
+    var inputField = document.getElementById('role');
+    var role = $('#role').val().trim();
+
+    // Clear previous errors
+    $('#role-error').text('');
+
+    // Validation
+    if (!role) {
+        $('#role-error').text('This field is required.');
+        inputField.focus();
+        return;
+    }
+
+    $.ajax({
+        type: "POST",
+        url: "transac.php?action=add_role",
+        data: {role: role},
+        dataType: 'json', // Expect JSON response
+        success: function(response){
+            if (response.status === 'success') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Successfully Added',
+                    showConfirmButton: false,
+                    timer: 1500
+                }).then(() => {
+                    window.location.reload(); // Reload to show new role
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: response.message
+                });
+            }
+        },
+        error: function(xhr, status, error) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Oops...',
+                text: 'An error occurred: ' + error
             });
         }
     });
 });
 
+    // ==========
+    // READ (EDIT)
+    // ==========
+    $(document).on('click', '.e_role_id', function(){
+        var id = $(this).attr('data-id');
+        var role = $(this).attr('role');
+        $('#edit_roleid').val(id);
+        $('#erole').val(role);
+        $('#editrole-modal').modal('show');
+    });
 
+    // ==========
+    // UPDATE
+    // ==========
+    $('#btn-editrole').click(function(e){
+        e.preventDefault();
+        var inputField = document.getElementById('erole');
+        if (inputField.value === '') {
+            $('#erole-error').text('This field is required.');
+            inputField.focus();
+            return;
+        } else {
+            $('#erole-error').text('');
+        }
+        var id = $('#edit_roleid').val();
+        var role = $('#erole').val();
+        $.ajax({
+            type: "POST",
+            url: "edit1.php?edit=role&id=" + id,
+            data: {role: role},
+            dataType: 'json',
+            success: function(response){
+                if (response.status === 'success') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Successfully Updated.',
+                        showConfirmButton: false,
+                        timer: 1500
+                    }).then(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Oops...',
+                        text: response.message
+                    });
+                }
+            },
+            error: function(xhr, status, error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: 'An error occurred: ' + error
+                });
+            }
+        });
+    });
 
+    // ==========
+    // DELETE
+    // ==========
+    $(document).on('click', '.d_role_id', function(){
+        var id = $(this).attr('data-id');
+        var roleName = $(this).attr('role');
+        Swal.fire({
+            title: "Delete Role",
+            text: "Are you sure you want to delete the role: " + roleName + "?",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#3085d6",
+            cancelButtonColor: "#d33",
+            confirmButtonText: "Yes, delete it!"
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    type: "POST",
+                    url: "del.php",
+                    data: { type: 'role', id: id },
+                    dataType: 'json',
+                    success: function(response){
+                        if (response.status === 'success') {
+                            Swal.fire({
+                                title: "Deleted!",
+                                text: response.message,
+                                icon: "success"
+                            }).then(() => {
+                                window.location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: response.message
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'An error occurred: ' + error
+                        });
+                    }
+                });
+            }
+        });
+    });
+});
 </script>
             <!-- Modal -->
             <div class="modal fade" id="roleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
@@ -372,14 +472,7 @@ if (!showError(inputField, 'erole-error', 'This field is required.')) {
 
 
 
-
-
-
-
-
-
-});
-
+};
 
 
 

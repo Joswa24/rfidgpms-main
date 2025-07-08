@@ -203,7 +203,7 @@
         }
 
         // Helper function to reset form
-        function resetForm() {
+        window.resetForm = function() {
             document.getElementById('deptname-error').innerHTML = '';
             document.getElementById('deptname-desc').innerHTML = '';
             document.getElementById('myForm').reset();
@@ -276,7 +276,8 @@
         // ==========
         // UPDATE
         // ==========
-        $('#btn-editdepartment').click(function() {
+        $('#btn-editdepartment').click(function(e) {
+            e.preventDefault();
             var inputField = document.getElementById('edit_departmentname');
             var inputField1 = document.getElementById('edit_departmentdescription');
 
@@ -298,20 +299,20 @@
                 type: "POST",
                 url: "edit1.php?edit=department&id=" + id,
                 data: { dptname: dptname, dptdesc: dptdesc },
-                dataType: 'text',
-                success: function(data) {
-                    if (data.trim() == 'success') {
+                dataType: 'json',
+                success: function(response) {
+                    if (response.status === 'success') {
                         Swal.fire({
                             icon: 'success',
                             title: 'Success!',
-                            text: 'Department updated successfully',
+                            text: response.message,
                             showConfirmButton: false,
                             timer: 1500
                         }).then(() => {
                             location.reload();
                         });
                     } else {
-                        Swal.fire('Error!', data, 'error');
+                        Swal.fire('Error!', response.message, 'error');
                     }
                     $('#btn-editdepartment').html('Update');
                     $('#btn-editdepartment').prop('disabled', false);
@@ -360,9 +361,9 @@
                                     icon: 'success',
                                     timer: 1500,
                                     showConfirmButton: false
-                                }).then(() => {
-                                    location.reload();
-                                });
+                            }).then(() => {
+                                location.reload();
+                            });
                             } else {
                                 Swal.fire('Error!', response.message, 'error');
                                 $btn.html('<i class="bi bi-plus-trash"></i> Delete');

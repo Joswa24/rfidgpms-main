@@ -121,75 +121,40 @@ if ($result1->num_rows > 0) {
             </div>
 
             <!-- Classroom Attendance with Submenu -->
-            <a class="nav-item nav-link collapsed <?php echo in_array($current_page, ['students', 'student_logs', 'instructors', 'instructor_logs']) ? 'active' : ''; ?>" 
-               href="#" 
-               data-bs-toggle="collapse" 
-               data-bs-target="#classroomSubmenu" 
-               aria-expanded="<?php echo in_array($current_page, ['students', 'student_logs', 'instructors', 'instructor_logs']) ? 'true' : 'false'; ?>">
-                <i class="fas fa-chalkboard-teacher me-2"></i>Classroom Attendance
+           <a href="students.php" class="nav-item nav-link <?php echo ($current_page == 'students') ? 'active' : ''; ?>">
+                <i class="fa fa-city me-2"></i>Manage Students
             </a>
-            <div id="classroomSubmenu" class="collapse <?php echo in_array($current_page, ['students', 'student_logs', 'instructors', 'instructor_logs']) ? 'show' : ''; ?>" data-bs-parent=".navbar-nav">
-                <ul class="navbar-nav ps-3">
-                    <!-- Students Submenu -->
-                    <li>
-                        <a class="nav-item nav-link collapsed <?php echo in_array($current_page, ['students', 'student_logs']) ? 'active' : ''; ?>" 
-                           href="#" 
-                           data-bs-toggle="collapse" 
-                           data-bs-target="#studentsSubmenu" 
-                           aria-expanded="<?php echo in_array($current_page, ['students', 'student_logs']) ? 'true' : 'false'; ?>">
-                            <i class="fas fa-user-graduate me-2"></i>Students
-                        </a>
-                        <div id="studentsSubmenu" class="collapse <?php echo in_array($current_page, ['students', 'student_logs']) ? 'show' : ''; ?>">
-                            <ul class="navbar-nav ps-3">
-                                <li>
-                                    <a href="students.php" class="nav-item nav-link <?php echo ($current_page == 'students') ? 'active' : ''; ?>">Student List</a>
-                                </li>
-                                <li>
-                                    <a href="student_logs.php" class="nav-item nav-link <?php echo ($current_page == 'student_logs') ? 'active' : ''; ?>">Attendance Logs</a>
-                                </li>
-                            </ul>
-                        </div>
-                    </li>
-                    
-                    <!-- Instructors Submenu -->
-                    <li>
-                        <a class="nav-item nav-link collapsed <?php echo in_array($current_page, ['instructors', 'instructor_logs']) ? 'active' : ''; ?>" 
-                           href="#" 
-                           data-bs-toggle="collapse" 
-                           data-bs-target="#instructorsSubmenu" 
-                           aria-expanded="<?php echo in_array($current_page, ['instructors', 'instructor_logs']) ? 'true' : 'false'; ?>">
-                            <i class="fas fa-chalkboard-teacher me-2"></i>Instructors
-                        </a>
-                        <div id="instructorsSubmenu" class="collapse <?php echo in_array($current_page, ['instructors', 'instructor_logs']) ? 'show' : ''; ?>">
-                            <ul class="navbar-nav ps-3">
-                                <li>
-                                    <a href="instructors.php" class="nav-item nav-link <?php echo ($current_page == 'instructors') ? 'active' : ''; ?>">Instructor List</a>
-                                </li>
-                                <li>
-                                    <a href="instructor_logs.php" class="nav-item nav-link <?php echo ($current_page == 'instructor_logs') ? 'active' : ''; ?>">Attendance Logs</a>
-                                </li>
-                            </ul>
-                        </div>
-                    </li>
-                </ul>
-            </div>
+             <a href="instructors.php" class="nav-item nav-link <?php echo ($current_page == 'instructors') ? 'active' : ''; ?>">
+                <i class="fa fa-city me-2"></i>Manage Instructors
+            </a>
+           
 
             <!-- Lost and Found -->
-            <a href="lostcard.php" class="nav-item nav-link <?php echo ($current_page == 'lostcard') ? 'active' : ''; ?>">
-                <i class="fas fa-id-badge"></i> Lost Card
-                <?php if ($new_lost_cards > 0): ?>
-                    <span class="badge1"><?php echo $new_lost_cards; ?></span>
-                <?php endif; ?>
-            </a>
-            
-            <a href="dtr.php" class="nav-item nav-link <?php echo ($current_page == 'dtr') ? 'active' : ''; ?>">
-                <i class="fa fa-clipboard me-2"></i>Generate DTR
-            </a>
-            
-            <!-- Settings -->
-            <a href="settings.php" class="nav-item nav-link <?php echo ($current_page == 'settings') ? 'active' : ''; ?>">
-                <i class="fa fa-cog me-2"></i>Settings
-            </a>
+<a href="lostcard.php" class="nav-item nav-link <?php echo ($current_page == 'lostcard') ? 'active' : ''; ?>">
+    <i class="fas fa-id-badge"></i> Lost Card
+    <?php if ($new_lost_cards > 0): ?>
+        <span class="badge1"><?php echo $new_lost_cards; ?></span>
+    <?php endif; ?>
+</a>
+
+<a href="dtr.php" class="nav-item nav-link <?php echo ($current_page == 'dtr') ? 'active' : ''; ?>">
+    <i class="fa fa-clipboard me-2"></i>Generate DTR
+</a>
+
+<!-- 🔽 Insert New Items Here -->
+<a href="student_logs.php" class="nav-item nav-link <?php echo ($current_page == 'attendance_log') ? 'active' : ''; ?>">
+    <i class="fa fa-book me-2"></i>Attendance Log
+</a>
+
+<a href="room_schedule.php" class="nav-item nav-link <?php echo ($current_page == 'room_schedule') ? 'active' : ''; ?>">
+    <i class="fa fa-calendar-alt me-2"></i>Manage Room Schedules
+</a>
+
+<!-- Settings -->
+<a href="settings.php" class="nav-item nav-link <?php echo ($current_page == 'settings') ? 'active' : ''; ?>">
+    <i class="fa fa-cog me-2"></i>Settings
+</a>
+
         </div>
     </nav>
 </div>
