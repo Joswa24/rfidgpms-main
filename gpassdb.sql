@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jul 01, 2025 at 07:20 AM
+-- Generation Time: Aug 17, 2025 at 12:57 PM
 -- Server version: 10.4.32-MariaDB
--- PHP Version: 8.2.12
+-- PHP Version: 8.0.30
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -97,6 +97,23 @@ INSERT INTO `admin_sessions` (`id`, `location`, `ip_address`, `device`, `date_lo
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `archived_attendance_20250727_190813`
+--
+
+CREATE TABLE `archived_attendance_20250727_190813` (
+  `id` int(11) NOT NULL,
+  `student_id` int(11) NOT NULL,
+  `id_number` varchar(50) NOT NULL,
+  `time_in` datetime NOT NULL,
+  `time_out` datetime DEFAULT NULL,
+  `department` varchar(255) NOT NULL,
+  `location` varchar(255) NOT NULL,
+  `instructor_id` varchar(9) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `archived_attendance_logs`
 --
 
@@ -107,138 +124,76 @@ CREATE TABLE `archived_attendance_logs` (
   `time_in` datetime NOT NULL,
   `time_out` datetime DEFAULT NULL,
   `department` varchar(255) NOT NULL,
-  `location` varchar(255) NOT NULL
+  `location` varchar(255) NOT NULL,
+  `instructor_id` varchar(9) NOT NULL,
+  `status` varchar(20) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `archived_attendance_logs`
 --
 
-INSERT INTO `archived_attendance_logs` (`id`, `student_id`, `id_number`, `time_in`, `time_out`, `department`, `location`) VALUES
-(1, 11, '2025-3030', '2025-06-25 08:37:48', '2025-06-25 08:38:09', 'BSIT', 'LR1'),
-(2, 7, '2023-0007', '2025-06-25 08:42:00', '2025-06-25 08:47:49', 'BSIT', 'LR1'),
-(3, 6, '2023-0006', '2025-06-25 09:01:49', '2025-06-25 09:02:17', 'BSIT', 'LR1'),
-(4, 8, '2023-0008', '2025-06-25 09:53:19', '2025-06-25 10:52:09', 'BSIT', 'LR1'),
-(5, 1, '2023-0001', '2025-06-25 10:51:44', '2025-06-25 10:51:53', 'BSIT', 'LR1'),
-(6, 4, '2023-0004', '2025-06-25 11:01:30', '2025-06-25 11:31:09', 'BSIT', 'LR1'),
-(7, 3, '2023-0003', '2025-06-25 11:02:44', '2025-06-25 11:30:28', 'BSIT', 'LR1'),
-(8, 5, '2023-0005', '2025-06-25 11:19:45', '2025-06-25 11:30:11', 'BSIT', 'LR1'),
-(9, 2, '2023-0002', '2025-06-25 15:39:15', NULL, 'BSIT', 'LR1'),
-(10, 12, '2025-8989', '2025-06-25 16:48:08', '2025-06-25 16:48:30', 'Department', 'Location'),
-(11, 10, '132424', '2025-06-25 17:07:41', '2025-06-25 17:09:44', 'Department', 'Location'),
-(12, 15, '1111-1111', '2025-06-25 19:20:51', '2025-06-25 19:54:55', 'Department', 'Location'),
-(13, 2, '2023-0002', '2025-06-25 19:55:06', '2025-06-25 19:55:19', 'Department', 'Location'),
-(14, 17, '2020-1111', '2025-06-25 20:00:14', '2025-06-25 20:03:26', 'Department', 'Location'),
-(15, 18, '1234-1234', '2025-06-25 20:04:05', NULL, 'Department', 'Location'),
-(16, 19, '1212-1212', '2025-06-25 20:06:53', NULL, 'Department', 'Location'),
-(17, 20, '1122-1122', '2025-06-25 20:08:31', NULL, 'BSIT', 'LR1'),
-(18, 11, '2025-3030', '2025-06-25 20:59:49', NULL, 'BSIT', 'LR1'),
-(19, 12, '2025-8989', '2025-06-25 21:01:31', NULL, 'BSIT', 'LR1'),
-(20, 8, '2023-0008', '2025-06-25 21:02:01', NULL, 'BSIT', 'LR1'),
-(21, 11, '2025-3030', '2025-06-25 21:14:21', NULL, 'BSIT', 'LR1'),
-(22, 1, '2023-0001', '2025-06-25 21:14:32', NULL, 'BSIT', 'LR1'),
-(23, 11, '2025-3030', '2025-06-25 21:15:26', NULL, 'BSIT', 'LR1'),
-(24, 12, '2025-8989', '2025-06-25 21:15:42', NULL, 'BSIT', 'LR1'),
-(25, 8, '2023-0008', '2025-06-25 21:16:04', NULL, 'BSIT', 'LR1'),
-(26, 11, '2025-3030', '2025-06-25 21:39:31', NULL, 'BSIT', 'LR1'),
-(27, 11, '2025-3030', '2025-06-25 21:50:14', NULL, 'BSIT', 'LR1'),
-(28, 11, '2025-3030', '2025-06-25 22:05:41', NULL, 'BSIT', 'LR1'),
-(29, 11, '2025-3030', '2025-06-25 22:17:38', NULL, 'BSIT', 'LR1'),
-(30, 5, '2023-0005', '2025-06-25 22:18:02', NULL, 'BSIT', 'LR1'),
-(31, 11, '2025-3030', '2025-06-25 22:39:08', '2025-06-25 22:45:37', 'BSIT', 'LR1'),
-(32, 6, '2023-0006', '2025-06-25 22:39:37', NULL, 'BSIT', 'LR1'),
-(33, 4, '2023-0004', '2025-06-25 22:40:07', NULL, 'BSIT', 'LR1'),
-(34, 3, '2023-0003', '2025-06-25 22:45:49', NULL, 'BSIT', 'LR1'),
-(35, 11, '2025-3030', '2025-06-26 11:11:50', '2025-06-26 11:20:44', 'BSIT', 'LR1'),
-(36, 6, '2023-0006', '2025-06-26 11:29:18', '2025-06-26 11:31:16', 'BSIT', 'LR1'),
-(37, 1, '2023-0001', '2025-06-26 11:35:47', '2025-06-26 11:36:05', 'BSIT', 'LR1'),
-(38, 3, '2023-0003', '2025-06-26 11:41:06', NULL, 'BSIT', 'LR1'),
-(39, 5, '2023-0005', '2025-06-26 11:53:21', '2025-06-26 11:55:25', 'BSIT', 'LR1'),
-(40, 2, '2023-0002', '2025-06-26 12:01:31', '2025-06-26 12:11:31', 'BSIT', 'LR1'),
-(41, 7, '2023-0007', '2025-06-26 12:09:06', '2025-06-26 12:18:51', 'BSIT', 'LR1'),
-(42, 11, '2025-3030', '2025-06-26 12:26:06', NULL, 'BSIT', 'LR1'),
-(43, 1, '2023-0001', '2025-06-26 12:26:18', NULL, 'BSIT', 'LR1'),
-(44, 11, '2025-3030', '2025-06-26 12:31:55', NULL, 'BSIT', 'LR1'),
-(45, 12, '2025-8989', '2025-06-26 12:32:45', NULL, 'BSIT', 'LR1'),
-(47, 11, '2025-3030', '2025-06-26 15:51:59', NULL, 'BSIT', 'LR1'),
-(48, 24, '2025-8989', '2025-06-26 16:38:33', NULL, 'BSIT', 'LR1'),
-(49, 26, '8888-8888', '2025-06-26 16:40:35', NULL, 'BSIT', 'LR1'),
-(50, 29, '9999-9999', '2025-06-26 16:47:24', NULL, 'BSIT', 'LR1'),
-(51, 29, '9999-9999', '2025-06-26 16:51:23', '2025-06-26 17:10:28', 'BSIT', 'LR1'),
-(52, 26, '8888-8888', '2025-06-26 17:46:08', '2025-06-26 17:46:21', 'BSIT', 'LR1'),
-(53, 31, '1111-1110', '2025-06-26 18:23:46', '2025-06-26 18:24:15', 'BSIT', 'LR1'),
-(54, 32, '5505-7878', '2025-06-26 18:25:13', '2025-06-26 18:34:33', 'BSIT', 'LR1'),
-(55, 24, '2025-8989', '2025-06-26 18:32:16', '2025-06-26 18:33:26', 'BSIT', 'LR1'),
-(56, 33, '2232-1111', '2025-06-26 19:00:55', '2025-06-26 19:01:13', 'BSIT', 'LR1'),
-(57, 26, '8888-8888', '2025-06-27 18:32:12', '2025-06-27 18:33:38', 'BSIT', 'LR1'),
-(58, 32, '5505-7878', '2025-06-27 18:33:24', NULL, 'BSIT', 'LR1'),
-(59, 26, '8888-8888', '2025-06-28 10:30:19', '2025-06-28 10:31:23', 'BSIT', 'LR1'),
-(60, 32, '5505-7878', '2025-06-28 14:56:52', '2025-06-28 15:27:18', 'BSIT', 'LR1'),
-(61, 37, '2024-1697', '2025-06-28 16:02:12', '2025-06-28 16:02:24', 'BSIT', 'LR1'),
-(62, 37, '2024-1697', '2025-06-28 16:07:17', '2025-06-28 16:08:03', 'BSIT', 'LR1'),
-(63, 37, '2024-1697', '2025-06-28 16:11:06', '2025-06-28 16:12:57', 'BSIT', 'LR1'),
-(64, 37, '2024-1697', '2025-06-28 16:14:16', '2025-06-28 16:14:52', 'BSIT', 'LR1'),
-(65, 37, '2024-1697', '2025-06-28 16:20:21', '2025-06-28 16:20:24', 'BSIT', 'LR1'),
-(66, 37, '2024-1697', '2025-06-28 16:21:27', '2025-06-28 16:23:01', 'BSIT', 'LR1'),
-(67, 37, '2024-1697', '2025-06-28 16:38:32', '2025-06-28 16:40:28', 'BSIT', 'LR1'),
-(68, 37, '2024-1697', '2025-06-28 16:40:47', '2025-06-28 16:42:10', 'BSIT', 'LR1'),
-(69, 36, '2024-1570', '2025-06-28 16:44:20', '2025-06-28 16:45:18', 'BSIT', 'LR1'),
-(70, 37, '2024-1697', '2025-06-28 16:45:43', '2025-06-28 16:52:31', 'BSIT', 'LR1'),
-(71, 36, '2024-1570', '2025-06-28 16:46:36', '2025-06-28 16:52:10', 'BSIT', 'LR1'),
-(72, 38, '2024-0117', '2025-06-28 17:09:00', '2025-06-28 17:10:07', 'BSIT', 'LR1'),
-(73, 37, '2024-1697', '2025-06-28 17:12:34', '2025-06-28 17:15:45', 'BSIT', 'LR1'),
-(74, 36, '2024-1570', '2025-06-28 17:14:58', '2025-06-28 17:17:24', 'BSIT', 'LR1'),
-(75, 37, '2024-1697', '2025-06-28 17:18:00', '2025-06-28 17:22:40', 'BSIT', 'LR1'),
-(76, 36, '2024-1570', '2025-06-28 17:24:51', '2025-06-28 17:25:17', 'BSIT', 'LR1'),
-(77, 40, '2024-1697', '2025-06-28 18:30:15', '2025-06-28 22:11:00', 'BSIT', 'LR1'),
-(78, 41, '2024-1570', '2025-06-28 22:12:49', '2025-06-28 22:13:14', 'BSIT', 'LR1'),
-(79, 40, '2024-1697', '2025-06-28 22:16:08', '2025-06-28 22:16:08', 'BSIT', 'LR1'),
-(80, 41, '2024-1570', '2025-06-28 22:16:43', '2025-06-28 22:16:43', 'BSIT', 'LR1'),
-(84, 41, '2024-1570', '2025-06-29 11:40:47', NULL, 'BSIT', 'LR1'),
-(85, 40, '2024-1697', '2025-06-29 11:42:11', '2025-06-29 11:42:11', 'BSIT', 'LR1'),
-(86, 40, '2024-1697', '2025-06-29 11:47:00', '2025-06-29 11:47:12', 'BSIT', 'LR1'),
-(87, 40, '2024-1697', '2025-06-29 11:56:32', '2025-06-29 11:56:32', 'BSIT', 'LR1'),
-(88, 40, '2024-1697', '2025-06-29 12:00:15', NULL, 'BSIT', 'LR1'),
-(89, 43, '8749-8887', '2025-06-29 13:42:37', NULL, 'BSIT', 'LR1'),
-(90, 40, '2024-1697', '2025-06-29 14:47:00', '2025-06-29 14:49:33', 'BSHRM', 'KitchenLab1'),
-(91, 41, '2024-1570', '2025-06-29 14:47:18', '2025-06-29 14:48:46', 'BSHRM', 'KitchenLab1'),
-(92, 40, '2024-1697', '2025-06-29 19:51:12', '2025-06-29 19:51:12', 'BSIT', 'ComLab2'),
-(93, 40, '2024-1697', '2025-06-29 20:28:43', NULL, 'BSIT', 'ComLab2'),
-(94, 40, '2024-1697', '2025-06-29 20:30:03', '2025-06-29 20:30:03', 'Department', 'Location'),
-(95, 40, '2024-1697', '2025-06-29 20:32:19', '2025-06-29 20:32:19', 'Department', 'Location'),
-(96, 40, '2024-1697', '2025-06-29 20:43:10', '2025-06-29 20:43:27', 'BSHRM', 'KitchenLab1'),
-(97, 40, '2024-1697', '2025-06-29 20:59:40', '2025-06-29 20:59:40', 'Department', 'Location'),
-(98, 41, '2024-1570', '2025-06-29 21:00:37', '2025-06-29 21:00:37', 'Department', 'Location'),
-(99, 40, '2024-1697', '2025-06-29 21:02:27', '2025-06-29 21:02:27', 'BSIT', 'ComLab1'),
-(100, 40, '2024-1697', '2025-06-29 21:05:12', '2025-06-29 21:05:12', 'BSIT', 'ComLab1'),
-(101, 40, '2024-1697', '2025-06-29 21:08:12', '2025-06-29 21:08:12', 'BSIT', 'ComLab1'),
-(102, 40, '2024-1697', '2025-06-29 21:09:44', '2025-06-29 21:09:44', 'BSIT', 'ComLab1'),
-(103, 40, '2024-1697', '2025-06-29 21:11:32', '2025-06-29 21:11:32', 'BSIT', 'ComLab1'),
-(104, 41, '2024-1570', '2025-06-29 21:12:20', '2025-06-29 21:12:20', 'BSIT', 'ComLab1'),
-(105, 40, '2024-1697', '2025-06-29 21:13:30', '2025-06-29 21:13:30', 'BSIT', 'ComLab1'),
-(106, 40, '2024-1697', '2025-06-29 21:14:07', '2025-06-29 21:14:07', 'BSIT', 'ComLab1'),
-(108, 42, '2024-0117', '2025-06-30 13:53:36', '2025-06-30 13:56:05', 'BSIT', 'ComLab1'),
-(109, 40, '2024-1697', '2025-06-30 16:56:39', '2025-06-30 16:56:39', 'BSIT', 'ComLab1'),
-(110, 40, '2024-1697', '2025-06-30 16:57:41', '2025-06-30 16:57:41', 'BSIT', 'ComLab1'),
-(111, 40, '2024-1697', '2025-06-30 17:12:55', '2025-06-30 17:12:55', 'BSIT', 'ComLab1'),
-(112, 40, '2024-1697', '2025-06-30 17:16:43', '2025-06-30 17:16:43', 'BSIT', 'ComLab1'),
-(113, 40, '2024-1697', '2025-06-30 17:18:33', '2025-06-30 17:18:33', 'BSIT', 'ComLab1'),
-(114, 41, '2024-1570', '2025-06-30 17:21:00', '2025-06-30 17:23:05', 'BSIT', 'ComLab1'),
-(115, 40, '2024-1697', '2025-06-30 17:23:41', '2025-06-30 17:23:41', 'BSIT', 'ComLab1'),
-(116, 41, '2024-1570', '2025-06-30 17:24:00', '2025-06-30 17:24:01', 'BSIT', 'ComLab1'),
-(117, 40, '2024-1697', '2025-06-30 17:25:54', '2025-06-30 17:25:55', 'BSIT', 'ComLab1'),
-(118, 41, '2024-1570', '2025-06-30 17:26:14', '2025-06-30 17:27:51', 'BSIT', 'ComLab1'),
-(119, 40, '2024-1697', '2025-06-30 17:32:01', '2025-06-30 17:32:01', 'BSIT', 'ComLab1'),
-(120, 41, '2024-1570', '2025-06-30 17:34:47', '2025-06-30 17:36:09', 'BSIT', 'ComLab1'),
-(121, 40, '2024-1697', '2025-06-30 17:37:03', '2025-06-30 17:37:04', 'BSIT', 'ComLab1'),
-(122, 41, '2024-1570', '2025-06-30 17:38:13', '2025-06-30 17:38:13', 'BSIT', 'ComLab1'),
-(123, 40, '2024-1697', '2025-06-30 17:41:05', '2025-06-30 17:41:05', 'BSIT', 'ComLab1'),
-(124, 41, '2024-1570', '2025-06-30 17:41:18', '2025-06-30 17:41:42', 'BSIT', 'ComLab1'),
-(125, 40, '2024-1697', '2025-07-01 07:50:45', '2025-07-01 07:50:45', 'BSIT', 'ComLab3'),
-(126, 41, '2024-1570', '2025-07-01 07:50:56', '2025-07-01 07:53:08', 'BSIT', 'ComLab3'),
-(127, 40, '2024-1697', '2025-07-01 07:56:24', '2025-07-01 07:56:24', 'BSIT', 'ComLab3'),
-(128, 41, '2024-1570', '2025-07-01 07:56:47', NULL, 'BSIT', 'ComLab3'),
-(129, 40, '2024-1697', '2025-07-01 07:57:39', NULL, 'BSIT', 'ComLab3');
+INSERT INTO `archived_attendance_logs` (`id`, `student_id`, `id_number`, `time_in`, `time_out`, `department`, `location`, `instructor_id`, `status`) VALUES
+(190, 40, '2024-1697', '2025-08-06 19:08:36', '2025-08-06 19:08:42', 'BSIT', 'ComLab1', '', NULL),
+(191, 40, '2024-1697', '2025-08-06 19:16:01', '2025-08-06 19:16:04', 'BSIT', 'ComLab1', '', NULL),
+(192, 40, '2024-1697', '2025-08-06 19:31:42', '2025-08-06 19:31:46', 'BSIT', 'ComLab1', '', NULL),
+(193, 40, '2024-1697', '2025-08-06 19:33:46', '2025-08-06 19:41:09', 'BSIT', 'ComLab1', '', NULL),
+(194, 40, '2024-1697', '2025-08-06 19:44:21', '2025-08-06 19:44:28', 'BSIT', 'ComLab1', '', NULL),
+(195, 40, '2024-1697', '2025-08-09 11:52:32', '2025-08-09 11:52:41', 'BSIT', 'ComLab1', '', NULL),
+(196, 40, '2024-1697', '2025-08-12 16:10:26', NULL, 'BSIT', 'ComLab2', '', NULL),
+(197, 40, '2024-1697', '2025-08-12 16:58:31', '2025-08-12 16:58:46', 'BSIT', 'ComLab1', '', NULL),
+(198, 40, '2024-1697', '2025-08-12 17:17:47', NULL, 'BSIT', 'ComLab1', '', NULL),
+(199, 40, '2024-1697', '2025-08-15 14:51:19', '2025-08-15 15:25:34', 'BSIT', 'ComLab1', '', NULL),
+(200, 46, '8888-8888', '2025-08-15 15:44:53', '2025-08-15 15:44:53', 'BSIT', 'ComLab1', '', NULL),
+(201, 44, '9999-9999', '2025-08-15 15:46:32', '2025-08-15 15:47:24', 'BSIT', 'ComLab1', '', NULL),
+(202, 46, '8888-8888', '2025-08-15 15:57:35', '2025-08-15 15:58:02', 'BSIT', 'ComLab1', '', NULL),
+(203, 46, '8888-8888', '2025-08-15 16:13:25', '2025-08-15 16:23:52', 'BSIT', 'ComLab1', '', NULL),
+(204, 46, '8888-8888', '2025-08-15 16:30:27', '2025-08-15 16:31:45', 'BSIT', 'ComLab1', '', NULL),
+(206, 40, '2024-1697', '2025-08-16 13:34:39', '2025-08-16 13:34:39', 'Department', 'Location', '', NULL),
+(207, 46, '8888-8888', '2025-08-16 13:48:43', '2025-08-16 13:48:43', 'BSIT', 'ComLab2', '', NULL),
+(208, 46, '8888-8888', '2025-08-16 13:50:01', '2025-08-16 13:50:22', 'Department', 'Location', '', NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `archived_instructor_logs`
+--
+
+CREATE TABLE `archived_instructor_logs` (
+  `id` int(11) NOT NULL,
+  `instructor_id` int(11) DEFAULT NULL,
+  `id_number` varchar(20) DEFAULT NULL,
+  `time_in` datetime DEFAULT NULL,
+  `time_out` datetime DEFAULT NULL,
+  `department` varchar(100) DEFAULT NULL,
+  `location` varchar(100) DEFAULT NULL,
+  `status` varchar(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `archived_instructor_logs`
+--
+
+INSERT INTO `archived_instructor_logs` (`id`, `instructor_id`, `id_number`, `time_in`, `time_out`, `department`, `location`, `status`) VALUES
+(56, 16, '2024-0117', '2025-08-06 16:06:23', '2025-08-06 16:06:35', 'BSIT', 'ComLab1', 'saved'),
+(57, 16, '2024-0117', '2025-08-06 16:06:38', NULL, 'BSIT', 'ComLab1', NULL),
+(58, 11, '0001-0001', '2025-08-06 19:03:48', '2025-08-06 19:09:01', 'BSIT', 'ComLab1', 'saved'),
+(59, 11, '0001-0001', '2025-08-06 19:09:04', '2025-08-06 19:16:16', 'BSIT', 'ComLab1', 'saved'),
+(60, 11, '0001-0001', '2025-08-06 19:16:19', '2025-08-06 19:33:10', 'BSIT', 'ComLab1', 'saved'),
+(61, 11, '0001-0001', '2025-08-06 19:33:14', '2025-08-06 19:41:23', 'BSIT', 'ComLab1', 'saved'),
+(62, 11, '0001-0001', '2025-08-06 19:41:26', '2025-08-06 19:44:44', 'BSIT', 'ComLab1', 'saved'),
+(66, 16, '2024-0117', '2025-08-09 11:45:53', '2025-08-09 11:52:52', 'BSIT', 'ComLab1', 'saved'),
+(68, 16, '2024-0117', '2025-08-12 16:10:31', '2025-08-12 16:58:58', 'BSIT', 'ComLab2', 'saved'),
+(69, 16, '2024-0117', '2025-08-12 16:59:01', '2025-08-12 17:17:58', 'BSIT', 'ComLab1', 'saved'),
+(71, 16, '2024-0117', '2025-08-15 14:51:30', '2025-08-15 15:38:42', 'BSIT', 'ComLab1', 'saved'),
+(72, 16, '2024-0117', '2025-08-15 15:38:45', '2025-08-15 15:46:26', 'BSIT', 'ComLab1', 'saved'),
+(73, 16, '2024-0117', '2025-08-15 15:47:19', '2025-08-15 15:49:08', 'BSIT', 'ComLab1', 'saved'),
+(74, 16, '2024-0117', '2025-08-15 15:49:11', '2025-08-15 15:58:12', 'BSIT', 'ComLab1', 'saved'),
+(75, 16, '2024-0117', '2025-08-15 16:13:30', '2025-08-15 16:30:21', 'BSIT', 'ComLab1', 'saved'),
+(76, 16, '2024-0117', '2025-08-15 16:30:23', '2025-08-15 16:32:00', 'BSIT', 'ComLab1', 'saved'),
+(78, 16, '2024-0117', '2025-08-16 13:39:45', '2025-08-16 13:48:27', 'BSIT', 'ComLab2', 'saved'),
+(79, 16, '2024-0117', '2025-08-16 13:48:30', '2025-08-16 13:52:05', 'BSIT', 'ComLab2', 'saved'),
+(82, 16, '2024-0117', '2025-08-17 10:59:27', '2025-08-17 10:59:32', 'BSIT', 'ComLab2', 'saved');
 
 -- --------------------------------------------------------
 
@@ -253,8 +208,17 @@ CREATE TABLE `attendance_logs` (
   `time_in` datetime NOT NULL,
   `time_out` datetime DEFAULT NULL,
   `department` varchar(255) NOT NULL,
-  `location` varchar(255) NOT NULL
+  `location` varchar(255) NOT NULL,
+  `instructor_id` varchar(9) NOT NULL,
+  `status` varchar(20) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `attendance_logs`
+--
+
+INSERT INTO `attendance_logs` (`id`, `student_id`, `id_number`, `time_in`, `time_out`, `department`, `location`, `instructor_id`, `status`) VALUES
+(205, 46, '8888-8888', '2025-08-15 16:48:43', NULL, 'BSIT', 'ComLab1', '', NULL);
 
 -- --------------------------------------------------------
 
@@ -277,7 +241,9 @@ INSERT INTO `department` (`department_id`, `department_name`, `department_desc`)
 (56, 'BSBA', 'Bachelor in Science and Business Administration'),
 (60, 'BSHRM', 'Bachelor of Science in Hotel and Restaurant Manage'),
 (62, 'BEED', 'Bachelor of Elementary Education'),
-(63, 'BSED', 'Bachelor of Secondary Education');
+(63, 'BSED', 'Bachelor of Secondary Education'),
+(164, 'BSCE', 'Bachelor of Science in Civil Engineering'),
+(165, 'Main', 'adada');
 
 -- --------------------------------------------------------
 
@@ -288,20 +254,82 @@ INSERT INTO `department` (`department_id`, `department_name`, `department_desc`)
 CREATE TABLE `instructor` (
   `id` int(11) NOT NULL,
   `fullname` varchar(50) NOT NULL,
-  `rfid_number` int(10) DEFAULT NULL,
+  `id_number` varchar(9) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp()
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `department_id` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `instructor`
 --
 
-INSERT INTO `instructor` (`id`, `fullname`, `rfid_number`, `created_at`, `updated_at`) VALUES
-(8, 'Mr.Richard Bracero', 2147483647, '2025-06-27 08:19:43', '2025-06-28 14:37:38'),
-(9, 'Mr.Jared Cueva', 1122334455, '2025-06-27 08:54:03', '2025-06-27 08:55:00'),
-(10, 'Mr.Alvin Billiones', 1234567899, '2025-06-27 08:55:17', '2025-06-27 08:55:17'),
-(11, 'Mr.Kurt Alegre', 2147483647, '2025-06-28 11:52:22', '2025-06-28 11:52:55');
+INSERT INTO `instructor` (`id`, `fullname`, `id_number`, `created_at`, `updated_at`, `department_id`) VALUES
+(11, 'Mr.Kurt Alegre', '0001-0001', '2025-06-28 11:52:22', '2025-07-14 22:16:12', 33),
+(12, 'Mr.Alvin Billiones', '0001-0004', '2025-07-08 08:26:38', '2025-07-14 22:19:33', 33),
+(13, 'Mr.Danilo Villariono', '0001-0003', '2025-07-09 00:38:05', '2025-07-14 22:18:53', 33),
+(16, 'Ms.Jessica Alcazar', '2024-0117', '2025-07-14 22:18:35', '2025-07-14 22:47:34', 33),
+(17, 'Mr.Richard Bracero', '0001-0005', '2025-07-14 22:20:02', '2025-07-14 22:20:02', 33),
+(18, 'Mrs.Emily Forrosuelo', '0001-0006', '2025-07-14 22:20:39', '2025-07-14 22:20:39', 33),
+(19, 'Mr.GlennFord Buncal', '0001-0007', '2025-07-14 22:21:14', '2025-07-14 22:21:14', 33);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `instructor_attendance`
+--
+
+CREATE TABLE `instructor_attendance` (
+  `id` int(11) NOT NULL,
+  `date` date NOT NULL,
+  `instructor_name` varchar(50) NOT NULL,
+  `instructor_id` int(11) NOT NULL,
+  `time_in` datetime NOT NULL,
+  `time_out` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `instructor_attendance`
+--
+
+INSERT INTO `instructor_attendance` (`id`, `date`, `instructor_name`, `instructor_id`, `time_in`, `time_out`) VALUES
+(1, '2025-07-26', 'Ms.Jessica Alcazar', 2024, '2025-07-26 17:25:34', '2025-07-26 17:25:34');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `instructor_logs`
+--
+
+CREATE TABLE `instructor_logs` (
+  `id` int(11) NOT NULL,
+  `instructor_id` int(11) DEFAULT NULL,
+  `id_number` varchar(20) DEFAULT NULL,
+  `time_in` datetime DEFAULT NULL,
+  `time_out` datetime DEFAULT NULL,
+  `swapped_with` int(11) DEFAULT NULL,
+  `swap_time` datetime DEFAULT NULL,
+  `department` varchar(100) DEFAULT NULL,
+  `location` varchar(100) DEFAULT NULL,
+  `status` varchar(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `instructor_logs`
+--
+
+INSERT INTO `instructor_logs` (`id`, `instructor_id`, `id_number`, `time_in`, `time_out`, `swapped_with`, `swap_time`, `department`, `location`, `status`) VALUES
+(38, 16, '2024-0117', '2025-08-03 14:31:21', NULL, NULL, NULL, 'BSIT', 'ComLab2', NULL),
+(47, 11, '0001-0001', '2025-08-05 11:41:38', NULL, NULL, NULL, 'BSIT', 'IT-LEC1', NULL),
+(63, 11, '0001-0001', '2025-08-06 19:44:47', NULL, NULL, NULL, 'BSIT', 'ComLab1', NULL),
+(64, 16, '2024-0117', '2025-08-06 19:45:50', NULL, NULL, NULL, 'BSIT', 'ComLab1', NULL),
+(65, 16, '2024-0117', '2025-08-07 06:35:59', NULL, NULL, NULL, 'BSIT', 'ComLab1', NULL),
+(67, 16, '2024-0117', '2025-08-09 11:52:59', NULL, NULL, NULL, 'BSIT', 'ComLab1', NULL),
+(70, 16, '2024-0117', '2025-08-12 17:18:29', NULL, NULL, NULL, 'BSIT', 'ComLab1', NULL),
+(77, 16, '2024-0117', '2025-08-15 16:32:02', NULL, NULL, NULL, 'BSIT', 'ComLab1', NULL),
+(80, 16, '2024-0117', '2025-08-16 13:52:09', NULL, NULL, NULL, 'BSIT', 'ComLab2', NULL),
+(81, 12, '0001-0004', '2025-08-16 13:56:14', NULL, NULL, NULL, 'BSIT', 'ComLab2', NULL),
+(83, 16, '2024-0117', '2025-08-17 10:59:36', NULL, NULL, NULL, 'BSIT', 'ComLab2', NULL);
 
 -- --------------------------------------------------------
 
@@ -667,56 +695,6 @@ INSERT INTO `role` (`id`, `role`) VALUES
 (39, 'Developer'),
 (40, 'Facilities'),
 (41, 'Admin'),
-(42, 'Engineer'),
-(43, 'Supervisor Lead'),
-(44, 'Inventory Manager'),
-(45, 'Receptionist'),
-(46, 'Receptionist'),
-(47, 'Client Relations'),
-(49, 'Supervisor'),
-(50, 'Assistant'),
-(51, 'Support'),
-(52, 'Quality Assurance'),
-(53, 'Security Officer'),
-(54, 'Staff'),
-(55, 'Data Analyst'),
-(56, 'Maintenance'),
-(57, 'Director'),
-(58, 'Researcher'),
-(59, 'Driver'),
-(61, 'HR'),
-(62, 'Security Officer'),
-(63, 'Logistics'),
-(64, 'Director'),
-(67, 'Service Manager'),
-(69, 'Engineer'),
-(70, 'Operations Manager'),
-(71, 'Project Manager'),
-(72, 'Researcher'),
-(73, 'Data Analyst'),
-(74, 'Administrator'),
-(75, 'Quality Assurance'),
-(76, 'Inventory Manager'),
-(78, 'Instructor'),
-(79, 'Receptionist'),
-(80, 'Project Manager'),
-(81, 'Customer Service'),
-(82, 'Engineer'),
-(84, 'Developer'),
-(85, 'Leader'),
-(86, 'Researcher'),
-(87, 'Clerk'),
-(88, 'Project Manager'),
-(89, 'Developer'),
-(90, 'Designer'),
-(91, 'Purchasing Officer'),
-(92, 'Director'),
-(93, 'Receptionist'),
-(94, 'Facilities'),
-(95, 'Operations Manager'),
-(96, 'Instructor'),
-(97, 'Assistant'),
-(98, 'Client Relations'),
 (99, 'Administrator'),
 (100, 'Service Manager'),
 (101, 'Purchasing Officer'),
@@ -728,7 +706,6 @@ INSERT INTO `role` (`id`, `role`) VALUES
 (107, 'Manager'),
 (110, 'Clerk'),
 (111, 'Clerk'),
-(112, 'Supervisor Lead'),
 (113, 'Operator'),
 (114, 'Customer Service'),
 (118, 'RE'),
@@ -755,6 +732,19 @@ CREATE TABLE `rooms` (
   `descr` varchar(255) DEFAULT NULL,
   `authorized_personnel` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `rooms`
+--
+
+INSERT INTO `rooms` (`id`, `room`, `department`, `password`, `desc`, `descr`, `authorized_personnel`) VALUES
+(150, 'BSHM 01', 'BSHRM', 'BSHM01', NULL, 'Kitchen Lab', 'Instructor'),
+(151, 'ComLab2', 'BSIT', 'comlab2', NULL, 'IT lab1', 'Instructor'),
+(152, 'ComLab1', 'BSIT', 'comlab1', NULL, 'comlab1', 'Instructor'),
+(153, 'Gate', 'Main', 'gate123', NULL, 'gilugewqe', 'Instructor'),
+(154, 'ComLab3', 'BSIT', 'comlab3', NULL, 'IT lab 3', 'Instructor'),
+(155, 'IT-LEC1', 'BSIT', 'itlec1', NULL, 'IT LECTURE 1', 'Instructor'),
+(156, 'IT-LEC2', 'BSIT', 'itlec2', NULL, 'IT Lecture 2', 'Instructor');
 
 -- --------------------------------------------------------
 
@@ -887,18 +877,26 @@ CREATE TABLE `room_schedules` (
   `end_time` time DEFAULT NULL,
   `day` varchar(20) DEFAULT NULL,
   `instructor` varchar(58) NOT NULL,
-  `instructor_rfid` varchar(255) DEFAULT NULL
+  `instructor_id` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `room_schedules`
 --
 
-INSERT INTO `room_schedules` (`department`, `id`, `room_name`, `room_location`, `room_password`, `subject`, `section`, `year_level`, `start_time`, `end_time`, `day`, `instructor`, `instructor_rfid`) VALUES
-('BSED', 8, 'EDUC-101', NULL, NULL, 'Filipino', 'North', '1st', '08:40:00', '10:40:00', 'Monday', 'Mr.Richard Bracero', NULL),
-('BSHRM', 9, 'KitchenLab1', NULL, NULL, 'dqwewq', 'West', '1st', '21:40:00', '11:40:00', 'Wednesday', 'Mr.Jared Cueva', NULL),
-('BSIT', 10, 'ComLab1', NULL, NULL, 'Networking', 'West', '4th', '09:30:00', '11:30:00', 'Friday', 'Mr.Jared Cueva', NULL),
-('BSBA', 12, 'AccountLab', NULL, NULL, 'Business Acc.', 'West', '4th', '13:20:00', '15:20:00', 'Wednesday', 'Mr.Alvin Billiones', NULL);
+INSERT INTO `room_schedules` (`department`, `id`, `room_name`, `room_location`, `room_password`, `subject`, `section`, `year_level`, `start_time`, `end_time`, `day`, `instructor`, `instructor_id`) VALUES
+('BSIT', 13, 'ComLab1', NULL, NULL, 'Networking', 'West', '1st', '11:31:00', '13:47:00', 'Friday', 'Mr.Danilo Villariono', 13),
+('BSIT', 14, 'ComLab1', NULL, NULL, 'Web Development', 'West', '4th', '09:20:00', '11:20:00', 'Monday', 'Mr.Alvin Billiones', 12),
+('BSIT', 15, 'ComLab1', NULL, NULL, 'Sub1', 'west', '4th', '09:00:00', '10:30:00', 'Tuesday', 'Ms.Jessica Alcazar', 16),
+('BSIT', 16, 'ComLab1', NULL, NULL, 'Sub2', 'west', '4th', '13:00:00', '14:30:00', 'Tuesday', 'Ms.Jessica Alcazar', 16),
+('BSIT', 17, 'ComLab1', NULL, NULL, 'Sub3', 'West', '4th', '15:10:00', '16:15:00', 'Tuesday', 'Ms.Jessica Alcazar', 16),
+('BSIT', 18, 'ComLab1', NULL, NULL, 'Sub4', 'West', '4th', '17:20:00', '19:15:00', 'Tuesday', 'Ms.Jessica Alcazar', 16),
+('BSIT', 20, 'ComLab2', NULL, NULL, 'Web', 'west', '4th', '13:40:00', '15:40:00', 'Tuesday', 'Ms.Jessica Alcazar', 16),
+('BSIT', 21, 'IT-LEC1', NULL, NULL, 'Sub1', 'West', '4th', '11:40:00', '02:40:00', 'Monday', 'Mr.Kurt Alegre', 11),
+('BSIT', 22, 'ComLab1', NULL, NULL, 'SUB2-01', 'West', '2nd Year', '00:00:00', '15:00:00', 'Wednesday', 'Mr.Kurt Alegre', 11),
+('BSIT', 23, 'IT-LEC1', NULL, NULL, 'SUB1', 'West', '1st Year', '13:20:00', '15:20:00', 'Friday', 'Mr.Kurt Alegre', 11),
+('BSIT', 24, 'ComLab2', NULL, NULL, 'SUB4-01', 'West', '4th Year', '14:00:00', '15:00:00', 'Saturday', 'Ms.Jessica Alcazar', 16),
+('BSIT', 25, 'ComLab2', NULL, NULL, 'ITE PROF ELECT 4', 'East', '4th Year', '16:00:00', '17:00:00', 'Saturday', 'Mr.Alvin Billiones', 12);
 
 -- --------------------------------------------------------
 
@@ -937,10 +935,11 @@ INSERT INTO `stranger_logs` (`id`, `attempts`, `last_log`, `rfid_number`) VALUES
 
 CREATE TABLE `students` (
   `id` int(11) NOT NULL,
-  `id_number` varchar(20) NOT NULL,
+  `id_number` varchar(9) NOT NULL,
   `fullname` varchar(100) NOT NULL,
   `section` varchar(50) NOT NULL,
   `year` varchar(20) NOT NULL,
+  `status` varchar(10) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   `department_id` varchar(144) NOT NULL
@@ -950,11 +949,84 @@ CREATE TABLE `students` (
 -- Dumping data for table `students`
 --
 
-INSERT INTO `students` (`id`, `id_number`, `fullname`, `section`, `year`, `created_at`, `updated_at`, `department_id`) VALUES
-(40, '2024-1697', 'Devora A. Maquiling', 'West', '1st Year', '2025-06-28 10:25:15', '2025-06-28 10:25:26', '60'),
-(41, '2024-1570', 'Rich T. Gaid', 'West', '1st Year', '2025-06-28 10:26:01', '2025-06-28 10:26:01', '60'),
-(42, '2024-0117', 'Mitshelne M. Illut', 'North', '1st Year', '2025-06-28 10:27:52', '2025-06-28 10:27:52', '63'),
-(43, '8749-8887', 'Elmer V. Espinosa', 'West', '4th Year', '2025-06-29 04:58:27', '2025-06-29 04:58:27', '33');
+INSERT INTO `students` (`id`, `id_number`, `fullname`, `section`, `year`, `status`, `created_at`, `updated_at`, `department_id`) VALUES
+(40, '2024-1697', 'Devora A. Maquiling', 'West', '1st Year', '', '2025-06-28 10:25:15', '2025-06-28 10:25:26', '60'),
+(41, '2024-1570', 'Rich T. Gaid', 'West', '1st Year', '', '2025-06-28 10:26:01', '2025-06-28 10:26:01', '60'),
+(42, '2024-0118', 'Mitshelne M. Illut', 'North', '1st Year', '', '2025-06-28 10:27:52', '2025-07-15 00:00:09', '63'),
+(44, '9999-9999', 'Angelo G. Derder', 'West', '4th Year', '', '2025-07-09 03:17:28', '2025-08-15 07:35:26', '33'),
+(45, '1111-1111', 'Char Lang', 'North', '1st Year', '', '2025-08-15 07:35:06', '2025-08-15 07:35:06', '33'),
+(46, '8888-8888', 'Mike Zaspa', 'West', '4th Year', '', '2025-08-15 07:35:57', '2025-08-15 07:35:57', '33'),
+(47, '7777-7777', 'Aian Desucatan', 'West', '4th Year', '', '2025-08-15 07:36:45', '2025-08-15 07:36:45', '33');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `subjects`
+--
+
+CREATE TABLE `subjects` (
+  `id` int(11) NOT NULL,
+  `subject_code` varchar(50) NOT NULL,
+  `subject_name` varchar(255) NOT NULL,
+  `year_level` varchar(20) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `subjects`
+--
+
+INSERT INTO `subjects` (`id`, `subject_code`, `subject_name`, `year_level`) VALUES
+(1, '111', 'SUB1', '1st Year'),
+(2, '444', 'SUB4-01', '4th Year'),
+(3, '333', 'SUB3-01', '3rd Year'),
+(4, '222', 'SUB2-01', '2nd Year'),
+(5, 'PE 1', 'Movement Enhancement', '1st Year'),
+(6, 'NSTP 1', 'National Service Training Program 1', '1st Year'),
+(7, 'FIL110', 'Komunikasyon sa Akademikong Filipino', '1st Year'),
+(8, 'GE ELECT1', 'People and The Earths Ecosystem', '1st Year'),
+(9, 'MATH 110', 'Mathematics in the Modern Science', '1st Year'),
+(10, 'LIT 110', 'Contemporary World', '1st Year'),
+(11, 'ITE112', 'Program Logic Formulation', '1st Year'),
+(12, 'ITE111', 'Computer Assembly, Trblshting & Repair', '1st Year'),
+(13, 'ITE113', 'Introduction to Computing', '1st Year'),
+(14, 'BRIDGING1', 'Precalculus', '1st Year'),
+(15, 'BRIDGING2', 'General Biology', '1st Year'),
+(16, 'PATHFit3', 'Physical Activity towards Health and Fitness', '2nd Year'),
+(17, 'GE ELECT2', 'Philippine Popular Culture', '2nd Year'),
+(18, 'IT ELECT1', 'Fundamentals of Accounting', '2nd Year'),
+(19, 'ITE215', 'Platform Technologies', '2nd Year'),
+(20, 'ITE214', 'Digital Logic Design (Workshop 1)', '2nd Year'),
+(21, 'ITE212', 'Graphic Designing', '2nd Year'),
+(22, 'ITE211', 'Computer Programming 2', '2nd Year'),
+(23, 'ITE213', 'Information Management', '2nd Year'),
+(24, 'ITE311', 'Information Management', '3rd Year'),
+(25, 'ITE310', 'Platform Technologies', '3rd Year'),
+(26, 'ITE312', 'System Integration and Architecture', '3rd Year'),
+(27, 'MATH310', 'Linear Algebra', '3rd Year'),
+(28, 'AH310', 'Philippine Popular Culture', '3rd Year'),
+(29, 'ENGL310', 'Speech Improvement', '3rd Year'),
+(30, 'ITE410', 'ITE PROF ELECT 4', '4th Year'),
+(31, 'ITE411', 'Information Assurance and Security 2', '4th Year'),
+(32, 'ITE412', 'Capstone Project 2', '4th Year');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `swap_requests`
+--
+
+CREATE TABLE `swap_requests` (
+  `id` int(11) NOT NULL,
+  `requester_id` varchar(20) NOT NULL,
+  `target_id` varchar(20) NOT NULL,
+  `room` varchar(50) NOT NULL,
+  `department` varchar(50) NOT NULL,
+  `subject` varchar(100) DEFAULT NULL,
+  `request_date` datetime NOT NULL DEFAULT current_timestamp(),
+  `response_date` datetime DEFAULT NULL,
+  `status` enum('pending','approved','rejected','cancelled') NOT NULL DEFAULT 'pending',
+  `notes` text DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -1257,11 +1329,25 @@ ALTER TABLE `admin_sessions`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `archived_attendance_20250727_190813`
+--
+ALTER TABLE `archived_attendance_20250727_190813`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `student_id` (`student_id`);
+
+--
 -- Indexes for table `archived_attendance_logs`
 --
 ALTER TABLE `archived_attendance_logs`
   ADD PRIMARY KEY (`id`),
   ADD KEY `student_id` (`student_id`);
+
+--
+-- Indexes for table `archived_instructor_logs`
+--
+ALTER TABLE `archived_instructor_logs`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `instructor_id` (`instructor_id`);
 
 --
 -- Indexes for table `attendance_logs`
@@ -1281,6 +1367,19 @@ ALTER TABLE `department`
 --
 ALTER TABLE `instructor`
   ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `instructor_attendance`
+--
+ALTER TABLE `instructor_attendance`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `instructor_logs`
+--
+ALTER TABLE `instructor_logs`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `instructor_id` (`instructor_id`);
 
 --
 -- Indexes for table `lostcard`
@@ -1344,6 +1443,21 @@ ALTER TABLE `students`
   ADD UNIQUE KEY `id_number` (`id_number`);
 
 --
+-- Indexes for table `subjects`
+--
+ALTER TABLE `subjects`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `subject_code` (`subject_code`);
+
+--
+-- Indexes for table `swap_requests`
+--
+ALTER TABLE `swap_requests`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `requester_id` (`requester_id`),
+  ADD KEY `target_id` (`target_id`);
+
+--
 -- Indexes for table `user`
 --
 ALTER TABLE `user`
@@ -1378,28 +1492,52 @@ ALTER TABLE `admin_sessions`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=52;
 
 --
+-- AUTO_INCREMENT for table `archived_attendance_20250727_190813`
+--
+ALTER TABLE `archived_attendance_20250727_190813`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `archived_attendance_logs`
 --
 ALTER TABLE `archived_attendance_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=130;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=209;
+
+--
+-- AUTO_INCREMENT for table `archived_instructor_logs`
+--
+ALTER TABLE `archived_instructor_logs`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=83;
 
 --
 -- AUTO_INCREMENT for table `attendance_logs`
 --
 ALTER TABLE `attendance_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=130;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=209;
 
 --
 -- AUTO_INCREMENT for table `department`
 --
 ALTER TABLE `department`
-  MODIFY `department_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=164;
+  MODIFY `department_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=166;
 
 --
 -- AUTO_INCREMENT for table `instructor`
 --
 ALTER TABLE `instructor`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
+
+--
+-- AUTO_INCREMENT for table `instructor_attendance`
+--
+ALTER TABLE `instructor_attendance`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT for table `instructor_logs`
+--
+ALTER TABLE `instructor_logs`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=84;
 
 --
 -- AUTO_INCREMENT for table `lostcard`
@@ -1435,7 +1573,7 @@ ALTER TABLE `role`
 -- AUTO_INCREMENT for table `rooms`
 --
 ALTER TABLE `rooms`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=150;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=157;
 
 --
 -- AUTO_INCREMENT for table `room_logs`
@@ -1447,7 +1585,7 @@ ALTER TABLE `room_logs`
 -- AUTO_INCREMENT for table `room_schedules`
 --
 ALTER TABLE `room_schedules`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
 
 --
 -- AUTO_INCREMENT for table `stranger_logs`
@@ -1459,7 +1597,19 @@ ALTER TABLE `stranger_logs`
 -- AUTO_INCREMENT for table `students`
 --
 ALTER TABLE `students`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=44;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=48;
+
+--
+-- AUTO_INCREMENT for table `subjects`
+--
+ALTER TABLE `subjects`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
+
+--
+-- AUTO_INCREMENT for table `swap_requests`
+--
+ALTER TABLE `swap_requests`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `user`
@@ -1488,6 +1638,12 @@ ALTER TABLE `visitor_logs`
 --
 ALTER TABLE `attendance_logs`
   ADD CONSTRAINT `attendance_logs_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`);
+
+--
+-- Constraints for table `instructor_logs`
+--
+ALTER TABLE `instructor_logs`
+  ADD CONSTRAINT `instructor_logs_ibfk_1` FOREIGN KEY (`instructor_id`) REFERENCES `instructor` (`id`);
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
