@@ -4,7 +4,6 @@ $host = "127.0.0.1";
 $username = "u8027114156_rfidgpmsPass";
 $password = "1rfidUser2025";
 $database = "u8027114156_rfidgpms";
-
 // Create connection
 $conn = new mysqli($host, $username, $password, $database);
 
