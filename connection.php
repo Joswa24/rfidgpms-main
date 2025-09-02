@@ -1,9 +1,9 @@
 
 <?php
  $mysql_hostname = "localhost";
-$mysql_user = "u8027114156_rfidgpmsPass";
-$mysql_password = "1rfidUser2025";
-$mysql_database = "u8027114156_rfidgpmsPass";
+$mysql_user = "1rfidUser2025";
+$mysql_password = "u8027114156_rfidgpmsPass";
+$mysql_database = "u8027114156_rfidgpms";
 $bd = mysqli_connect($mysql_hostname, $mysql_user, $mysql_password, $mysql_database) or die("Could not connect database"); 
 
 
