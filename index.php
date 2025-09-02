@@ -2,7 +2,7 @@
 ob_start();
 session_start();
 
-include '../connection.php';
+include 'connection.php';
 
 // =====================================================================
 // MAINTENANCE TASKS - Improved with prepared statements
