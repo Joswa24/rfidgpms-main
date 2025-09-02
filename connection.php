@@ -1,6 +1,6 @@
 
 <?php
- $mysql_hostname = "localhost";
+ $mysql_hostname = "127.0.0.1";
 $mysql_user = "1rfidUser2025";
 $mysql_password = "u8027114156_rfidgpmsPass";
 $mysql_database = "u8027114156_rfidgpms";
