@@ -17,8 +17,6 @@ function jsonResponse($status, $message = '', $data = []) {
     exit;
 }
 
-
-
 // Validate required parameters
 if (!isset($_GET['edit'])) {
     jsonResponse('error', 'Missing edit parameter');
@@ -27,7 +25,7 @@ if (!isset($_GET['edit'])) {
 $editType = $_GET['edit'];
 
 // Handle cases that require ID from POST
-if ($editType === 'student' || $editType === 'instructor') {
+if ($editType === 'student' || $editType === 'instructor' || $editType === 'personell') {
     if (!isset($_POST['id'])) {
         jsonResponse('error', 'Missing ID parameter');
     }
@@ -47,67 +45,150 @@ if ($id <= 0) {
 // Handle different edit types
 switch ($editType) {
     case 'instructor':
-    // Validate required fields
-    if (empty($_POST['id'])) {
-        jsonResponse('error', 'Missing instructor ID');
+        // Validate required fields
+        if (empty($_POST['id'])) {
+            jsonResponse('error', 'Missing instructor ID');
+        }
+        if (empty($_POST['fullname'])) {
+            jsonResponse('error', 'Full name is required');
+        }
+        if (empty($_POST['department_id'])) {
+            jsonResponse('error', 'Department is required');
+        }
+
+        // Sanitize inputs
+        $id = intval($_POST['id']);
+        $fullname = sanitizeInput($db, trim($_POST['fullname']));
+        $id_number = !empty($_POST['id_number']) ? sanitizeInput($db, trim($_POST['id_number'])) : null;
+        $department_id = intval($_POST['department_id']);
+
+        // Validate IDs
+        if ($id <= 0) {
+            jsonResponse('error', 'Invalid instructor ID');
+        }
+        if ($department_id <= 0) {
+            jsonResponse('error', 'Invalid department ID');
+        }
+
+        // Validate ID number format if provided (must be 0000-0000 format)
+        if ($id_number && !preg_match('/^\d{4}-\d{4}$/', $id_number)) {
+            jsonResponse('error', 'Invalid ID format. Must be in 0000-0000 format (four digits, hyphen, four digits)');
+        }
+
+        // Check if instructor exists
+        $checkInstructor = $db->prepare("SELECT id FROM instructor WHERE id = ?");
+        $checkInstructor->bind_param("i", $id);
+        $checkInstructor->execute();
+        $checkInstructor->store_result();
+        
+        if ($checkInstructor->num_rows === 0) {
+            jsonResponse('error', 'Instructor not found');
+        }
+        $checkInstructor->close();
+
+        // Check if department exists
+        $checkDepartment = $db->prepare("SELECT department_id FROM department WHERE department_id = ?");
+        $checkDepartment->bind_param("i", $department_id);
+        $checkDepartment->execute();
+        $checkDepartment->store_result();
+        
+        if ($checkDepartment->num_rows === 0) {
+            jsonResponse('error', 'Department not found');
+        }
+        $checkDepartment->close();
+
+        // Check ID number uniqueness if provided
+        if ($id_number) {
+            $checkId = $db->prepare("SELECT id FROM instructor WHERE id_number = ? AND id != ?");
+            $checkId->bind_param("si", $id_number, $id);
+            $checkId->execute();
+            $checkId->store_result();
+            
+            if ($checkId->num_rows > 0) {
+                jsonResponse('error', 'ID number already assigned to another instructor');
+            }
+            $checkId->close();
+        }
+
+        // Update instructor
+        $stmt = $db->prepare("UPDATE instructor SET 
+                             fullname = ?, 
+                             id_number = ?,
+                             department_id = ?,
+                             updated_at = NOW()
+                             WHERE id = ?");
+        $stmt->bind_param("ssii", $fullname, $id_number, $department_id, $id);
+
+        if ($stmt->execute()) {
+            jsonResponse('success', 'Instructor updated successfully');
+        } else {
+            jsonResponse('error', 'Failed to update instructor: ' . $db->error);
+        }
+        break;
+
+    case 'subject':
+    // Get ID from POST instead of GET
+    if (!isset($_POST['id'])) {
+        jsonResponse('error', 'Missing ID parameter');
     }
-    if (empty($_POST['fullname'])) {
-        jsonResponse('error', 'Full name is required');
+    $id = intval($_POST['id']);
+    
+    // Rest of your subject case code remains the same...
+    // Validate required fields
+    if (empty($_POST['subject_code']) || empty($_POST['subject_name']) || empty($_POST['year_level'])) {
+        jsonResponse('error', 'All fields are required');
     }
 
     // Sanitize inputs
-    $id = intval($_POST['id']);
-    $fullname = sanitizeInput($db, trim($_POST['fullname']));
-    $rfid_number = !empty($_POST['rfid_number']) ? sanitizeInput($db, trim($_POST['rfid_number'])) : null;
+    $subject_code = sanitizeInput($db, $_POST['subject_code']);
+    $subject_name = sanitizeInput($db, $_POST['subject_name']);
+    $year_level = sanitizeInput($db, $_POST['year_level']);
 
-    // Validate ID
-    if ($id <= 0) {
-        jsonResponse('error', 'Invalid instructor ID');
-    }
-
-    // Validate RFID format if provided
-    if ($rfid_number && !preg_match('/^[0-9A-F]{8,14}$/i', $rfid_number)) {
-        jsonResponse('error', 'Invalid RFID format. Use 8-14 hex characters');
-    }
-
-    // Check if instructor exists
-    $checkInstructor = $db->prepare("SELECT id FROM instructor WHERE id = ?");
-    $checkInstructor->bind_param("i", $id);
-    $checkInstructor->execute();
-    $checkInstructor->store_result();
     
-    if ($checkInstructor->num_rows === 0) {
-        jsonResponse('error', 'Instructor not found');
-    }
-    $checkInstructor->close();
 
-    // Check RFID uniqueness if provided
-    if ($rfid_number) {
-        $checkRfid = $db->prepare("SELECT id FROM instructor WHERE rfid_number = ? AND id != ?");
-        $checkRfid->bind_param("si", $rfid_number, $id);
-        $checkRfid->execute();
-        $checkRfid->store_result();
-        
-        if ($checkRfid->num_rows > 0) {
-            jsonResponse('error', 'RFID number already assigned to another instructor');
+        // Validate year level format
+        $valid_year_levels = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
+        if (!in_array($year_level, $valid_year_levels)) {
+            jsonResponse('error', 'Invalid year level');
         }
-        $checkRfid->close();
-    }
 
-    // Update instructor
-    $stmt = $db->prepare("UPDATE instructor SET 
-                         fullname = ?, 
-                         rfid_number = ?,
-                         updated_at = NOW()
-                         WHERE id = ?");
-    $stmt->bind_param("ssi", $fullname, $rfid_number, $id);
+        // Check if subject exists
+        $checkSubject = $db->prepare("SELECT id FROM subjects WHERE id = ?");
+        $checkSubject->bind_param("i", $id);
+        $checkSubject->execute();
+        $checkSubject->store_result();
+        
+        if ($checkSubject->num_rows === 0) {
+            jsonResponse('error', 'Subject not found');
+        }
+        $checkSubject->close();
 
-    if ($stmt->execute()) {
-        jsonResponse('success', 'Instructor updated successfully');
-    } else {
-        jsonResponse('error', 'Failed to update instructor: ' . $db->error);
-    }
-    break;
+        // Check if subject code already exists (excluding current subject)
+        $checkCode = $db->prepare("SELECT id FROM subjects WHERE subject_code = ? AND id != ?");
+        $checkCode->bind_param("si", $subject_code, $id);
+        $checkCode->execute();
+        $checkCode->store_result();
+        
+        if ($checkCode->num_rows > 0) {
+            jsonResponse('error', 'Subject code already exists');
+        }
+        $checkCode->close();
+
+        // Update subject
+        $stmt = $db->prepare("UPDATE subjects SET 
+                             subject_code = ?,
+                             subject_name = ?,
+                             year_level = ?,
+                             updated_at = NOW()
+                             WHERE id = ?");
+        $stmt->bind_param("sssi", $subject_code, $subject_name, $year_level, $id);
+
+        if ($stmt->execute()) {
+            jsonResponse('success', 'Subject updated successfully');
+        } else {
+            jsonResponse('error', 'Failed to update subject: ' . $db->error);
+        }
+        break;
 
     case 'personell':
         // Get data from POST
@@ -413,99 +494,8 @@ switch ($editType) {
         break;
         
     case 'student':
-    // Validate required fields
-    $required = ['id', 'id_number', 'fullname', 'section', 'year'];
-    foreach ($required as $field) {
-        if (empty($_POST[$field])) {
-            jsonResponse('error', "Missing required field: $field");
-        }
-    }
-
-    // Get and validate ID
-    $id = filter_var($_POST['id'], FILTER_VALIDATE_INT);
-    if ($id === false || $id <= 0) {
-        jsonResponse('error', 'Invalid student ID');
-    }
-
-    // Sanitize inputs
-    $id_number = sanitizeInput($db, trim($_POST['id_number']));
-    $fullname = sanitizeInput($db, trim($_POST['fullname']));
-    $section = sanitizeInput($db, trim($_POST['section']));
-    $year = sanitizeInput($db, trim($_POST['year']));
-
-    // Validate student ID format (YYYY-XXXX)
-    if (!preg_match('/^\d{4}-\d{4}$/', $id_number)) {
-        jsonResponse('error', 'Invalid student ID format. Must be YYYY-XXXX');
-    }
-
-    // Check if student exists
-    $checkStudent = $db->prepare("SELECT id FROM students WHERE id = ?");
-    $checkStudent->bind_param("i", $id);
-    $checkStudent->execute();
-    $checkStudent->store_result();
-    
-    if ($checkStudent->num_rows === 0) {
-        jsonResponse('error', 'Student not found');
-    }
-    $checkStudent->close();
-
-    // Check duplicate ID number (excluding current student)
-    $checkID = $db->prepare("SELECT id FROM students WHERE id_number = ? AND id != ?");
-    $checkID->bind_param("si", $id_number, $id);
-    $checkID->execute();
-    $checkID->store_result();
-    
-    if ($checkID->num_rows > 0) {
-        jsonResponse('error', 'This ID number already exists for another student');
-    }
-    $checkID->close();
-
-    // Update student record
-    $stmt = $db->prepare("UPDATE students SET 
-                         id_number = ?, 
-                         fullname = ?, 
-                         section = ?, 
-                         year = ?,
-                         updated_at = NOW()
-                         WHERE id = ?");
-    $stmt->bind_param("ssssi", $id_number, $fullname, $section, $year, $id);
-
-    if ($stmt->execute()) {
-        jsonResponse('success', 'Student updated successfully');
-    } else {
-        jsonResponse('error', 'Failed to update student: ' . $stmt->error);
-    }
-    break;
-        case 'schedule':
-    // Check if this is a GET request (for fetching data)
-    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-        $response = ['status' => 'error', 'message' => ''];
-        
-        try {
-            $id = intval($_GET['id']);
-            $stmt = $db->prepare("SELECT * FROM room_schedules WHERE id = ?");
-            $stmt->bind_param("i", $id);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            
-            if ($result->num_rows > 0) {
-                $response['status'] = 'success';
-                $response['data'] = $result->fetch_assoc();
-            } else {
-                $response['message'] = 'Schedule not found';
-            }
-        } catch (Exception $e) {
-            $response['message'] = 'Error: ' . $e->getMessage();
-        }
-        
-        header('Content-Type: application/json');
-        echo json_encode($response);
-        exit;
-    }
-    // Handle POST request - update schedule
-    elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Validate required fields
-        $required = ['id', 'department', 'room_name', 'subject', 'section', 'year_level', 'day', 'instructor', 'start_time', 'end_time'];
+        $required = ['id', 'department_id', 'id_number', 'fullname', 'section', 'year'];
         foreach ($required as $field) {
             if (empty($_POST[$field])) {
                 jsonResponse('error', "Missing required field: $field");
@@ -513,81 +503,186 @@ switch ($editType) {
         }
 
         // Sanitize inputs
-        
         $id = intval($_POST['id']);
-        $department = sanitizeInput($db, $_POST['department']);
-        $room_name = sanitizeInput($db, $_POST['room_name']);
-        $subject = sanitizeInput($db, $_POST['subject']);
+        $department_id = intval($_POST['department_id']);
+        $id_number = sanitizeInput($db, $_POST['id_number']);
+        $fullname = sanitizeInput($db, $_POST['fullname']);
         $section = sanitizeInput($db, $_POST['section']);
-        $year_level = sanitizeInput($db, $_POST['year_level']);
-        $day = sanitizeInput($db, $_POST['day']);
-        $instructor = sanitizeInput($db, $_POST['instructor']);
-        $start_time = sanitizeInput($db, $_POST['start_time']);
-        $end_time = sanitizeInput($db, $_POST['end_time']);
+        $year = sanitizeInput($db, $_POST['year']);
 
-        // Validate time format
-        if (!preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $start_time) || 
-            !preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $end_time)) {
-            jsonResponse('error', 'Invalid time format (use HH:MM)');
+        // Validate student ID format (YYYY-XXXX)
+        if (!preg_match('/^\d{4}-\d{4}$/', $id_number)) {
+            jsonResponse('error', 'Invalid student ID format. Must be YYYY-XXXX');
         }
 
-        // Check if end time is after start time
-        if (strtotime($end_time) <= strtotime($start_time)) {
-            jsonResponse('error', 'End time must be after start time');
+        // Check if student exists
+        $checkStudent = $db->prepare("SELECT id FROM students WHERE id = ?");
+        $checkStudent->bind_param("i", $id);
+        $checkStudent->execute();
+        $checkStudent->store_result();
+        
+        if ($checkStudent->num_rows === 0) {
+            jsonResponse('error', 'Student not found');
         }
+        $checkStudent->close();
 
-        // Check for schedule conflicts (excluding current schedule)
-        $conflict_check = $db->prepare("SELECT id FROM room_schedules 
-                                       WHERE room_name = ? 
-                                       AND day = ? 
-                                       AND ((start_time < ? AND end_time > ?) 
-                                       OR (start_time < ? AND end_time > ?) 
-                                       OR (start_time >= ? AND end_time <= ?))
-                                       AND id != ?");
-        $conflict_check->bind_param("ssssssssi", 
-            $room_name, $day, 
-            $end_time, $start_time,
-            $start_time, $end_time,
-            $start_time, $end_time,
-            $id
-        );
-        $conflict_check->execute();
-        $conflict_check->store_result();
-
-        if ($conflict_check->num_rows > 0) {
-            jsonResponse('error', 'Schedule conflict: Another class is already scheduled in this room at the same time');
+        // Check duplicate ID number (excluding current student)
+        $checkID = $db->prepare("SELECT id FROM students WHERE id_number = ? AND id != ?");
+        $checkID->bind_param("si", $id_number, $id);
+        $checkID->execute();
+        $checkID->store_result();
+        
+        if ($checkID->num_rows > 0) {
+            jsonResponse('error', 'This ID number already exists for another student');
         }
-        $conflict_check->close();
+        $checkID->close();
 
-        // Update schedule
-        $stmt = $db->prepare("UPDATE room_schedules SET 
-                             department = ?,
-                             room_name = ?,
-                             subject = ?,
-                             section = ?,
-                             year_level = ?,
-                             day = ?,
-                             instructor = ?,
-                             start_time = ?,
-                             end_time = ?,
+        // Update student record
+        $stmt = $db->prepare("UPDATE students SET 
+                             department_id = ?, 
+                             id_number = ?, 
+                             fullname = ?, 
+                             section = ?, 
+                             year = ?,
                              updated_at = NOW()
                              WHERE id = ?");
-        $stmt->bind_param("sssssssssi", 
-            $department, $room_name, $subject, $section,
-            $year_level, $day, $instructor, $start_time,
-            $end_time, $id
-        );
+        $stmt->bind_param("sssssi", $department_id, $id_number, $fullname, $section, $year, $id);
 
         if ($stmt->execute()) {
-            jsonResponse('success', 'Schedule updated successfully');
+            jsonResponse('success', 'Student updated successfully');
         } else {
-            jsonResponse('error', 'Failed to update schedule: ' . $db->error);
+            jsonResponse('error', 'Failed to update student: ' . $db->error);
         }
-    }
-    break;
-     default:
+        break;
+
+    case 'schedule':
+        // First check if edit parameter exists in either GET or POST
+        $editParam = $_SERVER['REQUEST_METHOD'] === 'GET' ? $_GET['edit'] ?? '' : $_POST['edit'] ?? '';
+        if ($editParam !== 'schedule') {
+            jsonResponse('error', 'Missing or invalid edit parameter');
+        }
+
+        // Check if this is a GET request (for fetching data)
+        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            // Validate required parameters
+            if (!isset($_GET['id'])) {
+                jsonResponse('error', 'Missing ID parameter');
+            }
+
+            $id = intval($_GET['id']);
+            if ($id <= 0) {
+                jsonResponse('error', 'Invalid ID');
+            }
+
+            $response = ['status' => 'error', 'message' => ''];
+            
+            try {
+                $stmt = $db->prepare("SELECT * FROM room_schedules WHERE id = ?");
+                $stmt->bind_param("i", $id);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                
+                if ($result->num_rows > 0) {
+                    $response['status'] = 'success';
+                    $response['data'] = $result->fetch_assoc();
+                } else {
+                    $response['message'] = 'Schedule not found';
+                }
+            } catch (Exception $e) {
+                $response['message'] = 'Error: ' . $e->getMessage();
+            }
+            
+            header('Content-Type: application/json');
+            echo json_encode($response);
+            exit;
+        }
+        // Handle POST request - update schedule
+        elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            // Validate required fields
+            $required = ['id', 'department', 'room_name', 'subject', 'section', 'year_level', 'day', 'instructor', 'start_time', 'end_time'];
+            foreach ($required as $field) {
+                if (empty($_POST[$field])) {
+                    jsonResponse('error', "Missing required field: $field");
+                }
+            }
+
+            // Sanitize inputs
+            $id = intval($_POST['id']);
+            $department = sanitizeInput($db, $_POST['department']);
+            $room_name = sanitizeInput($db, $_POST['room_name']);
+            $subject = sanitizeInput($db, $_POST['subject']);
+            $section = sanitizeInput($db, $_POST['section']);
+            $year_level = sanitizeInput($db, $_POST['year_level']);
+            $day = sanitizeInput($db, $_POST['day']);
+            $instructor = sanitizeInput($db, $_POST['instructor']);
+            $start_time = sanitizeInput($db, $_POST['start_time']);
+            $end_time = sanitizeInput($db, $_POST['end_time']);
+
+            // Validate time format
+            if (!preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $start_time) || 
+                !preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $end_time)) {
+                jsonResponse('error', 'Invalid time format (use HH:MM)');
+            }
+
+            // Check if end time is after start time
+            if (strtotime($end_time) <= strtotime($start_time)) {
+                jsonResponse('error', 'End time must be after start time');
+            }
+
+            // Check for schedule conflicts (excluding current schedule)
+            $conflict_check = $db->prepare("SELECT id FROM room_schedules 
+                                           WHERE room_name = ? 
+                                           AND day = ? 
+                                           AND ((start_time < ? AND end_time > ?) 
+                                           OR (start_time < ? AND end_time > ?) 
+                                           OR (start_time >= ? AND end_time <= ?))
+                                           AND id != ?");
+            $conflict_check->bind_param("ssssssssi", 
+                $room_name, $day, 
+                $end_time, $start_time,
+                $start_time, $end_time,
+                $start_time, $end_time,
+                $id
+            );
+            $conflict_check->execute();
+            $conflict_check->store_result();
+
+            if ($conflict_check->num_rows > 0) {
+                jsonResponse('error', 'Schedule conflict: Another class is already scheduled in this room at the same time');
+            }
+            $conflict_check->close();
+
+            // Update schedule
+            $stmt = $db->prepare("UPDATE room_schedules SET 
+                                 department = ?,
+                                 room_name = ?,
+                                 subject = ?,
+                                 section = ?,
+                                 year_level = ?,
+                                 day = ?,
+                                 instructor = ?,
+                                 start_time = ?,
+                                 end_time = ?,
+                                 updated_at = NOW()
+                                 WHERE id = ?");
+            $stmt->bind_param("sssssssssi", 
+                $department, $room_name, $subject, $section,
+                $year_level, $day, $instructor, $start_time,
+                $end_time, $id
+            );
+
+            if ($stmt->execute()) {
+                jsonResponse('success', 'Schedule updated successfully');
+            } else {
+                jsonResponse('error', 'Failed to update schedule: ' . $db->error);
+            }
+        }
+        break;
+
+    default:
         jsonResponse('error', 'Invalid edit type specified');
 }
+
 // Close database connection
 $db->close();
 ?>

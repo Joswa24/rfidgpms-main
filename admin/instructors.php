@@ -25,20 +25,24 @@
                             <hr>
                             <div class="table-responsive">
                                 <table class="table table-border" id="instructorTable">
-                                    <thead>
+                                   <thead>
                                         <tr>
                                             <th scope="col" style="text-align:left;">Full Name</th>
-                                            <th scope="col" style="text-align:left;">RFID Number</th>
+                                            <th scope="col" style="text-align:left;">Department</th>
+                                            <th scope="col" style="text-align:left;">ID Number</th>
                                             <th scope="col">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <?php include '../connection.php'; ?>
-                                        <?php $results = mysqli_query($db, "SELECT * FROM instructor"); ?>
+                                        <?php $results = mysqli_query($db, "SELECT i.*, d.department_name 
+                                        FROM instructor i 
+                                        LEFT JOIN department d ON i.department_id = d.department_id"); ?>
                                         <?php while ($row = mysqli_fetch_array($results)) { ?>
                                         <tr data-id="<?php echo $row['id']; ?>">
                                             <td style="text-align:left;" class="fullname"><?php echo $row['fullname']; ?></td>
-                                            <td style="text-align:left;" class="rfid_number"><?php echo $row['rfid_number']; ?></td>
+                                            <td style="text-align:left;" class="department" data-id="<?php echo $row['department_id']; ?>"><?php echo $row['department_name']; ?></td>
+                                            <td style="text-align:left;" class="id_number"><?php echo $row['id_number']; ?></td>
                                             <td width="14%">
                                                 <center>
                                                     <button data-id="<?php echo $row['id'];?>" 
@@ -73,14 +77,29 @@
                             <div class="modal-body">
                                 <div class="alert alert-danger d-none" role="alert" id="form-error"></div>
                                 <div class="mb-3">
+                                    <label for="department" class="form-label"><b>Department: </b></label>
+                                    <select name="department" id="department" class="form-control">
+                                        <option value="">Select Department</option>
+                                        <?php 
+                                        $dept_query = mysqli_query($db, "SELECT * FROM department ORDER BY department_name");
+                                        while ($dept = mysqli_fetch_array($dept_query)) { ?>
+                                            <option value="<?php echo $dept['department_id']; ?>">
+                                                <?php echo $dept['department_name']; ?>
+                                            </option>
+                                        <?php } ?>
+                                    </select>
+                                    <div class="error-message" id="department-error"></div>
+                                </div>
+
+                                <div class="mb-3">
                                     <label for="fullname" class="form-label"><b>Full Name: </b></label>
                                     <input name="fullname" type="text" id="fullname" class="form-control" autocomplete="off" required>
                                     <div class="error-message" id="fullname-error"></div>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="rfid_number" class="form-label"><b>RFID Number: </b></label>
-                                    <input name="rfid_number" type="text" id="rfid_number" class="form-control" autocomplete="off">
-                                    <div class="error-message" id="rfid_number-error"></div>
+                                    <label for="id_number" class="form-label"><b>ID Number: </b></label>
+                                    <input name="id_number" type="text" id="id_number" class="form-control" autocomplete="off" placeholder="0000-0000">
+                                    <div class="error-message" id="id_number-error"></div>
                                 </div>
                             </div>
                             <div class="modal-footer">
@@ -105,14 +124,28 @@
                             <div class="modal-body">
                                 <div class="alert alert-danger d-none" role="alert" id="edit-form-error"></div>
                                 <div class="mb-3">
+                                    <label for="edit_department" class="form-label"><b>Department: </b></label>
+                                    <select name="department" id="edit_department" class="form-control">
+                                        <option value="">Select Department</option>
+                                        <?php 
+                                        mysqli_data_seek($dept_query, 0); // Reset pointer
+                                        while ($dept = mysqli_fetch_array($dept_query)) { ?>
+                                            <option value="<?php echo $dept['department_id']; ?>">
+                                                <?php echo $dept['department_name']; ?>
+                                            </option>
+                                        <?php } ?>
+                                    </select>
+                                    <div class="error-message" id="edit_department-error"></div>
+                                </div>
+                                <div class="mb-3">
                                     <label for="edit_fullname" class="form-label"><b>Full Name: </b></label>
                                     <input name="fullname" type="text" id="edit_fullname" class="form-control" autocomplete="off" required>
                                     <div class="error-message" id="edit_fullname-error"></div>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="edit_rfid_number" class="form-label"><b>RFID Number: </b></label>
-                                    <input name="rfid_number" type="text" id="edit_rfid_number" class="form-control" autocomplete="off">
-                                    <div class="error-message" id="edit_rfid_number-error"></div>
+                                    <label for="edit_id_number" class="form-label"><b>ID Number: </b></label>
+                                    <input name="id_number" type="text" id="edit_id_number" class="form-control" autocomplete="off" placeholder="0000-0000">
+                                    <div class="error-message" id="edit_id_number-error"></div>
                                 </div>
                             </div>
                             <div class="modal-footer">
@@ -170,10 +203,11 @@
         // CREATE (ADD INSTRUCTOR)
         // ==============
         $(document).on('click', '#btn-instructor', function() {
-            const fullname = $('#fullname').val().trim();
-            const rfid_number = $('#rfid_number').val().trim();
             const $btn = $(this);
-            
+            const fullname = $('#fullname').val().trim();
+            const id_number = $('#id_number').val().trim();
+            const department_id = $('#department').val();
+
             // Reset previous errors
             $('.error-message').text('');
             $('.form-control').removeClass('is-invalid');
@@ -188,9 +222,15 @@
                 isValid = false;
             }
             
-            if (rfid_number && !/^[0-9A-F]{8,14}$/i.test(rfid_number)) {
-                $('#rfid_number').addClass('is-invalid');
-                $('#rfid_number-error').text('Invalid RFID format. Use 8-14 hex characters');
+            if (!department_id) {
+                $('#department').addClass('is-invalid');
+                $('#department-error').text('Department is required');
+                isValid = false;
+            }
+            
+            if (!/^\d{4}-\d{4}$/.test(id_number)) {
+                $('#id_number').addClass('is-invalid');
+                $('#id_number-error').text('Invalid ID format. Must be in 0000-0000 format');
                 isValid = false;
             }
             
@@ -210,7 +250,8 @@
                 url: "transac.php?action=add_instructor",
                 data: { 
                     fullname: fullname,
-                    rfid_number: rfid_number
+                    id_number: id_number,
+                    department_id: department_id
                 },
                 dataType: 'json',
                 success: function(response) {
@@ -222,15 +263,17 @@
                             showConfirmButton: false,
                             timer: 1500
                         }).then(() => {
-                            resetForm();
                             $('#instructorModal').modal('hide');
                             location.reload();
                         });
                     } else {
                         // Show specific error messages
-                        if (response.message.includes('RFID')) {
-                            $('#rfid_number').addClass('is-invalid');
-                            $('#rfid_number-error').text(response.message);
+                        if (response.message.includes('ID')) {
+                            $('#id_number').addClass('is-invalid');
+                            $('#id_number-error').text(response.message);
+                        } else if (response.message.includes('Department')) {
+                            $('#department').addClass('is-invalid');
+                            $('#department-error').text(response.message);
                         } else {
                             $('#form-error').removeClass('d-none').text(response.message);
                         }
@@ -256,152 +299,174 @@
             // Populate modal with instructor data
             $('#edit_instructorid').val(id);
             $('#edit_fullname').val($row.find('.fullname').text());
-            $('#edit_rfid_number').val($row.find('.rfid_number').text());
+            $('#edit_id_number').val($row.find('.id_number').text());
+            $('#edit_department').val($row.find('.department').data('id'));
 
             $('#editInstructorModal').modal('show');
         });
 
         // ==========
-// UPDATE (Edit Instructor)
-// ==========
-$(document).on('click', '#btn-editinstructor', function() {
-    var $btn = $(this);
-    var id = $('#edit_instructorid').val();
-    var fullname = $('#edit_fullname').val().trim();
-    var rfid_number = $('#edit_rfid_number').val().trim();
-    
-    // Reset previous errors
-    $('.error-message').text('');
-    $('.form-control').removeClass('is-invalid');
-    $('#edit-form-error').addClass('d-none').text('');
-    
-    // Validate inputs
-    let isValid = true;
-    if (!fullname) {
-        $('#edit_fullname').addClass('is-invalid');
-        $('#edit_fullname-error').text('Full name is required');
-        isValid = false;
-    }
-    
-    if (rfid_number && !/^[0-9A-F]{8,14}$/i.test(rfid_number)) {
-        $('#edit_rfid_number').addClass('is-invalid');
-        $('#edit_rfid_number-error').text('Invalid RFID format. Use 8-14 hex characters');
-        isValid = false;
-    }
-    
-    if (!isValid) {
-        $('#edit-form-error').removeClass('d-none').text('Please fix the errors in the form');
-        return;
-    }
-    
-    // Show loading state
-    const originalBtnText = $btn.html();
-    $btn.html('<span class="spinner-border spinner-border-sm"></span> Updating...');
-    $btn.prop('disabled', true);
-    
-    // Make AJAX request to edit1.php
-    $.ajax({
-        type: "POST",
-        url: "edit1.php?edit=instructor",
-        data: { 
-            id: id,
-            fullname: fullname,
-            rfid_number: rfid_number
-        },
-        dataType: 'json',
-        success: function(response) {
-            if (response.status === 'success') {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Success!',
-                    text: response.message,
-                    showConfirmButton: false,
-                    timer: 1500
-                }).then(() => {
-                    $('#editInstructorModal').modal('hide');
-                    location.reload();
-                });
-            } else {
-                if (response.message.includes('RFID')) {
-                    $('#edit_rfid_number').addClass('is-invalid');
-                    $('#edit_rfid_number-error').text(response.message);
-                } else {
-                    $('#edit-form-error').removeClass('d-none').text(response.message);
-                }
-            }
-        },
-        error: function(xhr) {
-            $('#edit-form-error').removeClass('d-none').text('An error occurred: ' + xhr.responseText);
-        },
-        complete: function() {
-            $btn.html(originalBtnText);
-            $btn.prop('disabled', false);
-        }
-    });
-});
-
+        // UPDATE (Edit Instructor)
         // ==========
-// DELETE (Using del.php)
-// ==========
-$(document).on('click', '.btn-del', function(e) {
-    e.preventDefault();
-    var id = $(this).data('id');
-    var $row = $(this).closest('tr');
-    var fullname = $row.find('.fullname').text();
-    var $btn = $(this);
-    
-    Swal.fire({
-        title: 'Are you sure?',
-        text: `You are about to delete instructor: ${fullname}`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
-        confirmButtonText: 'Yes, delete it!'
-    }).then((result) => {
-        if (result.isConfirmed) {
+        $(document).on('click', '#btn-editinstructor', function() {
+            var $btn = $(this);
+            var id = $('#edit_instructorid').val();
+            var fullname = $('#edit_fullname').val().trim();
+            var id_number = $('#edit_id_number').val().trim();
+            var department_id = $('#edit_department').val();
+            
+            // Reset previous errors
+            $('.error-message').text('');
+            $('.form-control').removeClass('is-invalid');
+            $('#edit-form-error').addClass('d-none').text('');
+            
+            // Validate inputs
+            let isValid = true;
+            
+            if (!fullname) {
+                $('#edit_fullname').addClass('is-invalid');
+                $('#edit_fullname-error').text('Full name is required');
+                isValid = false;
+            }
+            
+            if (!department_id) {
+                $('#edit_department').addClass('is-invalid');
+                $('#edit_department-error').text('Department is required');
+                isValid = false;
+            }
+            
+            if (!/^\d{4}-\d{4}$/.test(id_number)) {
+                $('#edit_id_number').addClass('is-invalid');
+                $('#edit_id_number-error').text('Invalid ID format. Must be in 0000-0000 format');
+                isValid = false;
+            }
+            
+            if (!isValid) {
+                $('#edit-form-error').removeClass('d-none').text('Please fix the errors in the form');
+                return;
+            }
+            
             // Show loading state
             const originalBtnText = $btn.html();
-            $btn.html('<span class="spinner-border spinner-border-sm"></span>');
+            $btn.html('<span class="spinner-border spinner-border-sm"></span> Updating...');
             $btn.prop('disabled', true);
             
-            // Make AJAX request to del.php
+            // Make AJAX request to edit1.php
             $.ajax({
-                type: 'POST',
-                url: 'del.php',
+                type: "POST",
+                url: "edit1.php?edit=instructor",
                 data: { 
-                    type: 'delete_instructor', 
-                    id: id 
+                    id: id,
+                    fullname: fullname,
+                    id_number: id_number,
+                    department_id: department_id
                 },
                 dataType: 'json',
                 success: function(response) {
                     if (response.status === 'success') {
                         Swal.fire({
-                            title: 'Deleted!',
-                            text: response.message,
                             icon: 'success',
-                            timer: 1500,
-                            showConfirmButton: false
+                            title: 'Success!',
+                            text: response.message,
+                            showConfirmButton: false,
+                            timer: 1500
                         }).then(() => {
-                            // Remove row from DataTable
-                            var table = $('#instructorTable').DataTable();
-                            table.row($row).remove().draw();
+                            $('#editInstructorModal').modal('hide');
+                            location.reload();
                         });
                     } else {
-                        Swal.fire('Error!', response.message, 'error');
+                        if (response.message.includes('ID')) {
+                            $('#edit_id_number').addClass('is-invalid');
+                            $('#edit_id_number-error').text(response.message);
+                        } else if (response.message.includes('Department')) {
+                            $('#edit_department').addClass('is-invalid');
+                            $('#edit_department-error').text(response.message);
+                        } else {
+                            $('#edit-form-error').removeClass('d-none').text(response.message);
+                        }
                     }
                 },
                 error: function(xhr) {
-                    Swal.fire('Error!', 'An error occurred: ' + xhr.responseText, 'error');
+                    $('#edit-form-error').removeClass('d-none').text('An error occurred: ' + xhr.responseText);
                 },
                 complete: function() {
                     $btn.html(originalBtnText);
                     $btn.prop('disabled', false);
                 }
             });
-        }
-    });
-});
+        });
+
+        // ==========
+        // DELETE (Using del.php)
+        // ==========
+        $(document).on('click', '.btn-del', function(e) {
+            e.preventDefault();
+            var id = $(this).data('id');
+            var $row = $(this).closest('tr');
+            var fullname = $row.find('.fullname').text();
+            var $btn = $(this);
+            
+            Swal.fire({
+                title: 'Are you sure?',
+                text: `You are about to delete instructor: ${fullname}`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, delete it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Show loading state
+                    const originalBtnText = $btn.html();
+                    $btn.html('<span class="spinner-border spinner-border-sm"></span>');
+                    $btn.prop('disabled', true);
+                    
+                    // Make AJAX request to del.php
+                    $.ajax({
+                        type: 'POST',
+                        url: 'del.php',
+                        data: { 
+                            type: 'delete_instructor', 
+                            id: id 
+                        },
+                        dataType: 'json',
+                        success: function(response) {
+                            if (response.status === 'success') {
+                                Swal.fire({
+                                    title: 'Deleted!',
+                                    text: response.message,
+                                    icon: 'success',
+                                    timer: 1500,
+                                    showConfirmButton: false
+                                }).then(() => {
+                                    // Remove row from DataTable
+                                    var table = $('#instructorTable').DataTable();
+                                    table.row($row).remove().draw();
+                                });
+                            } else {
+                                Swal.fire('Error!', response.message, 'error');
+                            }
+                        },
+                        error: function(xhr) {
+                            Swal.fire('Error!', 'An error occurred: ' + xhr.responseText, 'error');
+                        },
+                        complete: function() {
+                            $btn.html(originalBtnText);
+                            $btn.prop('disabled', false);
+                        }
+                    });
+                }
+            });
+        });
+
+        // Format ID number input as user types (for both add and edit modals)
+        $('#id_number, #edit_id_number').on('input', function() {
+            var value = $(this).val().replace(/-/g, '');
+            if (value.length > 4) {
+                value = value.substring(0, 4) + '-' + value.substring(4, 8);
+            }
+            $(this).val(value);
+        });
     });
     </script>
 </body>

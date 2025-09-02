@@ -53,6 +53,7 @@ if ($stmt->num_rows > 0) {
 }
 $stmt->close();
 
+
 // If logs exist today, enforce section/year
 if ($firstYear && $firstSection) {
     if ($student['year'] != $firstYear || $student['section'] != $firstSection) {
@@ -60,6 +61,7 @@ if ($firstYear && $firstSection) {
         exit;
     }
 }
+
 
 // Check existing logs
 $log_query = "SELECT * FROM attendance_logs 
@@ -143,9 +145,11 @@ if ($existing_log) {
     $insert_stmt->close();
 }
 
+
 // Close statements
 $log_stmt->close();
 
 echo json_encode($response);
+
 exit;
 ?>

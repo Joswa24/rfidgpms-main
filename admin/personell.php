@@ -1,3 +1,4 @@
+
 <?php
 session_start();
 // Display success/error messages
@@ -44,7 +45,7 @@ if (isset($_SESSION['error_message'])) {
                                 <thead>
                                     <tr>
                                         <th scope="col">Photo</th>
-                                        <th scope="col">RFID Number</th>
+                                        <th scope="col">ID Number</th> <!-- Changed from RFID Number -->
                                         <th scope="col">Full Name</th>
                                         <th scope="col">Role</th>
                                         <th scope="col">Category</th>
@@ -220,8 +221,8 @@ if (isset($_SESSION['error_message'])) {
                                             </div>
                                             <div class="col-lg-4 col-md-6 col-sm-12">
                                                 <div class="form-group">
-                                                    <label>RFID NUMBER:</label>
-                                                    <input required type="text" class="form-control" name="rfid_number" id="rfid_number" minlength="10" maxlength="10" autocomplete="off">
+                                                    <label>ID NUMBER:</label> <!-- Changed from RFID NUMBER -->
+                                                    <input required type="text" class="form-control" name="rfid_number" id="rfid_number" minlength="9" maxlength="9" autocomplete="off" placeholder="0000-0000">
                                                     <span class="rfidno-error"></span>
                                                 </div>
                                             </div>
@@ -347,8 +348,8 @@ if (isset($_SESSION['error_message'])) {
                                             </div>
                                             <div class="col-lg-4 col-md-6 col-sm-12">
                                                 <div class="form-group">
-                                                    <label>RFID NUMBER:</label>
-                                                    <input required type="text" class="form-control edit-rfid" name="rfid_number" id="rfid_number1" minlength="10" maxlength="10" autocomplete="off">
+                                                    <label>ID NUMBER:</label> <!-- Changed from RFID NUMBER -->
+                                                    <input required type="text" class="form-control edit-rfid" name="rfid_number" id="rfid_number1" minlength="9" maxlength="9" autocomplete="off" placeholder="0000-0000">
                                                     <span class="rfidno-error"></span>
                                                 </div>
                                             </div>
@@ -511,6 +512,25 @@ if (isset($_SESSION['error_message'])) {
         // Initialize category dropdown on page load
         updateCategory();
 
+        // Format ID number input to "0000-0000" pattern
+        function formatIDNumber(input) {
+            // Remove any non-digit characters
+            let value = input.value.replace(/\D/g, '');
+            
+            // Add hyphen after 4 digits
+            if (value.length > 4) {
+                value = value.substring(0, 4) + '-' + value.substring(4, 8);
+            }
+            
+            // Update the input value
+            input.value = value;
+        }
+
+        // Add event listeners for ID number formatting
+        $('#rfid_number, #rfid_number1').on('input', function() {
+            formatIDNumber(this);
+        });
+
         // Handle form submission for adding personnel
         $('#personellForm').submit(function(e) {
             e.preventDefault();
@@ -529,11 +549,12 @@ if (isset($_SESSION['error_message'])) {
                 }
             });
             
-            // Validate RFID length and format
-            const rfid = $('#rfid_number').val();
-            if (rfid.length !== 10 || !/^\d+$/.test(rfid)) {
+            // Validate ID number format (0000-0000)
+            const idNumber = $('#rfid_number').val();
+            const idPattern = /^\d{4}-\d{4}$/;
+            if (!idPattern.test(idNumber)) {
                 isValid = false;
-                $('.rfidno-error').text('RFID must be exactly 10 digits').css('color', 'red');
+                $('.rfidno-error').text('ID Number must be in format: 0000-0000').css('color', 'red');
             } else {
                 $('.rfidno-error').text('');
             }
@@ -620,22 +641,23 @@ if (isset($_SESSION['error_message'])) {
             });
         });
 
-        // RFID duplicate check on blur
+        // ID number duplicate check on blur
         $('#rfid_number').on('blur', function() {
-            const rfidNumber = $(this).val();
+            const idNumber = $(this).val();
+            const idPattern = /^\d{4}-\d{4}$/;
             
-            if (rfidNumber.length === 10) {
+            if (idPattern.test(idNumber)) {
                 $.ajax({
                     url: 'check_rfid.php',
                     method: 'POST',
-                    data: { rfid_number: rfidNumber },
+                    data: { rfid_number: idNumber },
                     success: function(response) {
                         const res = JSON.parse(response);
                         if (res.exists) {
                             Swal.fire({
                                 icon: 'warning',
-                                title: 'Duplicate RFID',
-                                text: 'This RFID number already exists in the system.',
+                                title: 'Duplicate ID Number',
+                                text: 'This ID number already exists in the system.',
                             }).then(() => {
                                 $('#rfid_number').val('').focus();
                             });
@@ -719,6 +741,18 @@ $('#editPersonellForm').submit(function(e) {
         Swal.fire({
             title: 'Error!',
             text: 'No user selected. Please select a user first.',
+            icon: 'error'
+        });
+        return;
+    }
+
+    // Validate ID number format (0000-0000)
+    const idNumber = $('#rfid_number1').val();
+    const idPattern = /^\d{4}-\d{4}$/;
+    if (!idPattern.test(idNumber)) {
+        Swal.fire({
+            title: 'Error!',
+            text: 'ID Number must be in format: 0000-0000',
             icon: 'error'
         });
         return;

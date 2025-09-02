@@ -2,19 +2,29 @@
 include 'connection.php';
 session_start();
 
-// Fix these lines to get department and location from the correct session path
-$logo1 = "";
-$nameo = "";
-$address = "";
-$logo2 = "";
-$department = $_SESSION['access']['room']['department'] ?? 'Department';  // Changed from $_SESSION['rooms']
-$location = $_SESSION['access']['room']['room'] ?? 'Location';  // Changed from $_SESSION['rooms']
+// Initialize session variables with proper checks
+$_SESSION['allowed_section'] = $_SESSION['allowed_section'] ?? null;
+$_SESSION['allowed_year'] = $_SESSION['allowed_year'] ?? null;
+$_SESSION['is_first_student'] = $_SESSION['is_first_student'] ?? true;
+
+// Safely get department and location from session
+$department = isset($_SESSION['access']['room']['department']) ? 
+              $_SESSION['access']['room']['department'] : 'Department';
+$location = isset($_SESSION['access']['room']['room']) ? 
+            $_SESSION['access']['room']['room'] : 'Location';
+
+// Check for force redirect
+if (isset($_SESSION['access']['force_redirect'])) {
+    header('Location: ' . $_SESSION['access']['force_redirect']);
+    exit;
+}
 
 // Fetch data from the about table
+$logo1 = $nameo = $address = $logo2 = "";
 $sql = "SELECT * FROM about LIMIT 1";
 $result = $db->query($sql);
 
-if ($result->num_rows > 0) {
+if ($result && $result->num_rows > 0) {
     $row = $result->fetch_assoc();
     $logo1 = $row['logo1'];
     $nameo = $row['name'];
@@ -24,7 +34,6 @@ if ($result->num_rows > 0) {
 
 mysqli_close($db);
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -49,25 +58,14 @@ mysqli_close($db);
             padding: 30px;
             text-align: center;
             margin: 20px 0;
-            min-height: 200px;
+            min-height: 100px;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
         }
 
-        .scanner-ready-message {
-            color: #084298;
-            margin-bottom: 20px;
-        }
-
-        .scanner-ready-message i {
-            margin-bottom: 15px;
-            color: #084298;
-            font-size: 3rem;
-        }
-
-        .scanned-id-display {
+         .scanned-id-display {
             background-color: #f8f9fa;
             border: 2px solid #084298;
             border-radius: 8px;
@@ -94,69 +92,6 @@ mysqli_close($db);
             word-break: break-all;
         }
 
-        .barcode-scanner-display {
-            background-color: #084298;
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            margin: 20px 0;
-        }
-
-        .barcode-scanner-icon {
-            font-size: 4rem;
-            margin-bottom: 15px;
-        }
-        .scanner-display-area {
-    background-color: #f8f9fa;
-    border: 2px dashed #084298;
-    border-radius: 10px;
-    padding: 30px;
-    text-align: center;
-    margin: 20px 0;
-    min-height: 300px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-}
-
-.scanner-ready-message {
-    color: #084298;
-    margin-bottom: 20px;
-}
-
-.scanner-ready-message i {
-    margin-bottom: 15px;
-    color: #084298;
-}
-
-.scanned-id-display {
-    background-color: #f8f9fa;
-    border: 2px solid #084298;
-    border-radius: 8px;
-    padding: 15px;
-    margin: 10px 0;
-    text-align: center;
-    width: 100%;
-}
-
-.scanned-label {
-    font-weight: bold;
-    color: #084298;
-    margin-bottom: 5px;
-}
-
-.scanned-value {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: #212529;
-    margin: 10px 0;
-    padding: 8px;
-    background-color: #e9ecef;
-    border-radius: 4px;
-    word-break: break-all;
-}
 
 .processing-text {
     color: #084298;
@@ -207,8 +142,8 @@ mysqli_close($db);
         }
         
         #reader {
-            width: 100%;
-            max-width: 500px;
+            width: 50%;
+            max-width: 250px;
             margin: 0 auto; /* Centered horizontally */
             border: 2px solid #084298;
             border-radius: 10px;
@@ -281,15 +216,19 @@ mysqli_close($db);
         .manual-input-section {
             margin-top: 20px;
             background-color: #f8f9fa;
-            border-radius: 10px;
-            padding: 15px;
+            border-radius: 8px;
+            padding: 10px;
             border: 1px solid #dee2e6;
+            height: 20px;
+            
+                
         }
         
         .manual-input-section h4 {
             color: #084298;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             text-align: center;
+
         }
         
         .input-group {
@@ -306,6 +245,7 @@ mysqli_close($db);
         #manualSubmitBtn {
             height: 50px;
             font-size: 1.1rem;
+           
         }
         
         /* Confirmation modal styling */
@@ -370,13 +310,12 @@ mysqli_close($db);
         .large-scanner-container {
             position: relative;
             height: 60vh;
-            max-height: 600px;
+            max-height: 300px;
             margin: 20px auto;
         }
         
         #largeReader {
-            width: 100%;
-            height: 100%;
+            
             border: 2px solid #084298;
             border-radius: 10px;
             overflow: hidden;
@@ -503,7 +442,7 @@ mysqli_close($db);
                 </div>
             </div>
             <div class="modal-footer">
-                 <button type="button" class="btn btn-primary" onclick="window.location.href='main1.php'">OK</button>
+                 <button type="button" class="btn btn-primary"style="background-color: #87abe0ff" onclick="window.location.href='main1.php'">OK</button>
             </div>
         </div>
     </div>
@@ -542,70 +481,77 @@ mysqli_close($db);
         <li class="nav-item">
             <a class="nav-link active active-tab" aria-current="page" href="#">Scanner</a>
         </li>
-        <li class="nav-item">
-            <a class="nav-link" href="students_logs.php">Attendance Log</a>
-        </li>
+       <li class="nav-item">
+    <a class="nav-link" href="students_logs.php?from_scanner=1">Attendance Log</a>
+</li>
     </ul>
 </div>
-
-<section class="hero" style="margin-top: 0%">
-    <div class="container">
-        <!-- Department/Location Info Display -->
-        <div class="dept-location-info">
-            <h3>Department: <?php echo $department; ?></h3>
-            <h3>Room: <?php echo $location; ?></h3>
+<section class="hero" style="margin-top: 0; height: calc(100vh - 140px);">
+    <div class="container h-100">
+        <!-- Department/Location Info Display - Made more compact -->
+        <div class="dept-location-info mb-2 py-1">
+            <h3 class="mb-1" style="font-size: 1rem;">Department: <?php echo $department; ?></h3>
+            <h3 class="mb-1" style="font-size: 1rem;">Room: <?php echo $location; ?></h3>
         </div>
         
+        <!-- Compact Clock Display -->
         <center>
-            <div id="clockdate" style="border: 1px solid #f5af5b;background-color: #f5af5b">
-                <div class="clockdate-wrapper" style="height:100px;">
-                    <div id="clock" style="font-weight: bold; color: #fff;font-size: 50px"></div>
-                    <div id="date" style="color: #fff"><span id="currentDate"></span></div>
+            <div id="clockdate" style="border: 1px solid #084298; background-color: #084298; height: 70px; margin-bottom: 10px;">
+                <div class="clockdate-wrapper d-flex flex-column justify-content-center" style="height:100%;">
+                    <div id="clock" style="font-weight: bold; color: #fff; font-size: 1.8rem; line-height: 1.2;"></div>
+                    <div id="date" style="color: #fff; font-size: 0.8rem;"><span id="currentDate"></span></div>
                 </div>
             </div>
         </center>
-        <br><br>
         
-        <div class="row">
-            <div class="col-md-8">
-                <div class="alert alert-primary" role="alert" id="alert">
-                    <center><h3 id="in_out">Scan Your ID Barcode</h3></center>
+        <!-- Main Content Row - Adjusted heights -->
+        <div class="row" style="height: calc(100% - 120px);">
+            <!-- Scanner Column (70% width) -->
+            <div class="col-md-8 h-100" style="padding-right: 5px;">
+                <div class="alert alert-primary py-1 mb-2" role="alert" id="alert">
+                    <center><h3 id="in_out" class="mb-0" style="font-size: 1rem;">Scan Your ID Barcode</h3></center>
                 </div>
 
-                <!-- Large Scanner -->
-                <div class="large-scanner-container">
-                    <div id="largeReader"></div>
+                <!-- Scanner Container - Adjusted size -->
+                <div class="large-scanner-container" style="height: calc(100% - 60px);">
+                    <div id="largeReader" style="height: 100%;"></div>
                     <div class="scanner-overlay">
-                        <div class="scanner-frame">
+                        <div class="scanner-frame" style="height: 130px; margin-bottom: 10px;">
                             <div class="scanner-laser"></div>
                         </div>
                     </div>
                 </div>
-                <div id="result" class="text-center"></div>
+                <div id="result" class="text-center" style="min-height: 40px; font-size: 0.9rem;"></div>
             </div>
-            <div class="col-md-4 photo-column">
-                <img id="pic" class="large-photo entrant" alt="Student Photo" 
-                     src="assets/img/section/type.jpg">
+            
+            <!-- Photo/Manual Input Column (30% width) -->
+            <div class="col-md-4 h-100 d-flex flex-column" style="padding-left: 5px;">
+                <!-- Student Photo - Made smaller -->
+                <img id="pic" class="mb-2" alt="Student Photo" 
+                     src="assets/img/section/type.jpg"
+                     style="margin-top: .5px; width: 100%; height: 200px; object-fit: cover; border: 2px solid #084298; border-radius: 3px;">
                 
-                <!-- Manual Input Section -->
-                <div class="manual-input-section w-100">
-                    <h4><i class="fas fa-keyboard"></i> Manual Attendance</h4>
-                    <p class="text-center">For students who forgot their ID</p>
+                <!-- Manual Input Section - Made more compact -->
+                <div class="manual-input-section flex-grow-1" style="padding: 10px; margin-bottom:60px;">
+                    <h4 class="mb-1" style="font-size: 1rem;"><i class="fas fa-keyboard"></i> Manual Attendance</h4>
+                    <p class="text-center mb-2" style="font-size: 0.8rem;">For students who forgot their ID</p>
                     
-                    <div class="input-group">
+                    <div class="input-group mb-1">
                         <input type="text" 
                                class="form-control" 
                                id="manualIdInput" 
-                               placeholder="0000-0000">
+                               placeholder="0000-0000"
+                               style="height: 40px; font-size: 0.9rem;">
                         <button class="btn btn-primary" 
-                                id="manualSubmitBtn"
+                                id="manualSubmitBtn" 
+                                style="height: 40px; font-size: 0.9rem; border: 1px solid #084298; background-color: #084298;"
                                 onclick="processManualInput()">
                             Submit
                         </button>
                     </div>
                     
                     <div class="text-center">
-                        <small class="text-muted">Press Enter after typing ID</small>
+                        <small class="text-muted" style="font-size: 0.7rem;">Press Enter after typing ID</small>
                     </div>
                 </div>
             </div>
@@ -771,7 +717,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(err => {
             console.error("Scanner permission denied:", err);
-            showErrorMessage("Long Press the Scanner for access.");
+            showErrorMessage("Tap Your ID to the Scanner.");
         });
     
     // Set up event listeners for manual controls
@@ -868,17 +814,7 @@ function onScanError(error) {
     // console.error('Scanner error:', error);
 }
 
-// Process barcode (both scanned and manual input)
 function processBarcode(barcode) {
-    document.getElementById('result').innerHTML = `
-        <div class="d-flex justify-content-center">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-            <span class="ms-2">Processing...</span>
-        </div>
-    `;
-    
     $.ajax({
         type: "POST",
         url: "process_barcode.php",
@@ -886,37 +822,35 @@ function processBarcode(barcode) {
             barcode: barcode,
             current_department: "<?php echo $department; ?>",
             current_location: "<?php echo $location; ?>",
-            is_first_student: isFirstStudent,
-            allowed_section: allowedSection,
-            allowed_year: allowedYear
+            is_first_student: <?php echo $_SESSION['is_first_student'] ? 'true' : 'false'; ?>,
+            allowed_section: "<?php echo $_SESSION['allowed_section'] ?? ''; ?>",
+            allowed_year: "<?php echo $_SESSION['allowed_year'] ?? ''; ?>"
         },
         success: function(response) {
-            try {
-                const data = typeof response === 'string' ? JSON.parse(response) : response;
+            const data = typeof response === 'string' ? JSON.parse(response) : response;
 
-                if (data.error) {
-                    showErrorMessage(data.error);
-                    return;
-                }
-
-                // Show the preview modal in the scanner frame
-                showScannerPreviewModal(data);
-                
-                // If this is the first student, set the allowed section/year
-                if (isFirstStudent && data.section && data.year_level) {
-                    allowedSection = data.section;
-                    allowedYear = data.year_level;
-                    isFirstStudent = false;
-                }
-
-            } catch (e) {
-                console.error("Error processing response:", e, response);
-                showErrorMessage("Error processing response");
+            if (data.error) {
+                showErrorMessage(data.error);
+                return;
             }
-        },
-        error: function(xhr, status, error) {
-            console.error("AJAX error:", status, error);
-            showErrorMessage("Server error: " + error);
+
+            // If first student, set allowed section/year
+            if (<?php echo $_SESSION['is_first_student'] ? 'true' : 'false'; ?> && data.section && data.year_level) {
+                // Store in session via AJAX
+                $.post('set_session.php', {
+                    allowed_section: data.section,
+                    allowed_year: data.year_level,
+                    is_first_student: false
+                });
+                
+                // Update local variables
+                allowedSection = data.section;
+                allowedYear = data.year_level;
+                isFirstStudent = false;
+            }
+
+            // Show confirmation modal
+            showConfirmationModal(data);
         }
     });
 }
@@ -976,8 +910,7 @@ function recordAttendance(idNumber, studentData) {
                 // Show confirmation modal
                 showConfirmationModal(data);
                 
-                // Update student photo in the right column
-                document.getElementById('pic').src = data.photo ? 'uploads' + data.photo : 'type.jpg';
+               
 
             } catch (e) {
                 console.error("Error processing response:", e, response);

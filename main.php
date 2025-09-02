@@ -1,1406 +1,1086 @@
 <?php
+ob_start();
+session_start();
 
-/*
-// Security check 
-if (!isset($_SESSION['user'])) {
-    header("Location: index.php");
-    exit();
-}
-
-$department = $_SESSION['user']['department'] ?? '';
-$location = $_SESSION['user']['location'] ?? '';
-
-// Redirect non-Gate users
-if ($department !== 'Main' || $location !== 'Gate') {
-    header("Location: main1.php");
-    exit();
-}
-
-// ... rest of your RFID-based Gate system code ...*/
-?>
-<?php
-/*include 'connection.php';
-
- //('Asia/Manila');
-
-
-
-if (isset($_SESSION['location'])) {
-    $location = $_SESSION['location'];
-  $department = $_SESSION['department'];
-  $descr = $_SESSION['descr'];
-}
-else {
-    header("Location: index.php");
-    exit();
-}*/
-?>
-<?php
 include 'connection.php';
 
-$logo1 = "";
-    $nameo = "";
-    $address = "";
-    $logo2 = "";
+// =====================================================================
+// MAINTENANCE TASKS - Improved with prepared statements
+// =====================================================================
+$yesterday = date('Y-m-d', strtotime('-1 day'));
+
+// Update personell_logs with parameterized queries
+$sql = "SELECT id, time_in_am, time_in_pm, time_out_am, time_out_pm 
+        FROM personell_logs 
+        WHERE DATE(date_logged) = ?";
+$stmt = $db->prepare($sql);
+$stmt->bind_param("s", $yesterday);
+$stmt->execute();
+$result = $stmt->get_result();
+
+while ($row = $result->fetch_assoc()) {
+    $updates = [];
+    $params = [];
+    $types = '';
     
-// Fetch data from the about table
-$sql = "SELECT * FROM about LIMIT 1";
+    if (empty($row['time_in_am'])) {
+        $updates[] = "time_in_am = ?";
+        $params[] = '?';
+        $types .= 's';
+    }
+    if (empty($row['time_in_pm'])) {
+        $updates[] = "time_in_pm = ?";
+        $params[] = '?';
+        $types .= 's';
+    }
+    if (empty($row['time_out_am'])) {
+        $updates[] = "time_out_am = ?";
+        $params[] = '?';
+        $types .= 's';
+    }
+    if (empty($row['time_out_pm'])) {
+        $updates[] = "time_out_pm = ?";
+        $params[] = '?';
+        $types .= 's';
+    }
+    
+    if (!empty($updates)) {
+        $updateSql = "UPDATE personell_logs SET " . implode(", ", $updates) . " WHERE id = ?";
+        $stmt = $db->prepare($updateSql);
+        $params[] = $row['id'];
+        $types .= 'i';
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+    }
+}
+ 
+// Clear output buffer
+// =====================================================================
+// HELPER FUNCTION - Improved Sanitization
+// =====================================================================
+function sanitizeInput($data) {
+    if (is_array($data)) {
+        return array_map('sanitizeInput', $data);
+    }
+    return htmlspecialchars(stripslashes(trim($data)), ENT_QUOTES, 'UTF-8');
+}
 
-$result = $db->query($sql);
 
-if ($result->num_rows > 0) {
-    // Output data of each row
-    $row = $result->fetch_assoc();
-    $logo1 = $row['logo1'];
-    $nameo = $row['name'];
-    $address = $row['address'];
-    $logo2 = $row['logo2'];
-} 
+// =====================================================================
+// LOGIN PROCESSING - Enhanced with Rate Limiting
+// =====================================================================
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $department = sanitizeInput($_POST['roomdpt'] ?? '');
+    $location = sanitizeInput($_POST['location'] ?? '');
+    $password = $_POST['Ppassword'] ?? ''; // Don't sanitize passwords
+    $id_number = sanitizeInput($_POST['Pid_number'] ?? '');
+    $selected_subject = sanitizeInput($_POST['selected_subject'] ?? '');
+    $selected_room = sanitizeInput($_POST['selected_room'] ?? '');
 
-// Get current period
-$current_period = date('A');
+    // Validate inputs
+    $errors = [];
+    if (empty($department)) $errors[] = "Department is required";
+    if (empty($location)) $errors[] = "Location is required";
+    if (empty($password)) $errors[] = "Password is required";
+    if (empty($id_number)) $errors[] = "ID number is required";
+    
+    if (!empty($errors)) {
+        http_response_code(400);
+        die(implode("<br>", $errors));
+    }
 
+    // Check if this is a gate access request (Main department + Gate location)
+    if ($department === 'Main' && $location === 'Gate') {
+        // Verify security guard credentials
+        $stmt = $db->prepare("SELECT * FROM personell WHERE rfid_number = ? AND department = 'Main' AND role IN ('Security Personnel', 'Security Guard')");
+        $stmt->bind_param("s", $id_number);
+        $stmt->execute();
+        $securityResult = $stmt->get_result();
 
-mysqli_close($db);
+        if ($securityResult->num_rows === 0) {
+            sleep(2); // Slow down brute force attempts
+            die("Unauthorized access. Only security personnel can access the gate system.");
+        }
+
+        $securityGuard = $securityResult->fetch_assoc();
+
+        // Verify room credentials for gate
+        $stmt = $db->prepare("SELECT * FROM rooms WHERE department = ? AND room = ?");
+        $stmt->bind_param("ss", $department, $location);
+        $stmt->execute();
+        $roomResult = $stmt->get_result();
+
+        if ($roomResult->num_rows === 0) {
+            sleep(2);
+            die("Gate access not configured.");
+        }
+
+        $room = $roomResult->fetch_assoc();
+
+        // Verify gate password
+        $stmt = $db->prepare("SELECT * FROM rooms WHERE password=? AND department='Main' AND room='Gate'");
+        $stmt->bind_param("s", $password);
+        $stmt->execute();
+        $passwordResult = $stmt->get_result();
+
+        if ($passwordResult->num_rows === 0) {
+            sleep(2);
+            die("Invalid Gate Password.");
+        }
+
+        // Gate login successful - set session data
+        $_SESSION['access'] = [
+            'security' => [
+                'id' => $securityGuard['id'],
+                'fullname' => $securityGuard['first_name'] . ' ' . $securityGuard['last_name'],
+                'rfid_number' => $securityGuard['rfid_number'],
+                'role' => $securityGuard['role']
+            ],
+            'gate' => [
+                'department' => 'Main',
+                'location' => 'Gate'
+            ],
+            'last_activity' => time()
+        ];
+
+        // Clear any existing output
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+
+        // Set proper headers
+        header('Content-Type: application/json');
+
+        // Return JSON response for gate access
+        echo json_encode([
+            'status' => 'success',
+            'redirect' => 'main.php',
+            'message' => 'Gate access granted'
+        ]);
+        exit;
+    }
+
+    // Regular instructor login process (for non-gate access)
+    // Verify ID number against instructor table with rate limiting
+    $stmt = $db->prepare("SELECT * FROM instructor WHERE id_number = ?");
+    $stmt->bind_param("s", $id_number);
+    $stmt->execute();
+    $instructorResult = $stmt->get_result();
+
+    if ($instructorResult->num_rows === 0) {
+        sleep(2); // Slow down brute force attempts
+        die("Invalid ID number. Instructor not found.");
+    }
+
+    $instructor = $instructorResult->fetch_assoc();
+
+    // Verify room credentials
+    $stmt = $db->prepare("SELECT * FROM rooms WHERE department = ? AND room = ?");
+    $stmt->bind_param("ss", $department, $location);
+    $stmt->execute();
+    $roomResult = $stmt->get_result();
+
+    if ($roomResult->num_rows === 0) {
+        sleep(2);
+        die("Room not found.");
+    }
+
+    $room = $roomResult->fetch_assoc();
+
+    $stmt = $db->prepare("SELECT * FROM rooms WHERE password=?");
+    $stmt->bind_param("s", $password);
+    $stmt->execute();
+    $password = $stmt->get_result();
+
+    if ($password->num_rows === 0) {
+        sleep(2);
+        die("Invalid Password.");
+    }
+
+    // Login successful - set session data
+    $_SESSION['access'] = [
+        'instructor' => [
+            'id' => $instructor['id'],
+            'fullname' => $instructor['fullname'],
+            'id_number' => $instructor['id_number']
+        ],
+        'room' => [
+            'id' => $room['id'],
+            'department' => $room['department'],
+            'room' => $room['room'],
+            'desc' => $room['desc'],
+            'descr' => $room['descr'],
+            'authorized_personnel' => $room['authorized_personnel']
+        ],
+        'subject' => [
+            'name' => $selected_subject,
+            'room' => $selected_room,
+            'time' => $_POST['selected_time'] // Add this line
+        ],
+        'last_activity' => time()
+    ];
+
+    // Clear output buffer before JSON response
+    if ($password->num_rows === 0) {
+        sleep(2);
+        header('Content-Type: application/json');
+        die(json_encode(['status' => 'error', 'message' => 'Invalid Password.']));
+    }
+
+    // Clear any existing output
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+
+    // Set proper headers
+    header('Content-Type: application/json');
+
+    // Return JSON response
+    echo json_encode([
+        'status' => 'success',
+        'redirect' => 'main1.php'
+    ]);
+    exit;
+}
+// =====================================================================
+// SWAP PROCESSING - FINAL FIXED VERSION
+// =====================================================================
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['swap_request'])) {
+    // Clear any previous output
+    while (ob_get_level()) ob_end_clean();
+    
+    header('Content-Type: application/json');
+    
+    try {
+        // 1. Get and validate input
+        $target_id = trim($_POST['target_id_number'] ?? '');
+        
+        if (empty($target_id)) {
+            throw new Exception("ID number is required");
+        }
+
+        // 2. Standardize the ID format (accept both 0000-0000 and 00000000)
+        $clean_id = str_replace('-', '', $target_id);
+        
+        if (!ctype_digit($clean_id) || strlen($clean_id) != 8) {
+            throw new Exception("Invalid ID format. Use 8 digits with or without hyphen");
+        }
+
+        // 3. Format for database (0000-0000)
+        $db_id = substr($clean_id, 0, 4) . '-' . substr($clean_id, 4, 4);
+
+        // 4. Database query
+        $stmt = $db->prepare("SELECT * FROM instructor WHERE id_number = ?");
+        if (!$stmt) {
+            throw new Exception("Database preparation failed: " . $db->error);
+        }
+        
+        $stmt->bind_param("s", $db_id);
+        if (!$stmt->execute()) {
+            throw new Exception("Database query failed: " . $stmt->error);
+        }
+
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows === 0) {
+            throw new Exception("Instructor with ID $db_id not found");
+        }
+
+        // 5. Login the instructor
+        $instructor = $result->fetch_assoc();
+        $_SESSION['access'] = [
+        'instructor' => $instructor,
+        'last_activity' => time(),
+        'swapped' => true,
+        'force_redirect' => 'main1.php'  // Add this line
+        ];
+
+        // 6. Success response
+        echo json_encode([
+            'status' => 'success',
+            'redirect' => 'main1.php',
+            'instructor' => $instructor['fullname']
+        ]);
+        exit;
+
+    } catch (Exception $e) {
+        http_response_code(400);
+        echo json_encode([
+            'status' => 'error',
+            'message' => $e->getMessage()
+        ]);
+        exit;
+    }
+}
 ?>
 
-
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
-    <link rel="stylesheet" href="assets/css/grow_up.css">
-    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
-    <link href='https://unpkg.com/boxicons@2.1.2/css/boxicons.min.css' rel='stylesheet'>
-    <link rel="shortcut icon" href="assets/img/brand/favicon-bar.svg" type="image/x-icon">
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    <script src="script.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="lostfound.css">
-    <script src="lostfound.js" defer></script>
-    <title>RFIDGPMS</title>
+    <title>GACPMS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="Gate and Personnel Management System">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://ajax.googleapis.com https://fonts.googleapis.com 'unsafe-inline'; style-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' data:;">
     <link rel="icon" href="admin/uploads/logo.png" type="image/png">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/css/all.min.css">
+    <link rel="stylesheet" href="admin/css/bootstrap.min.css">
+    <link rel="stylesheet" href="admin/css/style.css">
+    <!-- SweetAlert CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    
     <style>
-        .preview-1 {
-            width: 140px!important;
-            height: 130px!important;
-            position: absolute;
-            border: 1px solid gray;
-            top: 15%;
-            cursor: pointer; /* Add cursor pointer to indicate clickability */
+        /* Add to your existing CSS */
+        #swapModal .modal-body {
+            padding: 20px;
         }
-    </style>
-        <style type="text/css">
 
-.column {
-    flex: 1;
-    text-align: center;
+        #swapTable th {
+            white-space: nowrap;
+            background-color: #f8f9fa;
+        }
+
+.instructor-row:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    cursor: pointer;
 }
 
-.column.wide {
-    flex: 2; /* Makes this column twice as wide as the others */
+#idVerificationSection .card {
+    border: 1px solid rgba(0, 0, 0, 0.125);
+    border-radius: 0.25rem;
 }
 
-.column:first-child img,
-.column:last-child img {
-    max-width: 100%;
-    height: auto;
+#verifyIdBtn {
+    margin-top: 10px;
 }
-
-.text {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    height: 100%;
-}
-
-.text .row {
-    line-height: 1.5;
-    margin-bottom: 5px;
-}
-
-.detail {
-    appearance: none;
-	border: none;
-	outline: none;
-	border-bottom: .2em solid #084298;
-	background: white;
-	border-radius: .2em .2em 0 0;
-	padding: .4em;
-	color: #ced4da;
-    margin:13px 0px;
-    height:70px;
-}
-
+        .mb-3, .mb-4 {
+            transition: all 0.3s ease;
+        }
+        /* Swap Modal Styles */
+        #instructorTable tbody tr {
+            cursor: pointer;
+        }
+        #instructorTable tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+        .instructor-radio {
+            cursor: pointer;
+        }
+        /* Add to your style section */
+        .instructor-row:hover {
+            background-color: #f8f9fa;
+            cursor: pointer;
+        }
+        .table-warning {
+            background-color: rgba(255, 193, 7, 0.1);
+        }
+        .instructor-radio {
+            cursor: pointer;
+        }
+        #swapTable th {
+            white-space: nowrap;
+        }
+        /* Swap Modal Styles */
+        #swapTable tbody tr {
+            cursor: pointer;
+        }
+        #swapTable tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+        .instructor-radio {
+            cursor: pointer;
+        }
+        .view-schedule {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+        #instructorList td {
+            vertical-align: middle;
+        }
+        /* SweetAlert custom styles */
+        .swal2-title {
+            font-size: 1.5rem !important;
+        }
+        .swal2-content {
+            font-size: 1.1rem !important;
+        }
+        .swal2-confirm {
+            padding: 0.5rem 1.5rem !important;
+        }
+        
+        /* Security guard specific styles */
+        .gate-access-info {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
     </style>
 </head>
-
-<body onload="startTime()">
-<audio id="myAudio" hidden>
-    <source src="admin/audio/alert.mp3" type="audio/mpeg">
-    Your browser does not support the audio element.
-</audio> 
-<div id="message"></div>
-<nav class="navbar navbar-expand-lg navbar-light py-2" style="height: 1%; border-bottom: 1px solid #FBC257; margin-bottom: 1%; padding: 0px 50px 0px 50px; display: flex; justify-content: center; align-items: center;">
-    <div style="text-align: left; margin-right: 10px;">
-        <img src="<?php echo 'admin/uploads/'.$logo1; ?>" alt="Image 1" style="height: 100px;">
-    </div>
-    <div class="column wide" style="flex-grow: 2; text-align: center;">
-        <div class="text">
-            <h1><div class="row"><b><?php echo $nameo; ?></b></div></h1>
-            <h5><i><span style="color:red;">(<?php 
-            if($department == 'Main'){
-                $descr = 'Gate';
-            }
-            
-            
-            echo $department.': '.$descr; ?>)</span></i></h5>
-        </div>
-    </div>
-    <div style="text-align: right; margin-left: 10px;">
-        <img src="<?php echo 'admin/uploads/'.$logo2; ?>" alt="Image 2" style="height: 100px;">
-    </div>
-</nav>
-
-
-
-
-
-
-
-    
-    <!-- Section -->
-    <section class="hero" style="margin-top: 0%">
-        <div class="container">
-                <center>
-                    <div id="clockdate" style="border: 1px solid #f5af5b;background-color: #f5af5b">
-                        <div class="clockdate-wrapper" style="height:100px;">
-                            <div id="clock" style="font-weight: bold; color: #fff;font-size: 50px"></div>
-                            <div id="date" style="color: #fff"><span id="currentDate"></span></div>
+<body class="bg-light">
+    <div class="container-fluid min-vh-100 d-flex align-items-center justify-content-center">
+        <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4">
+            <div class="card shadow-sm">
+                <div class="card-body p-4 p-sm-5">
+                    <form id="logform" method="POST" novalidate>
+                        <div id="alert-container" class="alert alert-danger d-none" role="alert"></div>
+                        
+                        <div class="d-flex align-items-center justify-content-between mb-4">
+                            <h3 class="text-primary mb-0">GACPMS</h3>
+                            <h5 class="text-muted mb-0">Location</h5>
                         </div>
-                    </div>
-                </center><br><Br>
-            <div class="row" style="margin-top:-35px;">
-                <div class="col-md-3">
-                    <div class="card">
-                    <form id="rfidForm" method="POST">
-                      <div class="card-body" style="padding-top:0;height:310px;">
-                         <p class="card-text">
-                          <div id="mgs-add"></div>
-                     
-    <input type="text" id="rfidcard" name="rfid_number" class="form-control" placeholder="Scan RFID card" autofocus>
-    
-    <input id="refresh" type="submit" name="submit" value="Submit" hidden>
- 
-
-
-    
-    <?php
-$rfid_number = '';
-$time_in_out = 'Tap Your Card';
-$status='';
- 
-// Check if form is submitted
-if (isset($_POST['submit'])) {
-    $rfid_number = $_POST['rfid_number'];
-   
-    $time = date('H:i:s');
-    $date_logged = date('Y-m-d');
-    $current_period = date('A'); // Get AM/PM period
-    
-    include 'connection.php';
-
-    // Check if RFID number exists in personell table
-    $query = "SELECT * FROM personell WHERE rfid_number = '$rfid_number'";
-    $result = mysqli_query($db, $query);
-    $user = mysqli_fetch_assoc($result);
-
-    if ($user) {
-        if ($user['status'] == 'Block') {
-
-
-
-
-
-           // echo "<script>alert('This Personnel is Blocked!'); window.location = 'index.php';</script>";
-           $time_in_out='BLOCKED';
-         
-           $voice='Blocked Card!';
-           echo "<script>const audio = document.getElementById('myAudio');
-        audio.currentTime = 0; // Reset the audio to the start
-        audio.play().catch(function(error) {
-            console.log('Audio playback failed:', error);
-        });
-    </script>";
-           
-        } else {
-     // Check if user is already logged today
-     if($department == 'Main'){
-$query1 = "SELECT * FROM personell_logs WHERE personnel_id = '{$user['id']}' AND date_logged = '$date_logged'";
-$result1 = mysqli_query($db, $query1);
-$user1 = mysqli_fetch_assoc($result1);
-
-// Get current time period (AM/PM)
-$current_period = date('A');
-
-if ($user1) {
-    if($current_period === 'PM' && $user1['time_in_pm'] == ''){
-        $update_query = "UPDATE personell_logs 
-        SET time_in_pm = '$time'
-        WHERE personnel_id = '{$user['id']}' AND date_logged = '$date_logged'";
-
-mysqli_query($db, $update_query);
-
-        // Clear time_out from room_logs for the corresponding personnel_id
-        $update_query1 = "UPDATE room_logs SET time_out = NULL WHERE personnel_id = '{$user['id']}' AND location = 'Gate' AND date_logged = '$date_logged'";
-
-        mysqli_query($db, $update_query1);
-        $time_in_out='TIME IN';
-        $voice = 'Good afternoon ' . $user['first_name'] . ' ' . $user['last_name'] . '!';
-    }else{
-    // Update existing log entry
-    if ($current_period === "AM") {
-        $update_field = ($user1['time_out_am'] == '') ? 'time_out_am' : null;
-    } else {
-        $update_field = ($user1['time_out_pm'] == '') ? 'time_out_pm' : null;
-    }
-    
-    if ($update_field) {
-        $time_in_out = 'TIME OUT';
-        $voice = 'Take care ' . $user['first_name'] . ' ' . $user['last_name'] . '!';
-
-        // Update the respective time_out column
-        $update_query = "UPDATE personell_logs SET $update_field = '$time' WHERE id = '{$user1['id']}'";
-        mysqli_query($db, $update_query);
-
-        $update_query1 = "UPDATE room_logs SET time_out = '$time' WHERE personnel_id = '{$user1['personnel_id']}' AND location='Gate'";
-        mysqli_query($db, $update_query1);
-
-     
-    } else {
-        $voice = 'Please wait for the appropriate time period.';
-    }
-}
-} else {
-    // Insert new log entry with the correct time_in field
-    
-// Set time field and greetings based on the current period
-if ($current_period === "AM") {
-    $time_field = 'time_in_am';
-    $time_in_out = 'TIME IN';
-    $voice = 'Good morning ' . $user['first_name'] . ' ' . $user['last_name'] . '!';
-} else {
-    $time_field = 'time_in_pm';
-    $time_in_out = 'TIME IN';
-    $voice = 'Good afternoon ' . $user['first_name'] . ' ' . $user['last_name'] . '!';
-}
-
-// If the current period is PM, check if time_in in room_logs is NULL
-// if ($current_period === 'PM') {
-//     // Check if time_in in room_logs is already set for the current user and location
-//     $check_time_in_query = "SELECT time_in FROM room_logs WHERE personnel_id = '{$user['id']}' AND location = 'Gate' LIMIT 1";
-//     $result = mysqli_query($db, $check_time_in_query);
-
-//     if ($result && mysqli_num_rows($result) > 0) {
-//         $row = mysqli_fetch_assoc($result);
-//         if (!is_null($row['time_in'])) {
-//             // If time_in is not NULL, skip updating time_in
-//             echo "Time_in already exists, no need to update.";
-//         } else {
-//             // If time_in is NULL, update time_out to NULL for PM
-//             $update_query = "UPDATE room_logs 
-//                              SET time_out = NULL 
-//                              WHERE personnel_id = '{$user['id']}' AND location='Gate'";
-            
-//             // Execute the update query
-//             if (mysqli_query($db, $update_query)) {
-//                 echo "Time out set to NULL in room_logs.";
-//             } else {
-//                 echo "Error updating room_logs: " . mysqli_error($db);
-//             }
-//         }
-//     } else {
-//         // No record found, proceed with insert
-//         echo "No record found, proceeding to insert time_in.";
-//     }
-// }
-
-// Insert into personell_logs
-$insert_query = "INSERT INTO personell_logs (personnel_id, $time_field, date_logged, location) 
-                 VALUES ('{$user['id']}', '$time', '$date_logged', '$location')";
-
-if (mysqli_query($db, $insert_query)) {
-    // Insert into room_logs if no existing time_in or a new record
-    if (mysqli_num_rows($result) == 0 || is_null($row['time_in'])) {
-        $insert_query1 = "INSERT INTO room_logs (personnel_id, time_in, date_logged, location) 
-                          VALUES ('{$user['id']}', '$time', '$date_logged', '$location')";
-        
-        // Execute the insert query for room_logs
-        if (mysqli_query($db, $insert_query1)) {
-            //echo "New record created successfully in both personell_logs and room_logs.";
-        } else {
-            echo "Error in room_logs insert: " . mysqli_error($db);
-        }
-    }
-} else {
-    echo "Error in personell_logs insert: " . mysqli_error($db);
-}
-
-   
-
-    
- 
-}
-
-        
-
-
-
-
-
-
-
-            // if($department == 'Main'){
-            // // Check if user is already logged today
-            // $query1 = "SELECT * FROM personell_logs WHERE personnel_id = '{$user['id']}' AND date_logged = '$date_logged'";
-            // $result1 = mysqli_query($db, $query1);
-            // $user1 = mysqli_fetch_assoc($result1);
-
-            // if ($user1) {
-            //     // Update existing log entry
-            //     if (($user1['time_out'] == '')) {
-            //         //$update_field = $current_period === "AM" ? 'time_out_am' : 'time_out_pm';
-            //         $time_in_out = 'TIME OUT';
-                   
-            //             $voice='Take care '.$user['first_name'].' ' . $user['last_name'].'!';
                         
-                    
-            //         $update_query = "UPDATE personell_logs SET time_out = '$time' WHERE id = '{$user1['id']}'";
-            //         mysqli_query($db, $update_query);
-            //     } else {
-            //         echo "<script>alert('Please wait for the appropriate time period.');</script>";
-            //     }
-            // } else {
-              
-            //     // Insert new log entry
-           
-            //     $time_in_out = 'TIME IN';
-            //     //$time_field = $current_period === "AM" ? 'time_in_am' : 'time_in_pm';
-            //     if(date('A') =="AM"){
-            //         $voice='Good morning '.$user['first_name'].' ' . $user['last_name'].'!';
-                   
-            //     } 
-            //     if(date('A') =="PM"){
-            //         $voice='Good afternoon '.$user['first_name'].' ' . $user['last_name'].'!';
-                    
-            //     } 
-            //     $insert_query = "INSERT INTO personell_logs (personnel_id,time_in, date_logged, location) 
-            //                      VALUES ('{$user['id']}','$time', '$date_logged', '$location')";
-            //     mysqli_query($db, $insert_query);
-                
-            // }
-        } else {
-        // Check if user is already logged today
-// Query to get the latest log for the user
-$query1 = "SELECT * FROM room_logs WHERE personnel_id = '{$user['id']}' AND date_logged = '$date_logged' AND location='Gate'";
-$result1 = mysqli_query($db, $query1);
-$row = mysqli_fetch_assoc($result1);
-
-if ($row && $row['time_out']==null) {
-    // Check if user's department matches the department
-    // echo $user['department'];
-    // echo $department;
-    if ($user['department'] == $department) {
-        // Check if the last log has no 'time_out' and the location matches
-        $query2 = "SELECT * FROM room_logs WHERE personnel_id = '{$user['id']}' AND date_logged = '$date_logged' AND location = '$location' ORDER BY id DESC LIMIT 1";
-        $result2 = mysqli_query($db, $query2);
-        $row1 = mysqli_fetch_assoc($result2);
-
-        if (empty($row1['time_out']) && $row1['location'] == $location) {
-            $time_in_out = 'TIME OUT';
-          
-                $voice='Have a great day '.$user['first_name'].' ' . $user['last_name'].'!';
-                
-        
-            // Update the log with 'time_out'
-            $update_query = "UPDATE room_logs SET time_out = '$time' WHERE id = '{$row1['id']}' AND location ='{$row1['location']}'";
-            mysqli_query($db, $update_query);
-        } else {
-            // If the log is complete or location differs, insert a new log
-            $time_in_out = 'TIME IN';
-            if(date('A') =="AM"){
-                $voice='Good morning '.$user['first_name'].' ' . $user['last_name'].'!';
-               
-            } 
-            if(date('A') =="PM"){
-                $voice='Good afternoon '.$user['first_name'].' ' . $user['last_name'].'!';
-                
-            } 
-            $insert_query = "INSERT INTO room_logs (personnel_id, location, time_in, date_logged) 
-                             VALUES ('{$user['id']}', '$location', '$time', '$date_logged')";
-            mysqli_query($db, $insert_query);
-        }
-    } else {
-        // If department doesn't match
-        $voice = 'You\'re not allowed to enter this room.';
-        $time_in_out='UNAUTHORIZE';
-        echo "<script>const audio = document.getElementById('myAudio');
-        audio.currentTime = 0; // Reset the audio to the start
-        audio.play().catch(function(error) {
-            console.log('Audio playback failed:', error);
-        });
-    </script>";
-    }
-} else {
-    // If no previous log exists, insert a new log
-   $voice = 'You must log in to main gate first.';
-   $time_in_out='UNAUTHORIZE';
-}
-
-    }
-    }
-    }
-    else {
-        // Check if RFID number exists in visitor table
-       
-
-        if($department != 'Main'){
-            $voice = 'You\'re not allowed to enter this room.';
-            $time_in_out='UNAUTHORIZE';
-            echo "<script>const audio = document.getElementById('myAudio');
-        audio.currentTime = 0; // Reset the audio to the start
-        audio.play().catch(function(error) {
-            console.log('Audio playback failed:', error);
-        });
-    </script>";
-        }else{
-            $query = "SELECT * FROM visitor WHERE rfid_number = '$rfid_number'";
-            $result = mysqli_query($db, $query);
-            $visitor = mysqli_fetch_assoc($result);
-
-        if ($visitor) {
-            $query1 = "SELECT * FROM visitor_logs WHERE rfid_number = '$rfid_number' AND date_logged = '$date_logged'";
-            $result1 = mysqli_query($db, $query1);
-            $visitor1 = mysqli_fetch_assoc($result1);
-           
-            if ($visitor1) {
-                
-                if ($visitor1['time_out'] == '') {
-                    //$update_field = $current_period === "AM" ? 'time_out_am' : 'time_out_pm';
-                    $time_in_out = 'TIME OUT';
-                  
-                        $voice='Thank you for visiting '.$visitor1['name'].'!';
+                        <div class="mb-3">
+                            <label for="roomdpt" class="form-label">Department</label>
+                            <select class="form-select" name="roomdpt" id="roomdpt" required>
+                                <option value="Main" selected>Main</option>
+                                <?php
+                                $sql = "SELECT department_name FROM department WHERE department_name != 'Main'";
+                                $result = $db->query($sql);
+                                while ($row = $result->fetch_assoc()):
+                                ?>
+                                <option value="<?= htmlspecialchars($row['department_name']) ?>">
+                                    <?= htmlspecialchars($row['department_name']) ?>
+                                </option>
+                                <?php endwhile; ?>
+                            </select>
+                        </div>
                         
-                    
-                    $update_query = "UPDATE visitor_logs SET time_out = '$time' WHERE id = '{$visitor1['id']}'";
-                    mysqli_query($db, $update_query);
-                   
-                    
-                } else {
-                    $voice = 'Please wait for the appropriate time period.';
-                }
-            } else {
-                echo '<script>$(document).ready(function() {
-                    $("#visitorModal").modal("show");
-                });</script>';
-               
-            }
-        } else {
-         $time_in_out='STRANGER';
-            //$voice='Unknown Card!';
-            echo "<script>const audio = document.getElementById('myAudio');
-        audio.currentTime = 0; // Reset the audio to the start
-        audio.play().catch(function(error) {
-            console.log('Audio playback failed:', error);
-        });</script>";
-        $voice='Uknown Card!';
-           
-// First, check if the rfid_number exists in the stranger_logs table
-$check_query = "SELECT id, attempts FROM stranger_logs WHERE rfid_number = '$rfid_number'";
-$result = mysqli_query($db, $check_query);
-
-// Check if any rows were returned
-if (mysqli_num_rows($result) > 0) {
-    // If rfid_number is found, fetch the record
-    $row = mysqli_fetch_assoc($result);
-    $id = $row['id'];
-    $attempts = $row['attempts'] + 1; // Increment the attempts count
-    
-    // Update the attempts count and last_log for the existing record
-    $update_query = "UPDATE stranger_logs 
-                     SET attempts = $attempts, last_log = '$date_logged' 
-                     WHERE id = $id";
-    
-    if (mysqli_query($db, $update_query)) {
-        echo "Record updated successfully for RFID: $rfid_number";
-    } else {
-        echo "Error updating record: " . mysqli_error($db);
-    }
-} else {
-    // If rfid_number is not found, insert a new record with attempts = 0
-    $insert_query = "INSERT INTO stranger_logs (rfid_number, last_log, attempts)  
-                     VALUES ('$rfid_number', '$date_logged', 1)";
-    
-    if (mysqli_query($db, $insert_query)) {
-        //echo "New record inserted successfully for RFID: $rfid_number";
-    } else {
-        echo "Error inserting record: " . mysqli_error($db);
-    }
-}
-        }
-    }
-    }
-
-    // Close database connection
-    mysqli_close($db);
-}
-?>
-<script>
-  
-  // Get the PHP-generated text
-  const text = "<?php echo $voice; ?>";
-
-  // Function to convert text to speech
-  const textToSpeech = (text) => {
-      const synth = window.speechSynthesis;
-
-      if (!synth.speaking && text) {
-          const utterance = new SpeechSynthesisUtterance(text);
-          synth.speak(utterance);
-      }
-  };
-
-  // Trigger text-to-speech if there's submitted text
-  if (text) {
-      textToSpeech(text);
-  }
-
-</script>
-
-
-<div id="rfidDisplay"></div>
-<br/>
-                          <center style="margin-top:-7px;"><img id="pic" height="220px" class="w-100 entrant" alt="img"  src="assets/img/section//istockphoto-1184670010-612x612.jpg" id="img"></center>
-                          <script type="text/javascript">
-         $(document).ready(function() {
-         
-    	$getphoto =  $('.pic').attr('src');
-					$('.entrant').attr('src',$getphoto);
-                    $getname =  $('.entrant_name').html();
-                    $('.display_name').html($getname);  
-                    $getrole =  $('.role').html();
-                    $('.d_role').html($getrole);  
-         });
-		 
-		 </script>
-                          
+                        <div class="mb-3">
+                            <label for="location" class="form-label">Location</label>
+                            <select class="form-select" name="location" id="location" required>
+                                <option value="Gate" selected>Gate</option>
+                            </select>
+                        </div>
                         
-                      </p>      
-                      </div>
-                              </form>
-                            
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="password" name="Ppassword" required>
+                                <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="id-input" class="form-label">ID Number</label>
+                            <input type="text" class="form-control" id="id-input" name="Pid_number" 
+                                   placeholder="0000-0000" required
+                                   pattern="[0-9]{4}-[0-9]{4}" 
+                                   title="Please enter ID in format: 0000-0000">
+                            <div class="form-text">Scan your ID barcode or type manually (format: 0000-0000)</div>
+                        </div>
+                        
+                        <!-- Gate access information -->
+                        <div id="gateAccessInfo" class="gate-access-info d-none">
+                            <i class="fas fa-shield-alt me-2"></i>
+                            <strong>Gate Access Mode:</strong> Security personnel only
+                        </div>
+                        
+                        <!-- Hidden fields for selected subject -->
+                        <input type="hidden" name="selected_subject" id="selected_subject" value="">
+                        <input type="hidden" name="selected_room" id="selected_room" value="">
+                        <input type="hidden" name="selected_time" id="selected_time" value="">
+                        
+                        <button type="submit" class="btn btn-primary w-100 mb-3" id="loginButton">Login</button>
+                        <!-- Add this swap button -->
+                        <button type="button" class="btn btn-outline-secondary w-100 mb-3" id="swapButton">
+                        <i class="fas fa-exchange-alt"></i> Swap Instructor
+                        </button>
 
-                    </div>
+                        
+                        <div class="text-end">
+                            <a href="terms.php" class="terms-link">Terms and Conditions</a>
+                        </div>
+                    </form>
                 </div>
-                <div class="col-md-9">
-          
-                <div class="alert alert-primary" role="alert" id="alert">
-    <center><h3 id="in_out">Tap Your Card</h3></center>
-</div>
-
-<div class="row">
-    <div class="col-md-12">
-        <div class="detail entrant_name" style="margin-top:0px;margin-bottom:0px;color:#ced4da;">
-            <h1><center><b id="entrant_name">Name</b></center></h1>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-md-6">
-        <div class="detail deprt" style="color:#ced4da;">
-            <h1 id="department">Department</h1>
-        </div>
-        <div class="detail role" style="color:#ced4da;">
-            <h1 id="role">Role</h1> 
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="detail time_in" style="color:#ced4da;">
-            <h1 id="time_in">Time in</h1>
-        </div>
-        <div class="detail time_out" style="color:#ced4da;">
-            <h1 id="time_out">Time out</h1>
-        </div>
-    </div>
-</div>      
-
-             
-             
-        <?php 
-        include 'connection.php'; 
-        // date_default_timezone_set('Asia/Manila');
-        $current_time = new DateTime();
-        $timein = $timeout = '';
-        
-        if ($department == 'Main') {
-            if ($current_time->format('A') === 'AM') {
-                $timein = 'time_in_am';
-                $timeout = 'time_out_am';
-            } else {
-                $timein = 'time_in_pm';
-                $timeout = 'time_out_pm';
-            }
-        
-            // Fetch data from personell_logs and visitor_logs
-            $results = mysqli_query($db, "
-               SELECT 
-    p.photo,
-    p.department,
-    p.role,
-    CONCAT(p.first_name, ' ', p.last_name) AS full_name,
-    pl.$timein AS time_in,
-    pl.$timeout AS time_out,
-    pl.date_logged,
-    pl.id
-FROM personell_logs pl
-JOIN personell p ON pl.personnel_id = p.id
-WHERE pl.date_logged = CURRENT_DATE()
-
-UNION ALL
-
-SELECT 
-    vl.photo,
-    vl.department,
-    'Visitor' AS role,
-    vl.name AS full_name,
-    vl.time_in,
-    vl.time_out,
-    vl.date_logged,
-    vl.id
-FROM visitor_logs vl
-WHERE vl.date_logged = CURRENT_DATE()
-
-ORDER BY GREATEST(time_in, time_out) DESC
-LIMIT 1;
-
-            ");
-        } else {
-            // Fetch data from room_logs
-            $results = mysqli_query($db, "
-                SELECT 
-    p.photo,
-    p.department,
-    p.role,
-    CONCAT(p.first_name, ' ', p.last_name) AS full_name,
-    rl.time_in,
-    rl.time_out,
-    rl.date_logged,
-    rl.id
-FROM room_logs rl
-JOIN personell p ON rl.personnel_id = p.id
-WHERE rl.date_logged = CURRENT_DATE()
-ORDER BY 
-    GREATEST(rl.time_in, rl.time_out) DESC
-LIMIT 1;
-
-
-            ");
-        }
-    
-
-                           
-        // Fetch and display the results
-        while ($row = mysqli_fetch_array($results)) {
-
- if(isset($_POST['submit'])){
-    
-    $alert='alert-primary';
-if($time_in_out=='TIME IN'){
-$alert='alert-success';
-}
-else {
-    $alert='alert-danger'; 
-}
-
-  
-if($time_in_out == 'TIME IN' || $time_in_out == 'TIME OUT'){      
-   
-    $time_in = date('h:i A', strtotime($row['time_in']));
-    $time_out = date('h:i A', strtotime($row['time_out']));
-    if($row['time_out'] == null){
-        $time_out = '';
-    }
-    ?>
-    
-
-           <script>
-             // Store original values
-        const originalTexts = {
-            in_out: document.getElementById('in_out').innerHTML,
-            entrant_name: document.getElementById('entrant_name').innerHTML,
-            department: document.getElementById('department').innerHTML,
-            role: document.getElementById('role').innerHTML,
-            time_in: document.getElementById('time_in').innerHTML,
-            time_out: document.getElementById('time_out').innerHTML
-        };
-
-
-        document.getElementById('in_out').innerHTML = '<?php echo $time_in_out;?>';
-        document.getElementById('entrant_name').innerHTML = '<?php echo $row['full_name']; ?>';
-        document.getElementById('department').innerHTML = '<?php echo $row['department']; ?>';
-        document.getElementById('role').innerHTML = '<?php echo $row['role']; ?>';
-        document.getElementById('time_in').innerHTML = '<?php echo $time_in; ?>';
-        document.getElementById('time_out').innerHTML = '<?php echo $time_out; ?>';
-        document.getElementById('entrant_name').style.color = 'black';
-        document.getElementById('department').style.color = 'black';
-            document.getElementById('role').style.color = 'black';
-            document.getElementById('time_in').style.color = 'black';
-            document.getElementById('time_out').style.color = 'black';
-            document.getElementById('alert').classList.remove('alert-primary');
-            document.getElementById('alert').classList.add('<?php echo $alert;?>');
-            document.getElementById('pic').src = 'admin/uploads/<?php echo $row['photo']; ?>';
-        // Revert text back to original after 3 seconds
-        setTimeout(function() {
-            document.getElementById('in_out').innerHTML = originalTexts.in_out;
-            document.getElementById('entrant_name').innerHTML = originalTexts.entrant_name;
-            document.getElementById('department').innerHTML = originalTexts.department;
-            document.getElementById('role').innerHTML = originalTexts.role;
-            document.getElementById('time_in').innerHTML = originalTexts.time_in;
-            document.getElementById('time_out').innerHTML = originalTexts.time_out;
-            document.getElementById('entrant_name').style.color = '#ced4da';
-            document.getElementById('department').style.color = '#ced4da';
-            document.getElementById('role').style.color = '#ced4da';
-            document.getElementById('time_in').style.color = '#ced4da';
-            document.getElementById('time_out').style.color = '#ced4da';
-            document.getElementById('alert').classList.remove('<?php echo $alert;?>');
-            document.getElementById('alert').classList.add('alert-primary');
-            document.getElementById('pic').src = "assets/img/section/istockphoto-1184670010-612x612.jpg";
-        }, 5000); // 3000 milliseconds = 3 seconds
-    </script>
-<?php 
-}
- }
-    }
-        
-    
-        ?>
-       
-                 
-              </div>
             </div>
         </div>
-
-         
-    </section>
-
-
-
- <!-- Modal -->
- <form id="myForm" role="form" method="post" enctype="multipart/form-data">
-               <div class="modal fade" id="visitorModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                  <div class="modal-dialog modal-lg">
-                     <div class="modal-content">
-                        <div class="modal-header">
-                           <h5 class="modal-title" id="exampleModalLabel">
-                              <i class="bi bi-plus-circle"></i> Visitor E-Logbook
-                           </h5>
-                           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    </div>
+    
+    <!-- Subject Selection Modal -->
+    <div class="modal fade" id="subjectModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Select Your Subject for <span id="modalRoomName"></span></h5>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        Please check the subject you're currently teaching in this room and click "Confirm Selection".
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="subjectTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="5%">Select</th>
+                                    <th>Subject</th>
+                                    <th>Section</th>
+                                    <th>Day</th>
+                                    <th>Time</th>
+                                </tr>
+                            </thead>
+                            <tbody id="subjectList">
+                                <!-- Subjects will be loaded here via AJAX -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="cancelSubject">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="confirmSubject" disabled>
+                        <span class="spinner-border spinner-border-sm d-none" id="confirmSpinner" role="status" aria-hidden="true"></span>
+                        Confirm Selection
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+<!-- Simplified Swap Modal -->
+    <div class="modal fade" id="swapModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Swap Instructor</h5>
+                </div>
+                <div class="modal-body">
+                    <div id="swapAlert" class="alert alert-danger d-none"></div>
+                    
+                    <div class="mb-3">
+                        <label for="swapInstructorId" class="form-label">Enter Instructor ID Number</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="swapInstructorId" 
+                                   placeholder="0000-0000" pattern="[0-9]{4}-[0-9]{4}">
+                            <button class="btn btn-outline-primary" type="button" id="verifyIdBtn">
+                                <i class="fas fa-check-circle"></i> Verify
+                            </button>
                         </div>
-                        <div class="col-lg-11 mb-2 mt-1" id="mgs-emp" style="margin-left: 4%"></div>
-                        <div class="modal-body">
-                           <div class="row justify-content-md-center">
-                              <div id="msg-emp"></div>
-                              <div class="col-sm-12 col-md-12 col-lg-10">
-                                 <div class="" style="border: 1PX solid #b3f0fc;padding: 1%;background-color: #f7cfa1;color: black;font-size: 1.2rem">PERSONAL INFORMATION</div>
-                                 <?php 
-        include 'connection.php'; 
-
-        // Combine and fetch data from both tables for the current date, ordering by the latest update
-        $results = mysqli_query($db, "SELECT * FROM visitor WHERE rfid_number = '$rfid_number'"); 
-     
-        // Fetch and display the results
-        while ($row = mysqli_fetch_array($results)) { ?>
-                                 <div class="row">
-                                    <div class="col-lg-3 col-md-6 col-sm-12" id="up_img">
-                                    <div required class="file-uploader">
-                                         
-                                          <img id="captured" class="preview-1" src="assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg" style="width: 140px!important;height: 130px!important;position: absolute;border: 1px solid gray;top: 15%" title="Upload Photo.." />
-                                          
-                                       </div>
-
-                                       <input type="hidden" id="capturedImage" name="capturedImage">
-                                       <span class="img-error"></span>
-                                    </div>
-        
-                                   
-                                    <div class="col-lg-4 col-md-6 col-sm-12">
-                                       <div class="form-group">
-                                          <label>RFID NUMBER:</label>
-                                          <input readonly value="<?php echo $row['rfid_number']; ?>" required type="text" class="form-control" name="rfid_number" id="rfid_number" minlength="10" maxlength="10" autocomplete="off">
-                                          <span class="rfidno-error"></span>
-                                       </div>
-                                    </div>
-                                    <div class="col-lg-5 col-md-6 col-sm-12" id="lnamez">
-                                    <div class="form-group">
-                                          <label>NAME:</label>
-                                          <input required type="text" class="form-control" name="fullName" id="fullName" autocomplete="off">
-                                       </div>
-                                    </div>
-                                 </div>
-        
-                                 <?php }?>
-                                 <div class="row mb-3">
-                                    <div class="col-lg-3 col-md-6 col-sm-12" id="up_img">
-                                      
-                                    </div>
-                                    
-                                    <div class="col-lg-4 col-md-6 col-sm-12">
-                                    <div class="form-group">
-                                          <label>DEPARTMENT:</label>
-                                          <select readonly required class="form-control dept_ID" name="department" id="dept_id" autocomplete="off">
-										
-<?php
-										  $sql = "SELECT * FROM department";
-$result = $db->query($sql);
-
-// Initialize an array to store department options
-$department_options = [];
-
-// Fetch and store department options
-while ($row = $result->fetch_assoc()) {
-    $department_id = $row['department_id'];
-    $department_name = $row['department_name'];
-    $department_options[] = "<option value='$department_name'>$department_name</option>";
-}?>
-                          <?php
-    // Output department options
-    foreach ($department_options as $option) {
-        echo $option;
-    }
-    ?>            
-
-                                          </select>
-                                          <span class="dprt-error"></span>
-                                       </div>
-                                    </div>
-                                    <div class="col-lg-5 col-md-6 col-sm-12">
-                                    <div class="form-group">
-                                          <label>CONTACT NUMBER:</label>
-                                          <input required type="text" class="form-control" name="contact_number" id="contact_number" minlength="11" maxlength="11" autocomplete="off">
-                                       </div>
-                                    </div>
-                                 </div>
-                               
-                                 <div class="row">
-                                    <div class="col-lg-12 col-md-6 col-sm-12">
-                                       <div class="form-group">
-                                          <label>ADDRESS:</label>
-                                          <input required type="text" class="form-control" name="address" id="complete_address" autocomplete="off">
-                                          <span class="ca-error"></span>
-                                       </div>
-                                    </div>
-                                 </div>
-                                 <div class="row">
-                                    <div class="col-lg-12 col-md-6 col-sm-12">
-                                       <div class="form-group">
-                                          <label>PURPOSE OF VISIT:</label>
-                                          <textarea style="height:100px;" required type="text" class="form-control" name="purpose" id="purpose" autocomplete="off"></textarea>
-                                          <span class="ca-error"></span>
-                                       </div>
-                                    </div>
-                                 </div>
-                              </div>
-                           </div>
+                        <div class="form-text">Scan or enter the ID of the instructor you're swapping with</div>
+                    </div>
+                    
+                    <div class="card mt-3 d-none" id="instructorInfoCard">
+                        <div class="card-body">
+                            <h5 class="card-title" id="instructorName"></h5>
+                            <p class="card-text" id="instructorDetails"></p>
                         </div>
-                        <div class="modal-footer">
-                           <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                           <!--<button name="vsave" type="submit" id="btn-emp" class="btn btn-outline-warning">Save</button>-->
-                           <input name="vsave" type="submit" id="btn-emp" class="btn btn-outline-warning" value="Save">
-                        </div>
-                     </div>
-                  </div>
-               </div>
-           
-               <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="confirmSwap" disabled>
+                        <span class="spinner-border spinner-border-sm d-none" id="swapSpinner"></span>
+                        Confirm Swap
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<?php
-if (isset($_POST['vsave'])) {
-    // Check if an image has been captured
-    if (isset($_POST['capturedImage']) && !empty($_POST['capturedImage'])) {
-        // Proceed with the rest of the form processing
-        
-        //$v_code = $_POST['v_code'];
-        $rfid_number = $_POST['rfid_number'];
-        date_default_timezone_set('Asia/Manila'); // Set timezone
-        $time = date('H:i:s'); // Current time
-        $name = $_POST['fullName'];
-        $department = $_POST['department'];
-        //$sex = $_POST['sex'];
-        //$civil_status = $_POST['stat'];
-        $contact_number = $_POST['contact_number'];
-        $address = $_POST['address'];
-        $purpose = $_POST['purpose'];
-        $date_logged = date('Y-m-d'); // Current date as date_logged
-
-        // Process captured image
-        $data_uri = $_POST['capturedImage'];
-        $encodedData = str_replace(' ', '+', $data_uri);
-        list($type, $encodedData) = explode(';', $encodedData);
-        list(, $encodedData) = explode(',', $encodedData);
-        $decodedData = base64_decode($encodedData);
-        $imageName = $_POST['fullName'] . '.jpeg';
-        $filePath = 'admin/uploads/' . $imageName;
-
-        // Check if the image was successfully saved
-        if (file_put_contents($filePath, $decodedData)) {
-            // Insert the record into the visitor_logs table
-            $insert_query = "INSERT INTO visitor_logs (photo, name, rfid_number, time_in, date_logged, department, contact_number, address, purpose, role, location)
-                             VALUES ('$imageName', '$name', '$rfid_number', '$time', '$date_logged', '$department', '$contact_number', '$address', '$purpose', 'Visitor','Gate')";
-
-            if (mysqli_query($db, $insert_query)) {
-                $time_in_out = 'TIME IN';
-                $voice = 'Welcome ' . $name . '!';
-                $alert = 'alert-primary';
-                if ($time_in_out == 'TIME IN') {
-                    $alert = 'alert-success';
-                } else {
-                    $alert = 'alert-danger';
-                }
-                ?>
-                <script>
-                    // Store original values
-                    let originalTexts1 = {
-                        in_out: document.getElementById('in_out').innerHTML,
-                        entrant_name: document.getElementById('entrant_name').innerHTML,
-                        department: document.getElementById('department').innerHTML,
-                        role: document.getElementById('role').innerHTML,
-                        time_in: document.getElementById('time_in').innerHTML,
-                        time_out: document.getElementById('time_out').innerHTML
-                    };
-
-                
-                    // Update displayed content with visitor info
-                    document.getElementById('in_out').innerHTML = '<?php echo $time_in_out; ?>';
-                    document.getElementById('entrant_name').innerHTML = '<?php echo $name; ?>';
-                    document.getElementById('department').innerHTML = '<?php echo $department; ?>';
-                    document.getElementById('role').innerHTML = 'Visitor';
-                    document.getElementById('time_in').innerHTML = '<?php echo date('h:i A', strtotime($time)); ?>';
-                    document.getElementById('time_out').innerHTML = '';
-                    document.getElementById('entrant_name').style.color = 'black';
-                    document.getElementById('department').style.color = 'black';
-                    document.getElementById('role').style.color = 'black';
-                    document.getElementById('time_in').style.color = 'black';
-                    document.getElementById('time_out').style.color = 'black';
-                    document.getElementById('alert').classList.remove('alert-primary');
-                    document.getElementById('alert').classList.add('<?php echo $alert; ?>');
-                    document.getElementById('pic').src = 'admin/uploads/<?php echo $imageName; ?>';
-
-                    // Revert back after 5 seconds
-                    setTimeout(function() {
-                        document.getElementById('in_out').innerHTML = originalTexts1.in_out;
-                        document.getElementById('entrant_name').innerHTML = originalTexts1.entrant_name;
-                        document.getElementById('department').innerHTML = originalTexts1.department;
-                        document.getElementById('role').innerHTML = originalTexts1.role;
-                        document.getElementById('time_in').innerHTML = originalTexts1.time_in;
-                        document.getElementById('time_out').innerHTML = originalTexts1.time_out;
-                        document.getElementById('entrant_name').style.color = '#ced4da';
-                        document.getElementById('department').style.color = '#ced4da';
-                        document.getElementById('role').style.color = '#ced4da';
-                        document.getElementById('time_in').style.color = '#ced4da';
-                        document.getElementById('time_out').style.color = '#ced4da';
-                        document.getElementById('alert').classList.remove('<?php echo $alert; ?>');
-                        document.getElementById('alert').classList.add('alert-primary');
-                        document.getElementById('pic').src = "assets/img/section/istockphoto-1184670010-612x612.jpg";
-                    }, 5000);
-                </script>
-                <?php
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="admin/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- SweetAlert JS -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <script>
+    $(document).ready(function() {
+        // Password visibility toggle
+        $('#togglePassword').click(function() {
+            const icon = $(this).find('i');
+            const passwordField = $('#password');
+            
+            if (passwordField.attr('type') === 'password') {
+                passwordField.attr('type', 'text');
+                icon.removeClass('fa-eye').addClass('fa-eye-slash');
             } else {
-                ?>
-                <script>
-                    Swal.fire({
-                        title: 'Error!',
-                        text: 'Error updating record: <?php echo mysqli_error($db); ?>',
-                        icon: 'error',
-                        confirmButtonText: 'OK'
-                    });
-                </script>
-                <?php
+                passwordField.attr('type', 'password');
+                icon.removeClass('fa-eye-slash').addClass('fa-eye');
             }
-        } else {
-            ?>
-            <script>
+        });
+
+        // ID Number Input Handling with Formatting
+        const idInput = $('#id-input');
+
+        idInput.on('input', function(e) {
+            let value = $(this).val().replace(/\D/g, '');
+            if (value.length > 4) {
+                value = value.substring(0, 4) + '-' + value.substring(4, 8);
+            }
+            $(this).val(value);
+        });
+        
+        // Show/hide gate access info based on department selection
+        $('#roomdpt, #location').change(function() {
+            const department = $('#roomdpt').val();
+            const location = $('#location').val();
+            
+            if (department === 'Main' && location === 'Gate') {
+                $('#gateAccessInfo').removeClass('d-none');
+                $('#swapButton').addClass('d-none');
+            } else {
+                $('#gateAccessInfo').addClass('d-none');
+                $('#swapButton').removeClass('d-none');
+            }
+        });
+
+        // Initial check
+        $('#roomdpt').trigger('change');
+
+        // Global variable to store selected instructor data
+        let selectedInstructor = null;
+
+        // Swap button click handler - now checks for valid ID first
+        $('#swapButton').click(function() {
+            const currentId = $('#id-input').val().trim();
+            
+            // Validate current user's ID first
+            if (!currentId || !/^\d{4}-\d{4}$/.test(currentId)) {
                 Swal.fire({
-                    title: 'Error!',
-                    text: 'Error saving image.',
                     icon: 'error',
-                    confirmButtonText: 'OK'
+                    title: 'ID Required',
+                    text: 'Please enter your valid ID number first (format: 0000-0000)',
+                    confirmButtonColor: '#3085d6'
                 });
-            </script>
-            <?php
-        }
-    } else {
-        // Display error if no image was captured
-        ?>
-        <script>
-            Swal.fire({
-                title: 'Warning!',
-                text: 'Please capture an image before submitting.',
-                icon: 'warning',
-                confirmButtonText: 'OK'
-            });
-        </script>
-        <?php
-    }
-}
-?>
-
-
- <script>
-  
-  // Get the PHP-generated text
-  const text1 = "<?php echo $voice; ?>";
-
-  // Function to convert text to speech
-  const textToSpeech1 = (text1) => {
-      const synth1 = window.speechSynthesis;
-
-      if (!synth1.speaking && text1) {
-          const utterance1 = new SpeechSynthesisUtterance(text1);
-          synth1.speak(utterance1);
-      }
-  };
-
-  // Trigger text-to-speech if there's submitted text
-  if (text1) {
-      textToSpeech1(text1);
-  }
-
-</script>
-            </form>
-        
-            <div class="modal fade" id="cameraModal" tabindex="-1" role="dialog" aria-labelledby="cameraModalLabel" aria-hidden="true">
-                                                   <div class="modal-dialog" role="document">
-                                                      <div class="modal-content">
-                                                         <div class="modal-header">
-                                                            <h5 class="modal-title" id="cameraModalLabel">Capture Photo</h5>
-                                                            
-                                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                                  
-                                                               </button>
-                                                         </div>
-                                                          <div class="modal-body" id="my_camera">
-                  .
-                                                               </div>
-                                                            <div class="modal-footer">
-                                                           
-                                                                 <button onclick="saveSnap()" type="button" class="btn btn-primary" id="captureButton">Capture</button>
-                                                           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                                                  </div>
-                                                                        </div>
-                                                    </div>
-                                    </div>
-
-                                    <div id="results" style="visibility:hidden;position:absolute;"></div>
-                                     
-                                     <script>
-            $(document).ready(function() {
-            $('.preview-1').click(function() {
-                // Show the modal
-                $('#cameraModal').modal('show');
-
-            });
-
-           
+                $('#id-input').focus();
+                return;
+            }
+            
+            // If ID is valid, show swap modal
+            $('#swapModal').modal('show');
+            $('#swapInstructorId').val('').focus();
         });
 
-       
-    </script>
-                                    <script type="text/javascript" src="admin/assets/webcam.min.js"></script>
-<script>
-
-$(document).ready(function() {
-            // Initialize Webcam.js
-            Webcam.set({
-width:460,
-height:400,
-image_format: 'jpeg',
-jpeg_quality: 90
-});
-Webcam.attach('#my_camera');
-            });
-       
-
-   
-
-function saveSnap(){
-
-Webcam.snap(function(data_uri){
-
-   $('.preview-1').attr('src', data_uri); // Update preview image src
-   document.getElementById('capturedImage').value = data_uri;
-   
-   $('#cameraModal').modal('hide');
-   
-});
-
-}
-
-
-</script>
-
-
-  <!-- end Section -->
-    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p"
-        crossorigin="anonymous"></script>
-     
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
-      <script src="admin/lib/chart/chart.min.js"></script>
-      <script src="admin/lib/easing/easing.min.js"></script>
-      <script src="admin/lib/waypoints/waypoints.min.js"></script>
-      <script src="admin/lib/owlcarousel/owl.carousel.min.js"></script>
-      <script src="admin/lib/tempusdominus/js/moment.min.js"></script>
-      <script src="admin/lib/tempusdominus/js/moment-timezone.min.js"></script>
-      <script src="admin/lib/tempusdominus/js/tempusdominus-bootstrap-4.min.js"></script>
-      <!-- Template Javascript -->
-      <script src="admin/js/main.js"></script>
-       <script type="text/javascript">
-            function readURL(input) {
-            	if (input.files && input.files[0]) {
-            		var reader = new FileReader();
-            		reader.onload = function(e) {
-            			var num = $(input).attr('class').split('-')[2];
-            			$('.file-uploader .preview-' + num).attr('src', e.target.result);
-            		}
-            		reader.readAsDataURL(input.files[0]);
-            	}
+        // Format ID number input in swap modal
+        $('#swapInstructorId').on('input', function() {
+            let value = $(this).val().replace(/\D/g, '');
+            if (value.length > 4) {
+                value = value.substring(0, 4) + '-' + value.substring(4, 8);
             }
-            $("[class^=upload-field-]").change(function() {
-            	readURL(this);
-            });
-         </script>
+            $(this).val(value.substring(0, 9));
+        });
 
-         <?php
-         if($department == 'Main') { ?>
-        <button class="chatbot-toggler" style="background:#FBC257;">
-    <span class="material-symbols-rounded"><i class="fa fa-id-badge" aria-hidden="true"></i></span>
-    <span class="material-symbols-outlined"><i class="fa fa-times" aria-hidden="true"></i></span>
-</button>
-<style>
-        .card {
-            display: flex;
-            align-items: center; /* Aligns items vertically center */
-            padding: 10px;
-            margin: 10px 0; /* Space between cards */
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            background-color: #fff; /* Card background color */
-            position: relative; /* For absolute positioning of the button */
-            text-align:center;
-        }
-      
-        .close-btn {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            cursor: pointer;
-            font-size: 18px;
-            color: black;
-            border-radius: 50%; /* Makes the image circular */
-            border: none;
-            padding: 5px 8px;
-        }
-    </style>
-<div class="chatbot">
-    <header style="background:#FBC257;">
-      <h2>Lost Card</h2>
-      <span class="close-btn material-symbols-outlined"><i class="fa fa-times" aria-hidden="true"></i></span>
-    </header>
-    <div class="container-fluid">
-        <div class="row h-100 align-items-center justify-content-center">
-            <div class="col-12">
-                <div class="rounded p-4" id="adjust">
-                
-                    <input type="hidden" name="id" id="hiddenId"> <!-- Hidden input for ID -->
-                        <div class="">
-                            <center><span id="myalert2"></span></center>
-                        </div>
-                        <div id="myalert" style="display:none;">
-                            <div class="">
-                                <center><span id="alerttext"></span></center>
-                            </div>
-                        </div>
-                        <div id="myalert3" style="display:none;">
-                            <div class="">
-                                <div class="alert alert-success" id="alerttext3"></div>
-                            </div>
-                        </div>
+        // Verify ID handler with SweetAlert
+        $('#verifyIdBtn').click(function() {
+            const enteredId = $('#swapInstructorId').val().trim();
+            
+            // Validate input format
+            if (!enteredId) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'ID Required',
+                    text: 'Please enter the instructor ID number',
+                    confirmButtonColor: '#3085d6'
+                });
+                return;
+            }
+            
+            // Standardize format (accept both 0000-0000 and 00000000)
+            const cleanEnteredId = enteredId.replace(/-/g, '');
+            
+            if (!/^\d{8}$/.test(cleanEnteredId)) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid Format',
+                    text: 'Please enter a valid ID number (8 digits, with or without hyphen)',
+                    confirmButtonColor: '#3085d6'
+                });
+                return;
+            }
+            
+            // Show loading state with SweetAlert
+            Swal.fire({
+                title: 'Verifying ID',
+                html: 'Please wait while we verify the ID number...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            // Send request to verify ID
+            $.ajax({
+                url: 'verify_instructor_id.php',
+                type: 'POST',
+                data: { 
+                    id_number: cleanEnteredId 
+                },
+                dataType: 'json',
+                success: function(response) {
+                    if (response.status === 'success') {
+                        selectedInstructor = response.instructor;
                         
-                        <!-- Search Box -->
-                        <div id="search" class="form-floating mb-4">
-                            <input type="text" class="form-control" id="searchBox" name="pname" placeholder="Search Name" autocomplete="off" oninput="searchPersonell(this.value)">
-                            <label for="floatingPassword">Search Name</label>
-                         
-                        </div>
-                         
-                        <!-- Live Search Results -->
-                        <div id="searchResults"></div>
-        
-                        <script>
-    function searchPersonell(query) {
-        // console.log("Keyup detected, query:", query); 
-        // if (query.length === 0) {
-        //     document.getElementById("searchResults").innerHTML = "";
-        //     return;
-        // }
-        const xhr = new XMLHttpRequest();
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState == 4 && xhr.status == 200) {
-                document.getElementById("searchResults").innerHTML = xhr.responseText;
-            }
-        };
-        xhr.open("GET", "search_personnel.php?q=" + query, true);
-        xhr.send();
-    }
-</script>
-                        <!-- Card to display selected personnel -->
-                        <div class="card" id="detailsModal" style="display:none;background-color:#e9ecef;">
-    <span class="close-btn" onclick="closeModal()">×</span>
-    
-    <table style="margin-left: 30px; padding: 0px; margin-bottom: 0px; border: none;" class='table table-border' id='myTable'>
-        <tr style="vertical-align:middle;">
-            <!-- First column: Photo -->
-            <td style="border-bottom-width:0px;"><img id="modalPhoto" src="" width='50' height='50'></td>
-            <!-- Second column: Name and Department (stacked) -->
-            <td style="text-align:left;border-bottom-width:0px;">
-                <div id="modalTitle" style="font-weight: bold;"></div> <!-- Bold Name -->
-                <div id="modalDepartment" style="opacity: 0.6;"></div> <!-- Department with less opacity -->
-               
-            </td>
-        </tr>
-    </table>
-</div>
-<div id="cam" style="display:none;position:fixed;" class="file-uploader">
-                                         
-                                         <img id="captured" class="preview-1" src="assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg" style="width: 140px!important;height: 130px!important;position: absolute;border: 1px solid gray;top: 15%; left:200px;" title="Upload Photo.." />
-                                         <center><b>Capture Verification: </b></center>
-                                      </div>
-
-                                      <input hidden id="capturedImage" name="capturedImage">
-                                     
-                                    </div>
-
-
-                       
-                        <button name="send" id="submitButton" class="alert alert-primary py-3 w-100 mb-4"><b>Send</b></button>
-
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="chat-input" hidden>
-      <textarea placeholder="Enter a message..." spellcheck="false" hidden></textarea>
-      <span id="send-btn" class="material-symbols-rounded" hidden>send</span>
-    </div>
-</div>
-
-
-
-
-<script>
-function showDetails(id, fullName, department, photo) {
-    document.getElementById('modalTitle').innerText = fullName;
-    document.getElementById('modalDepartment').innerText = department;
-    document.getElementById('modalPhoto').src = 'admin/uploads/' + photo;
-
-    // Set the hidden input field value
-    document.getElementById('hiddenId').value = id;
-
-    // Show the modal
-    document.getElementById('detailsModal').style.display = 'flex';
-    document.getElementById('search').style.display = 'none';
-    document.getElementById('searchResults').style.display = 'none';
-    document.getElementById('cam').style.display = 'block';
-    document.getElementById('adjust').style.height = '300px';
-}
-
-function closeModal() {
-    document.getElementById('detailsModal').style.display = 'none';
-    document.getElementById('search').style.display = 'block';
-    document.getElementById('searchResults').style.display = 'block';
-    document.getElementById('searchResults').style.paddingTop = '50px';
-    document.getElementById('cam').style.display = 'none';
-    document.getElementById('adjust').style.height = '';
-    document.getElementById('hiddenId').value = '';
-}
-</script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-<script>
-$('#submitButton').click(function(){
-var id =  document.getElementById('hiddenId').value;
-var capturedImage =  document.getElementById('capturedImage').value;
-
-    $.ajax({
-                type: "POST",
-                url: "process_request.php",
-                data:{id:id, capturedImage:capturedImage},
-                dataType: 'text',
-                success: function(data){
-                    if (data.trim() == 'success') {
+                        // Show instructor info
+                        $('#instructorName').text(response.instructor.fullname);
+                        $('#instructorDetails').html(`
+                            <strong>ID:</strong> ${response.instructor.id_number}<br>
+                            <strong>Department:</strong> ${response.instructor.department || 'N/A'}
+                        `);
+                        $('#instructorInfoCard').removeClass('d-none');
+                        
+                        // Enable confirm button
+                        $('#confirmSwap').prop('disabled', false);
+                        
                         Swal.fire({
-                icon: 'success',
-                title: 'Your request has been sent',
-                showConfirmButton: false,
-                timer: 1500
-            }).then(() => {
-                window.location.href = 'main.php'; // Redirect after 1.5 seconds
-            });
+                            icon: 'success',
+                            title: 'Verified!',
+                            text: 'ID verification successful',
+                            confirmButtonColor: '#3085d6',
+                            timer: 1500,
+                            timerProgressBar: true
+                        });
                     } else {
                         Swal.fire({
-            icon: 'error',
-            title: 'Oops...',
-            text: data
-        });
+                            icon: 'error',
+                            title: 'Verification Failed',
+                            text: response.message || 'Instructor not found',
+                            confirmButtonColor: '#3085d6'
+                        });
                     }
+                },
+                error: function() {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Failed to verify ID. Please try again.',
+                        confirmButtonColor: '#3085d6'
+                    });
                 }
-});
+            });
+        });
 
-});
+        // Process swap request with SweetAlert confirmation
+        $('#confirmSwap').click(function() {
+            if (!selectedInstructor) return;
+            
+            Swal.fire({
+                title: 'Confirm Swap',
+                text: `Are you sure you want to swap with ${selectedInstructor.fullname}?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, swap now'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // User confirmed - proceed with swap
+                    performSwap();
+                }
+            });
+        });
 
+        function performSwap() {
+            const $btn = $('#confirmSwap');
+            $btn.prop('disabled', true);
+            $('#swapSpinner').removeClass('d-none');
+            
+            // Show processing alert
+            Swal.fire({
+                title: 'Processing Swap',
+                html: 'Please wait while we process your request...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            $.ajax({
+                url: 'process_swap.php',
+                type: 'POST',
+                data: {
+                    swap_request: true,
+                    target_id_number: selectedInstructor.id_number
+                },
+                dataType: 'json',
+                success: function(response) {
+                            Swal.close();
+                            if (response.status === 'success') {
+                            Swal.fire({
+                            icon: 'success',
+                            title: 'Swap Successful!',
+                            text: `You are now logged in as ${response.instructor || selectedInstructor.fullname}`,
+                            confirmButtonColor: '#3085d6',
+                            timer: 2000,
+                            timerProgressBar: true,
+                            willClose: () => {
+                            window.location.href = 'main1.php'; // Explicitly set to main1.php
+                        }
+                    });
+                        } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Swap Failed',
+                            text: response.message || 'Swap request failed',
+                            confirmButtonColor: '#3085d6'
+                        });
+                    }
+                },
+                error: function(xhr) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'An error occurred during the swap process',
+                        confirmButtonColor: '#3085d6'
+                    });
+                },
+                complete: function() {
+                    $btn.prop('disabled', false);
+                    $('#swapSpinner').addClass('d-none');
+                }
+            });
+        }
 
+        // Form submission handler
+        $('#logform').on('submit', function(e) {
+            e.preventDefault();
+            
+            const idNumber = $('#id-input').val();
+            const password = $('#password').val();
+            const department = $('#roomdpt').val();
+            const selectedRoom = $('#location').val();
+            
+            // Validate ID format
+            if (!/^\d{4}-\d{4}$/.test(idNumber)) {
+                showAlert('Please enter a valid ID number (format: 0000-0000)');
+                idInput.focus();
+                return;
+            }
+            
+            if (!password) {
+                showAlert('Please enter your password');
+                $('#password').focus();
+                return;
+            }
+            
+            // For Main department + Gate location, proceed directly to gate access
+            if (department === 'Main' && selectedRoom === 'Gate') {
+                submitLoginForm();
+            } 
+            // If we have a selected subject, proceed
+            else if ($('#selected_subject').val()) {
+                submitLoginForm();
+            }
+            // Otherwise show subject selection
+            else {
+                showSubjectSelectionModal();
+            }
+        });
 
+        // Show subject selection modal
+        function showSubjectSelectionModal() {
+            const idNumber = $('#id-input').val();
+            const selectedRoom = $('#location').val();
+            
+            if (!idNumber || !selectedRoom) {
+                showAlert('Please select a location first');
+                return;
+            }
+            
+            $('#subjectList').html('<tr><td colspan="5" class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>');
+            
+            const subjectModal = new bootstrap.Modal(document.getElementById('subjectModal'));
+            subjectModal.show();
+            
+            $('#modalRoomName').text(selectedRoom);
+            loadInstructorSubjects(idNumber, selectedRoom);
+        }
 
-</script>
+        // Load subjects for instructor
+        function loadInstructorSubjects(idNumber, selectedRoom) {
+            $.ajax({
+                url: 'get_instructor_subjects.php',
+                type: 'GET',
+                data: { 
+                    id_number: idNumber.replace(/-/g, ''),
+                    room_name: selectedRoom
+                },
+                dataType: 'json',
+                success: function(response) {
+                    try {
+                        const data = typeof response === 'string' ? JSON.parse(response) : response;
+                        
+                        if (data.status === 'success' && data.data && data.data.length > 0) {
+                            let html = '';
+                            data.data.forEach(schedule => {
+                                const now = new Date();
+                                const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
 
+                                // Parse subject start time into minutes
+                                let startMinutes = null;
+                                if (schedule.start_time) {
+                                    const [hour, minute, second] = schedule.start_time.split(':');
+                                    startMinutes = parseInt(hour, 10) * 60 + parseInt(minute, 10);
+                                }
 
+                                const isEnabled = startMinutes !== null && startMinutes >= currentTimeMinutes;
 
-<script>
-    function removeCard(button) {
-        // Get the card element to remove
-        const card = button.parentNode;
-        // Remove the card from the DOM
-        card.style.display = 'none'; // Hide the card instead of removing it
-        
+                                const startTimeFormatted = schedule.start_time ? 
+                                    new Date(`1970-01-01T${schedule.start_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
+                                    'N/A';
+                                const endTimeFormatted = schedule.end_time ? 
+                                    new Date(`1970-01-01T${schedule.end_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
+                                    'N/A';
 
-    }
-</script>
+                                html += `
+                                    <tr class="modal-subject-row ${!isEnabled ? 'table-secondary' : ''}">
+                                        <td>
+                                            <input type="checkbox" class="form-check-input subject-checkbox"
+                                                data-subject="${schedule.subject || ''}"
+                                                data-room="${schedule.room_name || ''}"
+                                                ${!isEnabled ? 'disabled' : ''}>
+                                        </td>
+                                        <td>${schedule.subject || 'N/A'}</td>
+                                        <td>${schedule.section || 'N/A'}</td>
+                                        <td>${schedule.day || 'N/A'}</td>
+                                        <td>${startTimeFormatted} - ${endTimeFormatted}</td>
+                                    </tr>`;
+                            });
 
-<!-- Add JavaScript for Search Functionality -->
+                            $('#subjectList').html(html);
+                        } else {
+                            $('#subjectList').html(`<tr><td colspan="5" class="text-center">No scheduled subjects found</td></tr>`);
+                        }
+                    } catch (e) {
+                        console.error('Error parsing subjects:', e, response);
+                        $('#subjectList').html('<tr><td colspan="5" class="text-center text-danger">Error loading subjects</td></tr>');
+                    }
+                },
+                error: function(xhr) {
+                    $('#subjectList').html('<tr><td colspan="5" class="text-center text-danger">Error loading subjects</td></tr>');
+                }
+            });
+        }
 
+        // Update the confirm button text when a subject is selected
+        $(document).on('change', '.subject-checkbox', function() {
+            $('.subject-checkbox').not(this).prop('checked', false);
+            const isChecked = $('.subject-checkbox:checked').length > 0;
+            $('#confirmSubject').prop('disabled', !isChecked);
+            
+            if (isChecked) {
+                const subjectName = $(this).data('subject');
+                const timeRange = $(this).closest('tr').find('td:eq(4)').text(); // Get time from the 5th column
+                $('#confirmSubject').html(
+                    `<span class="spinner-border spinner-border-sm d-none" id="confirmSpinner" role="status" aria-hidden="true"></span>
+                    Confirm Selection: ${subjectName}`
+                );
+                
+                // Store time in a hidden field
+                $('#selected_time').val(timeRange);
+            } else {
+                $('#confirmSubject').html(
+                    `<span class="spinner-border spinner-border-sm d-none" id="confirmSpinner" role="status" aria-hidden="true"></span>
+                    Confirm Selection`
+                );
+            }
+        });
 
+        // Confirm subject selection
+        $('#confirmSubject').click(function() {
+            const checkedBox = $('.subject-checkbox:checked').first();
+            
+            if (checkedBox.length) {
+                $('#selected_subject').val(checkedBox.data('subject'));
+                $('#selected_room').val(checkedBox.data('room'));
+                
+                $(this).prop('disabled', true);
+                $('#confirmSpinner').removeClass('d-none');
+                
+                bootstrap.Modal.getInstance(document.getElementById('subjectModal')).hide();
+                submitLoginForm();
+            }
+        });
 
+        // Cancel subject selection
+        $('#cancelSubject').click(function() {
+            $('.subject-checkbox').prop('checked', false);
+            $('#selected_subject').val('');
+            $('#selected_room').val('');
+            $('#subjectModal').modal('hide');
+            idInput.focus();
+        });
 
+        // Submit login form
+        function submitLoginForm() {
+            const $form = $('#logform');
+            const $submitBtn = $form.find('button[type="submit"]');
+            
+            $.ajax({
+                url: '',
+                type: 'POST',
+                data: $form.serialize(),
+                dataType: 'json',
+                beforeSend: function() {
+                    $submitBtn.prop('disabled', true)
+                        .html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...');
+                },
+                complete: function() {
+                    $submitBtn.prop('disabled', false).text('Login');
+                    $('#confirmSpinner').addClass('d-none');
+                    $('#confirmSubject').prop('disabled', false);
+                },
+                success: function(response) {
+                    try {
+                        const data = typeof response === 'string' ? JSON.parse(response) : response;
+                        
+                        if (data.status === 'success' && data.redirect) {
+                            window.location.href = data.redirect;
+                        } else {
+                            showAlert(data.message || 'Login failed');
+                        }
+                    } catch (e) {
+                        console.error('Error parsing response:', e, response);
+                        showAlert('Invalid server response format');
+                    }
+                },
+                error: function(xhr) {
+                    let errorMsg = 'An error occurred. Please try again.';
+                    try {
+                        const errorResponse = JSON.parse(xhr.responseText);
+                        errorMsg = errorResponse.message || errorMsg;
+                    } catch (e) {
+                        errorMsg = xhr.responseText || errorMsg;
+                    }
+                    showAlert(errorMsg);
+                }
+            });
+        }
 
-<?php }?>
+        // Show alert message
+        function showAlert(message, type = 'danger') {
+            const $alert = $('#alert-container');
+            $alert.removeClass('d-none alert-danger alert-success').addClass(`alert-${type}`).text(message);
+            setTimeout(() => {
+                $alert.addClass('d-none');
+            }, 5000);
+        }
 
+        // Fetch rooms when department changes
+        $('#roomdpt').change(function() {
+            const department = $(this).val();
+            if (department === "Main") {
+                $('#location').html('<option value="Gate" selected>Gate</option>');
+                return;
+            }
+            
+            $.get('get_rooms.php', { department: department })
+                .done(function(data) {
+                    $('#location').html(data);
+                })
+                .fail(function() {
+                    $('#location').html('<option value="">Error loading rooms</option>');
+                });
+        });
+
+        // Initial focus
+        setTimeout(function() {
+            idInput.focus();
+        }, 300);
+    });
+    </script>
 </body>
-
 </html>

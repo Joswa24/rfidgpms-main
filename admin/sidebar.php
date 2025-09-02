@@ -48,7 +48,7 @@ if ($result1->num_rows > 0) {
     $username = $row['username'];
 } 
 ?>
-<div class="sidebar pe-4 pb-3" style="background-color: #fcaf42">
+<div class="sidebar pe-4 pb-3" style="background-color:  #87abe0ff">
     <nav class="navbar navbar-light">
         <a href="dashboard" class="navbar-brand mx-4 mb-3">
             <h3 class="text" style="color: #f0ddcc">RFID V.2</h3>
@@ -127,34 +127,27 @@ if ($result1->num_rows > 0) {
              <a href="instructors.php" class="nav-item nav-link <?php echo ($current_page == 'instructors') ? 'active' : ''; ?>">
                 <i class="fa fa-city me-2"></i>Manage Instructors
             </a>
-           
+            <a href="manage_subject.php" class="nav-item nav-link <?php echo ($current_page == 'subjects') ? 'active' : ''; ?>">
+                <i class="fa fa-book me-2"></i>Manage Subjects
+            </a>
+            
 
-            <!-- Lost and Found -->
-<a href="lostcard.php" class="nav-item nav-link <?php echo ($current_page == 'lostcard') ? 'active' : ''; ?>">
-    <i class="fas fa-id-badge"></i> Lost Card
-    <?php if ($new_lost_cards > 0): ?>
-        <span class="badge1"><?php echo $new_lost_cards; ?></span>
-    <?php endif; ?>
-</a>
+            <a href="dtr.php" class="nav-item nav-link <?php echo ($current_page == 'dtr') ? 'active' : ''; ?>">
+                <i class="fa fa-clipboard me-2"></i>Generate DTR
+            </a>
 
-<a href="dtr.php" class="nav-item nav-link <?php echo ($current_page == 'dtr') ? 'active' : ''; ?>">
-    <i class="fa fa-clipboard me-2"></i>Generate DTR
-</a>
+            <a href="student_logs.php" class="nav-item nav-link <?php echo ($current_page == 'attendance_log') ? 'active' : ''; ?>">
+                <i class="fa fa-book me-2"></i>Attendance Log
+            </a>
 
-<!-- 🔽 Insert New Items Here -->
-<a href="student_logs.php" class="nav-item nav-link <?php echo ($current_page == 'attendance_log') ? 'active' : ''; ?>">
-    <i class="fa fa-book me-2"></i>Attendance Log
-</a>
+            <a href="room_schedule.php" class="nav-item nav-link <?php echo ($current_page == 'room_schedule') ? 'active' : ''; ?>">
+                <i class="fa fa-calendar-alt me-2"></i>Manage Room Schedules
+            </a>
 
-<a href="room_schedule.php" class="nav-item nav-link <?php echo ($current_page == 'room_schedule') ? 'active' : ''; ?>">
-    <i class="fa fa-calendar-alt me-2"></i>Manage Room Schedules
-</a>
-
-<!-- Settings -->
-<a href="settings.php" class="nav-item nav-link <?php echo ($current_page == 'settings') ? 'active' : ''; ?>">
-    <i class="fa fa-cog me-2"></i>Settings
-</a>
-
+            <!-- Settings -->
+            <a href="settings.php" class="nav-item nav-link <?php echo ($current_page == 'settings') ? 'active' : ''; ?>">
+                <i class="fa fa-cog me-2"></i>Settings
+            </a>
         </div>
     </nav>
 </div>

@@ -217,16 +217,28 @@ try {
             }
             break;
 
-        case 'student':
-            $stmt = $db->prepare("DELETE FROM students WHERE id = ?");
-            $stmt->bind_param("i", $id);
+        case 'delete_student':
+        // Check if student exists
+        $check = $db->prepare("SELECT id FROM students WHERE id = ?");
+        $check->bind_param("i", $id);
+        $check->execute();
+        $check->store_result();
+        
+        if ($check->num_rows === 0) {
+            jsonResponse('error', 'Student not found');
+        }
+        $check->close();
 
-            if ($stmt->execute()) {
-                jsonResponse('success', 'Student deleted successfully');
-            } else {
-                jsonResponse('error', 'Failed to delete student: ' . $stmt->error);
-            }
-            break;
+        // Delete student
+        $stmt = $db->prepare("DELETE FROM students WHERE id = ?");
+        $stmt->bind_param("i", $id);
+
+        if ($stmt->execute()) {
+            jsonResponse('success', 'Student deleted successfully');
+        } else {
+            jsonResponse('error', 'Failed to delete student');
+        }
+        break;
             case 'schedule':
     // First check if schedule exists
     $check = $db->prepare("SELECT id FROM room_schedules WHERE id = ?");

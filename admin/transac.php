@@ -53,15 +53,15 @@ case 'add_visitor':
     }
 
     // Validate required field
-    if (!isset($_POST['rfid_number']) || empty(trim($_POST['rfid_number']))) {
+    if (!isset($_POST['id_number']) || empty(trim($_POST['id_number']))) {
         jsonResponse('error', 'RFID number is required');
     }
 
-    $rfid_number = trim($_POST['rfid_number']);
+    $id_number = trim($_POST['id_number']);
 
     // Validate format: exactly 10 digits
-    if (!preg_match('/^\d{10}$/', $rfid_number)) {
-        jsonResponse('error', 'RFID must be exactly 10 digits');
+    if (!preg_match('/^\d{9}$/', $id_number)) {
+        jsonResponse('error', 'ID must be exactly 8 digits');
     }
 
     // Check if RFID already exists
@@ -160,98 +160,123 @@ case 'add_visitor':
         }
     }
 switch ($_GET['action']) {
-    case 'add':
-      case 'add_personnel':
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            jsonResponse('error', 'Invalid request method');
+   case 'add':
+case 'add_personnel':
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        jsonResponse('error', 'Invalid request method');
+    }
+
+    // Validate required fields
+    $required = ['last_name', 'first_name', 'date_of_birth', 'rfid_number', 'role', 'category', 'department'];
+    foreach ($required as $field) {
+        if (empty($_POST[$field])) {
+            jsonResponse('error', "Missing required field: $field");
+        }
+    }
+
+    // Sanitize inputs
+    $last_name = sanitizeInput($db, $_POST['last_name']);
+    $first_name = sanitizeInput($db, $_POST['first_name']);
+    $date_of_birth = sanitizeInput($db, $_POST['date_of_birth']);
+    $rfid_number = sanitizeInput($db, $_POST['rfid_number']);
+    $role = sanitizeInput($db, $_POST['role']);
+    $category = sanitizeInput($db, $_POST['category']);
+    $department = sanitizeInput($db, $_POST['department']);
+    $status = 'Active';
+
+    // Validate ID Number format (0000-0000)
+    $id_pattern = '/^\d{4}-\d{4}$/';
+    if (!preg_match($id_pattern, $rfid_number)) {
+        jsonResponse('error', 'ID Number must be in format: 0000-0000');
+    }
+
+    // Remove hyphen for database storage (optional - you can store with hyphen if preferred)
+    $rfid_number_clean = str_replace('-', '', $rfid_number);
+    
+    // Check if ID Number exists
+    $check_rfid = $db->prepare("SELECT id FROM personell WHERE rfid_number = ?");
+    $check_rfid->bind_param("s", $rfid_number_clean);
+    $check_rfid->execute();
+    $check_rfid->store_result();
+    
+    if ($check_rfid->num_rows > 0) {
+        jsonResponse('error', 'ID Number already exists');
+    }
+    $check_rfid->close();
+
+    // Handle file upload
+    $photo = 'default.png';
+    if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+        $allowed_types = ['image/jpeg', 'image/png'];
+        $file_info = finfo_open(FILEINFO_MIME_TYPE);
+        $mime_type = finfo_file($file_info, $_FILES['photo']['tmp_name']);
+        finfo_close($file_info);
+
+        if (!in_array($mime_type, $allowed_types)) {
+            jsonResponse('error', 'Only JPG and PNG images are allowed');
         }
 
-        // Validate required fields
-        $required = ['last_name', 'first_name', 'date_of_birth', 'rfid_number', 'role', 'category', 'department'];
-        foreach ($required as $field) {
-            if (empty($_POST[$field])) {
-                jsonResponse('error', "Missing required field: $field");
-            }
+        if ($_FILES['photo']['size'] > 2 * 1024 * 1024) {
+            jsonResponse('error', 'Maximum file size is 2MB');
         }
 
-        // Sanitize inputs
-        $last_name = sanitizeInput($db, $_POST['last_name']);
-        $first_name = sanitizeInput($db, $_POST['first_name']);
-        $date_of_birth = sanitizeInput($db, $_POST['date_of_birth']);
-        $rfid_number = sanitizeInput($db, $_POST['rfid_number']);
-        $role = sanitizeInput($db, $_POST['role']);
-        $category = sanitizeInput($db, $_POST['category']);
-        $department = sanitizeInput($db, $_POST['department']);
-        $status = 'Active';
-
-        // Validate RFID format
-        if (strlen($rfid_number) !== 10 || !ctype_digit($rfid_number)) {
-            jsonResponse('error', 'RFID must be exactly 10 digits');
-        }
-
-        // Check if RFID exists
-        $check_rfid = $db->prepare("SELECT id FROM personell WHERE rfid_number = ?");
-        $check_rfid->bind_param("s", $rfid_number);
-        $check_rfid->execute();
-        $check_rfid->store_result();
+        $ext = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
+        $photo = uniqid() . '.' . $ext;
+        $target_dir = "uploads/";
         
-        if ($check_rfid->num_rows > 0) {
-            jsonResponse('error', 'RFID number already exists');
-        }
-        $check_rfid->close();
-
-        // Handle file upload
-        $photo = 'default.png';
-        if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
-            $allowed_types = ['image/jpeg', 'image/png'];
-            $file_info = finfo_open(FILEINFO_MIME_TYPE);
-            $mime_type = finfo_file($file_info, $_FILES['photo']['tmp_name']);
-            finfo_close($file_info);
-
-            if (!in_array($mime_type, $allowed_types)) {
-                jsonResponse('error', 'Only JPG and PNG images are allowed');
-            }
-
-            if ($_FILES['photo']['size'] > 2 * 1024 * 1024) {
-                jsonResponse('error', 'Maximum file size is 2MB');
-            }
-
-            $ext = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
-            $photo = uniqid() . '.' . $ext;
-            $target_dir = "uploads/";
-            
-            if (!file_exists($target_dir)) {
-                mkdir($target_dir, 0755, true);
-            }
-
-            $target_file = $target_dir . $photo;
-            if (!move_uploaded_file($_FILES['photo']['tmp_name'], $target_file)) {
-                jsonResponse('error', 'Failed to upload image');
-            }
+        if (!file_exists($target_dir)) {
+            mkdir($target_dir, 0755, true);
         }
 
-        // Generate unique ID and insert record
-        $id = uniqid();
-        $query = "INSERT INTO personell (
-            id, category, rfid_number, last_name, first_name, 
-            date_of_birth, role, department, status, photo, date_added
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
-
-        $stmt = $db->prepare($query);
-        $stmt->bind_param(
-            "ssssssssss", 
-            $id, $category, $rfid_number, $last_name, $first_name,
-            $date_of_birth, $role, $department, $status, $photo
-        );
-
-        if ($stmt->execute()) {
-            $_SESSION['success_message'] = 'Personnel added successfully';
-            jsonResponse('success', 'Personnel added successfully', ['id' => $id]);
-        } else {
-            jsonResponse('error', 'Database error: ' . $db->error);
+        $target_file = $target_dir . $photo;
+        if (!move_uploaded_file($_FILES['photo']['tmp_name'], $target_file)) {
+            jsonResponse('error', 'Failed to upload image');
         }
-        break;
+    }
+
+    // Generate unique ID and insert record
+    $id = uniqid();
+    $query = "INSERT INTO personell (
+        id, category, rfid_number, last_name, first_name, 
+        date_of_birth, role, department, status, photo, date_added
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+
+    $stmt = $db->prepare($query);
+    $stmt->bind_param(
+        "ssssssssss", 
+        $id, $category, $rfid_number_clean, $last_name, $first_name,
+        $date_of_birth, $role, $department, $status, $photo
+    );
+
+    if ($stmt->execute()) {
+        $_SESSION['success_message'] = 'Personnel added successfully';
+        jsonResponse('success', 'Personnel added successfully', ['id' => $id]);
+    } else {
+        jsonResponse('error', 'Database error: ' . $db->error);
+    }
+    break;
         
+        case 'add_subject':
+    $subject_code = $_POST['subject_code'];
+    $subject_name = $_POST['subject_name'];
+    $year_level = $_POST['year_level'];
+    
+    // Check if subject code already exists
+    $check = mysqli_query($db, "SELECT * FROM subjects WHERE subject_code = '$subject_code'");
+    if(mysqli_num_rows($check) > 0) {
+        echo json_encode(['status' => 'error', 'message' => 'Subject code already exists']);
+        exit();
+    }
+    
+    $query = "INSERT INTO subjects (subject_code, subject_name, year_level) 
+              VALUES ('$subject_code', '$subject_name', '$year_level')";
+    
+    if(mysqli_query($db, $query)) {
+        echo json_encode(['status' => 'success', 'message' => 'Subject added successfully']);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Error adding subject: ' . mysqli_error($db)]);
+    }
+    break;
 
    case 'add_department':
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -573,49 +598,66 @@ case 'add_instructor':
     if (empty($_POST['fullname'])) {
         jsonResponse('error', 'Full name is required');
     }
+    if (empty($_POST['department_id'])) {
+        jsonResponse('error', 'Department is required');
+    }
 
     // Sanitize inputs
     $fullname = sanitizeInput($db, trim($_POST['fullname']));
-    $rfid_number = isset($_POST['rfid_number']) ? trim($_POST['rfid_number']) : '';
+    $id_number = isset($_POST['id_number']) ? trim($_POST['id_number']) : '';
+    $department_id = intval($_POST['department_id']);
 
-    // Validate RFID format if provided
-    if ($rfid_number !== '' && !preg_match('/^[0-9A-F]{8,14}$/i', $rfid_number)) {
-        jsonResponse('error', 'Invalid RFID format. Use 8-14 hex characters');
+    // Validate department
+    if ($department_id <= 0) {
+        jsonResponse('error', 'Invalid department ID');
     }
 
-    // Check if RFID exists in instructor table
-    if ($rfid_number !== '') {
-        $check_rfid = $db->prepare("SELECT id FROM instructor WHERE rfid_number = ?");
-        $check_rfid->bind_param("s", $rfid_number);
-        $check_rfid->execute();
-        $check_rfid->store_result();
-        if ($check_rfid->num_rows > 0) {
-            $check_rfid->close();
-            jsonResponse('error', 'RFID number already assigned to another instructor');
+    // Validate ID number format if provided (must be 0000-0000 format)
+    if ($id_number !== '' && !preg_match('/^\d{4}-\d{4}$/', $id_number)) {
+        jsonResponse('error', 'Invalid ID format. Must be in 0000-0000 format (four digits, hyphen, four digits)');
+    }
+
+    // Check if department exists
+    $checkDept = $db->prepare("SELECT department_id FROM department WHERE department_id = ?");
+    $checkDept->bind_param("i", $department_id);
+    $checkDept->execute();
+    $checkDept->store_result();
+    if ($checkDept->num_rows === 0) {
+        $checkDept->close();
+        jsonResponse('error', 'Department not found');
+    }
+    $checkDept->close();
+
+    // Check if ID number exists in instructor table
+    if ($id_number !== '') {
+        $checkId = $db->prepare("SELECT id FROM instructor WHERE id_number = ?");
+        $checkId->bind_param("s", $id_number);
+        $checkId->execute();
+        $checkId->store_result();
+        if ($checkId->num_rows > 0) {
+            $checkId->close();
+            jsonResponse('error', 'ID number already assigned to another instructor');
         }
-        $check_rfid->close();
+        $checkId->close();
     }
 
     // Insert new instructor
-    $stmt = $db->prepare("INSERT INTO instructor (fullname, rfid_number, created_at) VALUES (?, ?, NOW())");
-    $stmt->bind_param("ss", $fullname, $rfid_number);
+    $stmt = $db->prepare("INSERT INTO instructor (fullname, id_number, department_id, created_at) VALUES (?, ?, ?, NOW())");
+    $stmt->bind_param("ssi", $fullname, $id_number, $department_id);
 
     if ($stmt->execute()) {
         jsonResponse('success', 'Instructor added successfully', [
             'id' => $stmt->insert_id,
             'fullname' => $fullname,
-            'rfid_number' => $rfid_number
+            'id_number' => $id_number,
+            'department_id' => $department_id
         ]);
     } else {
         jsonResponse('error', 'Failed to add instructor: ' . $db->error);
     }
     break;
 
-       case 'add_student':
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        jsonResponse('error', 'Invalid request method');
-    }
-
+      case 'add_student':
     // Validate required fields
     $required = ['department_id', 'id_number', 'fullname', 'section', 'year'];
     foreach ($required as $field) {
@@ -625,18 +667,18 @@ case 'add_instructor':
     }
 
     // Sanitize inputs
-    $department_id = sanitizeInput($db, $_POST['department_id']);
+    $department_id = intval($_POST['department_id']);
     $id_number = sanitizeInput($db, $_POST['id_number']);
     $fullname = sanitizeInput($db, $_POST['fullname']);
     $section = sanitizeInput($db, $_POST['section']);
     $year = sanitizeInput($db, $_POST['year']);
 
-    // Validate ID number format (adjust regex as needed)
-    if (!preg_match('/^[A-Za-z0-9-]+$/', $id_number)) {
-        jsonResponse('error', 'Invalid ID number format');
+    // Validate ID number format (YYYY-XXXX)
+    if (!preg_match('/^\d{4}-\d{4}$/', $id_number)) {
+        jsonResponse('error', 'Invalid student ID format. Must be YYYY-XXXX');
     }
 
-    // Check if ID number already exists
+    // Check if ID number exists
     $check_id = $db->prepare("SELECT id FROM students WHERE id_number = ?");
     $check_id->bind_param("s", $id_number);
     $check_id->execute();
@@ -660,6 +702,7 @@ case 'add_instructor':
     } else {
         jsonResponse('error', 'Failed to add student: ' . $db->error);
     }
+    
     break;
 
     // Add this case to handle adding a room schedule via AJAX

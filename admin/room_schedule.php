@@ -90,53 +90,76 @@ $schedules = $db->query("SELECT * FROM room_schedules ORDER BY room_name, day, s
         </div>
 
         <!-- Add Schedule Modal -->
-        <div class="modal fade" id="scheduleModal" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Add Room Schedule</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+       <!-- Add Schedule Modal -->
+<div class="modal fade" id="scheduleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Room Schedule</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="scheduleForm">
+                <div class="modal-body">
+                    <div id="mgs-schedule"></div>
+                    <div class="mb-3">
+                        <label class="form-label">Department</label>
+                        <select name="department" class="form-control" required>
+                            <option value="">Select Department</option>
+                            <?php
+                            $departments = $db->query("SELECT * FROM department ORDER BY department_name");
+                            while ($dept = $departments->fetch_assoc()) {
+                                echo '<option value="'.htmlspecialchars($dept['department_name']).'">'.htmlspecialchars($dept['department_name']).'</option>';
+                            }
+                            ?>
+                        </select>
                     </div>
-                    <form id="scheduleForm">
-                        <div class="modal-body">
-                            <div id="mgs-schedule"></div>
-                           <div class="mb-3">
-    <label class="form-label">Department</label>
-    <select name="department" class="form-control" required>
-        <option value="">Select Department</option>
-        <?php
-        $departments = $db->query("SELECT * FROM department ORDER BY department_name");
-        while ($dept = $departments->fetch_assoc()) {
-            echo '<option value="'.htmlspecialchars($dept['department_name']).'">'.htmlspecialchars($dept['department_name']).'</option>';
-        }
-        ?>
-    </select>
-</div>
-                            
-<div class="mb-3">
-    <label class="form-label">Room Name</label>
-    <select name="room_name" class="form-control" required>
-        <option value="">Select Room</option>
-        <?php
-        $rooms = $db->query("SELECT * FROM rooms ORDER BY room");
-        while ($room = $rooms->fetch_assoc()) {
-            echo '<option value="'.htmlspecialchars($room['room']).'" data-department="'.htmlspecialchars($room['department']).'">'.htmlspecialchars($room['room']).'</option>';
-        }
-        ?>
-    </select>
-</div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Room Name</label>
+                        <select name="room_name" class="form-control" required>
+                            <option value="">Select Room</option>
+                            <?php
+                            $rooms = $db->query("SELECT * FROM rooms ORDER BY room");
+                            while ($room = $rooms->fetch_assoc()) {
+                                echo '<option value="'.htmlspecialchars($room['room']).'" data-department="'.htmlspecialchars($room['department']).'">'.htmlspecialchars($room['room']).'</option>';
+                            }
+                            ?>
+                        </select>
+                    </div>
+                    
+                    <!-- Updated Year Level Field (now a dropdown) -->
+                    <div class="mb-3">
+                        <label class="form-label">Year Level</label>
+                        <select name="year_level" class="form-control" required>
+                            <option value="">Select Year Level</option>
+                            <option value="1st Year">1st Year</option>
+                            <option value="2nd Year">2nd Year</option>
+                            <option value="3rd Year">3rd Year</option>
+                            <option value="4th Year">4th Year</option>
+                        </select>
+                    </div>
+                    
+                    
                             <div class="mb-3">
-                                <label class="form-label">Subject</label>
-                                <input type="text" name="subject" class="form-control" required>
-                            </div>
+    <label class="form-label">Subject</label>
+    <select name="subject" id="subject" class="form-control" required>
+        <option value="">Select Subject</option>
+        <?php
+        $subjects = $db->query("SELECT * FROM subjects ORDER BY subject_name");
+        while ($subject = $subjects->fetch_assoc()) {
+            echo '<option value="'.htmlspecialchars($subject['subject_name']).'" 
+                  data-year-level="'.htmlspecialchars($subject['year_level']).'">'
+                  .htmlspecialchars($subject['subject_code']).' - '.htmlspecialchars($subject['subject_name'])
+                  .'</option>';
+        }
+        ?>
+    </select>
+</div>
                             <div class="mb-3">
                                 <label class="form-label">Section</label>
                                 <input type="text" name="section" class="form-control" required>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label">Year Level</label>
-                                <input type="text" name="year_level" class="form-control" required>
-                            </div>
+                            
                             <div class="mb-3">
                                 <label class="form-label">Day</label>
                                 <select name="day" class="form-control" required>
@@ -181,56 +204,79 @@ $schedules = $db->query("SELECT * FROM room_schedules ORDER BY room_name, day, s
             </div>
         </div>
 
+       
         <!-- Edit Schedule Modal -->
-        <div class="modal fade" id="editScheduleModal" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Edit Room Schedule</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<div class="modal fade" id="editScheduleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Room Schedule</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editScheduleForm">
+                <div class="modal-body">
+                    <div id="mgs-editschedule"></div>
+                    <input type="hidden" name="edit" value="schedule">
+                    <input type="hidden" name="id" id="edit_scheduleid">
+                    <div class="mb-3">
+                        <label class="form-label">Department</label>
+                        <select name="department" id="edit_department" class="form-control" required>
+                            <option value="">Select Department</option>
+                            <?php
+                            $departments = $db->query("SELECT * FROM department ORDER BY department_name");
+                            while ($dept = $departments->fetch_assoc()) {
+                                echo '<option value="'.htmlspecialchars($dept['department_name']).'">'.htmlspecialchars($dept['department_name']).'</option>';
+                            }
+                            ?>
+                        </select>
                     </div>
-                    <form id="editScheduleForm">
-                        <div class="modal-body">
-                            <div id="mgs-editschedule"></div>
-                            <input type="hidden" name="edit" value="schedule">
-                            <input type="hidden" name="id" id="edit_scheduleid">
-                            <div class="mb-3">
-    <label class="form-label">Department</label>
-    <select name="department" id="edit_department" class="form-control" required>
-        <option value="">Select Department</option>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Room Name</label>
+                        <select name="room_name" id="edit_room_name" class="form-control" required>
+                            <option value="">Select Room</option>
+                            <?php
+                            $rooms = $db->query("SELECT * FROM rooms ORDER BY room");
+                            while ($room = $rooms->fetch_assoc()) {
+                                echo '<option value="'.htmlspecialchars($room['room']).'" data-department="'.htmlspecialchars($room['department']).'">'.htmlspecialchars($room['room']).'</option>';
+                            }
+                            ?>
+                        </select>
+                    </div>
+                    
+                    <!-- Updated Year Level Field (now a dropdown) -->
+                    <div class="mb-3">
+                        <label class="form-label">Year Level</label>
+                        <select name="year_level" id="edit_year_level" class="form-control" required>
+                            <option value="">Select Year Level</option>
+                            <option value="1st Year">1st Year</option>
+                            <option value="2nd Year">2nd Year</option>
+                            <option value="3rd Year">3rd Year</option>
+                            <option value="4th Year">4th Year</option>
+                        </select>
+                    </div>
+                    
+                    
+                          <div class="mb-3">
+    <label class="form-label">Subject</label>
+    <select name="subject" id="subject" class="form-control" required>
+        <option value="">Select Subject</option>
         <?php
-        $departments = $db->query("SELECT * FROM department ORDER BY department_name");
-        while ($dept = $departments->fetch_assoc()) {
-            echo '<option value="'.htmlspecialchars($dept['department_name']).'">'.htmlspecialchars($dept['department_name']).'</option>';
+        $subjects = $db->query("SELECT * FROM subjects ORDER BY subject_name");
+        while ($subject = $subjects->fetch_assoc()) {
+            echo '<option value="'.htmlspecialchars($subject['subject_name']).'" 
+                  data-year-level="'.htmlspecialchars($subject['year_level']).'">'
+                  .htmlspecialchars($subject['subject_code']).' - '.htmlspecialchars($subject['subject_name'])
+                  .'</option>';
         }
         ?>
     </select>
 </div>
-                          
-<div class="mb-3">
-    <label class="form-label">Room Name</label>
-    <select name="room_name" class="form-control" required>
-        <option value="">Select Room</option>
-        <?php
-        $rooms = $db->query("SELECT * FROM rooms ORDER BY room");
-        while ($room = $rooms->fetch_assoc()) {
-            echo '<option value="'.htmlspecialchars($room['room']).'" data-department="'.htmlspecialchars($room['department']).'">'.htmlspecialchars($room['room']).'</option>';
-        }
-        ?>
-    </select>
-</div>
-                            <div class="mb-3">
-                                <label class="form-label">Subject</label>
-                                <input type="text" name="subject" id="edit_subject" class="form-control" required>
-                            </div>
                             <div class="mb-3">
                                 <label class="form-label">Section</label>
                                 <input type="text" name="section" id="edit_section" class="form-control" required>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label">Year Level</label>
-                                <input type="text" name="year_level" id="edit_year_level" class="form-control" required>
-                            </div>
+                            
                             <div class="mb-3">
                                 <label class="form-label">Day</label>
                                 <select name="day" id="edit_day" class="form-control" required>
@@ -312,7 +358,74 @@ $(document).ready(function() {
             }
         });
     }
+   // Function to filter subjects based on year level
+function filterSubjects(selectedYearLevel) {
+    $('#subject option').each(function() {
+        var $option = $(this);
+        // Always show the "Select Subject" option
+        if ($option.val() === '') {
+            $option.show();
+            return;
+        }
+        // Show/hide based on year level match
+        if ($option.data('year-level') === selectedYearLevel) {
+            $option.show();
+        } else {
+            $option.hide();
+            // If this option was selected but doesn't match, clear the selection
+            if ($option.prop('selected')) {
+                $('#subject').val('');
+            }
+        }
+    });
+}
+// Function to filter subjects in edit modal
+function filterEditSubjects(selectedYearLevel) {
+    $('#edit_subject option').each(function() {
+        var $option = $(this);
+        if ($option.val() === '') {
+            $option.show();
+            return;
+        }
+        if ($option.data('year-level') === selectedYearLevel) {
+            $option.show();
+        } else {
+            $option.hide();
+            if ($option.prop('selected')) {
+                $('#edit_subject').val('');
+            }
+        }
+    });
+}
 
+// Apply filtering when year level changes in edit modal
+$('#edit_year_level').on('change', function() {
+    filterEditSubjects($(this).val());
+});
+
+// When edit button is clicked, filter subjects based on the schedule's year level
+$(document).on('click', '.btn-edit', function() {
+    // This assumes you're loading the year level when opening the edit modal
+    setTimeout(function() {
+        var selectedYear = $('#edit_year_level').val();
+        if (selectedYear) {
+            filterEditSubjects(selectedYear);
+        }
+    }, 100);
+});
+
+// Apply filtering when year level changes
+$('select[name="year_level"]').on('change', function() {
+    filterSubjects($(this).val());
+});
+
+// Initialize subjects filter when modal opens (optional)
+$('#scheduleModal').on('shown.bs.modal', function() {
+    var selectedYear = $('select[name="year_level"]').val();
+    if (selectedYear) {
+        filterSubjects(selectedYear);
+    }
+});
     // Apply filtering when department changes in Add modal
     $('select[name="department"]').on('change', function() {
         filterRooms($(this).val());
@@ -373,6 +486,46 @@ function checkTimeConflict(room, day, start, end, excludeId = null) {
     // AJAX call to check if the time slot is available
     // Should return true if conflict exists
 }
+// Function to filter subjects based on year level
+function filterSubjects(selectedYearLevel, $selectElement) {
+    $selectElement.find('option').each(function() {
+        var $option = $(this);
+        // Always show the "Select Subject" option
+        if ($option.val() === '') {
+            $option.prop('disabled', false);
+            return;
+        }
+        // Show/hide based on year level match
+        if ($option.data('year-level') === selectedYearLevel) {
+            $option.prop('disabled', false);
+        } else {
+            $option.prop('disabled', true);
+            // If this option was selected but doesn't match, clear the selection
+            if ($option.prop('selected')) {
+                $selectElement.val('').trigger('change');
+            }
+        }
+    });
+}
+
+// Apply filtering when year level changes in Add modal
+$('select[name="year_level"]').on('change', function() {
+    filterSubjects($(this).val(), $('#subject'));
+});
+
+// Apply filtering when year level changes in Edit modal
+$(document).on('change', '#edit_year_level', function() {
+    filterSubjects($(this).val(), $('#edit_subject'));
+});
+
+// Initialize subjects filter when edit modal opens
+$(document).on('click', '.btn-edit', function() {
+    // Wait for modal to be shown and data loaded
+    setTimeout(function() {
+        var selectedYear = $('#edit_year_level').val();
+        filterSubjects(selectedYear, $('#edit_subject'));
+    }, 100);
+});
     // ==============
     // CREATE (ADD SCHEDULE)
     // ==============
@@ -455,27 +608,21 @@ $(document).on('click', '.btn-edit', function() {
         type: "GET",
         url: "edit1.php",
         data: {
-            edit: 'schedule',
+            edit: 'schedule',  // Make sure this is included
             id: id
         },
         dataType: 'json',
-        success: function(response) {
-            if (response.status === 'success') {
-                // Populate form fields
-                $('#edit_scheduleid').val(response.data.id);
-                $('#edit_department').val(response.data.department);
-                $('#edit_room_name').val(response.data.room_name);
-                $('#edit_subject').val(response.data.subject);
-                $('#edit_section').val(response.data.section);
-                $('#edit_year_level').val(response.data.year_level);
-                $('#edit_day').val(response.data.day);
-                $('#edit_instructor').val(response.data.instructor);
-                $('#edit_start_time').val(response.data.start_time);
-                $('#edit_end_time').val(response.data.end_time);
-                
-                // Filter rooms based on selected department
-                filterRooms(response.data.department, $('#edit_room_name'));
-                
+       success: function(response) {
+    if (response.status === 'success') {
+        // Populate form fields
+        $('#edit_scheduleid').val(response.data.id);
+        $('#edit_department').val(response.data.department);
+        $('#edit_room_name').val(response.data.room_name);
+        $('#edit_year_level').val(response.data.year_level);
+        
+        // Filter and set subject
+        filterSubjects(response.data.year_level, $('#edit_subject'));
+        $('#edit_subject').val(response.data.subject);
                 // Show modal
                 $('#editScheduleModal').modal('show');
             } else {
@@ -506,7 +653,10 @@ $(document).on('click', '.btn-edit', function() {
 // ==========
 $('#btn-editschedule').click(function() {
     var $btn = $(this);
-    var formData = $('#editScheduleForm').serialize() + '&edit=schedule';
+    
+    // Create formData object instead of string
+    var formData = new FormData($('#editScheduleForm')[0]);
+    formData.append('edit', 'schedule'); // Explicitly add edit parameter
     
     // Validate form
     var isValid = true;
@@ -541,6 +691,8 @@ $('#btn-editschedule').click(function() {
         type: "POST",
         url: "edit1.php",
         data: formData,
+        processData: false, // Important for FormData
+        contentType: false, // Important for FormData
         dataType: 'json',
         success: function(response) {
             if (response.status === 'success') {
