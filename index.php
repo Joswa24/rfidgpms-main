@@ -4,6 +4,7 @@ session_start();
 
 include 'connection.php';
 
+
 $yesterday = date('Y-m-d', strtotime('-1 day'));
 
 // Update personell_logs with parameterized queries
