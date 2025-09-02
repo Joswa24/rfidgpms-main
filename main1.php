@@ -413,7 +413,7 @@ mysqli_close($db);
 </audio> 
 <div id="message"></div>
 
-
+<img src="uploads/Head.png" style="width: 100%; height: 150px; margin-left: 10px; padding=10px; margin-top=20px;S">
 <!-- Confirmation Modal -->
 <div class="modal fade confirmation-modal" id="confirmationModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
@@ -423,7 +423,7 @@ mysqli_close($db);
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <img id="modalStudentPhoto" class="student-photo" src="uploads/temporary.png" type="image/png" alt="Student Photo">
+               
                 <h4 id="modalStudentName"></h4>
                 
                 <div class="student-info">
@@ -463,17 +463,6 @@ mysqli_close($db);
     </div>
 </div>
 
-<nav class="navbar navbar-expand-lg navbar-light py-2" style="height: 1%; border-bottom: 1px solid #FBC257; margin-bottom: 1%; padding: 0px 50px 0px 50px; display: flex; justify-content: center; align-items: center;">
-    <div style="text-align: left; margin-right: 10px;">
-        <img src="<?php echo 'admin/uploads/'.$logo1; ?>" alt="Image 1" style="height: 100px;">
-    </div>
-    <div class="column wide" style="flex-grow: 2; text-align: center;">
-        <h2><?php echo $nameo; ?></h2>
-    </div>
-    <div style="text-align: right; margin-left: 10px;">
-        <img src="<?php echo 'admin/uploads/'.$logo2; ?>" alt="Image 2" style="height: 100px;">
-    </div>
-</nav>
 
 <!-- Navigation Tabs -->
 <div class="container mt-3">
@@ -527,7 +516,7 @@ mysqli_close($db);
             <!-- Photo/Manual Input Column (30% width) -->
             <div class="col-md-4 h-100 d-flex flex-column" style="padding-left: 5px;">
                 <!-- Student Photo - Made smaller -->
-                <img id="pic" class="mb-2" alt="Student Photo" 
+                <img id="pic" class="mb-2" alt=""; 
                      src="assets/img/section/type.jpg"
                      style="margin-top: .5px; width: 100%; height: 200px; object-fit: cover; border: 2px solid #084298; border-radius: 3px;">
                 
@@ -949,10 +938,7 @@ function showConfirmationModal(data) {
     const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const dateString = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     
-    // Update modal content with complete student data
-    document.getElementById('modalStudentPhoto').src = 
-        data.photo ? 'uploads' + data.photo : 
-        'temporary.png';
+    
         
     document.getElementById('modalStudentName').textContent = 
         data.full_name || 'Unknown Student';
