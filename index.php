@@ -253,8 +253,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['swap_request'])) {
     <!-- CSS -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/css/all.min.css">
-    <link rel="stylesheet" href="admin/css/bootstrap.min.css">
-    <link rel="stylesheet" href="admin/css/style.css">
+    <!-- <link rel="stylesheet" href="admin/css/bootstrap.min.css"> -->
+    <!-- <link rel="stylesheet" href="admin/css/style.css"> -->
     <!-- SweetAlert CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     
