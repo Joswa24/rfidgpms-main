@@ -657,7 +657,13 @@ case 'add_instructor':
     }
     break;
 
-      case 'add_student':
+     
+    
+   case 'add_student':
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        jsonResponse('error', 'Invalid request method');
+    }
+
     // Validate required fields
     $required = ['department_id', 'id_number', 'fullname', 'section', 'year'];
     foreach ($required as $field) {
@@ -689,73 +695,63 @@ case 'add_instructor':
     }
     $check_id->close();
 
-    // Insert new student
+    // Handle file upload - USE CONSISTENT PATH
+    $photo = 'default.png'; // Default if no upload
+    $uploadDir = $_SERVER['DOCUMENT_ROOT'] . '/uploads/students/';
+    
+    if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+        $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
+        $file_info = finfo_open(FILEINFO_MIME_TYPE);
+        $mime_type = finfo_file($file_info, $_FILES['photo']['tmp_name']);
+        finfo_close($file_info);
+
+        if (!in_array($mime_type, $allowed_types)) {
+            jsonResponse('error', 'Only JPG, PNG and GIF images are allowed');
+        }
+
+        if ($_FILES['photo']['size'] > 2 * 1024 * 1024) {
+            jsonResponse('error', 'Maximum file size is 2MB');
+        }
+
+        $ext = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
+        $photo = uniqid() . '_' . $id_number . '.' . $ext;
+
+        // Create directory if it doesn't exist
+        if (!file_exists($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        $target_file = $uploadDir . $photo;
+        if (!move_uploaded_file($_FILES['photo']['tmp_name'], $target_file)) {
+            jsonResponse('error', 'Failed to upload image');
+        }
+    }
+
+    // Insert new student - store only filename in database
     $stmt = $db->prepare("INSERT INTO students 
-                         (department_id, id_number, fullname, section, year, created_at) 
-                         VALUES (?, ?, ?, ?, ?, NOW())");
-    $stmt->bind_param("sssss", $department_id, $id_number, $fullname, $section, $year);
+                         (department_id, id_number, fullname, section, year, photo, created_at) 
+                         VALUES (?, ?, ?, ?, ?, ?, NOW())");
+    $stmt->bind_param("isssss", $department_id, $id_number, $fullname, $section, $year, $photo);
 
     if ($stmt->execute()) {
+        $student_id = $stmt->insert_id;
         jsonResponse('success', 'Student added successfully', [
-            'id' => $stmt->insert_id
+            'id' => $student_id,
+            'fullname' => $fullname,
+            'id_number' => $id_number,
+            'section' => $section,
+            'year' => $year,
+            'photo' => $photo // Return only filename
         ]);
     } else {
+        // If a file was uploaded but insert failed, delete it
+        if (!empty($photo) && $photo !== 'default.png' && file_exists($uploadDir . $photo)) {
+            unlink($uploadDir . $photo);
+        }
         jsonResponse('error', 'Failed to add student: ' . $db->error);
     }
-    
     break;
 
-    // Add this case to handle adding a room schedule via AJAX
-    case 'add_schedule':
-        
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            jsonResponse('error', 'Invalid request method');
-        }
-
-        // Validate required fields
-        $required = ['department', 'room_name', 'subject', 'section', 'year_level', 'day', 'instructor', 'start_time', 'end_time'];
-        foreach ($required as $field) {
-            if (empty($_POST[$field])) {
-                jsonResponse('error', "Missing required field: $field");
-            }
-        }
-
-        // Sanitize inputs
-        
-        $department = sanitizeInput($db, $_POST['department']);
-        $room_name = sanitizeInput($db, $_POST['room_name']);
-        $subject = sanitizeInput($db, $_POST['subject']);
-        $section = sanitizeInput($db, $_POST['section']);
-        $year_level = sanitizeInput($db, $_POST['year_level']);
-        $day = sanitizeInput($db, $_POST['day']);
-        $instructor = sanitizeInput($db, $_POST['instructor']);
-        $start_time = sanitizeInput($db, $_POST['start_time']);
-        $end_time = sanitizeInput($db, $_POST['end_time']);
-
-        // Optional: Check for duplicate schedule (same room, day, and time overlap)
-        $check = $db->prepare("SELECT id FROM room_schedules WHERE room_name = ? AND day = ? AND (
-            (start_time <= ? AND end_time > ?) OR
-            (start_time < ? AND end_time >= ?) OR
-            (start_time >= ? AND end_time <= ?)
-        )");
-        $check->bind_param("ssssssss", $room_name, $day, $start_time, $start_time, $end_time, $end_time, $start_time, $end_time);
-        $check->execute();
-        $check->store_result();
-        if ($check->num_rows > 0) {
-            jsonResponse('error', 'Schedule conflict: This room already has a schedule at the selected time.');
-        }
-        $check->close();
-
-        // Insert new schedule
-        $stmt = $db->prepare("INSERT INTO room_schedules (department, room_name, subject, section, year_level, day, instructor, start_time, end_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("sssssssss", $department, $room_name, $subject, $section, $year_level, $day, $instructor, $start_time, $end_time);
-
-        if ($stmt->execute()) {
-            jsonResponse('success', 'Schedule added successfully');
-        } else {
-            jsonResponse('error', 'Failed to add schedule: ' . $db->error);
-        }
-        break;
         case 'get_schedule':
     if (!isset($_GET['id'])) {
         jsonResponse('error', 'Missing ID parameter');

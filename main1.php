@@ -415,6 +415,7 @@ mysqli_close($db);
 
 <img src="uploads/Head.png" style="width: 100%; height: 150px; margin-left: 10px; padding=10px; margin-top=20px;S">
 <!-- Confirmation Modal -->
+<!-- Confirmation Modal -->
 <div class="modal fade confirmation-modal" id="confirmationModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -422,8 +423,16 @@ mysqli_close($db);
                 <h5 class="modal-title">Attendance Recorded</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-               
+            <div class="modal-body text-center">
+
+                <!-- ✅ Student Photo -->
+                <div class="mb-3">
+                    <img id="modalStudentPhoto"
+                         src="uploads/students/default.png"
+                         alt="Student Photo"
+                         style="width:150px;height:150px;object-fit:cover;border-radius:50%;border:3px solid #084298;">
+                </div>
+
                 <h4 id="modalStudentName"></h4>
                 
                 <div class="student-info">
@@ -442,11 +451,12 @@ mysqli_close($db);
                 </div>
             </div>
             <div class="modal-footer">
-                 <button type="button" class="btn btn-primary"style="background-color: #87abe0ff" onclick="window.location.href='main1.php'">OK</button>
+                 <button type="button" class="btn btn-primary" style="background-color: #87abe0ff" onclick="window.location.href='main1.php'">OK</button>
             </div>
         </div>
     </div>
 </div>
+
 
 <!-- Scanner Preview Modal (shown within scanner frame) -->
 <div id="ScannerPreviewModal" class="Scanner-preview-modal" style="display: none;">
@@ -556,6 +566,20 @@ const scanCooldown = 1000; // 1 second cooldown between scans
 let allowedSection = null;
 let allowedYear = null;
 let isFirstStudent = true;
+
+// Student photo mapping
+const studentPhotos = {
+    "2024-0380": "uploads/students/68b703dcdff49_1232-1232.jpg",
+    "2024-1570": "uploads/students/68b703dcdff49_1232-1232.jpg",
+    "2024-0117": "uploads/students/68b703dcdff49_1232-1232.jpg",
+    "2024-1697": "uploads/students/68b703dcdff49_1232-1232.jpg",
+    // ✅ add more here...
+};
+
+function setStudentPhoto(idNumber) {
+    let photoPath = studentPhotos[idNumber] || "uploads/students/default.png";
+    document.getElementById("modalStudentPhoto").src = photoPath + "?t=" + new Date().getTime();
+}
 
 // Scanner Initialization and Control Functions
 function initScanner() {
@@ -686,6 +710,21 @@ function toggleTorch() {
     }).catch(err => {
         console.error("Failed to toggle torch:", err);
     });
+}
+function setStudentPhoto(idNumber) {
+    let photoPath = "uploads/students/default.png"; // default fallback
+
+    if (idNumber === "2024-1697") {
+        photoPath = "uploads/students/68b6d200ec51d_1117-8547.png";
+    } else if (idNumber === "2024-1698") {
+        photoPath = "uploads/students/68b6d200ec51d_1117-8547.png";
+    } else if (idNumber === "2024-1699") {
+        photoPath = "uploads/students/03.jpg";
+    }
+    // ✅ add more as needed...
+
+    // Update modal photo with cache busting
+    document.getElementById("modalStudentPhoto").src = photoPath + "?t=" + new Date().getTime();
 }
 
 // Initialize scanner when page loads
@@ -840,6 +879,7 @@ function processBarcode(barcode) {
 
             // Show confirmation modal
             showConfirmationModal(data);
+            
         }
     });
 }
@@ -937,9 +977,8 @@ function showConfirmationModal(data) {
     const now = new Date();
     const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const dateString = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    
-    
-        
+
+    // Student details
     document.getElementById('modalStudentName').textContent = 
         data.full_name || 'Unknown Student';
         
@@ -947,7 +986,7 @@ function showConfirmationModal(data) {
         data.id_number || 'N/A';
         
     document.getElementById('modalStudentDept').textContent = 
-        "<?php echo $department; ?> " || 'N/A';
+        "<?php echo $department; ?>" || 'N/A';
         
     document.getElementById('modalStudentRole').textContent = 
         data.role || 'N/A';
@@ -957,8 +996,20 @@ function showConfirmationModal(data) {
         
     document.getElementById('modalTimeDisplay').textContent = timeString;
     document.getElementById('modalDateDisplay').textContent = dateString;
-    
-    // Update status color
+
+    // ✅ Student Photo Mapping
+    const studentPhotos = {
+   
+    "2024-1570": "uploads/students/c9c9ed00-ab5c-4c3e-b197-56559ab7ca61.jpg", //JOhn cyrus
+   
+    "2024-1697": "uploads/students/68b75972d9975_5555-7777.jpg", //Rose Ann
+        // add more ID-photo pairs here...
+    };
+
+    let photoPath = studentPhotos[data.id_number] || "uploads/students/default.png";
+    document.getElementById("modalStudentPhoto").src = photoPath + "?t=" + new Date().getTime();
+
+    // Update status color and icon
     const statusElement = document.getElementById('modalAttendanceStatus');
     statusElement.className = 'attendance-status';
     
@@ -975,11 +1026,12 @@ function showConfirmationModal(data) {
             ${data.time_in_out || 'Time Out Recorded'}
         `;
     }
-    
+
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('confirmationModal'));
     modal.show();
 }
+
 
 // Update UI with attendance data
 function updateAttendanceUI(data) {
@@ -1166,4 +1218,4 @@ function closeAndRefresh() {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="admin/lib/chart/chart.min.js"></script>
 </body>
-</html>
+</html> 

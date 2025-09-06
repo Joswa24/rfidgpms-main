@@ -75,9 +75,9 @@ if (isset($_SESSION['error_message'])) {
                                         <input class="department" type="hidden" value="<?php echo $row['department']; ?>" />
                                 
                                         <td>
-                                            <center>
-                                                <img class="photo" src="uploads/<?php echo $row['photo']; ?>" width="50px" height="50px">
-                                            </center>
+                                        <center>
+                                        <img class="photo" src="uploads/<?php echo $row['photo']; ?>" width="50px" height="50px">
+                                        </center>
                                         </td>
                                         <td class="rfid"><?php echo $row['rfid_number']; ?></td>
                                         <td><?php echo $row['first_name'] .' '.$row['last_name']; ?></td>
@@ -712,8 +712,7 @@ if (isset($_SESSION['error_message'])) {
             
         });
 
-        // Handle edit form submission
-        // Handle edit form submission
+        
         // Handle edit button click - Store the user ID in a variable
 var currentEditUserId = null;
 
@@ -818,7 +817,6 @@ $('#editPersonellForm').submit(function(e) {
     });
 });
 
-        // Handle delete button click
        // Handle delete button click
 $(document).on('click', '.btn-del', function() {
     var userId = $(this).data('id');

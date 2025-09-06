@@ -16,8 +16,8 @@ if (empty($barcode)) {
     exit;
 }
 
-// Fetch student data
-$student_query = "SELECT * FROM students WHERE id_number = ?";
+// Fetch student data including photo BLOB
+$student_query = "SELECT *, photo as photo_blob FROM students WHERE id_number = ?";
 $stmt = $db->prepare($student_query);
 $stmt->bind_param("s", $barcode);
 $stmt->execute();
@@ -53,7 +53,6 @@ if ($stmt->num_rows > 0) {
 }
 $stmt->close();
 
-
 // If logs exist today, enforce section/year
 if ($firstYear && $firstSection) {
     if ($student['year'] != $firstYear || $student['section'] != $firstSection) {
@@ -61,7 +60,6 @@ if ($firstYear && $firstSection) {
         exit;
     }
 }
-
 
 // Check existing logs
 $log_query = "SELECT * FROM attendance_logs 
@@ -77,12 +75,18 @@ $log_stmt->execute();
 $log_result = $log_stmt->get_result();
 $existing_log = $log_result->fetch_assoc();
 
+// Convert photo BLOB to base64 if it exists
+$photo_base64 = '';
+if (!empty($student['photo_blob'])) {
+    $photo_base64 = 'data:image/jpeg;base64,' . base64_encode($student['photo_blob']);
+}
+
 // Prepare response
 $response = [
     'full_name' => $student['fullname'],
     'id_number' => $student['id_number'],
     'department' => $student['department'] ?? 'N/A',
-    'photo' => $student['photo'] ?? '',
+    'photo' => $photo_base64, // Now using base64 instead of file path
     'section' => $student['section'],
     'year_level' => $student['year'],  // Matches your 'year' column
     'role' => $student['role'] ?? 'Student', // Added default value
@@ -92,8 +96,8 @@ $response = [
     'alert_class' => 'alert-primary',
     'voice' => ''
 ];
-// Check if there's an existing log for today
 
+// Check if there's an existing log for today
 if ($existing_log) {
     if (empty($existing_log['time_out'])) {
         // Record time out
@@ -144,7 +148,6 @@ if ($existing_log) {
     }
     $insert_stmt->close();
 }
-
 
 // Close statements
 $log_stmt->close();
