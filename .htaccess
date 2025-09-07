@@ -6,7 +6,7 @@ RewriteEngine On
 RewriteCond %{REQUEST_FILENAME}.php -f
 RewriteRule ^(.*)$ $1.php [L]
 =======
-RewriteRule ^main\.php$ [R=301,L]
+RewriteRule ^index\.php$ [R=301,L]
 
 RewriteEngine On
 RewriteCond %{REQUEST_FILENAME}.php -f
