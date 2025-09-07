@@ -89,6 +89,78 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         die(implode("<br>", $errors));
     }
 
+    // Check if this is a gate access request (Main department + Gate location)
+    if ($department === 'Main' && $location === 'Gate') {
+        // Verify security guard credentials
+        $stmt = $db->prepare("SELECT * FROM personell WHERE rfid_number = ? AND department = 'Main' AND role IN ('Security Personnel', 'Security Guard')");
+        $stmt->bind_param("s", $id_number);
+        $stmt->execute();
+        $securityResult = $stmt->get_result();
+
+        if ($securityResult->num_rows === 0) {
+            sleep(2); // Slow down brute force attempts
+            die("Unauthorized access. Only security personnel can access the gate system.");
+        }
+
+        $securityGuard = $securityResult->fetch_assoc();
+
+        // Verify room credentials for gate
+        $stmt = $db->prepare("SELECT * FROM rooms WHERE department = ? AND room = ?");
+        $stmt->bind_param("ss", $department, $location);
+        $stmt->execute();
+        $roomResult = $stmt->get_result();
+
+        if ($roomResult->num_rows === 0) {
+            sleep(2);
+            die("Gate access not configured.");
+        }
+
+        $room = $roomResult->fetch_assoc();
+
+        // Verify gate password
+        $stmt = $db->prepare("SELECT * FROM rooms WHERE password=? AND department='Main' AND room='Gate'");
+        $stmt->bind_param("s", $password);
+        $stmt->execute();
+        $passwordResult = $stmt->get_result();
+
+        if ($passwordResult->num_rows === 0) {
+            sleep(2);
+            die("Invalid Gate Password.");
+        }
+
+        // Gate login successful - set session data
+        $_SESSION['access'] = [
+            'security' => [
+                'id' => $securityGuard['id'],
+                'fullname' => $securityGuard['first_name'] . ' ' . $securityGuard['last_name'],
+                'rfid_number' => $securityGuard['rfid_number'],
+                'role' => $securityGuard['role']
+            ],
+            'gate' => [
+                'department' => 'Main',
+                'location' => 'Gate'
+            ],
+            'last_activity' => time()
+        ];
+
+        // Clear any existing output
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+
+        // Set proper headers
+        header('Content-Type: application/json');
+
+        // Return JSON response for gate access
+        echo json_encode([
+            'status' => 'success',
+            'redirect' => 'main.php',
+            'message' => 'Gate access granted'
+        ]);
+        exit;
+    }
+
+    // Regular instructor login process (for non-gate access)
     // Verify ID number against instructor table with rate limiting
     $stmt = $db->prepare("SELECT * FROM instructor WHERE id_number = ?");
     $stmt->bind_param("s", $id_number);
@@ -166,7 +238,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Return JSON response
     echo json_encode([
         'status' => 'success',
-        'redirect' => ($department === 'Main' && $location === 'Gate') ? 'main.php' : 'main1.php'
+        'redirect' => 'main1.php'
     ]);
     exit;
 }
@@ -338,6 +410,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['swap_request'])) {
         .swal2-confirm {
             padding: 0.5rem 1.5rem !important;
         }
+        
+        /* Security guard specific styles */
+        .gate-access-info {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body class="bg-light">
@@ -393,6 +474,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['swap_request'])) {
                                    pattern="[0-9]{4}-[0-9]{4}" 
                                    title="Please enter ID in format: 0000-0000">
                             <div class="form-text">Scan your ID barcode or type manually (format: 0000-0000)</div>
+                        </div>
+                        
+                        <!-- Gate access information -->
+                        <div id="gateAccessInfo" class="gate-access-info d-none">
+                            <i class="fas fa-shield-alt me-2"></i>
+                            <strong>Gate Access Mode:</strong> Security personnel only
                         </div>
                         
                         <!-- Hidden fields for selected subject -->
@@ -527,6 +614,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['swap_request'])) {
             $(this).val(value);
         });
         
+        // Show/hide gate access info based on department selection
+        $('#roomdpt, #location').change(function() {
+            const department = $('#roomdpt').val();
+            const location = $('#location').val();
+            
+            if (department === 'Main' && location === 'Gate') {
+                $('#gateAccessInfo').removeClass('d-none');
+                $('#swapButton').addClass('d-none');
+            } else {
+                $('#gateAccessInfo').addClass('d-none');
+                $('#swapButton').removeClass('d-none');
+            }
+        });
+
+        // Initial check
+        $('#roomdpt').trigger('change');
+
         // Global variable to store selected instructor data
         let selectedInstructor = null;
 
@@ -752,8 +856,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['swap_request'])) {
                 return;
             }
             
-            // For Main department, proceed directly
-            if (department === 'Main') {
+            // For Main department + Gate location, proceed directly to gate access
+            if (department === 'Main' && selectedRoom === 'Gate') {
                 submitLoginForm();
             } 
             // If we have a selected subject, proceed
