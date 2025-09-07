@@ -8,6 +8,47 @@ include '../connection.php';
 <?php
 include 'header.php';
 ?>
+<!-- In your dashboard.php, update the Today's Entrance Logs query -->
+<?php
+$results = mysqli_query($db, "
+SELECT 
+    COALESCE(p.photo, vl.photo) as photo,
+    COALESCE(p.department, vl.department) as department,
+    COALESCE(p.rfid_number, vl.rfid_number) as rfid_number,
+    COALESCE(p.role, 'Visitor') as role,
+    COALESCE(CONCAT(p.first_name, ' ', p.last_name), vl.name) AS full_name,
+    COALESCE(rl.time_in, vl.time_in_am, vl.time_in_pm) as time_in,
+    COALESCE(rl.time_out, vl.time_out_am, vl.time_out_pm) as time_out,
+    COALESCE(rl.location, vl.location) as location,
+    COALESCE(rl.date_logged, vl.date_logged) as date_logged
+FROM room_logs rl
+LEFT JOIN personell p ON rl.personnel_id = p.id
+LEFT JOIN visitors vl ON rl.visitor_id = vl.id
+WHERE COALESCE(rl.date_logged, vl.date_logged) = CURRENT_DATE()
+
+UNION
+
+SELECT 
+    vl.photo,
+    vl.department,
+    vl.rfid_number,
+    'Visitor' AS role,
+    vl.name AS full_name,
+    COALESCE(vl.time_in_am, vl.time_in_pm) as time_in,
+    COALESCE(vl.time_out_am, vl.time_out_pm) as time_out,
+    vl.location,
+    vl.date_logged
+FROM visitor_logs vl
+WHERE vl.date_logged = CURRENT_DATE() AND 
+      NOT EXISTS (SELECT 1 FROM room_logs rl WHERE rl.visitor_id = vl.id AND rl.date_logged = vl.date_logged)
+      
+ORDER BY 
+    CASE 
+        WHEN time_out IS NOT NULL THEN time_out 
+        ELSE time_in 
+    END DESC
+");
+?>
 <head> 
 <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 <script type="text/javascript">
@@ -107,18 +148,30 @@ include 'header.php';
                 ) AS combined_logs
             ");
 
+            // Count all students (not just those who entered today)
+            $total_students = getCount($db, "SELECT COUNT(*) AS count FROM personell WHERE role = 'Student' AND status != 'Block'");
+            
+            // Count students who entered today
             $students_today = getCount($db, "
                 SELECT COUNT(*) AS count FROM personell_logs pl
                 JOIN personell p ON pl.personnel_id = p.id
                 WHERE pl.date_logged = '$today' AND p.role = 'Student'
             ");
 
+            // Count all instructors
+            $total_instructors = getCount($db, "SELECT COUNT(*) AS count FROM personell WHERE role = 'Instructor' AND status != 'Block'");
+            
+            // Count instructors who entered today
             $instructors_today = getCount($db, "
                 SELECT COUNT(*) AS count FROM personell_logs pl
                 JOIN personell p ON pl.personnel_id = p.id
                 WHERE pl.date_logged = '$today' AND p.role = 'Instructor'
             ");
 
+            // Count all staff
+            $total_staff = getCount($db, "SELECT COUNT(*) AS count FROM personell WHERE role IN ('Staff', 'Security Personnel', 'Administrator') AND status != 'Block'");
+            
+            // Count staff who entered today
             $staff_today = getCount($db, "
                 SELECT COUNT(*) AS count FROM personell_logs pl
                 JOIN personell p ON pl.personnel_id = p.id
@@ -127,10 +180,97 @@ include 'header.php';
 
             $visitors_today = getCount($db, "SELECT COUNT(*) AS count FROM visitor_logs WHERE date_logged = '$today'");
             $blocked = getCount($db, "SELECT COUNT(*) AS count FROM personell WHERE status = 'Block'");
-            $strangers = getCount($db, "SELECT COUNT(*) AS count FROM stranger_logs WHERE last_log = '$today'");
             ?>
 
             <div class="container-fluid pt-4 px-4">
+                <!-- Blocked and Visitors Cards in One Row -->
+                <div class="row g-4 mb-4">
+                    <!-- Visitors Card -->
+                    <div class="col-sm-6 col-xl-6">
+                        <div class="bg-light rounded d-flex align-items-center justify-content-between p-4"
+                        onmouseover="showVisitorLogs()" onmouseout="hideVisitorLogs()">
+                            <i class="fa fa-user-plus fa-3x text-secondary"></i>
+                            <div class="ms-3">
+                                <p class="mb-2">Visitors Today</p>
+                                <h6 class="mb-0"><?php echo $visitors_today; ?></h6>
+                            </div>
+                        </div>
+                        <div id="visitorLogs" class="stranger-logs" style="display:none; position: absolute;background: white; border: 1px solid #ccc; padding: 10px;border-radius: 5px; z-index: 100;box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-height: 300px;">
+                            <ul class="list-unstyled">
+                                <?php
+                                $sql = "
+                                SELECT 
+                                    vl.photo,
+                                    vl.name AS full_name,
+                                    vl.department,
+                                    vl.time_in_am,
+                                    vl.time_in_pm
+                                FROM visitor_logs vl
+                                WHERE vl.date_logged = CURRENT_DATE()
+                                ORDER BY 
+                                    COALESCE(vl.time_in_pm, vl.time_in_am) DESC
+                                LIMIT 10;
+                                ";
+                                
+                                $result = $db->query($sql);
+                                if ($result->num_rows > 0) {
+                                    while ($row = $result->fetch_assoc()) {
+                                        echo '<li class="mb-2 d-flex align-items-center">';
+                                        echo '<span><img style="border-radius:50%;" src="../admin/uploads/' . htmlspecialchars($row["photo"]) . '" width="20px" height="20px"/></span>';
+                                        echo '<span class="text-muted ms-3"><b>' . htmlspecialchars($row["full_name"]) . '</b><br><small>' . htmlspecialchars($row["department"]) . '</small></span>';
+                                        echo '</li>';
+                                    }
+                                } else {
+                                    echo '<li><p class="text-center">No visitor logs found</p></li>';
+                                }
+                                ?>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Blocked Card -->
+                    <div class="col-sm-6 col-xl-6">
+                        <div class="bg-light rounded d-flex align-items-center justify-content-between p-4"
+                        onmouseover="showBlockLogs()" onmouseout="hideBlockLogs()">
+                            <i class="fa fa-ban fa-3x text-danger"></i>
+                            <div class="ms-3">
+                                <p class="mb-2">Blocked Personnel</p>
+                                <h6 class="mb-0"><?php echo $blocked; ?></h6>
+                            </div>
+                        </div>
+                        <div id="blockLogs" class="stranger-logs" style="display:none; position: absolute;background: white; border: 1px solid #ccc; padding: 10px;border-radius: 5px; z-index: 100;box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-height: 300px;">
+                            <ul class="list-unstyled">
+                                <?php
+                                $sql = "
+                                SELECT 
+                                    photo,
+                                    CONCAT(first_name, ' ', last_name) AS full_name,
+                                    role,
+                                    department
+                                FROM personell
+                                WHERE status = 'Block'
+                                ORDER BY first_name, last_name
+                                LIMIT 10;
+                                ";
+                                
+                                $result = $db->query($sql);
+                                if ($result->num_rows > 0) {
+                                    while ($row = $result->fetch_assoc()) {
+                                        echo '<li class="mb-2 d-flex align-items-center">';
+                                        echo '<span><img style="border-radius:50%;" src="../admin/uploads/' . htmlspecialchars($row["photo"]) . '" width="20px" height="20px"/></span>';
+                                        echo '<span class="text-muted ms-3"><b>' . htmlspecialchars($row["full_name"]) . '</b><br><small>' . htmlspecialchars($row["role"]) . ' - ' . htmlspecialchars($row["department"]) . '</small></span>';
+                                        echo '</li>';
+                                    }
+                                } else {
+                                    echo '<li><p class="text-center">No blocked personnel found</p></li>';
+                                }
+                                ?>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Four Main Cards -->
                 <div class="row g-4">
                     <!-- Total Entrants Card -->
                     <div class="col-sm-6 col-xl-3">
@@ -138,7 +278,7 @@ include 'header.php';
                         onmouseover="showEntrantsLogs()" onmouseout="hideEntrantsLogs()">
                             <i class="fa fa-users fa-3x text-primary"></i>
                             <div class="ms-3">
-                                <p class="mb-2">Total Entrants</p>
+                                <p class="mb-2">Total Entrants Today</p>
                                 <h6 class="mb-0"><?php echo $total_entrants_today; ?></h6>
                             </div>
                         </div>
@@ -196,7 +336,7 @@ include 'header.php';
                             <i class="fa fa-user-graduate fa-3x text-success"></i>
                             <div class="ms-3">
                                 <p class="mb-2">Students</p>
-                                <h6 class="mb-0"><?php echo $students_today; ?></h6>
+                                <h6 class="mb-0"><?php echo $students_today; ?> <small class="text-muted">/ <?php echo $total_students; ?></small></h6>
                             </div>
                         </div>
                         <div id="studentLogs" class="stranger-logs" style="display:none; position: absolute;background: white; border: 1px solid #ccc; padding: 10px;border-radius: 5px; z-index: 100;box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-height: 300px;">
@@ -208,12 +348,16 @@ include 'header.php';
                                     CONCAT(p.first_name, ' ', p.last_name) AS full_name,
                                     p.department,
                                     pl.time_in_am,
-                                    pl.time_in_pm
+                                    pl.time_in_pm,
+                                    CASE 
+                                        WHEN pl.date_logged = CURRENT_DATE() THEN 'Present'
+                                        ELSE 'Absent'
+                                    END as status
                                 FROM personell p
-                                JOIN personell_logs pl ON pl.personnel_id = p.id
-                                WHERE pl.date_logged = CURRENT_DATE() AND p.role = 'Student'
+                                LEFT JOIN personell_logs pl ON pl.personnel_id = p.id AND pl.date_logged = CURRENT_DATE()
+                                WHERE p.role = 'Student' AND p.status != 'Block'
                                 ORDER BY 
-                                    COALESCE(pl.time_in_pm, pl.time_in_am) DESC
+                                    p.first_name, p.last_name
                                 LIMIT 10;
                                 ";
                                 
@@ -222,11 +366,16 @@ include 'header.php';
                                     while ($row = $result->fetch_assoc()) {
                                         echo '<li class="mb-2 d-flex align-items-center">';
                                         echo '<span><img style="border-radius:50%;" src="../admin/uploads/' . htmlspecialchars($row["photo"]) . '" width="20px" height="20px"/></span>';
-                                        echo '<span class="text-muted ms-3"><b>' . htmlspecialchars($row["full_name"]) . '</b><br><small>' . htmlspecialchars($row["department"]) . '</small></span>';
+                                        echo '<span class="ms-3"><b>' . htmlspecialchars($row["full_name"]) . '</b><br>';
+                                        echo '<small class="' . ($row['status'] == 'Present' ? 'text-success' : 'text-danger') . '">' . $row['status'] . '</small>';
+                                        if ($row['status'] == 'Present') {
+                                            echo '<br><small>' . htmlspecialchars($row["department"]) . '</small>';
+                                        }
+                                        echo '</span>';
                                         echo '</li>';
                                     }
                                 } else {
-                                    echo '<li><p class="text-center">No student logs found</p></li>';
+                                    echo '<li><p class="text-center">No students found</p></li>';
                                 }
                                 ?>
                             </ul>
@@ -240,7 +389,7 @@ include 'header.php';
                             <i class="fa fa-chalkboard-teacher fa-3x text-info"></i>
                             <div class="ms-3">
                                 <p class="mb-2">Instructors</p>
-                                <h6 class="mb-0"><?php echo $instructors_today; ?></h6>
+                                <h6 class="mb-0"><?php echo $instructors_today; ?> <small class="text-muted">/ <?php echo $total_instructors; ?></small></h6>
                             </div>
                         </div>
                         <div id="instructorLogs" class="stranger-logs" style="display:none; position: absolute;background: white; border: 1px solid #ccc; padding: 10px;border-radius: 5px; z-index: 100;box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-height: 300px;">
@@ -252,12 +401,16 @@ include 'header.php';
                                     CONCAT(p.first_name, ' ', p.last_name) AS full_name,
                                     p.department,
                                     pl.time_in_am,
-                                    pl.time_in_pm
+                                    pl.time_in_pm,
+                                    CASE 
+                                        WHEN pl.date_logged = CURRENT_DATE() THEN 'Present'
+                                        ELSE 'Absent'
+                                    END as status
                                 FROM personell p
-                                JOIN personell_logs pl ON pl.personnel_id = p.id
-                                WHERE pl.date_logged = CURRENT_DATE() AND p.role = 'Instructor'
+                                LEFT JOIN personell_logs pl ON pl.personnel_id = p.id AND pl.date_logged = CURRENT_DATE()
+                                WHERE p.role = 'Instructor' AND p.status != 'Block'
                                 ORDER BY 
-                                    COALESCE(pl.time_in_pm, pl.time_in_am) DESC
+                                    p.first_name, p.last_name
                                 LIMIT 10;
                                 ";
                                 
@@ -266,11 +419,16 @@ include 'header.php';
                                     while ($row = $result->fetch_assoc()) {
                                         echo '<li class="mb-2 d-flex align-items-center">';
                                         echo '<span><img style="border-radius:50%;" src="../admin/uploads/' . htmlspecialchars($row["photo"]) . '" width="20px" height="20px"/></span>';
-                                        echo '<span class="text-muted ms-3"><b>' . htmlspecialchars($row["full_name"]) . '</b><br><small>' . htmlspecialchars($row["department"]) . '</small></span>';
+                                        echo '<span class="ms-3"><b>' . htmlspecialchars($row["full_name"]) . '</b><br>';
+                                        echo '<small class="' . ($row['status'] == 'Present' ? 'text-success' : 'text-danger') . '">' . $row['status'] . '</small>';
+                                        if ($row['status'] == 'Present') {
+                                            echo '<br><small>' . htmlspecialchars($row["department"]) . '</small>';
+                                        }
+                                        echo '</span>';
                                         echo '</li>';
                                     }
                                 } else {
-                                    echo '<li><p class="text-center">No instructor logs found</p></li>';
+                                    echo '<li><p class="text-center">No instructors found</p></li>';
                                 }
                                 ?>
                             </ul>
@@ -283,8 +441,8 @@ include 'header.php';
                         onmouseover="showStaffLogs()" onmouseout="hideStaffLogs()">
                             <i class="fa fa-users-cog fa-3x text-warning"></i>
                             <div class="ms-3">
-                                <p class="mb-2">Visitor and Staff</p>
-                                <h6 class="mb-0"><?php echo $staff_today; ?></h6>
+                                <p class="mb-2">Staff</p>
+                                <h6 class="mb-0"><?php echo $staff_today; ?> <small class="text-muted">/ <?php echo $total_staff; ?></small></h6>
                             </div>
                         </div>
                         <div id="staffLogs" class="stranger-logs" style="display:none; position: absolute;background: white; border: 1px solid #ccc; padding: 10px;border-radius: 5px; z-index: 100;box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-height: 300px;">
@@ -297,12 +455,16 @@ include 'header.php';
                                     p.department,
                                     p.role,
                                     pl.time_in_am,
-                                    pl.time_in_pm
+                                    pl.time_in_pm,
+                                    CASE 
+                                        WHEN pl.date_logged = CURRENT_DATE() THEN 'Present'
+                                        ELSE 'Absent'
+                                    END as status
                                 FROM personell p
-                                JOIN personell_logs pl ON pl.personnel_id = p.id
-                                WHERE pl.date_logged = CURRENT_DATE() AND p.role IN ('Staff', 'Security Personnel', 'Administrator')
+                                LEFT JOIN personell_logs pl ON pl.personnel_id = p.id AND pl.date_logged = CURRENT_DATE()
+                                WHERE p.role IN ('Staff', 'Security Personnel', 'Administrator') AND p.status != 'Block'
                                 ORDER BY 
-                                    COALESCE(pl.time_in_pm, pl.time_in_am) DESC
+                                    p.first_name, p.last_name
                                 LIMIT 10;
                                 ";
                                 
@@ -311,24 +473,22 @@ include 'header.php';
                                     while ($row = $result->fetch_assoc()) {
                                         echo '<li class="mb-2 d-flex align-items-center">';
                                         echo '<span><img style="border-radius:50%;" src="../admin/uploads/' . htmlspecialchars($row["photo"]) . '" width="20px" height="20px"/></span>';
-                                        echo '<span class="text-muted ms-3"><b>' . htmlspecialchars($row["full_name"]) . '</b><br><small>' . htmlspecialchars($row["role"]) . ' - ' . htmlspecialchars($row["department"]) . '</small></span>';
+                                        echo '<span class="ms-3"><b>' . htmlspecialchars($row["full_name"]) . '</b><br>';
+                                        echo '<small class="' . ($row['status'] == 'Present' ? 'text-success' : 'text-danger') . '">' . $row['status'] . '</small>';
+                                        if ($row['status'] == 'Present') {
+                                            echo '<br><small>' . htmlspecialchars($row["role"]) . ' - ' . htmlspecialchars($row["department"]) . '</small>';
+                                        }
+                                        echo '</span>';
                                         echo '</li>';
                                     }
                                 } else {
-                                    echo '<li><p class="text-center">No staff logs found</p></li>';
+                                    echo '<li><p class="text-center">No staff found</p></li>';
                                 }
                                 ?>
                             </ul>
                         </div>
                     </div>
                 </div>
-
-                <!-- Additional Cards for Visitors, Blocked, and Strangers -->
-                <div class="row g-4 mt-2">
-                    
-
-                    
-                    
 
                 <!-- Charts Section -->
                 <br>
@@ -410,7 +570,7 @@ include 'header.php';
                                     ['Department', 'Personnel', 'Rooms'],
                                     <?php
                                     foreach ($data as $row) {
-                                        echo "['" . $row['department'] . "', " . $row['personnel'] . ", " . $row['rooms'] . "],";
+                                        echo "['" . $row['department'] . "',  " . $row['personnel'] . ", " . $row['rooms'] . "],";
                                     }
                                     ?>
                                 ]);
@@ -575,12 +735,6 @@ include 'header.php';
     }
     function hideBlockLogs() {
         document.getElementById('blockLogs').style.display = 'none';
-    }
-    function showStrangerLogs() {
-        document.getElementById('strangerLogs').style.display = 'block';
-    }
-    function hideStrangerLogs() {
-        document.getElementById('strangerLogs').style.display = 'none';
     }
     </script>
 </body>

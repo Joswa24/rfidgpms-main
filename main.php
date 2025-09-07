@@ -42,7 +42,7 @@ mysqli_close($db);
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/css/all.min.css" rel="stylesheet">
     
-    <title>RFID Gate System</title>
+    <title>RFIDGACPMS</title>
     <link rel="icon" href="admin/uploads/logo.png" type="image/png">
     <style>
         /* Gate-specific styles */

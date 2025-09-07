@@ -1,248 +1,255 @@
 <?php
-session_start();
 include 'connection.php';
+session_start();
 
-// Set timezone
-date_default_timezone_set('Asia/Manila');
+// Get the RFID number from the request
+$rfid_number = isset($_POST['rfid_number']) ? trim($_POST['rfid_number']) : '';
+$department = isset($_POST['department']) ? $_POST['department'] : '';
+$location = isset($_POST['location']) ? $_POST['location'] : '';
 
-// Function to send JSON response
-function jsonResponse($status, $message, $data = []) {
-    header('Content-Type: application/json');
-    echo json_encode([
-        'status' => $status,
-        'message' => $message,
-        'data' => $data
-    ]);
+// Validate input
+if (empty($rfid_number)) {
+    echo json_encode(['error' => 'No ID provided']);
     exit;
 }
 
-// Function to sanitize input
-function sanitizeInput($db, $input) {
-    return mysqli_real_escape_string($db, trim($input));
-}
-
-// Check if request is POST
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    jsonResponse('error', 'Invalid request method');
-}
-
-// Check if RFID number is provided
-if (!isset($_POST['rfid_number']) || empty($_POST['rfid_number'])) {
-    jsonResponse('error', 'RFID number is required');
-}
-
-// Sanitize inputs
-$rfid_number = sanitizeInput($db, $_POST['rfid_number']);
-$department = isset($_POST['department']) ? sanitizeInput($db, $_POST['department']) : 'Main';
-$location = isset($_POST['location']) ? sanitizeInput($db, $_POST['location']) : 'Gate';
-
 // Get current time and date
-$time = date('H:i:s');
-$date_logged = date('Y-m-d');
-$current_period = date('A'); // Get AM/PM period
+$current_time = date('H:i:s');
+$current_date = date('Y-m-d');
+$current_period = date('A'); // AM or PM
 
-// Check if RFID number exists in personell table
-$query = "SELECT * FROM personell WHERE rfid_number = '$rfid_number'";
-$result = mysqli_query($db, $query);
-$user = mysqli_fetch_assoc($result);
+// Check if this is a personnel or visitor
+$personnel = null;
+$visitor = null;
 
-if ($user) {
-    // Personnel found
-    if ($user['status'] == 'Block') {
-        jsonResponse('error', 'This Personnel is Blocked!', [
-            'time_in_out' => 'BLOCKED',
-            'alert_class' => 'alert-danger'
+// First, check if it's a personnel
+$sql = "SELECT * FROM personell WHERE rfid_number = '$rfid_number'";
+$result = $db->query($sql);
+
+if ($result->num_rows > 0) {
+    $personnel = $result->fetch_assoc();
+    
+    // Check if personnel is blocked
+    if ($personnel['status'] == 'Block') {
+        echo json_encode([
+            'error' => 'BLOCKED',
+            'time_in_out' => 'UNAUTHORIZED',
+            'full_name' => $personnel['first_name'] . ' ' . $personnel['last_name'],
+            'id_number' => $rfid_number
         ]);
+        exit;
     }
     
-    // Process gate attendance for personnel
-    processPersonnelAttendance($db, $user, $time, $date_logged, $current_period, $department, $location);
+    // Process personnel entry
+    processPersonnelEntry($personnel, $db, $department, $location, $current_date, $current_time, $current_period);
 } else {
-    // Check if RFID number exists in visitor table
-    $query = "SELECT * FROM visitor WHERE rfid_number = '$rfid_number'";
-    $result = mysqli_query($db, $query);
-    $visitor = mysqli_fetch_assoc($result);
+    // Check if it's a visitor
+    $sql = "SELECT * FROM visitors WHERE rfid_number = '$rfid_number'";
+    $result = $db->query($sql);
     
-    if ($visitor) {
-        // Process visitor attendance
-        processVisitorAttendance($db, $visitor, $time, $date_logged, $department, $location);
+    if ($result->num_rows > 0) {
+        $visitor = $result->fetch_assoc();
+        processVisitorEntry($visitor, $db, $department, $location, $current_date, $current_time, $current_period);
     } else {
-        // Unknown RFID - stranger
-        processStranger($db, $rfid_number, $date_logged);
-        
-        jsonResponse('error', 'Unknown Card!', [
-            'time_in_out' => 'STRANGER',
-            'alert_class' => 'alert-warning'
+        // Not found in either table - unauthorized
+        echo json_encode([
+            'error' => 'NOT FOUND',
+            'time_in_out' => 'UNAUTHORIZED',
+            'full_name' => 'Unknown',
+            'id_number' => $rfid_number
         ]);
+        exit;
     }
 }
 
-// Function to process personnel attendance
-function processPersonnelAttendance($db, $user, $time, $date_logged, $current_period, $department, $location) {
-    // Check if user is already logged today
-    $query1 = "SELECT * FROM personell_logs WHERE personnel_id = '{$user['id']}' AND date_logged = '$date_logged'";
-    $result1 = mysqli_query($db, $query1);
-    $user1 = mysqli_fetch_assoc($result1);
+// Function to process personnel entry
+function processPersonnelEntry($personnel, $db, $department, $location, $current_date, $current_time, $current_period) {
+    $personnel_id = $personnel['id'];
+    $rfid_number = $personnel['rfid_number'];
     
-    $time_in_out = 'Tap Your Card';
-    $alert_class = 'alert-primary';
+    // Check if there's an entry for today
+    $sql = "SELECT * FROM personell_logs 
+            WHERE personnel_id = '$personnel_id' AND date_logged = '$current_date'";
+    $result = $db->query($sql);
     
-    if ($user1) {
-        if ($current_period === 'PM' && $user1['time_in_pm'] == '') {
-            // Time In for PM
-            $update_query = "UPDATE personell_logs 
-                            SET time_in_pm = '$time'
-                            WHERE personnel_id = '{$user['id']}' AND date_logged = '$date_logged'";
-            
-            mysqli_query($db, $update_query);
-            
-            // Clear time_out from room_logs for the corresponding personnel_id
-            $update_query1 = "UPDATE room_logs SET time_out = NULL WHERE personnel_id = '{$user['id']}' AND location = 'Gate' AND date_logged = '$date_logged'";
-            mysqli_query($db, $update_query1);
-            
-            $time_in_out = 'TIME IN';
-            $alert_class = 'alert-success';
-        } else {
-            // Update existing log entry
-            if ($current_period === "AM") {
-                $update_field = ($user1['time_out_am'] == '') ? 'time_out_am' : null;
-            } else {
-                $update_field = ($user1['time_out_pm'] == '') ? 'time_out_pm' : null;
-            }
-            
-            if ($update_field) {
+    if ($result->num_rows > 0) {
+        // Entry exists - check if it's time in or time out
+        $log = $result->fetch_assoc();
+        
+        if ($current_period == 'AM') {
+            if (empty($log['time_in_am'])) {
+                // Time in AM
+                $sql = "UPDATE personell_logs SET time_in_am = '$current_time' 
+                        WHERE personnel_id = '$personnel_id' AND date_logged = '$current_date'";
+                $time_in_out = 'TIME IN';
+            } else if (empty($log['time_out_am'])) {
+                // Time out AM
+                $sql = "UPDATE personell_logs SET time_out_am = '$current_time' 
+                        WHERE personnel_id = '$personnel_id' AND date_logged = '$current_date'";
                 $time_in_out = 'TIME OUT';
-                $alert_class = 'alert-danger';
-                
-                // Update the respective time_out column
-                $update_query = "UPDATE personell_logs SET $update_field = '$time' WHERE id = '{$user1['id']}'";
-                mysqli_query($db, $update_query);
-                
-                $update_query1 = "UPDATE room_logs SET time_out = '$time' WHERE personnel_id = '{$user1['personnel_id']}' AND location='Gate'";
-                mysqli_query($db, $update_query1);
+            } else {
+                // Already timed in and out for AM period
+                echo json_encode(['error' => 'Already timed in and out for AM period']);
+                exit;
+            }
+        } else {
+            if (empty($log['time_in_pm'])) {
+                // Time in PM
+                $sql = "UPDATE personell_logs SET time_in_pm = '$current_time' 
+                        WHERE personnel_id = '$personnel_id' AND date_logged = '$current_date'";
+                $time_in_out = 'TIME IN';
+            } else if (empty($log['time_out_pm'])) {
+                // Time out PM
+                $sql = "UPDATE personell_logs SET time_out_pm = '$current_time' 
+                        WHERE personnel_id = '$personnel_id' AND date_logged = '$current_date'";
+                $time_in_out = 'TIME OUT';
+            } else {
+                // Already timed in and out for PM period
+                echo json_encode(['error' => 'Already timed in and out for PM period']);
+                exit;
             }
         }
     } else {
-        // Insert new log entry with the correct time_in field
-        if ($current_period === "AM") {
-            $time_field = 'time_in_am';
-            $time_in_out = 'TIME IN';
-            $alert_class = 'alert-success';
+        // No entry for today - create new entry with time in
+        if ($current_period == 'AM') {
+            $sql = "INSERT INTO personell_logs (personnel_id, date_logged, time_in_am, department, location) 
+                    VALUES ('$personnel_id', '$current_date', '$current_time', '$department', '$location')";
         } else {
-            $time_field = 'time_in_pm';
-            $time_in_out = 'TIME IN';
-            $alert_class = 'alert-success';
+            $sql = "INSERT INTO personell_logs (personnel_id, date_logged, time_in_pm, department, location) 
+                    VALUES ('$personnel_id', '$current_date', '$current_time', '$department', '$location')";
         }
-        
-        // Insert into personell_logs
-        $insert_query = "INSERT INTO personell_logs (personnel_id, $time_field, date_logged, location) 
-                         VALUES ('{$user['id']}', '$time', '$date_logged', '$location')";
-        
-        if (mysqli_query($db, $insert_query)) {
-            // Insert into room_logs
-            $insert_query1 = "INSERT INTO room_logs (personnel_id, time_in, date_logged, location) 
-                              VALUES ('{$user['id']}', '$time', '$date_logged', '$location')";
-            
-            mysqli_query($db, $insert_query1);
-        }
+        $time_in_out = 'TIME IN';
     }
     
-    // Format time for display
-    $time_in = '';
-    $time_out = '';
-    
-    if ($user1) {
-        if ($user1['time_in_am']) $time_in = date('h:i A', strtotime($user1['time_in_am']));
-        if ($user1['time_out_am']) $time_out = date('h:i A', strtotime($user1['time_out_am']));
-        if ($user1['time_in_pm']) $time_in = date('h:i A', strtotime($user1['time_in_pm']));
-        if ($user1['time_out_pm']) $time_out = date('h:i A', strtotime($user1['time_out_pm']));
+    // Execute the query
+    if ($db->query($sql)) {
+        // Also add to room_logs for dashboard display
+        if ($time_in_out == 'TIME IN') {
+            $sql_room = "INSERT INTO room_logs (personnel_id, date_logged, time_in, location, department) 
+                         VALUES ('$personnel_id', '$current_date', '$current_time', '$location', '$department')";
+        } else {
+            // For time out, update the latest entry
+            $sql_room = "UPDATE room_logs SET time_out = '$current_time' 
+                         WHERE personnel_id = '$personnel_id' AND date_logged = '$current_date' 
+                         AND time_out IS NULL ORDER BY id DESC LIMIT 1";
+        }
+        $db->query($sql_room);
+        
+        // Prepare response
+        $response = [
+            'success' => true,
+            'time_in_out' => $time_in_out,
+            'full_name' => $personnel['first_name'] . ' ' . $personnel['last_name'],
+            'first_name' => $personnel['first_name'],
+            'id_number' => $rfid_number,
+            'department' => $personnel['department'],
+            'role' => $personnel['role'],
+            'photo' => $personnel['photo'],
+            'time_in' => ($time_in_out == 'TIME IN') ? date('h:i A', strtotime($current_time)) : '',
+            'time_out' => ($time_in_out == 'TIME OUT') ? date('h:i A', strtotime($current_time)) : ''
+        ];
+        
+        echo json_encode($response);
+    } else {
+        echo json_encode(['error' => 'Database error: ' . $db->error]);
     }
-    
-    // Return response
-    jsonResponse('success', 'Attendance recorded', [
-        'id_number' => $user['rfid_number'],
-        'full_name' => $user['first_name'] . ' ' . $user['last_name'],
-        'first_name' => $user['first_name'],
-        'last_name' => $user['last_name'],
-        'department' => $user['department'],
-        'role' => $user['role'],
-        'photo' => $user['photo'],
-        'time_in_out' => $time_in_out,
-        'time_in' => $time_in,
-        'time_out' => $time_out,
-        'alert_class' => $alert_class
-    ]);
 }
 
-// Function to process visitor attendance
-function processVisitorAttendance($db, $visitor, $time, $date_logged, $department, $location) {
-    $query1 = "SELECT * FROM visitor_logs WHERE rfid_number = '{$visitor['rfid_number']}' AND date_logged = '$date_logged'";
-    $result1 = mysqli_query($db, $query1);
-    $visitor1 = mysqli_fetch_assoc($result1);
+// Function to process visitor entry
+function processVisitorEntry($visitor, $db, $department, $location, $current_date, $current_time, $current_period) {
+    $visitor_id = $visitor['id'];
+    $rfid_number = $visitor['rfid_number'];
     
-    $time_in_out = 'Tap Your Card';
-    $alert_class = 'alert-primary';
+    // Check if there's an entry for today
+    $sql = "SELECT * FROM visitor_logs 
+            WHERE visitor_id = '$visitor_id' AND date_logged = '$current_date'";
+    $result = $db->query($sql);
     
-    if ($visitor1) {
-        if ($visitor1['time_out'] == '') {
-            // Time Out for visitor
-            $time_in_out = 'TIME OUT';
-            $alert_class = 'alert-danger';
-            
-            $update_query = "UPDATE visitor_logs SET time_out = '$time' WHERE id = '{$visitor1['id']}'";
-            mysqli_query($db, $update_query);
+    if ($result->num_rows > 0) {
+        // Entry exists - check if it's time in or time out
+        $log = $result->fetch_assoc();
+        
+        if ($current_period == 'AM') {
+            if (empty($log['time_in_am'])) {
+                // Time in AM
+                $sql = "UPDATE visitor_logs SET time_in_am = '$current_time' 
+                        WHERE visitor_id = '$visitor_id' AND date_logged = '$current_date'";
+                $time_in_out = 'TIME IN';
+            } else if (empty($log['time_out_am'])) {
+                // Time out AM
+                $sql = "UPDATE visitor_logs SET time_out_am = '$current_time' 
+                        WHERE visitor_id = '$visitor_id' AND date_logged = '$current_date'";
+                $time_in_out = 'TIME OUT';
+            } else {
+                // Already timed in and out for AM period
+                echo json_encode(['error' => 'Already timed in and out for AM period']);
+                exit;
+            }
+        } else {
+            if (empty($log['time_in_pm'])) {
+                // Time in PM
+                $sql = "UPDATE visitor_logs SET time_in_pm = '$current_time' 
+                        WHERE visitor_id = '$visitor_id' AND date_logged = '$current_date'";
+                $time_in_out = 'TIME IN';
+            } else if (empty($log['time_out_pm'])) {
+                // Time out PM
+                $sql = "UPDATE visitor_logs SET time_out_pm = '$current_time' 
+                        WHERE visitor_id = '$visitor_id' AND date_logged = '$current_date'";
+                $time_in_out = 'TIME OUT';
+            } else {
+                // Already timed in and out for PM period
+                echo json_encode(['error' => 'Already timed in and out for PM period']);
+                exit;
+            }
         }
     } else {
-        // New visitor - need to show modal for additional info
-        jsonResponse('visitor_info_required', 'Visitor information required', [
-            'rfid_number' => $visitor['rfid_number']
-        ]);
+        // No entry for today - create new entry with time in
+        if ($current_period == 'AM') {
+            $sql = "INSERT INTO visitor_logs (visitor_id, date_logged, time_in_am, department, location, name, photo) 
+                    VALUES ('$visitor_id', '$current_date', '$current_time', '$department', '$location', 
+                    '" . $visitor['name'] . "', '" . $visitor['photo'] . "')";
+        } else {
+            $sql = "INSERT INTO visitor_logs (visitor_id, date_logged, time_in_pm, department, location, name, photo) 
+                    VALUES ('$visitor_id', '$current_date', '$current_time', '$department', '$location', 
+                    '" . $visitor['name'] . "', '" . $visitor['photo'] . "')";
+        }
+        $time_in_out = 'TIME IN';
     }
     
-    // Format time for display
-    $time_in = $visitor1['time_in'] ? date('h:i A', strtotime($visitor1['time_in'])) : '';
-    $time_out = $visitor1['time_out'] ? date('h:i A', strtotime($visitor1['time_out'])) : '';
-    
-    // Return response
-    jsonResponse('success', 'Visitor attendance recorded', [
-        'id_number' => $visitor['rfid_number'],
-        'full_name' => $visitor['name'],
-        'department' => $visitor['department'],
-        'role' => 'Visitor',
-        'photo' => $visitor['photo'],
-        'time_in_out' => $time_in_out,
-        'time_in' => $time_in,
-        'time_out' => $time_out,
-        'alert_class' => $alert_class
-    ]);
-}
-
-// Function to process stranger (unknown RFID)
-function processStranger($db, $rfid_number, $date_logged) {
-    // Check if the rfid_number exists in the stranger_logs table
-    $check_query = "SELECT id, attempts FROM stranger_logs WHERE rfid_number = '$rfid_number'";
-    $result = mysqli_query($db, $check_query);
-    
-    if (mysqli_num_rows($result) > 0) {
-        // If rfid_number is found, fetch the record
-        $row = mysqli_fetch_assoc($result);
-        $id = $row['id'];
-        $attempts = $row['attempts'] + 1; // Increment the attempts count
+    // Execute the query
+    if ($db->query($sql)) {
+        // Also add to room_logs for dashboard display
+        if ($time_in_out == 'TIME IN') {
+            $sql_room = "INSERT INTO room_logs (visitor_id, date_logged, time_in, location, department, name, photo) 
+                         VALUES ('$visitor_id', '$current_date', '$current_time', '$location', '$department', 
+                         '" . $visitor['name'] . "', '" . $visitor['photo'] . "')";
+        } else {
+            // For time out, update the latest entry
+            $sql_room = "UPDATE room_logs SET time_out = '$current_time' 
+                         WHERE visitor_id = '$visitor_id' AND date_logged = '$current_date' 
+                         AND time_out IS NULL ORDER BY id DESC LIMIT 1";
+        }
+        $db->query($sql_room);
         
-        // Update the attempts count and last_log for the existing record
-        $update_query = "UPDATE stranger_logs 
-                         SET attempts = $attempts, last_log = '$date_logged' 
-                         WHERE id = $id";
+        // Prepare response
+        $response = [
+            'success' => true,
+            'time_in_out' => $time_in_out,
+            'full_name' => $visitor['name'],
+            'first_name' => $visitor['name'],
+            'id_number' => $rfid_number,
+            'department' => $visitor['department'],
+            'role' => 'Visitor',
+            'photo' => $visitor['photo'],
+            'time_in' => ($time_in_out == 'TIME IN') ? date('h:i A', strtotime($current_time)) : '',
+            'time_out' => ($time_in_out == 'TIME OUT') ? date('h:i A', strtotime($current_time)) : ''
+        ];
         
-        mysqli_query($db, $update_query);
+        echo json_encode($response);
     } else {
-        // If rfid_number is not found, insert a new record with attempts = 1
-        $insert_query = "INSERT INTO stranger_logs (rfid_number, last_log, attempts)  
-                         VALUES ('$rfid_number', '$date_logged', 1)";
-        
-        mysqli_query($db, $insert_query);
+        echo json_encode(['error' => 'Database error: ' . $db->error]);
     }
 }
 
-// Close database connection
 mysqli_close($db);
+?>

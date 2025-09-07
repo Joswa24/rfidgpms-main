@@ -1,31 +1,34 @@
 <?php
 include '../connection.php';
 
-// Get today's date
-$today = date('Y-m-d');
+// Get total number of personnel (students, instructors, staff)
+$total_personnel = 0;
+$roles = ['Student', 'Instructor', 'Staff', 'Security Personnel', 'Administrator'];
 
-// Query to get the total number of users
-$total_users_sql = "SELECT COUNT(*) as total_users FROM personell";
-$total_users_result = $db->query($total_users_sql);
-$total_users = ($total_users_result->num_rows > 0) ? $total_users_result->fetch_assoc()['total_users'] : 0;
+foreach ($roles as $role) {
+    $sql = "SELECT COUNT(*) as count FROM personell WHERE role = '$role' AND status != 'Block'";
+    $result = $db->query($sql);
+    if ($result && $row = $result->fetch_assoc()) {
+        $total_personnel += $row['count'];
+    }
+}
 
-// Query to get the number of users who arrived today
-$arrived_users_sql = "SELECT COUNT(DISTINCT rfid_number) as arrived_users FROM personell_logs WHERE date_logged = '$today' AND role != 'Stranger'";
-$arrived_users_result = $db->query($arrived_users_sql);
-$arrived_users = ($arrived_users_result->num_rows > 0) ? $arrived_users_result->fetch_assoc()['arrived_users'] : 0;
+// Get number of personnel who entered today
+$arrived_today = 0;
+$sql = "SELECT COUNT(DISTINCT personnel_id) as count FROM personell_logs WHERE date_logged = CURDATE()";
+$result = $db->query($sql);
+if ($result && $row = $result->fetch_assoc()) {
+    $arrived_today = $row['count'];
+}
 
-// Calculate not arrived users
-$not_arrived_users = $total_users - $arrived_users;
+// Calculate not arrived
+$not_arrived = $total_personnel - $arrived_today;
 
-// Calculate percentages
-$arrived_percentage = ($total_users > 0) ? ($arrived_users / $total_users) * 100 : 0;
-$not_arrived_percentage = 100 - $arrived_percentage;
+// Return data as JSON
+echo json_encode([
+    'arrived' => $arrived_today,
+    'not_arrived' => $not_arrived > 0 ? $not_arrived : 0
+]);
 
-// Prepare data for JSON response
-$response = [
-    'arrived' => $arrived_percentage,
-    'not_arrived' => $not_arrived_percentage
-];
-
-echo json_encode($response);
+mysqli_close($db);
 ?>
