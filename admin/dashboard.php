@@ -148,30 +148,26 @@ ORDER BY
                 ) AS combined_logs
             ");
 
-            // Count all students (not just those who entered today)
-            $total_students = getCount($db, "SELECT COUNT(*) AS count FROM personell WHERE role = 'Student' AND status != 'Block'");
-            
-            // Count students who entered today
+            // Count all students and those present today
+            $total_students = getCount($db, "SELECT COUNT(*) AS count FROM students WHERE status != 'Block'");
             $students_today = getCount($db, "
-                SELECT COUNT(*) AS count FROM personell_logs pl
-                JOIN personell p ON pl.personnel_id = p.id
-                WHERE pl.date_logged = '$today' AND p.role = 'Student'
+                SELECT COUNT(DISTINCT s.id) AS count 
+                FROM students s 
+                INNER JOIN personell_logs pl ON s.id_number = pl.rfid_number 
+                WHERE pl.date_logged = '$today'
             ");
 
-            // Count all instructors
-            $total_instructors = getCount($db, "SELECT COUNT(*) AS count FROM personell WHERE role = 'Instructor' AND status != 'Block'");
-            
-            // Count instructors who entered today
+            // Count all instructors and those present today
+            $total_instructors = getCount($db, "SELECT COUNT(*) AS count FROM instructor WHERE status != 'Block'");
             $instructors_today = getCount($db, "
-                SELECT COUNT(*) AS count FROM personell_logs pl
-                JOIN personell p ON pl.personnel_id = p.id
-                WHERE pl.date_logged = '$today' AND p.role = 'Instructor'
+                SELECT COUNT(DISTINCT i.id) AS count 
+                FROM instructor i 
+                INNER JOIN personell_logs pl ON i.id_number = pl.rfid_number 
+                WHERE pl.date_logged = '$today'
             ");
 
-            // Count all staff
+            // Count all staff and those present today
             $total_staff = getCount($db, "SELECT COUNT(*) AS count FROM personell WHERE role IN ('Staff', 'Security Personnel', 'Administrator') AND status != 'Block'");
-            
-            // Count staff who entered today
             $staff_today = getCount($db, "
                 SELECT COUNT(*) AS count FROM personell_logs pl
                 JOIN personell p ON pl.personnel_id = p.id

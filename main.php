@@ -1,6 +1,6 @@
 <?php
-include 'connection.php';
 session_start();
+include '../connection.php';
 
 // Set session variables for gate access
 $_SESSION['department'] = 'Main';
@@ -246,7 +246,7 @@ mysqli_close($db);
 
 <div class="gate-header">
     <div class="container text-center">
-        <h1 class="gate-title"><?php echo $nameo; ?></h1>
+        <h1 class="gate-title"><?php echo htmlspecialchars($nameo); ?></h1>
         <p class="gate-subtitle">Main Gate </p>
     </div>
 </div>
