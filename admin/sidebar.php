@@ -127,6 +127,10 @@ if ($result1->num_rows > 0) {
              <a href="instructors.php" class="nav-item nav-link <?php echo ($current_page == 'instructors') ? 'active' : ''; ?>">
                 <i class="fa fa-city me-2"></i>Manage Instructors
             </a>
+            
+                        <a href="instructor_accounts.php" class="nav-item nav-link <?php echo ($current_page == 'instructor_accounts') ? 'active' : ''; ?>">
+                            <i class="fa fa-user-graduate me-2"></i>Instructor Accounts
+                        </a>
             <a href="manage_subject.php" class="nav-item nav-link <?php echo ($current_page == 'subjects') ? 'active' : ''; ?>">
                 <i class="fa fa-book me-2"></i>Manage Subjects
             </a>
