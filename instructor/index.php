@@ -3,9 +3,9 @@ include '../connection.php';
 session_start();
 
 // Security headers
-header("Content-Security-Policy: default-src 'self'");
-header("X-Frame-Options: DENY");
-header("X-Content-Type-Options: nosniff");
+// header("Content-Security-Policy: default-src 'self'");
+// header("X-Frame-Options: DENY");
+// header("X-Content-Type-Options: nosniff");
 
 // Initialize variables for login attempts
 $maxAttempts = 5;
@@ -51,7 +51,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             if (password_verify($password, $user['password'])) {
                 // Successful login
                 $_SESSION['login_attempts'] = 0;
-                $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['instructor_id'] = $user['instructor_id'];
                 $_SESSION['fullname'] = $user['fullname'];
@@ -61,15 +60,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                 $_SESSION['logged_in'] = true;
                 
                 // Update last login timestamp
-                $updateStmt = $db->prepare("UPDATE instructor_accounts SET last_login = NOW() WHERE id = ?");
-                $updateStmt->bind_param("i", $user['id']);
+                $updateStmt = $db->prepare("UPDATE instructor_accounts SET last_login = NOW() WHERE instructor_id = ?");
+                $updateStmt->bind_param("i", $user['instructor_id']);
                 $updateStmt->execute();
                 
                 // Regenerate session ID to prevent fixation
                 session_regenerate_id(true);
                 
                 // Redirect to instructor dashboard
-                header("Location: instructor/dashboard.php");
+                header("Location: dashboard.php");
                 exit();
             } else {
                 // Password verification failed
@@ -94,6 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <?php include 'header.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Instructor Login - RFID System</title>
