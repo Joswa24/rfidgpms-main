@@ -3,9 +3,14 @@ include '../connection.php';
 session_start();
 
 // Security headers
-// header("Content-Security-Policy: default-src 'self'");
-// header("X-Frame-Options: DENY");
-// header("X-Content-Type-Options: nosniff");
+header("X-Frame-Options: DENY");
+header("X-Content-Type-Options: nosniff");
+
+// Regenerate session ID to prevent fixation
+if (!isset($_SESSION['initiated'])) {
+    session_regenerate_id(true);
+    $_SESSION['initiated'] = true;
+}
 
 // Initialize variables for login attempts
 $maxAttempts = 5;
@@ -20,95 +25,116 @@ if (!isset($_SESSION['login_attempts'])) {
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
-    // Check if user is currently locked out
-    if ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime) {
-        $remainingTime = $lockoutTime - (time() - $_SESSION['lockout_time']);
-        $errorMessage = "Too many failed attempts. Please wait " . ceil($remainingTime / 60) . " minutes before trying again.";
+    // Validate CSRF token
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        $errorMessage = "Invalid request. Please try again.";
+        // Regenerate CSRF token
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     } else {
-        // Reset attempts if lockout period has expired
-        if ((time() - $_SESSION['lockout_time']) >= $lockoutTime) {
-            $_SESSION['login_attempts'] = 0;
-        }
-
-        // Validate and sanitize inputs
-        $username = filter_input(INPUT_POST, 'username', FILTER_SANITIZE_STRING);
-        $password = filter_input(INPUT_POST, 'password', FILTER_SANITIZE_STRING);
-        
-        // Check credentials in database - instructor_accounts table
-        $stmt = $db->prepare("SELECT ia.*, i.fullname, i.id_number, d.department_name 
-                             FROM instructor_accounts ia 
-                             INNER JOIN instructor i ON ia.instructor_id = i.id 
-                             LEFT JOIN department d ON i.department_id = d.department_id 
-                             WHERE ia.username = ?");
-        $stmt->bind_param("s", $username);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        if ($result->num_rows > 0) {
-            $user = $result->fetch_assoc();
-            
-            // Verify password
-            if (password_verify($password, $user['password'])) {
-                // Successful login
-                $_SESSION['login_attempts'] = 0;
-                $_SESSION['username'] = $user['username'];
-                $_SESSION['instructor_id'] = $user['instructor_id'];
-                $_SESSION['fullname'] = $user['fullname'];
-                $_SESSION['id_number'] = $user['id_number'];
-                $_SESSION['department'] = $user['department_name'];
-                $_SESSION['role'] = 'instructor';
-                $_SESSION['logged_in'] = true;
-                
-                // Update last login timestamp
-                $updateStmt = $db->prepare("UPDATE instructor_accounts SET last_login = NOW() WHERE instructor_id = ?");
-                $updateStmt->bind_param("i", $user['instructor_id']);
-                $updateStmt->execute();
-                
-                // Regenerate session ID to prevent fixation
-                session_regenerate_id(true);
-                
-                // Redirect to instructor dashboard
-                header("Location: dashboard.php");
-                exit();
-            } else {
-                // Password verification failed
-                $errorMessage = "Invalid username or password";
-                $_SESSION['login_attempts']++;
-            }
+        // Check if user is currently locked out
+        if ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime) {
+            $remainingTime = $lockoutTime - (time() - $_SESSION['lockout_time']);
+            $errorMessage = "Too many failed attempts. Please wait " . ceil($remainingTime / 60) . " minutes before trying again.";
         } else {
-            // User not found
-            $errorMessage = "Invalid username or password";
-            $_SESSION['login_attempts']++;
+            // Reset attempts if lockout period has expired
+            if ((time() - $_SESSION['lockout_time']) >= $lockoutTime) {
+                $_SESSION['login_attempts'] = 0;
+            }
+
+            // Validate and sanitize inputs
+            $username = filter_input(INPUT_POST, 'username', FILTER_SANITIZE_STRING);
+            $password = filter_input(INPUT_POST, 'password', FILTER_SANITIZE_STRING);
+            
+            // Check if database connection is established
+            if (!$db) {
+                $errorMessage = "Database connection error. Please try again later.";
+            } else {
+                // Check credentials in database - instructor_accounts table
+                $stmt = $db->prepare("SELECT ia.*, i.fullname, i.id_number, d.department_name 
+                                     FROM instructor_accounts ia 
+                                     INNER JOIN instructor i ON ia.instructor_id = i.id 
+                                     LEFT JOIN department d ON i.department_id = d.department_id 
+                                     WHERE ia.username = ?");
+                if ($stmt) {
+                    $stmt->bind_param("s", $username);
+                    $stmt->execute();
+                    $result = $stmt->get_result();
+                    
+                    if ($result->num_rows > 0) {
+                        $user = $result->fetch_assoc();
+                        
+                        // Verify password
+                        if (password_verify($password, $user['password'])) {
+                            // Successful login
+                            $_SESSION['login_attempts'] = 0;
+                            
+                            // Sanitize session data
+                            $_SESSION['username'] = htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8');
+                            $_SESSION['instructor_id'] = (int)$user['instructor_id'];
+                            $_SESSION['fullname'] = htmlspecialchars($user['fullname'], ENT_QUOTES, 'UTF-8');
+                            $_SESSION['id_number'] = htmlspecialchars($user['id_number'], ENT_QUOTES, 'UTF-8');
+                            $_SESSION['department'] = htmlspecialchars($user['department_name'], ENT_QUOTES, 'UTF-8');
+                            $_SESSION['role'] = 'instructor';
+                            $_SESSION['logged_in'] = true;
+                            $_SESSION['last_activity'] = time();
+                            
+                            // Update last login timestamp
+                            $updateStmt = $db->prepare("UPDATE instructor_accounts SET last_login = NOW() WHERE instructor_id = ?");
+                            $updateStmt->bind_param("i", $user['instructor_id']);
+                            $updateStmt->execute();
+                            
+                            // Regenerate session ID to prevent fixation
+                            session_regenerate_id(true);
+                            
+                            // Redirect to instructor dashboard
+                            header("Location: dashboard.php");
+                            exit();
+                        } else {
+                            // Password verification failed
+                            $errorMessage = "Invalid username or password";
+                            $_SESSION['login_attempts']++;
+                        }
+                    } else {
+                        // User not found
+                        $errorMessage = "Invalid username or password";
+                        $_SESSION['login_attempts']++;
+                    }
+                } else {
+                    $errorMessage = "Database error. Please try again later.";
+                }
+            }
+            
+            // Check if account should be locked
+            if ($_SESSION['login_attempts'] >= $maxAttempts) {
+                $_SESSION['lockout_time'] = time();
+                $errorMessage = "Too many failed attempts. Your account has been locked for 5 minutes.";
+            }
         }
         
-        // Check if account should be locked
-        if ($_SESSION['login_attempts'] >= $maxAttempts) {
-            $_SESSION['lockout_time'] = time();
-            $errorMessage = "Too many failed attempts. Your account has been locked for 5 minutes.";
-        }
+        // Regenerate CSRF token after processing
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
+} else {
+    // // Generate CSRF token if not exists
+    // if (!isset($_SESSION['csrf_token'])) {
+    //     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    // }
 }
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <?php include 'header.php'; ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Instructor Login - RFID System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="description" content="Gate and Personnel Management System">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://ajax.googleapis.com https://fonts.googleapis.com 'unsafe-inline'; style-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' data:;">
-   
     
     <!-- CSS -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/css/all.min.css">
-    <link rel="stylesheet" href="admin/css/bootstrap.min.css">
-    <link rel="stylesheet" href="admin/css/style.css">
     <!-- SweetAlert CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <style>
@@ -118,6 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             display: flex;
             align-items: center;
             justify-content: center;
+            font-family: 'Heebo', sans-serif;
         }
         .login-container {
             background-color: white;
@@ -185,12 +212,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         <div class="login-body">
             <?php if (!empty($errorMessage)): ?>
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="fas fa-exclamation-circle me-2"></i><?php echo $errorMessage; ?>
+                    <i class="fas fa-exclamation-circle me-2"></i><?php echo htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8'); ?>
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             <?php endif; ?>
             
             <form method="POST" id="loginForm">
+                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                
                 <div class="mb-3">
                     <label for="username" class="form-label">Username</label>
                     <div class="input-group">
@@ -233,10 +262,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <script src="admin/js/bootstrap.bundle.min.js"></script>
-   
     <!-- SweetAlert JS -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
@@ -266,7 +292,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             
             if (!username || !password) {
                 e.preventDefault();
-                alert('Please fill in all fields');
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Missing Information',
+                    text: 'Please fill in all fields',
+                });
                 return false;
             }
             
@@ -279,7 +309,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         });
         
         // Check if user is locked out
-        <?php if ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime): ?>
+        <?php if (isset($_SESSION['login_attempts']) && $_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime): ?>
             const remainingTime = <?php echo $lockoutTime - (time() - $_SESSION['lockout_time']); ?>;
             
             // Disable form
