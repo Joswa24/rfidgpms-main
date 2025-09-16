@@ -10,11 +10,59 @@ if (isset($_SESSION['error_message'])) {
     echo '<div class="alert alert-danger">' . $_SESSION['error_message'] . '</div>';
     unset($_SESSION['error_message']);
 }
+
+// Function to format ID with hyphen
+function formatID($id) {
+    if (strlen($id) == 8 && is_numeric($id)) {
+        return substr($id, 0, 4) . '-' . substr($id, 4, 4);
+    }
+    return $id;
+}
+
+// Function to remove hyphen from ID
+function cleanID($id) {
+    return str_replace('-', '', $id);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <?php include 'header.php'; ?>
 <?php include '../connection.php'; ?>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Personnel</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <style>
+        .bg-light {
+            background-color: #f8f9fa !important;
+        }
+        .card {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+        .table th {
+            background-color: #4e73df;
+            color: white;
+        }
+        .badge {
+            font-size: 0.85em;
+        }
+        .upload-img-btn img {
+            border-radius: 5px;
+            border: 2px dashed #dee2e6;
+        }
+        .upload-img-btn:hover img {
+            border-color: #4e73df;
+        }
+        .section-header {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+    </style>
+</head>
 
 <body>
     <div class="container-fluid position-relative bg-white d-flex p-0">
@@ -35,7 +83,7 @@ if (isset($_SESSION['error_message'])) {
                             </div>
                             <div class="col-3">
                                 <button type="button" class="btn btn-outline-warning m-2" data-bs-toggle="modal" data-bs-target="#employeeModal">
-                                    Add Personnel
+                                    <i class="fas fa-plus-circle"></i> Add Personnel
                                 </button>
                             </div>
                         </div>
@@ -45,7 +93,7 @@ if (isset($_SESSION['error_message'])) {
                                 <thead>
                                     <tr>
                                         <th scope="col">Photo</th>
-                                        <th scope="col">ID Number</th> <!-- Changed from RFID Number -->
+                                        <th scope="col">ID Number</th>
                                         <th scope="col">Full Name</th>
                                         <th scope="col">Role</th>
                                         <th scope="col">Category</th>
@@ -60,6 +108,7 @@ if (isset($_SESSION['error_message'])) {
                                     <?php while ($row = mysqli_fetch_array($results)) { ?>
                                     <tr class="table-<?php echo $row['id'];?>">
                                         <input class="id_number" type="hidden" value="<?php echo $row['id_no']; ?>" />
+                                        <input class="rfid_raw" type="hidden" value="<?php echo $row['rfid_number']; ?>" />
                                         <input class="role" type="hidden" value="<?php echo $row['role']; ?>" />
                                         <input class="last_name" type="hidden" value="<?php echo $row['last_name']; ?>" />
                                         <input class="first_name" type="hidden" value="<?php echo $row['first_name']; ?>" />
@@ -79,7 +128,7 @@ if (isset($_SESSION['error_message'])) {
                                         <img class="photo" src="uploads/<?php echo $row['photo']; ?>" width="50px" height="50px">
                                         </center>
                                         </td>
-                                        <td class="rfid"><?php echo $row['rfid_number']; ?></td>
+                                        <td class="rfid"><?php echo formatID($row['rfid_number']); ?></td>
                                         <td><?php echo $row['first_name'] .' '.$row['last_name']; ?></td>
                                         <td><?php echo $row['role']; ?></td>
                                         <td><?php echo $row['category']; ?></td>
@@ -94,12 +143,12 @@ if (isset($_SESSION['error_message'])) {
                                         <td width="14%">
                                             <center>
                                                 <button address="<?php echo $row['complete_address']; ?>" data-id="<?php echo $row['id'];?>" class="btn btn-outline-primary btn-sm btn-edit e_user_id">
-                                                    <i class="bi bi-plus-edit"></i> Edit 
+                                                    <i class="fas fa-edit"></i> Edit 
                                                 </button>
                                                 <button user_name="<?php echo $row['first_name'] . ' ' . $row['last_name']; ?>" 
                                                         data-id="<?php echo $row['id']; ?>" 
                                                         class="btn btn-outline-danger btn-sm btn-del d_user_id">
-                                                    <i class="bi bi-plus-trash"></i> Delete
+                                                    <i class="fas fa-trash"></i> Delete
                                                 </button>
                                             </center>
                                         </td>
@@ -120,7 +169,7 @@ if (isset($_SESSION['error_message'])) {
                         <div class="modal-content">
                             <div class="modal-header">
                                 <h5 class="modal-title" id="exampleModalLabel">
-                                    <i class="bi bi-plus-circle"></i> New Personnel
+                                    <i class="fas fa-plus-circle"></i> New Personnel
                                 </h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
@@ -129,7 +178,9 @@ if (isset($_SESSION['error_message'])) {
                                 <div class="row justify-content-md-center">
                                     <div id="msg-emp"></div>
                                     <div class="col-sm-12 col-md-12 col-lg-10">
-                                        <div class="" style="border: 1PX solid #b3f0fc;padding: 1%;background-color: #f7cfa1;color: black;font-size: 1.2rem">PERSONAL INFORMATION</div>
+                                        <div class="section-header" style="padding: 1%;color: black;font-size: 1.2rem">
+                                            <i class="fas fa-user"></i> PERSONAL INFORMATION
+                                        </div>
                                         <div class="row">
                                             <div class="col-lg-3 col-md-6 col-sm-12" id="up_img">
                                                 <div class="file-uploader">
@@ -221,8 +272,8 @@ if (isset($_SESSION['error_message'])) {
                                             </div>
                                             <div class="col-lg-4 col-md-6 col-sm-12">
                                                 <div class="form-group">
-                                                    <label>ID NUMBER:</label> <!-- Changed from RFID NUMBER -->
-                                                    <input required type="text" class="form-control" name="rfid_number" id="rfid_number" minlength="9" maxlength="9" autocomplete="off" placeholder="0000-0000">
+                                                    <label>ID NUMBER:</label>
+                                                    <input required type="text" class="form-control" name="rfid_number" id="rfid_number" minlength="9" maxlength="9" autocomplete="off" placeholder="0000-0000" pattern="[0-9]{4}-[0-9]{4}">
                                                     <span class="rfidno-error"></span>
                                                 </div>
                                             </div>
@@ -251,7 +302,7 @@ if (isset($_SESSION['error_message'])) {
                     <div class="modal-content">
                         <div class="modal-header">
                             <h5 class="modal-title" id="exampleModalLabel">
-                                <i class="bi bi-pencil"></i> Edit Personnel
+                                <i class="fas fa-edit"></i> Edit Personnel
                             </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
@@ -261,7 +312,9 @@ if (isset($_SESSION['error_message'])) {
                                 <div class="row justify-content-md-center">
                                     <div id="msg-emp" style=""></div>
                                     <div class="col-sm-12 col-md-12 col-lg-10">
-                                        <div class="" style="border: 1PX solid #b3f0fc;padding: 1%;background-color: #f7cfa1;color: black;font-size: 1.2rem">PERSONAL INFORMATION</div>
+                                        <div class="section-header" style="padding: 1%;color: black;font-size: 1.2rem">
+                                            <i class="fas fa-user"></i> PERSONAL INFORMATION
+                                        </div>
                                         <div class="row">
                                             <div class="col-lg-3 col-md-6 col-sm-12" id="up_img">
                                                 <div class="file-uploader">
@@ -348,8 +401,8 @@ if (isset($_SESSION['error_message'])) {
                                             </div>
                                             <div class="col-lg-4 col-md-6 col-sm-12">
                                                 <div class="form-group">
-                                                    <label>ID NUMBER:</label> <!-- Changed from RFID NUMBER -->
-                                                    <input required type="text" class="form-control edit-rfid" name="rfid_number" id="rfid_number1" minlength="9" maxlength="9" autocomplete="off" placeholder="0000-0000">
+                                                    <label>ID NUMBER:</label>
+                                                    <input required type="text" class="form-control edit-rfid" name="rfid_number" id="rfid_number1" minlength="9" maxlength="9" autocomplete="off" placeholder="0000-0000" pattern="[0-9]{4}-[0-9]{4}">
                                                     <span class="rfidno-error"></span>
                                                 </div>
                                             </div>
@@ -383,7 +436,7 @@ if (isset($_SESSION['error_message'])) {
                     <div class="modal-content">
                         <div class="modal-header">
                             <h5 class="modal-title">
-                                <i class="bi bi-trash"></i> Delete Personnel
+                                <i class="fas fa-trash"></i> Delete Personnel
                             </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
@@ -413,67 +466,13 @@ if (isset($_SESSION['error_message'])) {
     </div>
 
     <!-- JavaScript Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="lib/chart/chart.min.js"></script>
-    <script src="lib/easing/easing.min.js"></script>
-    <script src="lib/waypoints/waypoints.min.js"></script>
-    <script src="lib/owlcarousel/owl.carousel.min.js"></script>
-    <script src="lib/tempusdominus/js/moment.min.js"></script>
-    <script src="lib/tempusdominus/js/moment-timezone.min.js"></script>
-    <script src="lib/tempusdominus/js/tempusdominus-bootstrap-4.min.js"></script>
-    <!-- Template Javascript -->
-    <script src="js/main.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
-      var currentDeleteUserId = null;
-      var currentDeleteUserName = null;
-
-      // Handle delete button click
-      $(document).on('click', '.d_user_id', function() {
-          currentDeleteUserId = $(this).data('id');
-          currentDeleteUserName = $(this).attr('user_name');
-          
-          $('#delete_employeeid').val(currentDeleteUserId);
-          $('#delete_departmentname').val(currentDeleteUserName);
-          
-          $('#delemployee-modal').modal('show');
-      });
-
-      // Handle delete confirmation
-      $('#btn-delemp').on('click', function() {
-          if (currentDeleteUserId) {
-              $.ajax({
-                  url: 'transac.php?action=delete_personnel',
-                  type: 'POST',
-                  data: { user_id: currentDeleteUserId },
-                  success: function(response) {
-                      var res = JSON.parse(response);
-                      if (res.status === 'success') {
-                          Swal.fire({
-                              title: 'Success!',
-                              text: res.message,
-                              icon: 'success'
-                          }).then(() => {
-                              location.reload();
-                          });
-                      } else {
-                          Swal.fire({
-                              title: 'Error!',
-                              text: res.message,
-                              icon: 'error'
-                          });
-                      }
-                  },
-                  error: function(xhr, status, error) {
-                      Swal.fire({
-                          title: 'Error!',
-                          text: 'An error occurred while deleting the personnel.',
-                          icon: 'error'
-                      });
-                  }
-              });
-          }
-      });
     $(document).ready(function() {
         // Initialize DataTable
         var dataTable = $('#myDataTable').DataTable({
@@ -580,7 +579,11 @@ if (isset($_SESSION['error_message'])) {
                 return;
             }
 
+            // Remove hyphen from ID number before submitting
+            var cleanIdNumber = idNumber.replace(/-/g, '');
+            
             var formData = new FormData(this);
+            formData.set('rfid_number', cleanIdNumber); // Use the clean ID without hyphen
             
             // Show loading indicator
             $('#btn-emp').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
@@ -599,25 +602,14 @@ if (isset($_SESSION['error_message'])) {
                     $('#btn-emp').prop('disabled', false);
                     
                     if (response.status === 'success') {
-                        // Store success message in session
-                        $.ajax({
-                            url: '',
-                            type: 'POST',
-                            data: { 
-                                message: response.message,
-                                type: 'success'
-                            },
-                            success: function() {
-                                Swal.fire({
-                                    title: 'Success!',
-                                    text: response.message,
-                                    icon: 'success'
-                                }).then(() => {
-                                    // Close modal and refresh page to show new record
-                                    $('#employeeModal').modal('hide');
-                                    location.reload();
-                                });
-                            }
+                        Swal.fire({
+                            title: 'Success!',
+                            text: response.message,
+                            icon: 'success'
+                        }).then(() => {
+                            // Close modal and refresh page to show new record
+                            $('#employeeModal').modal('hide');
+                            location.reload();
                         });
                     } else {
                         Swal.fire({
@@ -647,10 +639,13 @@ if (isset($_SESSION['error_message'])) {
             const idPattern = /^\d{4}-\d{4}$/;
             
             if (idPattern.test(idNumber)) {
+                // Remove hyphen for database check
+                const cleanIdNumber = idNumber.replace(/-/g, '');
+                
                 $.ajax({
                     url: 'check_rfid.php',
                     method: 'POST',
-                    data: { rfid_number: idNumber },
+                    data: { rfid_number: cleanIdNumber },
                     success: function(response) {
                         const res = JSON.parse(response);
                         if (res.exists) {
@@ -673,7 +668,7 @@ if (isset($_SESSION['error_message'])) {
             
             // Retrieve data from the selected row
             var $getphoto = $('.table-' + $id + ' .photo').attr('src');
-            var $getrfid = $('.table-' + $id + ' .rfid').html();
+            var $getrfid = $('.table-' + $id + ' .rfid_raw').val(); // Get raw RFID without formatting
             var $getrole = $('.table-' + $id + ' .role').val();
             var $getcateg = $('.table-' + $id + ' .categ').val();
             var $getfname = $('.table-' + $id + ' .first_name').val();
@@ -688,134 +683,129 @@ if (isset($_SESSION['error_message'])) {
             var $getdepartment = $('.table-' + $id + ' .department').val();
             var $getstatus = $('.table-' + $id + ' .status').val();
 
+            // Format the RFID for display in the edit form
+            var formattedRfid = $getrfid;
+            if (formattedRfid.length === 8 && /^\d+$/.test(formattedRfid)) {
+                formattedRfid = formattedRfid.substring(0, 4) + '-' + formattedRfid.substring(4, 8);
+            }
+
             // Update the modal fields with data
             $('.edit-photo').attr('src', $getphoto);
-            $('.edit-rfid').val($getrfid);
+            $('.edit-rfid').val(formattedRfid); // Use formatted RFID
             $('.edit-id').val($id);
-            $('.edit-role-val').html($getrole);
-            $('.edit-categ-val').html($getcateg);
+            $('#erole').val($getrole);
+            $('#ecategory').val($getcateg);
             $('.edit-fname').val($getfname);
             $('.edit-lname').val($getlname);
             $('.capturedImage').val($getphoto);
             $('.edit-mname').val($getmname);
             $('.edit-dob').val($getdob);
             $('.edit-pob').val($getpob);
-            $('.edit-sex').html($getsex);
+            $('.edit-sex').val($getsex);
             $('.edit-cnumber').val($getcnumber);
-            $('.edit-status').html($getcivil);
+            $('.edit-status').val($getcivil);
             $('.edit-email').val($getemail);
-            $('.edit-department').html($getdepartment);
-            $('.edit-status1').html($getstatus);
+            $('#e_department').val($getdepartment);
+            $('#status').val($getstatus);
+
+            // Update category dropdown based on role
+            updateCategory1($getrole);
 
             // Show the modal
             $('#editemployeeModal').modal('show');
+        });
+
+        // Handle edit form submission
+        $('#editPersonellForm').submit(function(e) {
+            e.preventDefault();
             
+            var userId = $('.edit-id').val();
+            
+            if (!userId) {
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'No user selected. Please select a user first.',
+                    icon: 'error'
+                });
+                return;
+            }
+
+            // Remove hyphen from ID number before submitting
+            var idNumber = $('#rfid_number1').val();
+            var cleanIdNumber = idNumber.replace(/-/g, '');
+            
+            // Validate ID number format (8 digits)
+            if (!/^\d{8}$/.test(cleanIdNumber)) {
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'ID Number must be 8 digits (format: 0000-0000)',
+                    icon: 'error'
+                });
+                return;
+            }
+
+            var formData = new FormData(this);
+            formData.set('rfid_number', cleanIdNumber); // Use the clean ID without hyphen
+            formData.append('id', userId);
+
+            // Show loading indicator
+            $('#btn-editemp').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
+            $('#btn-editemp').prop('disabled', true);
+            
+            $.ajax({
+                url: 'edit1.php?edit=personell&id=' + userId,
+                type: 'POST',
+                data: formData,
+                contentType: false,
+                processData: false,
+                dataType: 'json',
+                success: function(response) {
+                    // Reset button state
+                    $('#btn-editemp').html('Update');
+                    $('#btn-editemp').prop('disabled', false);
+                    
+                    if (response.status === 'success') {
+                        Swal.fire({
+                            title: 'Success!',
+                            text: response.message,
+                            icon: 'success'
+                        }).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Error!',
+                            text: response.message,
+                            icon: 'error'
+                        });
+                    }
+                },
+                error: function(xhr) {
+                    // Reset button state
+                    $('#btn-editemp').html('Update');
+                    $('#btn-editemp').prop('disabled', false);
+                    
+                    try {
+                        // Try to parse the error response as JSON
+                        var errorResponse = JSON.parse(xhr.responseText);
+                        Swal.fire({
+                            title: 'Error!',
+                            text: errorResponse.message || 'An error occurred',
+                            icon: 'error'
+                        });
+                    } catch (e) {
+                        // If not JSON, show raw response
+                        Swal.fire({
+                            title: 'Error!',
+                            text: 'An error occurred: ' + xhr.responseText,
+                            icon: 'error'
+                        });
+                    }
+                }
+            });
         });
 
         
-        // Handle edit button click - Store the user ID in a variable
-var currentEditUserId = null;
-
-$(document).on('click', '.btn-edit', function() {
-    currentEditUserId = $(this).data('id');
-    
-    // Retrieve data from the selected row
-    var $getphoto = $('.table-' + currentEditUserId + ' .photo').attr('src');
-    var $getrfid = $('.table-' + currentEditUserId + ' .rfid').html();
-    // ... rest of your existing code ...
-
-    // Add the ID to the hidden input field
-    $('.edit-id').val(currentEditUserId);
-    
-    // Show the modal
-    $('#editemployeeModal').modal('show');
-});
-$('#editPersonellForm').submit(function(e) {
-    e.preventDefault();
-    
-    // Use the stored user ID or get it from the hidden field
-    var userId = currentEditUserId || $('.edit-id').val();
-    
-    if (!userId) {
-        Swal.fire({
-            title: 'Error!',
-            text: 'No user selected. Please select a user first.',
-            icon: 'error'
-        });
-        return;
-    }
-
-    // Validate ID number format (0000-0000)
-    const idNumber = $('#rfid_number1').val();
-    const idPattern = /^\d{4}-\d{4}$/;
-    if (!idPattern.test(idNumber)) {
-        Swal.fire({
-            title: 'Error!',
-            text: 'ID Number must be in format: 0000-0000',
-            icon: 'error'
-        });
-        return;
-    }
-
-    var formData = new FormData(this);
-    formData.append('id', userId);
-
-    // Show loading indicator
-    $('#btn-editemp').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
-    $('#btn-editemp').prop('disabled', true);
-    
-    $.ajax({
-        url: 'edit1.php?edit=personell&id=' + userId,
-        type: 'POST',
-        data: formData,
-        contentType: false,
-        processData: false,
-        dataType: 'json',
-        success: function(response) {
-            // Reset button state
-            $('#btn-editemp').html('Update');
-            $('#btn-editemp').prop('disabled', false);
-            
-            if (response.status === 'success') {
-                Swal.fire({
-                    title: 'Success!',
-                    text: response.message,
-                    icon: 'success'
-                }).then(() => {
-                    location.reload();
-                });
-            } else {
-                Swal.fire({
-                    title: 'Error!',
-                    text: response.message,
-                    icon: 'error'
-                });
-            }
-        },
-        error: function(xhr) {
-            // Reset button state
-            $('#btn-editemp').html('Update');
-            $('#btn-editemp').prop('disabled', false);
-            
-            try {
-                // Try to parse the error response as JSON
-                var errorResponse = JSON.parse(xhr.responseText);
-                Swal.fire({
-                    title: 'Error!',
-                    text: errorResponse.message || 'An error occurred',
-                    icon: 'error'
-                });
-            } catch (e) {
-                // If not JSON, show raw response
-                Swal.fire({
-                    title: 'Error!',
-                    text: 'An error occurred: ' + xhr.responseText,
-                    icon: 'error'
-                });
-            }
-        }
-    });
-});
 
        // Handle delete button click
 $(document).on('click', '.btn-del', function() {

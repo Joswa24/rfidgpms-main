@@ -47,7 +47,7 @@ mysqli_close($db);
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/css/all.min.css" rel="stylesheet">
     
-    <title>Barcode Scanner</title>
+    <title>Classroom Attendance Scanner</title>
     <link rel="icon" href="uploads/scanner.webp" type="image/webp">
     <style>
         /* Updated styles for barcode scanner interface */
@@ -508,7 +508,11 @@ mysqli_close($db);
             <!-- Scanner Column (70% width) -->
             <div class="col-md-8 h-100" style="padding-right: 5px;">
                 <div class="alert alert-primary py-1 mb-2" role="alert" id="alert">
-                    <center><h3 id="in_out" class="mb-0" style="font-size: 1rem;">Scan Your ID Barcode</h3></center>
+                    <div class="alert alert-primary py-1 mb-2" role="alert" id="alert">
+                    <center><h3 id="in_out" class="mb-0" style="font-size: 1rem;">
+                        <i class="fas fa-id-card me-2"></i>Scan Your ID Card for Attendance
+                    </h3></center>
+                </div>
                 </div>
 
                 <!-- Scanner Container - Adjusted size -->

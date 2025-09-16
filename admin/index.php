@@ -103,7 +103,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             margin-top: 15px;
         }
         .login-container {
-            animation: fadeIn 0.5s ease-in-out;
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            width: 100%;
+            max-width: 450px;
+            transition: transform 0.3s ease;
+        }
+        
+        .login-container:hover {
+            transform: translateY(-5px);
         }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }

@@ -1,14 +1,18 @@
 <?php
 include 'connection.php';
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+error_log("process_gate.php hit at " . date('Y-m-d H:i:s')); 
+
 session_start();
 
-// Get the RFID number from the request
-$rfid_number = isset($_POST['rfid_number']) ? trim($_POST['rfid_number']) : '';
+// Get the ID number from the request
+$id_number = isset($_POST['id_number']) ? trim($_POST['id_number']) : '';
 $department = isset($_POST['department']) ? $_POST['department'] : '';
 $location = isset($_POST['location']) ? $_POST['location'] : '';
 
 // Validate input
-if (empty($rfid_number)) {
+if (empty($id_number)) {
     echo json_encode(['error' => 'No ID provided']);
     exit;
 }
@@ -18,238 +22,334 @@ $current_time = date('H:i:s');
 $current_date = date('Y-m-d');
 $current_period = date('A'); // AM or PM
 
-// Check if this is a personnel or visitor
-$personnel = null;
-$visitor = null;
+// Check if this is a student, instructor, personnel, or visitor
+$person = null;
+$person_type = '';
 
-// First, check if it's a personnel
-$sql = "SELECT * FROM personell WHERE rfid_number = '$rfid_number'";
-$result = $db->query($sql);
+// Use prepared statements to prevent SQL injection
+// First, check if it's a student
+$sql = "SELECT * FROM students WHERE id_number = ?";
+$stmt = $db->prepare($sql);
+$stmt->bind_param("s", $id_number);
+$stmt->execute();
+$result = $stmt->get_result();
 
 if ($result->num_rows > 0) {
-    $personnel = $result->fetch_assoc();
-    
-    // Check if personnel is blocked
-    if ($personnel['status'] == 'Block') {
-        echo json_encode([
-            'error' => 'BLOCKED',
-            'time_in_out' => 'UNAUTHORIZED',
-            'full_name' => $personnel['first_name'] . ' ' . $personnel['last_name'],
-            'id_number' => $rfid_number
-        ]);
-        exit;
-    }
-    
-    // Process personnel entry
-    processPersonnelEntry($personnel, $db, $department, $location, $current_date, $current_time, $current_period);
+    $person = $result->fetch_assoc();
+    $person_type = 'student';
 } else {
-    // Check if it's a visitor
-    $sql = "SELECT * FROM visitors WHERE rfid_number = '$rfid_number'";
-    $result = $db->query($sql);
+    // Check if it's an instructor
+    $sql = "SELECT * FROM instructor WHERE id_number = ?";
+    $stmt = $db->prepare($sql);
+    $stmt->bind_param("s", $id_number);
+    $stmt->execute();
+    $result = $stmt->get_result();
     
     if ($result->num_rows > 0) {
-        $visitor = $result->fetch_assoc();
-        processVisitorEntry($visitor, $db, $department, $location, $current_date, $current_time, $current_period);
+        $person = $result->fetch_assoc();
+        $person_type = 'instructor';
     } else {
-        // Not found in either table - unauthorized
-        echo json_encode([
-            'error' => 'NOT FOUND',
-            'time_in_out' => 'UNAUTHORIZED',
-            'full_name' => 'Unknown',
-            'id_number' => $rfid_number
-        ]);
-        exit;
+        // Check if it's personnel/staff
+        $sql = "SELECT * FROM personell WHERE id_number = ?";
+        $stmt = $db->prepare($sql);
+        $stmt->bind_param("s", $id_number);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows > 0) {
+            $person = $result->fetch_assoc();
+            $person_type = 'personell';
+            
+            // Check if personnel is blocked
+            if (isset($person['status']) && $person['status'] == 'Block') {
+                echo json_encode([
+                    'error' => 'BLOCKED',
+                    'time_in_out' => 'UNAUTHORIZED',
+                    'full_name' => $person['first_name'] . ' ' . $person['last_name'],
+                    'id_number' => $id_number
+                ]);
+                exit;
+            }
+        } else {
+            // Check if it's a visitor
+            $sql = "SELECT * FROM visitors WHERE id_number = ?";
+            $stmt = $db->prepare($sql);
+            $stmt->bind_param("s", $id_number);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($result->num_rows > 0) {
+                $person = $result->fetch_assoc();
+                $person_type = 'visitor';
+            } else {
+                // Not found in any table - unauthorized
+                echo json_encode([
+                    'error' => 'NOT FOUND',
+                    'time_in_out' => 'UNAUTHORIZED',
+                    'full_name' => 'Unknown',
+                    'id_number' => $id_number
+                ]);
+                exit;
+            }
+        }
     }
 }
 
-// Function to process personnel entry
-function processPersonnelEntry($personnel, $db, $department, $location, $current_date, $current_time, $current_period) {
-    $personnel_id = $personnel['id'];
-    $rfid_number = $personnel['rfid_number'];
+// Process the entry based on person type
+switch ($person_type) {
+    case 'student':
+        processStudentEntry($person, $db, $department, $location, $current_date, $current_time, $current_period);
+        break;
+    case 'instructor':
+        processInstructorEntry($person, $db, $department, $location, $current_date, $current_time, $current_period);
+        break;
+    case 'personell':
+        processPersonellEntry($person, $db, $department, $location, $current_date, $current_time, $current_period);
+        break;
+    case 'visitor':
+        processVisitorEntry($person, $db, $department, $location, $current_date, $current_time, $current_period);
+        break;
+    default:
+        echo json_encode(['error' => 'Unknown person type']);
+        exit;
+}
+
+
+// =============================================================
+// STUDENT ENTRY
+// =============================================================
+function processStudentEntry($student, $db, $department, $location, $current_date, $current_time, $current_period) {
+    $student_id = $student['id'];
+    $id_number = $student['id_number'];
+    $full_name = $student['first_name'] . ' ' . $student['last_name'];
     
-    // Check if there's an entry for today
-    $sql = "SELECT * FROM personell_logs 
-            WHERE personnel_id = '$personnel_id' AND date_logged = '$current_date'";
-    $result = $db->query($sql);
-    
+
+    $sql = "SELECT * FROM student_glogs WHERE student_id = ? AND date_logged = ?";
+    $stmt = $db->prepare($sql);
+    $stmt->bind_param("is", $student_id, $current_date);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $time_in_out = 'UNAUTHORIZED';
+
     if ($result->num_rows > 0) {
-        // Entry exists - check if it's time in or time out
         $log = $result->fetch_assoc();
-        
         if ($current_period == 'AM') {
             if (empty($log['time_in_am'])) {
-                // Time in AM
-                $sql = "UPDATE personell_logs SET time_in_am = '$current_time' 
-                        WHERE personnel_id = '$personnel_id' AND date_logged = '$current_date'";
-                $time_in_out = 'TIME IN';
-            } else if (empty($log['time_out_am'])) {
-                // Time out AM
-                $sql = "UPDATE personell_logs SET time_out_am = '$current_time' 
-                        WHERE personnel_id = '$personnel_id' AND date_logged = '$current_date'";
-                $time_in_out = 'TIME OUT';
-            } else {
-                // Already timed in and out for AM period
-                echo json_encode(['error' => 'Already timed in and out for AM period']);
-                exit;
+                $sql = "UPDATE student_glogs SET time_in_am = ?, dept = ?, location = ? WHERE student_id = ? AND date_logged = ?";
+                $stmt = $db->prepare($sql);
+                $stmt->bind_param("sssis", $current_time, $department, $location, $student_id, $current_date);
+                if ($stmt->execute()) {
+                    $time_in_out = 'TIME IN';
+                }
+            } elseif (empty($log['time_out_am'])) {
+                $sql = "UPDATE student_glogs SET time_out_am = ?, dept = ?, location = ? WHERE student_id = ? AND date_logged = ?";
+                $stmt = $db->prepare($sql);
+                $stmt->bind_param("sssis", $current_time, $department, $location, $student_id, $current_date);
+                if ($stmt->execute()) {
+                    $time_in_out = 'TIME OUT';
+                }
             }
-        } else {
+        } else { // PM
             if (empty($log['time_in_pm'])) {
-                // Time in PM
-                $sql = "UPDATE personell_logs SET time_in_pm = '$current_time' 
-                        WHERE personnel_id = '$personnel_id' AND date_logged = '$current_date'";
-                $time_in_out = 'TIME IN';
-            } else if (empty($log['time_out_pm'])) {
-                // Time out PM
-                $sql = "UPDATE personell_logs SET time_out_pm = '$current_time' 
-                        WHERE personnel_id = '$personnel_id' AND date_logged = '$current_date'";
-                $time_in_out = 'TIME OUT';
-            } else {
-                // Already timed in and out for PM period
-                echo json_encode(['error' => 'Already timed in and out for PM period']);
-                exit;
+                $sql = "UPDATE student_glogs SET time_in_pm = ?, dept = ?, location = ? WHERE student_id = ? AND date_logged = ?";
+                $stmt = $db->prepare($sql);
+                $stmt->bind_param("sssis", $current_time, $department, $location, $student_id, $current_date);
+                if ($stmt->execute()) {
+                    $time_in_out = 'TIME IN';
+                }
+            } elseif (empty($log['time_out_pm'])) {
+                $sql = "UPDATE student_glogs SET time_out_pm = ?, dept = ?, location = ? WHERE student_id = ? AND date_logged = ?";
+                $stmt = $db->prepare($sql);
+                $stmt->bind_param("sssis", $current_time, $department, $location, $student_id, $current_date);
+                if ($stmt->execute()) {
+                    $time_in_out = 'TIME OUT';
+                }
             }
         }
     } else {
-        // No entry for today - create new entry with time in
-        if ($current_period == 'AM') {
-            $sql = "INSERT INTO personell_logs (personnel_id, date_logged, time_in_am, department, location) 
-                    VALUES ('$personnel_id', '$current_date', '$current_time', '$department', '$location')";
-        } else {
-            $sql = "INSERT INTO personell_logs (personnel_id, date_logged, time_in_pm, department, location) 
-                    VALUES ('$personnel_id', '$current_date', '$current_time', '$department', '$location')";
+        $sql = "INSERT INTO student_glogs (student_id, date_logged, time_in_am, dept, location) VALUES (?, ?, ?, ?, ?)";
+        $stmt = $db->prepare($sql);
+        $stmt->bind_param("issss", $student_id, $current_date, $current_time, $department, $location);
+        if ($stmt->execute()) {
+            $time_in_out = 'TIME IN';
         }
-        $time_in_out = 'TIME IN';
     }
-    
-    // Execute the query
-    if ($db->query($sql)) {
-        // Also add to room_logs for dashboard display
-        if ($time_in_out == 'TIME IN') {
-            $sql_room = "INSERT INTO room_logs (personnel_id, date_logged, time_in, location, department) 
-                         VALUES ('$personnel_id', '$current_date', '$current_time', '$location', '$department')";
-        } else {
-            // For time out, update the latest entry
-            $sql_room = "UPDATE room_logs SET time_out = '$current_time' 
-                         WHERE personnel_id = '$personnel_id' AND date_logged = '$current_date' 
-                         AND time_out IS NULL ORDER BY id DESC LIMIT 1";
-        }
-        $db->query($sql_room);
+
+    echo json_encode([
+        'id_number' => $id_number,
+        'full_name' => $full_name,
+        'first_name' => $student['first_name'],
+        'role' => 'Student',
+        'department' => $student['course'] ?? 'N/A',
         
-        // Prepare response
-        $response = [
-            'success' => true,
-            'time_in_out' => $time_in_out,
-            'full_name' => $personnel['first_name'] . ' ' . $personnel['last_name'],
-            'first_name' => $personnel['first_name'],
-            'id_number' => $rfid_number,
-            'department' => $personnel['department'],
-            'role' => $personnel['role'],
-            'photo' => $personnel['photo'],
-            'time_in' => ($time_in_out == 'TIME IN') ? date('h:i A', strtotime($current_time)) : '',
-            'time_out' => ($time_in_out == 'TIME OUT') ? date('h:i A', strtotime($current_time)) : ''
-        ];
-        
-        echo json_encode($response);
-    } else {
-        echo json_encode(['error' => 'Database error: ' . $db->error]);
-    }
+        'time_in_out' => $time_in_out
+    ]);
+    exit;
 }
 
-// Function to process visitor entry
+// =============================================================
+// INSTRUCTOR ENTRY
+// =============================================================
+function processInstructorEntry($instructor, $db, $department, $location, $current_date, $current_time, $current_period) {
+    $instructor_id = $instructor['id'];
+    $id_number = $instructor['id_number'];
+    $full_name = $instructor['first_name'] . ' ' . $instructor['last_name'];
+   
+
+    $sql = "SELECT * FROM instructor_glogs WHERE instructor_id = ? AND date_logged = ?";
+    $stmt = $db->prepare($sql);
+    $stmt->bind_param("is", $instructor_id, $current_date);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $time_in_out = 'UNAUTHORIZED';
+
+    if ($result->num_rows > 0) {
+        $log = $result->fetch_assoc();
+        if (empty($log['time_in'])) {
+            $sql = "UPDATE instructor_glogs SET time_in = ?, dept = ?, location = ? WHERE instructor_id = ? AND date_logged = ?";
+            $stmt = $db->prepare($sql);
+            $stmt->bind_param("sssis", $current_time, $department, $location, $instructor_id, $current_date);
+            if ($stmt->execute()) {
+                $time_in_out = 'TIME IN';
+            }
+        } elseif (empty($log['time_out'])) {
+            $sql = "UPDATE instructor_glogs SET time_out = ?, dept = ?, location = ? WHERE instructor_id = ? AND date_logged = ?";
+            $stmt = $db->prepare($sql);
+            $stmt->bind_param("sssis", $current_time, $department, $location, $instructor_id, $current_date);
+            if ($stmt->execute()) {
+                $time_in_out = 'TIME OUT';
+            }
+        }
+    } else {
+        $sql = "INSERT INTO instructor_glogs (instructor_id, date_logged, time_in, dept, location) VALUES (?, ?, ?, ?, ?)";
+        $stmt = $db->prepare($sql);
+        $stmt->bind_param("issss", $instructor_id, $current_date, $current_time, $department, $location);
+        if ($stmt->execute()) {
+            $time_in_out = 'TIME IN';
+        }
+    }
+
+    echo json_encode([
+        'id_number' => $id_number,
+        'full_name' => $full_name,
+        'first_name' => $instructor['first_name'],
+        'role' => 'Instructor',
+        'department' => $instructor['department'] ?? 'N/A',
+        'photo' => $photo,
+        'time_in_out' => $time_in_out
+    ]);
+    exit;
+}
+
+// =============================================================
+// PERSONNEL ENTRY
+// =============================================================
+function processPersonellEntry($personnel, $db, $department, $location, $current_date, $current_time, $current_period) {
+    $personnel_id = $personnel['id'];
+    $id_number = $personnel['id_number'];
+    $full_name = $personnel['first_name'] . ' ' . $personnel['last_name'];
+   
+
+    $sql = "SELECT * FROM personell_glogs WHERE personell_id = ? AND date_logged = ?";
+    $stmt = $db->prepare($sql);
+    $stmt->bind_param("is", $personnel_id, $current_date);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $time_in_out = 'UNAUTHORIZED';
+
+    if ($result->num_rows > 0) {
+        $log = $result->fetch_assoc();
+        if (empty($log['time_in'])) {
+            $sql = "UPDATE personell_glogs SET time_in = ?, dept = ?, location = ? WHERE personell_id = ? AND date_logged = ?";
+            $stmt = $db->prepare($sql);
+            $stmt->bind_param("sssis", $current_time, $department, $location, $personnel_id, $current_date);
+            if ($stmt->execute()) {
+                $time_in_out = 'TIME IN';
+            }
+        } elseif (empty($log['time_out'])) {
+            $sql = "UPDATE personell_glogs SET time_out = ?, dept = ?, location = ? WHERE personell_id = ? AND date_logged = ?";
+            $stmt = $db->prepare($sql);
+            $stmt->bind_param("sssis", $current_time, $department, $location, $personnel_id, $current_date);
+            if ($stmt->execute()) {
+                $time_in_out = 'TIME OUT';
+            }
+        }
+    } else {
+        $sql = "INSERT INTO personell_glogs (personell_id, date_logged, time_in, dept, location) VALUES (?, ?, ?, ?, ?)";
+        $stmt = $db->prepare($sql);
+        $stmt->bind_param("issss", $personnel_id, $current_date, $current_time, $department, $location);
+        if ($stmt->execute()) {
+            $time_in_out = 'TIME IN';
+        }
+    }
+
+    echo json_encode([
+        'id_number' => $id_number,
+        'full_name' => $full_name,
+        'first_name' => $personnel['first_name'],
+        'role' => 'Personnel',
+        'department' => $personnel['department'] ?? 'N/A',
+        
+        'time_in_out' => $time_in_out
+    ]);
+    exit;
+}
+
+// =============================================================
+// VISITOR ENTRY
+// =============================================================
 function processVisitorEntry($visitor, $db, $department, $location, $current_date, $current_time, $current_period) {
     $visitor_id = $visitor['id'];
-    $rfid_number = $visitor['rfid_number'];
+    $full_name = $visitor['full_name'];
     
-    // Check if there's an entry for today
-    $sql = "SELECT * FROM visitor_logs 
-            WHERE visitor_id = '$visitor_id' AND date_logged = '$current_date'";
-    $result = $db->query($sql);
-    
+
+    $sql = "SELECT * FROM visitor_glogs WHERE visitor_id = ? AND date_logged = ?";
+    $stmt = $db->prepare($sql);
+    $stmt->bind_param("is", $visitor_id, $current_date);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $time_in_out = 'UNAUTHORIZED';
+
     if ($result->num_rows > 0) {
-        // Entry exists - check if it's time in or time out
         $log = $result->fetch_assoc();
-        
-        if ($current_period == 'AM') {
-            if (empty($log['time_in_am'])) {
-                // Time in AM
-                $sql = "UPDATE visitor_logs SET time_in_am = '$current_time' 
-                        WHERE visitor_id = '$visitor_id' AND date_logged = '$current_date'";
+        if (empty($log['time_in'])) {
+            $sql = "UPDATE visitor_glogs SET time_in = ?, location = ? WHERE visitor_id = ? AND date_logged = ?";
+            $stmt = $db->prepare($sql);
+            $stmt->bind_param("ssis", $current_time, $location, $visitor_id, $current_date);
+            if ($stmt->execute()) {
                 $time_in_out = 'TIME IN';
-            } else if (empty($log['time_out_am'])) {
-                // Time out AM
-                $sql = "UPDATE visitor_logs SET time_out_am = '$current_time' 
-                        WHERE visitor_id = '$visitor_id' AND date_logged = '$current_date'";
-                $time_in_out = 'TIME OUT';
-            } else {
-                // Already timed in and out for AM period
-                echo json_encode(['error' => 'Already timed in and out for AM period']);
-                exit;
             }
-        } else {
-            if (empty($log['time_in_pm'])) {
-                // Time in PM
-                $sql = "UPDATE visitor_logs SET time_in_pm = '$current_time' 
-                        WHERE visitor_id = '$visitor_id' AND date_logged = '$current_date'";
-                $time_in_out = 'TIME IN';
-            } else if (empty($log['time_out_pm'])) {
-                // Time out PM
-                $sql = "UPDATE visitor_logs SET time_out_pm = '$current_time' 
-                        WHERE visitor_id = '$visitor_id' AND date_logged = '$current_date'";
+        } elseif (empty($log['time_out'])) {
+            $sql = "UPDATE visitor_glogs SET time_out = ?, location = ? WHERE visitor_id = ? AND date_logged = ?";
+            $stmt = $db->prepare($sql);
+            $stmt->bind_param("ssis", $current_time, $location, $visitor_id, $current_date);
+            if ($stmt->execute()) {
                 $time_in_out = 'TIME OUT';
-            } else {
-                // Already timed in and out for PM period
-                echo json_encode(['error' => 'Already timed in and out for PM period']);
-                exit;
             }
         }
     } else {
-        // No entry for today - create new entry with time in
-        if ($current_period == 'AM') {
-            $sql = "INSERT INTO visitor_logs (visitor_id, date_logged, time_in_am, department, location, name, photo) 
-                    VALUES ('$visitor_id', '$current_date', '$current_time', '$department', '$location', 
-                    '" . $visitor['name'] . "', '" . $visitor['photo'] . "')";
-        } else {
-            $sql = "INSERT INTO visitor_logs (visitor_id, date_logged, time_in_pm, department, location, name, photo) 
-                    VALUES ('$visitor_id', '$current_date', '$current_time', '$department', '$location', 
-                    '" . $visitor['name'] . "', '" . $visitor['photo'] . "')";
+        $sql = "INSERT INTO visitor_glogs (visitor_id, date_logged, time_in, location) VALUES (?, ?, ?, ?)";
+        $stmt = $db->prepare($sql);
+        $stmt->bind_param("isss", $visitor_id, $current_date, $current_time, $location);
+        if ($stmt->execute()) {
+            $time_in_out = 'TIME IN';
         }
-        $time_in_out = 'TIME IN';
     }
-    
-    // Execute the query
-    if ($db->query($sql)) {
-        // Also add to room_logs for dashboard display
-        if ($time_in_out == 'TIME IN') {
-            $sql_room = "INSERT INTO room_logs (visitor_id, date_logged, time_in, location, department, name, photo) 
-                         VALUES ('$visitor_id', '$current_date', '$current_time', '$location', '$department', 
-                         '" . $visitor['name'] . "', '" . $visitor['photo'] . "')";
-        } else {
-            // For time out, update the latest entry
-            $sql_room = "UPDATE room_logs SET time_out = '$current_time' 
-                         WHERE visitor_id = '$visitor_id' AND date_logged = '$current_date' 
-                         AND time_out IS NULL ORDER BY id DESC LIMIT 1";
-        }
-        $db->query($sql_room);
+
+    echo json_encode([
+        'id_number' => $visitor['id_number'] ?? 'N/A',
+        'full_name' => $full_name,
+        'first_name' => explode(' ', $full_name)[0],
+        'role' => 'Visitor',
+        'department' => 'N/A',
         
-        // Prepare response
-        $response = [
-            'success' => true,
-            'time_in_out' => $time_in_out,
-            'full_name' => $visitor['name'],
-            'first_name' => $visitor['name'],
-            'id_number' => $rfid_number,
-            'department' => $visitor['department'],
-            'role' => 'Visitor',
-            'photo' => $visitor['photo'],
-            'time_in' => ($time_in_out == 'TIME IN') ? date('h:i A', strtotime($current_time)) : '',
-            'time_out' => ($time_in_out == 'TIME OUT') ? date('h:i A', strtotime($current_time)) : ''
-        ];
-        
-        echo json_encode($response);
-    } else {
-        echo json_encode(['error' => 'Database error: ' . $db->error]);
-    }
+        'time_in_out' => $time_in_out
+    ]);
+    exit;
 }
 
 mysqli_close($db);
-?>

@@ -12,6 +12,11 @@ if (!isset($_SESSION['initiated'])) {
     $_SESSION['initiated'] = true;
 }
 
+// Generate CSRF token if not exists
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 // Initialize variables for login attempts
 $maxAttempts = 5;
 $lockoutTime = 300; // 5 minutes in seconds
@@ -86,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                             // Regenerate session ID to prevent fixation
                             session_regenerate_id(true);
                             
-                            // Redirect to instructor dashboard
+                            // FIXED: Redirect to dashboard.php (not instructor/dashboard.php)
                             header("Location: dashboard.php");
                             exit();
                         } else {
@@ -114,14 +119,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         // Regenerate CSRF token after processing
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
-} else {
-    // // Generate CSRF token if not exists
-    // if (!isset($_SESSION['csrf_token'])) {
-    //     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-    // }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -138,69 +137,231 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     <!-- SweetAlert CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <style>
+        :root {
+            --primary-color: #e1e7f0ff;
+            --secondary-color: #b0caf0ff;
+            --accent-color: #4e73df;
+            --light-bg: #f8f9fc;
+            --dark-text: #5a5c69;
+        }
+        
         body {
-            background: linear-gradient(135deg, #87abe0ff, #6c8bc7);
-            height: 100vh;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             font-family: 'Heebo', sans-serif;
+            padding: 20px;
         }
+        
         .login-container {
             background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
             overflow: hidden;
             width: 100%;
-            max-width: 400px;
+            max-width: 450px;
+            transition: transform 0.3s ease;
         }
+        
+        .login-container:hover {
+            transform: translateY(-5px);
+        }
+        
         .login-header {
-            background-color: #f8f9fa;
-            padding: 20px;
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
+            padding: 25px;
             text-align: center;
-            border-bottom: 1px solid #e9ecef;
+            color: white;
+            position: relative;
+            overflow: hidden;
         }
+        
+        .login-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: rotate(45deg);
+        }
+        
         .login-header h3 {
-            color: #495057;
             margin: 0;
-            font-weight: 600;
+            font-weight: 700;
+            font-size: 1.8rem;
+            position: relative;
+            z-index: 1;
         }
+        
+        .login-header p {
+            margin: 5px 0 0;
+            opacity: 0.9;
+            font-size: 0.95rem;
+            position: relative;
+            z-index: 1;
+        }
+        
         .login-body {
             padding: 30px;
         }
-        .form-control:focus {
-            border-color: #87abe0ff;
-            box-shadow: 0 0 0 0.2rem rgba(135, 171, 224, 0.25);
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+            position: relative;
         }
-        .btn-login {
-            background-color: #87abe0ff;
-            border: none;
-            color: white;
+        
+        .form-label {
             font-weight: 600;
-            padding: 10px;
+            color: var(--dark-text);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
         }
-        .btn-login:hover {
-            background-color: #6c8bc7;
+        
+        .form-label i {
+            margin-right: 8px;
+            color: var(--accent-color);
         }
-        .password-toggle {
-            cursor: pointer;
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #6c757d;
+        
+        .input-group {
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
         }
+        
+        .input-group:focus-within {
+            box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+        }
+        
+        .input-group-text {
+            background-color: var(--light-bg);
+            border: none;
+            padding: 0.75rem 1rem;
+            color: var(--accent-color);
+        }
+        
+        .form-control {
+            border: none;
+            padding: 0.75rem 1rem;
+            background-color: var(--light-bg);
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus {
+            background-color: white;
+            box-shadow: none;
+        }
+        
         .password-field {
             position: relative;
         }
+        
+        .password-toggle {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--dark-text);
+            cursor: pointer;
+            z-index: 5;
+            background: white;
+            padding: 5px;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .btn-login {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
+            border: none;
+            color: white;
+            font-weight: 600;
+            padding: 12px;
+            border-radius: 8px;
+            width: 100%;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(78, 115, 223, 0.3);
+        }
+        
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(78, 115, 223, 0.4);
+        }
+        
+        .btn-login:active {
+            transform: translateY(0);
+        }
+        
+        .form-check-input:checked {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+        
         .system-info {
             text-align: center;
-            margin-top: 20px;
-            font-size: 12px;
-            color: #6c757d;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #e3e6f0;
+            font-size: 0.85rem;
+            color: var(--dark-text);
         }
+        
         .alert {
+            border-radius: 8px;
+            border: none;
+            padding: 12px 15px;
             margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+        
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .forgot-link {
+            color: var(--accent-color);
+            text-decoration: none;
+            transition: color 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .forgot-link:hover {
+            color: var(--secondary-color);
+            text-decoration: underline;
+        }
+        
+        .login-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+        }
+        
+        @media (max-width: 576px) {
+            .login-container {
+                max-width: 100%;
+            }
+            
+            .login-body {
+                padding: 20px;
+            }
+            
+            .login-header {
+                padding: 20px;
+            }
+            
+            .login-header h3 {
+                font-size: 1.5rem;
+            }
         }
     </style>
 </head>
@@ -208,6 +369,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     <div class="login-container">
         <div class="login-header">
             <h3><i class="fas fa-chalkboard-teacher me-2"></i>INSTRUCTOR LOGIN</h3>
+            <p>RFID Attendance System V2.0</p>
         </div>
         <div class="login-body">
             <?php if (!empty($errorMessage)): ?>
@@ -220,44 +382,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             <form method="POST" id="loginForm">
                 <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                 
-                <div class="mb-3">
-                    <label for="username" class="form-label">Username</label>
+                <div class="form-group">
+                    <label for="username" class="form-label"><i class="fas fa-user"></i>Username</label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="fas fa-user"></i></span>
                         <input type="text" class="form-control" id="username" name="username" placeholder="Enter your username" required autocomplete="off">
                     </div>
                 </div>
                 
-                <div class="mb-3">
-                    <label for="password" class="form-label">Password</label>
-                    <div class="password-field">
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fas fa-lock"></i></span>
-                            <input type="password" class="form-control" id="password" name="password" placeholder="Enter your password" required>
-                            <span class="password-toggle" onclick="togglePassword()">
-                                <i class="fas fa-eye"></i>
-                            </span>
-                        </div>
+                <div class="form-group">
+                    <label for="password" class="form-label"><i class="fas fa-lock"></i>Password</label>
+                    <div class="input-group password-field">
+                        <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                        <input type="password" class="form-control" id="password" name="password" placeholder="Enter your password" required>
+                        <span class="password-toggle" onclick="togglePassword()">
+                            <i class="fas fa-eye"></i>
+                        </span>
                     </div>
                 </div>
                 
-                <div class="mb-3 form-check">
+                <div class="form-group form-check">
                     <input type="checkbox" class="form-check-input" id="showPassword" onclick="togglePassword()">
                     <label class="form-check-label" for="showPassword">Show Password</label>
                 </div>
                 
-                <button type="submit" name="login" class="btn btn-login w-100 mb-3">
+                <button type="submit" name="login" class="btn btn-login mb-3">
                     <i class="fas fa-sign-in-alt me-2"></i>Login
                 </button>
                 
-                <div class="text-center">
-                    <a href="forgot_password.php" class="text-decoration-none">Forgot Password?</a>
+                <div class="login-footer">
+                    <a href="forgot_password.php" class="forgot-link">Forgot Password?</a>
+                    <div class="text-muted">© <?php echo date('Y'); ?></div>
                 </div>
             </form>
-            
-            <div class="system-info mt-4">
-                <p>RFID Attendance System v2.0<br>© <?php echo date('Y'); ?> All Rights Reserved</p>
-            </div>
         </div>
     </div>
 
@@ -302,8 +459,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             
             // Show loading state
             const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
             submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Logging in...';
             submitBtn.disabled = true;
+            
+            // Re-enable after 3 seconds if there's an issue
+            setTimeout(() => {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }, 3000);
             
             return true;
         });
@@ -346,6 +510,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                 }, 1000);
             });
         <?php endif; ?>
+        
+        // Auto-focus on username field
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('username').focus();
+        });
     </script>
 </body>
 </html>

@@ -185,10 +185,10 @@ case 'add_personnel':
     $status = 'Active';
 
     // Validate ID Number format (0000-0000)
-    $id_pattern = '/^\d{4}-\d{4}$/';
-    if (!preg_match($id_pattern, $rfid_number)) {
-        jsonResponse('error', 'ID Number must be in format: 0000-0000');
-    }
+    // $id_pattern = '/^\d{4}-\d{4}$/';
+    // if (!preg_match($id_pattern, $rfid_number)) {
+    //     jsonResponse('error', 'ID Number must be in format: 0000-0000');
+    // }
 
     // Remove hyphen for database storage (optional - you can store with hyphen if preferred)
     $rfid_number_clean = str_replace('-', '', $rfid_number);

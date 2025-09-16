@@ -1,6 +1,6 @@
 <?php
 include '../connection.php';
-session_start();
+
 
 // Check if user is logged in as instructor
 if (!isset($_SESSION['logged_in']) || $_SESSION['role'] !== 'instructor') {
