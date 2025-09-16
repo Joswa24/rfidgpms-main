@@ -1,11 +1,8 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
 include '../connection.php';
 session_start();
 
-// Security headers - MUST be before any output
+// Security headers
 header("Content-Security-Policy: default-src 'self'");
 header("X-Frame-Options: DENY");
 header("X-Content-Type-Options: nosniff");
@@ -81,6 +78,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
 }
 ?>
 
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -120,14 +119,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .alert-danger {
-            background-color: #f8d7da;
-            border-color: #f5c6cb;
-            color: #721c24;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 15px;
-        }
     </style>
 </head>
 <body>
@@ -136,11 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         <div class="row h-100 align-items-center justify-content-center" style="min-height: 100vh;">
             <div class="col-12 col-sm-8 col-md-6 col-lg-5 col-xl-4">
                 <div class="bg-light rounded p-4 p-sm-5 my-4 mx-3 login-container">
-                    <form id="logform" method="POST" action="">
-                        <?php if (!empty($errorMessage)): ?>
-                            <div class="alert alert-danger"><?php echo htmlspecialchars($errorMessage); ?></div>
-                        <?php endif; ?>
-                        
+                    <form id="logform" method="POST">
                         <div class="d-flex align-items-center justify-content-between mb-3">
                             <h3 class="text-warning">ADMIN</h3>
                             <h3>Sign In</h3>
@@ -170,10 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                             <span id="loginSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                         </button>
 
-                        <!-- Lockout message -->
-                        <div id="lockout-message" class="alert alert-warning text-center">
-                            Account locked. Please wait <span id="countdown"></span> before trying again.
-                        </div>
+                       
                     </form>
                 </div>
             </div>
@@ -191,8 +175,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         passwordField.type = passwordField.type === "password" ? "text" : "password";
     }
 
-    // Show loading state on form submission
-    document.getElementById('logform').addEventListener('submit', function() {
+    // Handle form submission with AJAX and SweetAlerts
+    document.getElementById('logform').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Show loading state
         const loginBtn = document.getElementById('loginBtn');
         const loginText = document.getElementById('loginText');
         const loginSpinner = document.getElementById('loginSpinner');
@@ -201,12 +188,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         loginSpinner.classList.remove('d-none');
         loginBtn.disabled = true;
         
-        // Re-enable after 3 seconds in case of slow response
-        setTimeout(() => {
+        // Submit form via AJAX
+        const formData = new FormData(this);
+        
+        fetch('', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                Swal.fire({
+                    title: 'Success!',
+                    text: data.message,
+                    icon: 'success',
+                    confirmButtonText: 'OK',
+                    timer: 2000,
+                    timerProgressBar: true
+                }).then(() => {
+                    window.location.href = data.redirect;
+                });
+            } else if (data.status === 'verification') {
+                window.location.href = data.redirect;
+            } else {
+                Swal.fire({
+                    title: 'Error!',
+                    text: data.message,
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+                
+                // Update lockout message if needed
+                if (data.message.includes('locked')) {
+                    startCountdown(<?php echo $lockoutTime; ?>);
+                }
+            }
+        })
+        .catch(error => {
+            Swal.fire({
+                title: 'Error!',
+                text: 'An unexpected error occurred. Please try again.',
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+        })
+        .finally(() => {
+            // Reset button state
             loginText.textContent = 'Sign In';
             loginSpinner.classList.add('d-none');
             loginBtn.disabled = false;
-        }, 3000);
+        });
     });
 
     // Countdown timer for lockout
@@ -221,7 +255,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         
         // Disable form elements
         inputs.forEach(input => {
-            if (input.type !== 'hidden' && input.id !== 'loginBtn') {
+            if (input.type !== 'hidden') {
                 input.disabled = true;
             }
         });
@@ -251,7 +285,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         startCountdown(remainingTime);
     <?php endif; ?>
 
-    // Security: Disable right-click and developer tools (optional)
+    // Security: Disable right-click and developer tools
     document.addEventListener('contextmenu', (e) => e.preventDefault());
     
     document.onkeydown = function(e) {
@@ -261,8 +295,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             (e.ctrlKey && e.shiftKey && e.keyCode === 67) || // Ctrl+Shift+C
             (e.ctrlKey && e.keyCode === 85)) { // Ctrl+U
             e.preventDefault();
-            // Optional: Show warning
-            alert('This action is not allowed.');
+            Swal.fire({
+                title: 'Restricted Action',
+                text: 'This action is not allowed.',
+                icon: 'warning'
+            });
         }
     };
 </script>
