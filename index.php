@@ -78,7 +78,7 @@ function sanitizeInput($data) {
 // =====================================================================
 // LOGIN PROCESSING - Enhanced with Rate Limiting
 // =====================================================================
-if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['swap_request'])) {
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $department = sanitizeInput($_POST['roomdpt'] ?? '');
     $location = sanitizeInput($_POST['location'] ?? '');
     $password = $_POST['Ppassword'] ?? ''; // Don't sanitize passwords
@@ -99,122 +99,119 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['swap_request'])) {
     }
 
     // Check if this is a gate access request (Main department + Gate location)
-    // Check if this is a gate access request (Main department + Gate location)
-// Check if this is a gate access request (Main department + Gate location)
-// Check if this is a gate access request (Main department + Gate location)
-if ($department === 'Main' && $location === 'Gate') {
-    // Remove hyphen from ID for database search
-    $clean_id = str_replace('-', '', $id_number);
-    
-    // Use the correct column name: id_no instead of id_number
-    $stmt = $db->prepare("SELECT * FROM personell WHERE rfid_number = ? AND department = 'Main'");
-    if (!$stmt) {
-        error_log("Prepare failed: " . $db->error);
-        die("Database error. Please check server logs.");
-    }
-    
-    $stmt->bind_param("s", $clean_id);
-    if (!$stmt->execute()) {
-        error_log("Execute failed: " . $stmt->error);
-        die("Database query failed.");
-    }
-    
-    $securityResult = $stmt->get_result();
-
-    if ($securityResult->num_rows === 0) {
-        sleep(2);
+    if ($department === 'Main' && $location === 'Gate') {
+        // Remove hyphen from ID for database search
+        $clean_id = str_replace('-', '', $id_number);
         
-        // Try rfid_number as fallback (also without hyphen)
-        $stmt2 = $db->prepare("SELECT * FROM personell WHERE rfid_number = ? AND role = 'Security Personnel'");
-        if ($stmt2) {
-            $stmt2->bind_param("s", $clean_id);
-            $stmt2->execute();
-            $securityResult = $stmt2->get_result();
-        }
-    }
-
-    if ($securityResult->num_rows === 0) {
-        sleep(2);
-        
-        // Debug: Check what IDs actually exist
-        $debugStmt = $db->prepare("SELECT  rfid_number, first_name, last_name, role FROM personell WHERE (role LIKE '%Security Personnel%' OR role LIKE '%Guard%')");
-        $debugStmt->execute();
-        $debugResult = $debugStmt->get_result();
-        
-        $availablePersonnel = [];
-        while ($row = $debugResult->fetch_assoc()) {
-            $availablePersonnel[] = " RFID:{$row['rfid_number']}, Name:{$row['first_name']} {$row['last_name']}";
+        // Use the correct column name: id_no instead of id_number
+        $stmt = $db->prepare("SELECT * FROM personell WHERE rfid_number = ? AND department = 'Main'");
+        if (!$stmt) {
+            error_log("Prepare failed: " . $db->error);
+            die("Database error. Please check server logs.");
         }
         
-        die("Unauthorized access. Security personnel not found with ID: $id_number (clean: $clean_id). Available: " . implode('; ', $availablePersonnel));
+        $stmt->bind_param("s", $clean_id);
+        if (!$stmt->execute()) {
+            error_log("Execute failed: " . $stmt->error);
+            die("Database query failed.");
+        }
+        
+        $securityResult = $stmt->get_result();
+
+        if ($securityResult->num_rows === 0) {
+            sleep(2);
+            
+            // Try rfid_number as fallback (also without hyphen)
+            $stmt2 = $db->prepare("SELECT * FROM personell WHERE rfid_number = ? AND role = 'Security Personnel'");
+            if ($stmt2) {
+                $stmt2->bind_param("s", $clean_id);
+                $stmt2->execute();
+                $securityResult = $stmt2->get_result();
+            }
+        }
+
+        if ($securityResult->num_rows === 0) {
+            sleep(2);
+            
+            // Debug: Check what IDs actually exist
+            $debugStmt = $db->prepare("SELECT  rfid_number, first_name, last_name, role FROM personell WHERE (role LIKE '%Security Personnel%' OR role LIKE '%Guard%')");
+            $debugStmt->execute();
+            $debugResult = $debugStmt->get_result();
+            
+            $availablePersonnel = [];
+            while ($row = $debugResult->fetch_assoc()) {
+                $availablePersonnel[] = " RFID:{$row['rfid_number']}, Name:{$row['first_name']} {$row['last_name']}";
+            }
+            
+            die("Unauthorized access. Security personnel not found with ID: $id_number (clean: $clean_id). Available: " . implode('; ', $availablePersonnel));
+        }
+
+        $securityGuard = $securityResult->fetch_assoc();
+        
+        // Check if they have security role
+        $role = strtolower($securityGuard['role'] ?? '');
+        $isSecurity = stripos($role, 'security') !== false || stripos($role, 'guard') !== false;
+        
+        if (!$isSecurity) {
+            sleep(2);
+            die("Unauthorized access. User found but not security personnel. Role: " . ($securityGuard['role'] ?? 'Unknown'));
+        }
+
+        // Verify room credentials for gate
+        $stmt = $db->prepare("SELECT * FROM rooms WHERE department = ? AND room = ?");
+        $stmt->bind_param("ss", $department, $location);
+        $stmt->execute();
+        $roomResult = $stmt->get_result();
+
+        if ($roomResult->num_rows === 0) {
+            sleep(2);
+            die("Gate access not configured.");
+        }
+
+        $room = $roomResult->fetch_assoc();
+
+        // Verify gate password
+        $stmt = $db->prepare("SELECT * FROM rooms WHERE password=? AND department='Main' AND room='Gate'");
+        $stmt->bind_param("s", $password);
+        $stmt->execute();
+        $passwordResult = $stmt->get_result();
+
+        if ($passwordResult->num_rows === 0) {
+            sleep(2);
+            die("Invalid Gate Password.");
+        }
+
+        // Gate login successful - set session data
+        $_SESSION['access'] = [
+            'security' => [
+                'id' => $securityGuard['id'],
+                'fullname' => $securityGuard['first_name'] . ' ' . $securityGuard['last_name'],
+                'rfid_number' => $securityGuard['rfid_number'],
+                'role' => $securityGuard['role']
+            ],
+            'gate' => [
+                'department' => 'Main',
+                'location' => 'Gate'
+            ],
+            'last_activity' => time()
+        ];
+
+        // Clear any existing output
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+
+        // Set proper headers
+        header('Content-Type: application/json');
+
+        // Return JSON response for gate access - REDIRECT TO MAIN.PHP
+        echo json_encode([
+            'status' => 'success',
+            'redirect' => 'main.php', // Security personnel go to main.php
+            'message' => 'Gate access granted'
+        ]);
+        exit;
     }
-
-    $securityGuard = $securityResult->fetch_assoc();
-    
-    // Check if they have security role
-    $role = strtolower($securityGuard['role'] ?? '');
-    $isSecurity = stripos($role, 'security') !== false || stripos($role, 'guard') !== false;
-    
-    if (!$isSecurity) {
-        sleep(2);
-        die("Unauthorized access. User found but not security personnel. Role: " . ($securityGuard['role'] ?? 'Unknown'));
-    }
-
-    // Verify room credentials for gate
-    $stmt = $db->prepare("SELECT * FROM rooms WHERE department = ? AND room = ?");
-    $stmt->bind_param("ss", $department, $location);
-    $stmt->execute();
-    $roomResult = $stmt->get_result();
-
-    if ($roomResult->num_rows === 0) {
-        sleep(2);
-        die("Gate access not configured.");
-    }
-
-    $room = $roomResult->fetch_assoc();
-
-    // Verify gate password
-    $stmt = $db->prepare("SELECT * FROM rooms WHERE password=? AND department='Main' AND room='Gate'");
-    $stmt->bind_param("s", $password);
-    $stmt->execute();
-    $passwordResult = $stmt->get_result();
-
-    if ($passwordResult->num_rows === 0) {
-        sleep(2);
-        die("Invalid Gate Password.");
-    }
-
-    // Gate login successful - set session data
-    $_SESSION['access'] = [
-        'security' => [
-            'id' => $securityGuard['id'],
-            'fullname' => $securityGuard['first_name'] . ' ' . $securityGuard['last_name'],
-            'rfid_number' => $securityGuard['rfid_number'],
-            'role' => $securityGuard['role']
-        ],
-        'gate' => [
-            'department' => 'Main',
-            'location' => 'Gate'
-        ],
-        'last_activity' => time()
-    ];
-
-    // Clear any existing output
-    while (ob_get_level()) {
-        ob_end_clean();
-    }
-
-    // Set proper headers
-    header('Content-Type: application/json');
-
-    // Return JSON response for gate access - REDIRECT TO MAIN.PHP
-    echo json_encode([
-        'status' => 'success',
-        'redirect' => 'main.php', // Security personnel go to main.php
-        'message' => 'Gate access granted'
-    ]);
-    exit;
-}
 
     // Regular instructor login process (for non-gate access)
     // Verify ID number against instructor table with rate limiting
@@ -298,117 +295,6 @@ if ($department === 'Main' && $location === 'Gate') {
     ]);
     exit;
 }
-
-// =====================================================================
-// SWAP PROCESSING - FIXED VERSION FOR SECURITY PERSONNEL
-// =====================================================================
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['swap_request'])) {
-    // Clear any previous output
-    while (ob_get_level()) ob_end_clean();
-    
-    header('Content-Type: application/json');
-    
-    try {
-        // 1. Get and validate input
-        $target_id = trim($_POST['target_id_number'] ?? '');
-        
-        if (empty($target_id)) {
-            throw new Exception("ID number is required");
-        }
-
-        // 2. Standardize the ID format (accept both 0000-0000 and 00000000)
-        $clean_id = str_replace('-', '', $target_id);
-        
-        if (!ctype_digit($clean_id) || strlen($clean_id) != 8) {
-            throw new Exception("Invalid ID format. Use 8 digits with or without hyphen");
-        }
-
-        // 3. Format for database (0000-0000)
-        $db_id = substr($clean_id, 0, 4) . '-' . substr($clean_id, 4, 4);
-
-        // 4. First check if this is security personnel
-        $stmt = $db->prepare("SELECT * FROM personell WHERE rfid_number = ? AND role IN ('Security Personnel', 'Security Guard')");
-        if (!$stmt) {
-            throw new Exception("Database preparation failed: " . $db->error);
-        }
-        
-        $stmt->bind_param("s", $db_id);
-        if (!$stmt->execute()) {
-            throw new Exception("Database query failed: " . $stmt->error);
-        }
-
-        $result = $stmt->get_result();
-        
-        if ($result->num_rows > 0) {
-            // This is security personnel - log them in for main.php
-            $security = $result->fetch_assoc();
-            
-            $_SESSION['access'] = [
-                'security' => [
-                    'id' => $security['id'],
-                    'fullname' => $security['first_name'] . ' ' . $security['last_name'],
-                    'rfid_number' => $security['rfid_number'],
-                    'role' => $security['role']
-                ],
-                'gate' => [
-                    'department' => 'Main',
-                    'location' => 'Gate'
-                ],
-                'last_activity' => time(),
-                'swapped' => true
-            ];
-
-            // Success response for security personnel
-            echo json_encode([
-                'status' => 'success',
-                'redirect' => 'main.php', // Security personnel go to main.php
-                'instructor' => $security['first_name'] . ' ' . $security['last_name']
-            ]);
-            exit;
-        }
-        
-        // If not security, check if it's an instructor
-        $stmt = $db->prepare("SELECT * FROM instructor WHERE id_number = ?");
-        if (!$stmt) {
-            throw new Exception("Database preparation failed: " . $db->error);
-        }
-        
-        $stmt->bind_param("s", $db_id);
-        if (!$stmt->execute()) {
-            throw new Exception("Database query failed: " . $stmt->error);
-        }
-
-        $result = $stmt->get_result();
-        
-        if ($result->num_rows === 0) {
-            throw new Exception("Personnel with ID $db_id not found");
-        }
-
-        // This is an instructor - log them in for main1.php
-        $instructor = $result->fetch_assoc();
-        $_SESSION['access'] = [
-            'instructor' => $instructor,
-            'last_activity' => time(),
-            'swapped' => true
-        ];
-
-        // Success response for instructor
-        echo json_encode([
-            'status' => 'success',
-            'redirect' => 'main1.php', // Instructors go to main1.php
-            'instructor' => $instructor['fullname']
-        ]);
-        exit;
-
-    } catch (Exception $e) {
-        http_response_code(400);
-        echo json_encode([
-            'status' => 'error',
-            'message' => $e->getMessage()
-        ]);
-        exit;
-    }
-}
 ?>
 
 <!DOCTYPE html>
@@ -430,30 +316,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['swap_request'])) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     
     <style>
-        /* Add to your existing CSS */
-        #swapModal .modal-body {
-            padding: 20px;
-        }
-
-        #swapTable th {
-            white-space: nowrap;
-            background-color: #f8f9fa;
-        }
-
-        .instructor-row:hover {
-            background-color: rgba(0, 0, 0, 0.05);
-            cursor: pointer;
-        }
-
-        #idVerificationSection .card {
-            border: 1px solid rgba(0, 0, 0, 0.125);
-            border-radius: 0.25rem;
-        }
-
-        #verifyIdBtn {
-            margin-top: 10px;
-        }
-        
         .mb-3, .mb-4 {
             transition: all 0.3s ease;
         }
@@ -536,11 +398,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['swap_request'])) {
                         
                         <button type="submit" class="btn btn-primary w-100 mb-3" id="loginButton">Login</button>
                         
-                        <!-- Add this swap button -->
-                        <button type="button" class="btn btn-outline-secondary w-100 mb-3" id="swapButton">
-                            <i class="fas fa-exchange-alt"></i> Swap Personnel
-                        </button>
-                        
                         <div class="text-end">
                             <a href="terms.php" class="terms-link">Terms and Conditions</a>
                         </div>
@@ -589,46 +446,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['swap_request'])) {
         </div>
     </div>
 
-    <!-- Simplified Swap Modal -->
-    <div class="modal fade" id="swapModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title">Swap Personnel</h5>
-                </div>
-                <div class="modal-body">
-                    <div id="swapAlert" class="alert alert-danger d-none"></div>
-                    
-                    <div class="mb-3">
-                        <label for="swapInstructorId" class="form-label">Enter Personnel ID Number</label>
-                        <div class="input-group">
-                            <input type="text" class="form-control" id="swapInstructorId" 
-                                   placeholder="0000-0000" pattern="[0-9]{4}-[0-9]{4}">
-                            <button class="btn btn-outline-primary" type="button" id="verifyIdBtn">
-                                <i class="fas fa-check-circle"></i> Verify
-                            </button>
-                        </div>
-                        <div class="form-text">Scan or enter the ID of the personnel you're swapping with</div>
-                    </div>
-                    
-                    <div class="card mt-3 d-none" id="instructorInfoCard">
-                        <div class="card-body">
-                            <h5 class="card-title" id="instructorName"></h5>
-                            <p class="card-text" id="instructorDetails"></p>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="confirmSwap" disabled>
-                        <span class="spinner-border spinner-border-sm d-none" id="swapSpinner"></span>
-                        Confirm Swap
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="admin/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -669,219 +486,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['swap_request'])) {
             
             if (department === 'Main' && location === 'Gate') {
                 $('#gateAccessInfo').removeClass('d-none');
-                $('#swapButton').removeClass('d-none'); // Keep swap button visible for security
             } else {
                 $('#gateAccessInfo').addClass('d-none');
-                $('#swapButton').removeClass('d-none');
             }
         });
 
         // Initial check
         $('#roomdpt').trigger('change');
-
-        // Global variable to store selected personnel data
-        let selectedPersonnel = null;
-
-        // Swap button click handler
-        $('#swapButton').click(function() {
-            const currentId = $('#id-input').val().trim();
-            
-            // Validate current user's ID first
-            if (!currentId || !/^\d{4}-\d{4}$/.test(currentId)) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'ID Required',
-                    text: 'Please enter your valid ID number first (format: 0000-0000)',
-                    confirmButtonColor: '#3085d6'
-                });
-                $('#id-input').focus();
-                return;
-            }
-            
-            // If ID is valid, show swap modal
-            $('#swapModal').modal('show');
-            $('#swapInstructorId').val('').focus();
-        });
-
-        // Format ID number input in swap modal
-        $('#swapInstructorId').on('input', function() {
-            let value = $(this).val().replace(/\D/g, '');
-            if (value.length > 4) {
-                value = value.substring(0, 4) + '-' + value.substring(4, 8);
-            }
-            $(this).val(value.substring(0, 9));
-        });
-
-        // Verify ID handler with updated logic for both instructor and security
-        $('#verifyIdBtn').click(function() {
-            const enteredId = $('#swapInstructorId').val().trim();
-            
-            // Validate input format
-            if (!enteredId) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'ID Required',
-                    text: 'Please enter the personnel ID number',
-                    confirmButtonColor: '#3085d6'
-                });
-                return;
-            }
-            
-            // Standardize format (accept both 0000-0000 and 00000000)
-            const cleanEnteredId = enteredId.replace(/-/g, '');
-            
-            if (!/^\d{8}$/.test(cleanEnteredId)) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Invalid Format',
-                    text: 'Please enter a valid ID number (8 digits, with or without hyphen)',
-                    confirmButtonColor: '#3085d6'
-                });
-                return;
-            }
-            
-            // Show loading state with SweetAlert
-            Swal.fire({
-                title: 'Verifying ID',
-                html: 'Please wait while we verify the ID number...',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-            
-            // Send request to verify ID (checks both instructor and personell tables)
-            $.ajax({
-                url: 'verify_personnel_id.php',
-                type: 'POST',
-                data: { 
-                    id_number: cleanEnteredId 
-                },
-                dataType: 'json',
-                success: function(response) {
-                    if (response.status === 'success') {
-                        selectedPersonnel = response.personnel;
-                        
-                        // Show personnel info
-                        $('#instructorName').text(response.personnel.fullname);
-                        $('#instructorDetails').html(`
-                            <strong>ID:</strong> ${response.personnel.id_number}<br>
-                            <strong>Role:</strong> ${response.personnel.role || 'Instructor'}<br>
-                            <strong>Department:</strong> ${response.personnel.department || 'N/A'}
-                        `);
-                        $('#instructorInfoCard').removeClass('d-none');
-                        
-                        // Enable confirm button
-                        $('#confirmSwap').prop('disabled', false);
-                        
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Verified!',
-                            text: 'ID verification successful',
-                            confirmButtonColor: '#3085d6',
-                            timer: 1500,
-                            timerProgressBar: true
-                        });
-                    } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Verification Failed',
-                            text: response.message || 'Personnel not found',
-                            confirmButtonColor: '#3085d6'
-                        });
-                    }
-                },
-                error: function() {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'Failed to verify ID. Please try again.',
-                        confirmButtonColor: '#3085d6'
-                    });
-                }
-            });
-        });
-
-        // Process swap request with SweetAlert confirmation
-        $('#confirmSwap').click(function() {
-            if (!selectedPersonnel) return;
-            
-            Swal.fire({
-                title: 'Confirm Swap',
-                text: `Are you sure you want to swap with ${selectedPersonnel.fullname}?`,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, swap now'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // User confirmed - proceed with swap
-                    performSwap();
-                }
-            });
-        });
-
-        function performSwap() {
-            const $btn = $('#confirmSwap');
-            $btn.prop('disabled', true);
-            $('#swapSpinner').removeClass('d-none');
-            
-            // Show processing alert
-            Swal.fire({
-                title: 'Processing Swap',
-                html: 'Please wait while we process your request...',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-            
-            $.ajax({
-                url: '',
-                type: 'POST',
-                data: {
-                    swap_request: true,
-                    target_id_number: selectedPersonnel.id_number
-                },
-                dataType: 'json',
-                success: function(response) {
-                    Swal.close();
-                    if (response.status === 'success') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Swap Successful!',
-                            text: `You are now logged in as ${response.instructor}`,
-                            confirmButtonColor: '#3085d6',
-                            timer: 2000,
-                            timerProgressBar: true,
-                            willClose: () => {
-                                window.location.href = response.redirect;
-                            }
-                        });
-                    } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Swap Failed',
-                            text: response.message || 'Swap request failed',
-                            confirmButtonColor: '#3085d6'
-                        });
-                    }
-                },
-                error: function(xhr) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'An error occurred during the swap process',
-                        confirmButtonColor: '#3085d6'
-                    });
-                },
-                complete: function() {
-                    $btn.prop('disabled', false);
-                    $('#swapSpinner').addClass('d-none');
-                }
-            });
-        }
 
         // Form submission handler
         $('#logform').on('submit', function(e) {
@@ -1004,126 +615,112 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['swap_request'])) {
             });
         }
 
-       
-        // Update the confirm button text when a subject is selected
-
-// Handle subject selection (instructors only)
-$(document).on('change', '.subject-checkbox', function() {
-    // Uncheck all others (single select)
-    $('.subject-checkbox').not(this).prop('checked', false);
-    
-    // Store selected subject/room/time in hidden inputs
-    if ($(this).is(':checked')) {
-        $('#selected_subject').val($(this).data('subject'));
-        $('#selected_room').val($(this).data('room'));
-        $('#confirmSubject').prop('disabled', false);
-    } else {
-        $('#selected_subject').val('');
-        $('#selected_room').val('');
-        $('#confirmSubject').prop('disabled', true);
-    }
-});
-
-// Confirm subject selection
-$('#confirmSubject').click(function() {
-    const selectedRow = $('.subject-checkbox:checked').closest('tr');
-    const subject = $('#selected_subject').val();
-    const room = $('#selected_room').val();
-    
-    if (!subject || !room) {
-        showAlert('Please select a subject first.');
-        return;
-    }
-    
-    // Grab time text
-    $('#selected_time').val(selectedRow.find('td:last').text());
-    
-    // Close modal
-    $('#subjectModal').modal('hide');
-    
-    // Submit login form
-    submitLoginForm();
-});
-
-// Submit login form to server
-function submitLoginForm() {
-    const formData = $('#logform').serialize();
-    
-    Swal.fire({
-        title: 'Logging in...',
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading()
-    });
-
-    $.ajax({
-        url: '', // same PHP page
-        type: 'POST',
-        data: formData,
-        dataType: 'json',
-        success: function(response) {
-            Swal.close();
-            if (response.status === 'success') {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Login Successful',
-                    text: response.message || 'Redirecting...',
-                    timer: 1500,
-                    showConfirmButton: false,
-                    willClose: () => {
-                        window.location.href = response.redirect;
-                    }
-                });
+        // Handle subject selection (instructors only)
+        $(document).on('change', '.subject-checkbox', function() {
+            // Uncheck all others (single select)
+            $('.subject-checkbox').not(this).prop('checked', false);
+            
+            // Store selected subject/room/time in hidden inputs
+            if ($(this).is(':checked')) {
+                $('#selected_subject').val($(this).data('subject'));
+                $('#selected_room').val($(this).data('room'));
+                $('#confirmSubject').prop('disabled', false);
             } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Login Failed',
-                    text: response.message || 'Invalid credentials'
-                });
+                $('#selected_subject').val('');
+                $('#selected_room').val('');
+                $('#confirmSubject').prop('disabled', true);
             }
-        },
-        error: function(xhr, status, error) {
-            Swal.close();
+        });
+
+        // Confirm subject selection
+        $('#confirmSubject').click(function() {
+            const selectedRow = $('.subject-checkbox:checked').closest('tr');
+            const subject = $('#selected_subject').val();
+            const room = $('#selected_room').val();
             
-            // Try to parse the response as text first to see what's coming back
-            let errorMessage = 'Login request failed. Please try again.';
-            
-            try {
-                // If it's JSON, parse it
-                const response = JSON.parse(xhr.responseText);
-                errorMessage = response.message || errorMessage;
-            } catch (e) {
-                // If it's not JSON, show the raw response for debugging
-                errorMessage = xhr.responseText || errorMessage;
-                if (errorMessage.length > 100) {
-                    errorMessage = errorMessage.substring(0, 100) + '...';
-                }
+            if (!subject || !room) {
+                showAlert('Please select a subject first.');
+                return;
             }
+            
+            // Grab time text
+            $('#selected_time').val(selectedRow.find('td:last').text());
+            
+            // Close modal
+            $('#subjectModal').modal('hide');
+            
+            // Submit login form
+            submitLoginForm();
+        });
+
+        // Submit login form to server
+        function submitLoginForm() {
+            const formData = $('#logform').serialize();
             
             Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: errorMessage
+                title: 'Logging in...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
             });
-            
-            console.error('Login error:', xhr.responseText);
+
+            $.ajax({
+                url: '', // same PHP page
+                type: 'POST',
+                data: formData,
+                dataType: 'json',
+                success: function(response) {
+                    Swal.close();
+                    if (response.status === 'success') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Login Successful',
+                            text: response.message || 'Redirecting...',
+                            timer: 1500,
+                            showConfirmButton: false,
+                            willClose: () => {
+                                window.location.href = response.redirect;
+                            }
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Login Failed',
+                            text: response.message || 'Invalid credentials'
+                        });
+                    }
+                },
+                error: function(xhr, status, error) {
+                    Swal.close();
+                    
+                    // Try to parse the response as text first to see what's coming back
+                    let errorMessage = 'Login request failed. Please try again.';
+                    
+                    try {
+                        // If it's JSON, parse it
+                        const response = JSON.parse(xhr.responseText);
+                        errorMessage = response.message || errorMessage;
+                    } catch (e) {
+                        // If it's not JSON, show the raw response for debugging
+                        errorMessage = xhr.responseText || errorMessage;
+                        if (errorMessage.length > 100) {
+                            errorMessage = errorMessage.substring(0, 100) + '...';
+                        }
+                    }
+                    
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: errorMessage
+                    });
+                    
+                    console.error('Login error:', xhr.responseText);
+                }
+            });
         }
-    });
-}
 
-// Utility alert (used earlier)
-function showAlert(message) {
-    $('#alert-container').removeClass('d-none').text(message);
-}
-
-
-
-        // Show alert message
-        function showAlert(message, type = 'danger') {
-            const $alert = $('#alert-container');
-            $alert.removeClass('d-none alert-danger alert-success').addClass(`alert-${type}`).text(message);
-            setTimeout(() => {
-                $alert.addClass('d-none');
-            }, 5000);
+        // Utility alert (used earlier)
+        function showAlert(message) {
+            $('#alert-container').removeClass('d-none').text(message);
         }
 
         // Fetch rooms when department changes
