@@ -10,7 +10,6 @@ header("X-Content-Type-Options: nosniff");
 // Initialize variables for login attempts
 $maxAttempts = 5;
 $lockoutTime = 300; // 5 minutes in seconds
-$errorMessage = '';
 
 // Initialize session variables if not set
 if (!isset($_SESSION['login_attempts'])) {
@@ -23,7 +22,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     // Check if user is currently locked out
     if ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime) {
         $remainingTime = $lockoutTime - (time() - $_SESSION['lockout_time']);
-        $errorMessage = "Too many failed attempts. Please wait " . ceil($remainingTime / 60) . " minutes before trying again.";
+        $response = [
+            'status' => 'error',
+            'message' => "Too many failed attempts. Please wait " . ceil($remainingTime / 60) . " minutes before trying again."
+        ];
+        echo json_encode($response);
+        exit();
     } else {
         // Reset attempts if lockout period has expired
         if ((time() - $_SESSION['lockout_time']) >= $lockoutTime) {
@@ -49,58 +53,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                 $_SESSION['login_attempts'] = 0;
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
-                $_SESSION['role'] = $user['role'];
+                $_SESSION['email'] = $user['email'];
                 $_SESSION['logged_in'] = true;
                 
                 // Regenerate session ID to prevent fixation
                 session_regenerate_id(true);
                 
-                // Redirect to dashboard
-                header("Location: dashboard.php");
+                $response = [
+                    'status' => 'success',
+                    'message' => 'Login successful! Redirecting...',
+                    'redirect' => 'dashboard.php'
+                ];
+                echo json_encode($response);
                 exit();
             } else {
                 // Password verification failed
-                $errorMessage = "Invalid username or password";
                 $_SESSION['login_attempts']++;
+                
+                $response = [
+                    'status' => 'error',
+                    'message' => "Invalid username or password"
+                ];
+                echo json_encode($response);
+                exit();
             }
         } else {
             // User not found
-            $errorMessage = "Invalid username or password";
             $_SESSION['login_attempts']++;
+            
+            $response = [
+                'status' => 'error',
+                'message' => "Invalid username or password"
+            ];
+            echo json_encode($response);
+            exit();
         }
         
         // Check if account should be locked
         if ($_SESSION['login_attempts'] >= $maxAttempts) {
             $_SESSION['lockout_time'] = time();
-            $errorMessage = "Too many failed attempts. Your account has been locked for 5 minutes.";
+            
+            $response = [
+                'status' => 'error',
+                'message' => "Too many failed attempts. Your account has been locked for 5 minutes."
+            ];
+            echo json_encode($response);
+            exit();
         }
     }
 }
 ?>
-
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <?php include 'header.php'; ?>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>GPASS - Admin Login</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Add SweetAlert CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <style>
-        .terms-link {
-            padding-left: 65%;
-            font-size: 12px;
-            color: gray;
-            text-decoration: none;
-            cursor: pointer;
-        }
-        .terms-link:hover {
-            text-decoration: underline;
-            color: black;
-        }
-        #lockout-message {
-            display: none;
-            margin-top: 15px;
+        body {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .login-container {
             background-color: white;
@@ -109,12 +130,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             overflow: hidden;
             width: 100%;
             max-width: 450px;
-            transition: transform 0.3s ease;
+            animation: fadeIn 0.5s ease;
         }
         
         .login-container:hover {
             transform: translateY(-5px);
+            transition: transform 0.3s ease;
         }
+        
+        .form-floating {
+            margin-bottom: 1rem;
+        }
+        
+        .btn-warning {
+            background-color: #ffc107;
+            border-color: #ffc107;
+            font-weight: 600;
+        }
+        
+        .btn-warning:hover {
+            background-color: #e0a800;
+            border-color: #e0a800;
+        }
+        
+        .terms-link {
+            font-size: 12px;
+            color: gray;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        
+        .terms-link:hover {
+            text-decoration: underline;
+            color: black;
+        }
+        
+        #lockout-message {
+            display: none;
+            margin-top: 15px;
+        }
+        
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -122,44 +177,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     </style>
 </head>
 <body>
-<div class="container-fluid position-relative bg-white d-flex p-0">
-    <div class="container-fluid">
-        <div class="row h-100 align-items-center justify-content-center" style="min-height: 100vh;">
-            <div class="col-12 col-sm-8 col-md-6 col-lg-5 col-xl-4">
-                <div class="bg-light rounded p-4 p-sm-5 my-4 mx-3 login-container">
-                    <form id="logform" method="POST">
-                        <div class="d-flex align-items-center justify-content-between mb-3">
-                            <h3 class="text-warning">ADMIN</h3>
-                            <h3>Sign In</h3>
-                        </div>
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+            <div class="login-container p-4 p-sm-5">
+                <form id="logform" method="POST">
+                    <div class="d-flex align-items-center justify-content-between mb-4">
+                        <h3 class="text-warning"><i class="fas fa-user-shield me-2"></i>ADMIN</h3>
+                        <h3>Sign In</h3>
+                    </div>
 
-                        <div class="form-floating mb-3">
-                            <input id="uname" type="text" class="form-control" name="username" placeholder="Username" autocomplete="off" required>
-                            <label for="uname">Username</label>
-                        </div>
+                    <div class="form-floating mb-3">
+                        <input id="uname" type="text" class="form-control" name="username" placeholder="Username" autocomplete="off" required>
+                        <label for="uname"><i class="fas fa-user me-2"></i>Username</label>
+                    </div>
 
-                        <div class="form-floating mb-4">
-                            <input id="password" type="password" class="form-control" name="password" placeholder="Password" autocomplete="off" required>
-                            <label for="password">Password</label>
-                        </div>
+                    <div class="form-floating mb-4">
+                        <input id="password" type="password" class="form-control" name="password" placeholder="Password" autocomplete="off" required>
+                        <label for="password"><i class="fas fa-lock me-2"></i>Password</label>
+                    </div>
 
-                        <div class="d-flex align-items-center justify-content-between mb-4">
-                            <div class="form-check">
-                                <input type="checkbox" id="remember" class="form-check-input" onclick="togglePasswordVisibility()">
-                                <label class="form-check-label" for="remember">Show Password</label>
-                            </div>
-                            <a class="terms-link" href="forgot_password.php">Forgot Password?</a>
+                    <div class="d-flex align-items-center justify-content-between mb-4">
+                        <div class="form-check">
+                            <input type="checkbox" id="remember" class="form-check-input" onclick="togglePasswordVisibility()">
+                            <label class="form-check-label" for="remember">Show Password</label>
                         </div>
-                        
-                        <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response">
-                        <button type="submit" id="loginBtn" name="login" class="btn btn-warning py-3 w-100 mb-4">
-                            <span id="loginText">Sign In</span>
-                            <span id="loginSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                        </button>
+                        <a class="terms-link" href="forgot_password.php">Forgot Password?</a>
+                    </div>
+                    
+                    <button type="submit" id="loginBtn" name="login" class="btn btn-warning py-3 w-100 mb-4">
+                        <span id="loginText">Sign In</span>
+                        <span id="loginSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                    </button>
 
-                       
-                    </form>
-                </div>
+                    <div id="lockout-message" class="alert alert-danger text-center">
+                        Account locked. Please try again in <span id="countdown"></span> seconds.
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -211,8 +265,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                 }).then(() => {
                     window.location.href = data.redirect;
                 });
-            } else if (data.status === 'verification') {
-                window.location.href = data.redirect;
             } else {
                 Swal.fire({
                     title: 'Error!',
