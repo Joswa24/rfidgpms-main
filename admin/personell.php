@@ -1,4 +1,3 @@
-
 <?php
 session_start();
 // Display success/error messages
@@ -108,7 +107,7 @@ function cleanID($id) {
                                     <?php while ($row = mysqli_fetch_array($results)) { ?>
                                     <tr class="table-<?php echo $row['id'];?>">
                                         <input class="id_number" type="hidden" value="<?php echo $row['id_no']; ?>" />
-                                        <input class="rfid_raw" type="hidden" value="<?php echo $row['rfid_number']; ?>" />
+                                        <input class="rfid_raw" type="hidden" value="<?php echo $row['id_number']; ?>" />
                                         <input class="role" type="hidden" value="<?php echo $row['role']; ?>" />
                                         <input class="last_name" type="hidden" value="<?php echo $row['last_name']; ?>" />
                                         <input class="first_name" type="hidden" value="<?php echo $row['first_name']; ?>" />
@@ -128,7 +127,7 @@ function cleanID($id) {
                                         <img class="photo" src="uploads/<?php echo $row['photo']; ?>" width="50px" height="50px">
                                         </center>
                                         </td>
-                                        <td class="rfid"><?php echo formatID($row['rfid_number']); ?></td>
+                                        <td class="rfid"><?php echo formatID($row['id_number']); ?></td>
                                         <td><?php echo $row['first_name'] .' '.$row['last_name']; ?></td>
                                         <td><?php echo $row['role']; ?></td>
                                         <td><?php echo $row['category']; ?></td>
@@ -199,7 +198,7 @@ function cleanID($id) {
                                                     <label>ROLE:</label>
                                                     <select required class="form-control dept_ID" name="role" id="role" autocomplete="off" onchange="updateCategory()">
                                                         <?php
-                                                            $sql = "SELECT * FROM role";
+                                                            $sql = "SELECT * FROM role WHERE role != 'Instructor'";
                                                             $result = $db->query($sql);
                                                             while ($row = $result->fetch_assoc()) {
                                                                 $role = $row['role'];
@@ -273,7 +272,7 @@ function cleanID($id) {
                                             <div class="col-lg-4 col-md-6 col-sm-12">
                                                 <div class="form-group">
                                                     <label>ID NUMBER:</label>
-                                                    <input required type="text" class="form-control" name="rfid_number" id="rfid_number" minlength="9" maxlength="9" autocomplete="off" placeholder="0000-0000" pattern="[0-9]{4}-[0-9]{4}">
+                                                    <input required type="text" class="form-control" name="id_number" id="id_number" minlength="9" maxlength="9" autocomplete="off" placeholder="0000-0000" pattern="[0-9]{4}-[0-9]{4}">
                                                     <span class="rfidno-error"></span>
                                                 </div>
                                             </div>
@@ -331,7 +330,7 @@ function cleanID($id) {
                                                     <select class="form-control dept_ID" name="role" id="erole" autocomplete="off">
                                                         <option class="edit-role-val" value=""></option>
                                                         <?php
-                                                            $sql = "SELECT * FROM role";
+                                                            $sql = "SELECT * FROM role WHERE role != 'Instructor'";
                                                             $result = $db->query($sql);
                                                             while ($row = $result->fetch_assoc()) {
                                                                 $role = $row['role'];
@@ -402,7 +401,7 @@ function cleanID($id) {
                                             <div class="col-lg-4 col-md-6 col-sm-12">
                                                 <div class="form-group">
                                                     <label>ID NUMBER:</label>
-                                                    <input required type="text" class="form-control edit-rfid" name="rfid_number" id="rfid_number1" minlength="9" maxlength="9" autocomplete="off" placeholder="0000-0000" pattern="[0-9]{4}-[0-9]{4}">
+                                                    <input required type="text" class="form-control edit-rfid" name="id_number" id="id_number1" minlength="9" maxlength="9" autocomplete="off" placeholder="0000-0000" pattern="[0-9]{4}-[0-9]{4}">
                                                     <span class="rfidno-error"></span>
                                                 </div>
                                             </div>
@@ -526,7 +525,7 @@ function cleanID($id) {
         }
 
         // Add event listeners for ID number formatting
-        $('#rfid_number, #rfid_number1').on('input', function() {
+        $('#id_number, #id_number1').on('input', function() {
             formatIDNumber(this);
         });
 
@@ -535,7 +534,7 @@ function cleanID($id) {
             e.preventDefault();
             
             // Validate required fields
-            const requiredFields = ['last_name', 'first_name', 'date_of_birth', 'rfid_number', 'role', 'category', 'department'];
+            const requiredFields = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department'];
             let isValid = true;
             
             requiredFields.forEach(field => {
@@ -549,7 +548,7 @@ function cleanID($id) {
             });
             
             // Validate ID number format (0000-0000)
-            const idNumber = $('#rfid_number').val();
+            const idNumber = $('#id_number').val();
             const idPattern = /^\d{4}-\d{4}$/;
             if (!idPattern.test(idNumber)) {
                 isValid = false;
@@ -583,7 +582,7 @@ function cleanID($id) {
             var cleanIdNumber = idNumber.replace(/-/g, '');
             
             var formData = new FormData(this);
-            formData.set('rfid_number', cleanIdNumber); // Use the clean ID without hyphen
+            formData.set('id_number', cleanIdNumber); // Use the clean ID without hyphen
             
             // Show loading indicator
             $('#btn-emp').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
@@ -634,7 +633,7 @@ function cleanID($id) {
         });
 
         // ID number duplicate check on blur
-        $('#rfid_number').on('blur', function() {
+        $('#id_number').on('blur', function() {
             const idNumber = $(this).val();
             const idPattern = /^\d{4}-\d{4}$/;
             
@@ -645,7 +644,7 @@ function cleanID($id) {
                 $.ajax({
                     url: 'check_rfid.php',
                     method: 'POST',
-                    data: { rfid_number: cleanIdNumber },
+                    data: { id_number: cleanIdNumber },
                     success: function(response) {
                         const res = JSON.parse(response);
                         if (res.exists) {
@@ -654,7 +653,7 @@ function cleanID($id) {
                                 title: 'Duplicate ID Number',
                                 text: 'This ID number already exists in the system.',
                             }).then(() => {
-                                $('#rfid_number').val('').focus();
+                                $('#id_number').val('').focus();
                             });
                         }
                     }
@@ -731,8 +730,10 @@ function cleanID($id) {
             }
 
             // Remove hyphen from ID number before submitting
-            var idNumber = $('#rfid_number1').val();
+            var idNumber = $('#id_number1').val();
             var cleanIdNumber = idNumber.replace(/-/g, '');
+            
+           
             
             // Validate ID number format (8 digits)
             if (!/^\d{8}$/.test(cleanIdNumber)) {
@@ -745,7 +746,7 @@ function cleanID($id) {
             }
 
             var formData = new FormData(this);
-            formData.set('rfid_number', cleanIdNumber); // Use the clean ID without hyphen
+            formData.set('id_number', cleanIdNumber); // Use the clean ID without hyphen
             formData.append('id', userId);
 
             // Show loading indicator

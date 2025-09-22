@@ -561,12 +561,13 @@ function onScanError(error) {
 }
 
 // Process scanned barcode
+// Process scanned barcode
 function processBarcode(barcode) {
     $.ajax({
         type: "POST",
         url: "process_gate.php",
         data: { 
-            id_number: barcode, // Fixed parameter name
+            id_number: barcode,
             department: "<?php echo $department; ?>",
             location: "<?php echo $location; ?>"
         },
@@ -601,6 +602,36 @@ function processBarcode(barcode) {
             }, 3000);
         }
     });
+}
+
+// Update gate UI with access data
+function updateGateUI(data) {
+    const alertElement = document.getElementById('alert');
+    alertElement.classList.remove('alert-primary', 'alert-success', 'alert-danger', 'alert-warning');
+    
+    if (data.time_in_out === 'TIME IN') {
+        alertElement.classList.add('alert-success');
+        document.getElementById('in_out').innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>ENTRY GRANTED';
+    } else if (data.time_in_out === 'TIME OUT') {
+        alertElement.classList.add('alert-warning');
+        document.getElementById('in_out').innerHTML = '<i class="fas fa-sign-out-alt me-2"></i>EXIT RECORDED';
+    } else if (data.time_in_out === 'UNAUTHORIZED') {
+        alertElement.classList.add('alert-danger');
+        document.getElementById('in_out').innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>ACCESS DENIED';
+    } else if (data.time_in_out === 'COMPLETED') {
+        alertElement.classList.add('alert-info');
+        document.getElementById('in_out').innerHTML = '<i class="fas fa-check-circle me-2"></i>ALREADY COMPLETED';
+    } else {
+        alertElement.classList.add('alert-primary');
+        document.getElementById('in_out').innerHTML = '<i class="fas fa-id-card me-2"></i>Scan Your ID Card for Gate Access';
+    }
+    
+    // Update photo
+    if (data.photo) {
+        document.getElementById('pic').src = data.photo;
+    } else {
+        document.getElementById('pic').src = "uploads/students/default.png";
+    }
 }
 
 // Update gate UI with access data
