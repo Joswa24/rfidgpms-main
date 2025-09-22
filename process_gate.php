@@ -207,8 +207,8 @@ function processPersonEntry($person, $person_type, $db, $department, $location, 
     $tables = [
         'student' => ['table' => 'students_glogs', 'fk' => 'student_id'],
         'instructor' => ['table' => 'instructor_glogs', 'fk' => 'instructor_id'],
-        'personell' => ['table' => 'personell_glogs', 'fk' => 'personell_id'],
-        'visitor' => ['table' => 'visitors_glogs', 'fk' => 'visitor_id']
+        'personell' => ['table' => 'personell_glogs', 'fk' => 'personnel_id'],
+        'visitor' => ['table' => 'visitor_glogs', 'fk' => 'visitor_id']
     ];
     
     if (!isset($tables[$person_type])) {
