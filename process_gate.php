@@ -262,7 +262,7 @@ function processPersonEntry($person, $person_type, $db, $department, $location, 
             
         } elseif (empty($existing_log['time_out'])) {
             // Record time out
-            $update_query = "UPDATE $log_table SET time_out = ?, dept = ?, location = ? WHERE id = ?";
+            $update_query = "UPDATE $log_table SET time_out = ?, department = ?, location = ? WHERE id = ?";
             $update_stmt = $db->prepare($update_query);
             if (!$update_stmt) {
                 throw new Exception("Failed to prepare update query: " . $db->error);
@@ -316,17 +316,52 @@ function addToGateLogs($db, $person_type, $person_id, $id_number, $full_name, $a
     // Convert action to match your table structure (IN/OUT)
     $direction = strtoupper($action);
     
+    // Check if we have all required data
+    if (empty($full_name)) {
+        $full_name = "Unknown";
+    }
+    
+    if (empty($department)) {
+        $department = "N/A";
+    }
+    
+    if (empty($location)) {
+        $location = "Gate";
+    }
+    
+    // Insert into gate_logs table
     $insert_log = "INSERT INTO gate_logs (person_type, person_id, id_number, name, action, time_in, time_out, date, location, department, created_at, direction) 
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     $stmt = $db->prepare($insert_log);
+    
     if ($stmt) {
         // Set time_in or time_out based on action
         $time_in = ($action === 'IN') ? $time : NULL;
         $time_out = ($action === 'OUT') ? $time : NULL;
         
-        $stmt->bind_param("sissssssssss", $person_type, $person_id, $id_number, $full_name, $direction, $time_in, $time_out, $date, $location, $department, $now, $direction);
-        $stmt->execute();
+        $stmt->bind_param(
+            "sissssssssss", 
+            $person_type, 
+            $person_id, 
+            $id_number, 
+            $full_name, 
+            $direction, 
+            $time_in, 
+            $time_out, 
+            $date, 
+            $location, 
+            $department, 
+            $now, 
+            $direction
+        );
+        
+        if (!$stmt->execute()) {
+            error_log("Failed to insert into gate_logs: " . $stmt->error);
+        }
+        
         $stmt->close();
+    } else {
+        error_log("Failed to prepare gate_logs insert statement: " . $db->error);
     }
 }
 ?>
