@@ -104,7 +104,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $clean_id = str_replace('-', '', $id_number);
         
         // Use the correct column name: id_no instead of id_number
-        $stmt = $db->prepare("SELECT * FROM personell WHERE rfid_number = ? AND department = 'Main'");
+        $stmt = $db->prepare("SELECT * FROM personell WHERE id_number = ? AND department = 'Main'");
         if (!$stmt) {
             error_log("Prepare failed: " . $db->error);
             die("Database error. Please check server logs.");
@@ -122,7 +122,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             sleep(2);
             
             // Try rfid_number as fallback (also without hyphen)
-            $stmt2 = $db->prepare("SELECT * FROM personell WHERE rfid_number = ? AND role = 'Security Personnel'");
+            $stmt2 = $db->prepare("SELECT * FROM personell WHERE id_number = ? AND role = 'Security Personnel'");
             if ($stmt2) {
                 $stmt2->bind_param("s", $clean_id);
                 $stmt2->execute();
@@ -134,13 +134,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             sleep(2);
             
             // Debug: Check what IDs actually exist
-            $debugStmt = $db->prepare("SELECT  rfid_number, first_name, last_name, role FROM personell WHERE (role LIKE '%Security Personnel%' OR role LIKE '%Guard%')");
+            $debugStmt = $db->prepare("SELECT id_number, first_name, last_name, role FROM personell WHERE (role LIKE '%Security Personnel%' OR role LIKE '%Guard%')");
             $debugStmt->execute();
             $debugResult = $debugStmt->get_result();
             
             $availablePersonnel = [];
             while ($row = $debugResult->fetch_assoc()) {
-                $availablePersonnel[] = " RFID:{$row['rfid_number']}, Name:{$row['first_name']} {$row['last_name']}";
+                $availablePersonnel[] = " RFID:{$row['id_number']}, Name:{$row['first_name']} {$row['last_name']}";
             }
             
             die("Unauthorized access. Security personnel not found with ID: $id_number (clean: $clean_id). Available: " . implode('; ', $availablePersonnel));
@@ -186,7 +186,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             'security' => [
                 'id' => $securityGuard['id'],
                 'fullname' => $securityGuard['first_name'] . ' ' . $securityGuard['last_name'],
-                'rfid_number' => $securityGuard['rfid_number'],
+                'id_number' => $securityGuard['id_number'],
                 'role' => $securityGuard['role']
             ],
             'gate' => [
