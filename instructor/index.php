@@ -84,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                             $updateStmt->close();
 
                             session_regenerate_id(true);
-                            header("Location: <instuctor>dashboard.php");
+                            header("Location: dashboard.php");
                             exit();
                         } else {
                             $errorMessage = "Invalid username or password";
