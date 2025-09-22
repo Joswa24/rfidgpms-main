@@ -6,13 +6,13 @@ if ($db->connect_error) {
 }
 
 // Get the RFID number from the AJAX request
-$rfid_number = $_POST['rfid_number'] ?? '';
+$rfid_number = $_POST['id_number'] ?? '';
 
 // Prevent SQL injection
-$rfid_number = $db->real_escape_string($rfid_number);
+$id_number = $db->real_escape_string($id_number);
 
 // Query to check if RFID exists
-$sql = "SELECT COUNT(*) as count FROM personell WHERE rfid_number = '$rfid_number'";
+$sql = "SELECT COUNT(*) as count FROM personell WHERE id_number = '$id_number'";
 $result = $db->query($sql);
 
 if ($result) {

@@ -6,6 +6,6 @@ include 'connection.php';
 session_destroy();
 
 // Redirect to login page
-// header("rfid-gpms.com");
+header("Location: index.php");
 exit();
 ?>

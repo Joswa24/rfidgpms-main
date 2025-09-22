@@ -107,7 +107,7 @@ function cleanID($id) {
                                     <?php while ($row = mysqli_fetch_array($results)) { ?>
                                     <tr class="table-<?php echo $row['id'];?>">
                                         <input class="id_number" type="hidden" value="<?php echo $row['id_no']; ?>" />
-                                        <input class="rfid_raw" type="hidden" value="<?php echo $row['id_number']; ?>" />
+                                        <input class="id_raw" type="hidden" value="<?php echo $row['id_number']; ?>" />
                                         <input class="role" type="hidden" value="<?php echo $row['role']; ?>" />
                                         <input class="last_name" type="hidden" value="<?php echo $row['last_name']; ?>" />
                                         <input class="first_name" type="hidden" value="<?php echo $row['first_name']; ?>" />
@@ -127,7 +127,7 @@ function cleanID($id) {
                                         <img class="photo" src="uploads/<?php echo $row['photo']; ?>" width="50px" height="50px">
                                         </center>
                                         </td>
-                                        <td class="rfid"><?php echo formatID($row['id_number']); ?></td>
+                                        <td class="id"><?php echo formatID($row['id_number']); ?></td>
                                         <td><?php echo $row['first_name'] .' '.$row['last_name']; ?></td>
                                         <td><?php echo $row['role']; ?></td>
                                         <td><?php echo $row['category']; ?></td>
@@ -273,7 +273,7 @@ function cleanID($id) {
                                                 <div class="form-group">
                                                     <label>ID NUMBER:</label>
                                                     <input required type="text" class="form-control" name="id_number" id="id_number" minlength="9" maxlength="9" autocomplete="off" placeholder="0000-0000" pattern="[0-9]{4}-[0-9]{4}">
-                                                    <span class="rfidno-error"></span>
+                                                    <span class="idno-error"></span>
                                                 </div>
                                             </div>
                                             <div class="col-lg-4 col-md-6 col-sm-12">
@@ -401,8 +401,8 @@ function cleanID($id) {
                                             <div class="col-lg-4 col-md-6 col-sm-12">
                                                 <div class="form-group">
                                                     <label>ID NUMBER:</label>
-                                                    <input required type="text" class="form-control edit-rfid" name="id_number" id="id_number1" minlength="9" maxlength="9" autocomplete="off" placeholder="0000-0000" pattern="[0-9]{4}-[0-9]{4}">
-                                                    <span class="rfidno-error"></span>
+                                                    <input required type="text" class="form-control edit-id" name="id_number" id="id_number1" minlength="9" maxlength="9" autocomplete="off" placeholder="0000-0000" pattern="[0-9]{4}-[0-9]{4}">
+                                                    <span class="idno-error"></span>
                                                 </div>
                                             </div>
                                             <div class="col-lg-4 col-md-6 col-sm-12">
@@ -552,9 +552,9 @@ function cleanID($id) {
             const idPattern = /^\d{4}-\d{4}$/;
             if (!idPattern.test(idNumber)) {
                 isValid = false;
-                $('.rfidno-error').text('ID Number must be in format: 0000-0000').css('color', 'red');
+                $('.idno-error').text('ID Number must be in format: 0000-0000').css('color', 'red');
             } else {
-                $('.rfidno-error').text('');
+                $('.idno-error').text('');
             }
             
             // Validate date of birth (minimum age 18)
