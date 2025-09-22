@@ -254,7 +254,7 @@ function processPersonEntry($person, $person_type, $db, $department, $location, 
             if ($update_stmt->execute()) {
                 $response['time_in_out'] = 'TIME IN';
                 $response['alert_class'] = 'alert-success';
-                addToGateLogs($db, $person_type, $person_id, $id_number, $full_name, 'IN', $department, $location, $now);
+                addToGateLogs($db, $person_type, $person_id, $id_number, $full_name, 'in', $department, $location, $now);
             } else {
                 throw new Exception("Failed to update time in: " . $db->error);
             }
@@ -273,7 +273,7 @@ function processPersonEntry($person, $person_type, $db, $department, $location, 
             if ($update_stmt->execute()) {
                 $response['time_in_out'] = 'TIME OUT';
                 $response['alert_class'] = 'alert-warning';
-                addToGateLogs($db, $person_type, $person_id, $id_number, $full_name, 'OUT', $department, $location, $now);
+                addToGateLogs($db, $person_type, $person_id, $id_number, $full_name, 'out', $department, $location, $now);
             } else {
                 throw new Exception("Failed to update time out: " . $db->error);
             }
@@ -298,7 +298,7 @@ function processPersonEntry($person, $person_type, $db, $department, $location, 
         if ($insert_stmt->execute()) {
             $response['time_in_out'] = 'TIME IN';
             $response['alert_class'] = 'alert-success';
-            addToGateLogs($db, $person_type, $person_id, $id_number, $full_name, 'IN', $department, $location, $now);
+            addToGateLogs($db, $person_type, $person_id, $id_number, $full_name, 'in', $department, $location, $now);
         } else {
             throw new Exception("Failed to insert new log: " . $db->error);
         }
@@ -313,11 +313,14 @@ function addToGateLogs($db, $person_type, $person_id, $id_number, $full_name, $a
     $time = date('H:i:s');
     $date = date('Y-m-d');
     
-    $insert_log = "INSERT INTO gate_logs (person_type, person_id, id_number, name, action, time, date, department, location, created_at) 
+    // Convert action to lowercase for consistency
+    $direction = strtolower($action);
+    
+    $insert_log = "INSERT INTO gate_logs (person_type, person_id, id_number, name, direction, time, date, department, location, created_at) 
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     $stmt = $db->prepare($insert_log);
     if ($stmt) {
-        $stmt->bind_param("sissssssss", $person_type, $person_id, $id_number, $full_name, $action, $time, $date, $department, $location, $now);
+        $stmt->bind_param("sissssssss", $person_type, $person_id, $id_number, $full_name, $direction, $time, $date, $department, $location, $now);
         $stmt->execute();
         $stmt->close();
     }
