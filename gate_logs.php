@@ -17,6 +17,11 @@ function checkStmt($stmt, $db, $query) {
     return $stmt;
 }
 
+// Function to sanitize output
+function sanitizeOutput($output) {
+    return htmlspecialchars($output ?? '', ENT_QUOTES, 'UTF-8');
+}
+
 // ---- detect which column in gate_logs contains the timestamp/datetime ----
 $colsRes = $db->query("SHOW COLUMNS FROM gate_logs");
 if (!$colsRes) {
@@ -79,7 +84,8 @@ $select_full_name = "COALESCE(
     s.fullname,
     i.fullname,
     CONCAT_WS(' ', p.first_name, p.middle_name, p.last_name),
-    v.name
+    v.name,
+    gl.name
 ) AS full_name";
 
 $query = "SELECT gl.*, $select_full_name
@@ -118,7 +124,7 @@ if ($direction_filter !== 'all') {
 if (!empty($search_term)) {
     // search by ID number or the computed full_name
     $query .= " AND (gl.id_number LIKE ? OR (" .
-              "COALESCE(s.fullname, i.fullname, CONCAT_WS(' ', p.first_name, p.middle_name, p.last_name), v.name) LIKE ?))";
+              "COALESCE(s.fullname, i.fullname, CONCAT_WS(' ', p.first_name, p.middle_name, p.last_name), v.name, gl.name) LIKE ?))";
     $search_param = "%$search_term%";
     $params[] = $search_param;
     $params[] = $search_param;
@@ -166,7 +172,6 @@ if ($breakdown_result) {
     }
 }
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -330,7 +335,7 @@ if ($breakdown_result) {
                 <form method="GET" class="row g-3">
                     <div class="col-md-3">
                         <label for="date" class="form-label">Date</label>
-                        <input type="date" class="form-control" id="date" name="date" value="<?php echo htmlspecialchars($date_filter); ?>">
+                        <input type="date" class="form-control" id="date" name="date" value="<?php echo sanitizeOutput($date_filter); ?>">
                     </div>
                     <div class="col-md-2">
                         <label for="type" class="form-label">Person Type</label>
@@ -353,7 +358,7 @@ if ($breakdown_result) {
                     <div class="col-md-3">
                         <label for="search" class="form-label">Search</label>
                         <input type="text" class="form-control" id="search" name="search" 
-                               placeholder="Search name or ID..." value="<?php echo htmlspecialchars($search_term); ?>">
+                               placeholder="Search name or ID..." value="<?php echo sanitizeOutput($search_term); ?>">
                     </div>
                     <div class="col-md-2 d-flex align-items-end">
                         <button type="submit" class="btn btn-primary w-100">
@@ -374,65 +379,64 @@ if ($breakdown_result) {
                     <span class="badge bg-secondary"><?php echo count($logs); ?> records found</span>
                 </div>
                 <div class="card-body p-0">
-    <div class="table-responsive">
-        <table class="table table-striped table-hover mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th><?php echo ucfirst($time_col); ?></th>
-                    <th>ID Number</th>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Direction</th>
-                    <th>Department</th>
-                    <th>Location</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php if (empty($logs)): ?>
-                    <tr>
-                        <td colspan="7" class="text-center py-4">
-                            <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
-                            <p class="text-muted">No logs found for the selected filters</p>
-                        </td>
-                    </tr>
-                <?php else: ?>
-                    <?php foreach ($logs as $log): ?>
-                        <tr class="log-row">
-                            <td>
-                                <?php 
-                                    $timeValue = $log[$time_col] ?? null;
-                                    echo $timeValue 
-                                        ? date('M j, Y h:i A', strtotime($timeValue)) 
-                                        : 'N/A';
-                                ?>
-                            </td>
-                            <td><code><?php echo htmlspecialchars($log['id_number']); ?></code></td>
-                            <td>
-                                <?php 
-                                    $name = $log['full_name'] ?? 'N/A';
-                                    echo htmlspecialchars($name);
-                                ?>
-                            </td>
-                            <td>
-                                <span class="badge badge-<?php echo $log['person_type']; ?>">
-                                    <?php echo ucfirst($log['person_type']); ?>
-                                </span>
-                            </td>
-                            <td>
-                                <span class="badge <?php echo $log['direction'] === 'in' ? 'badge-entry' : 'badge-exit'; ?>">
-                                    <?php echo $log['direction'] === 'in' ? 'ENTRY' : 'EXIT'; ?>
-                                </span>
-                            </td>
-                            <td><?php echo htmlspecialchars($log['department'] ?? 'N/A'); ?></td>
-                            <td><?php echo htmlspecialchars($log['location'] ?? 'N/A'); ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </tbody>
-        </table>
-    </div>
-</div>
-
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Time</th>
+                                    <th>ID Number</th>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Direction</th>
+                                    <th>Department</th>
+                                    <th>Location</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (empty($logs)): ?>
+                                    <tr>
+                                        <td colspan="7" class="text-center py-4">
+                                            <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                                            <p class="text-muted">No logs found for the selected filters</p>
+                                        </td>
+                                    </tr>
+                                <?php else: ?>
+                                    <?php foreach ($logs as $log): ?>
+                                        <tr class="log-row">
+                                            <td>
+                                                <?php 
+                                                    $timeValue = $log[$time_col] ?? null;
+                                                    echo $timeValue 
+                                                        ? date('M j, Y h:i A', strtotime($timeValue)) 
+                                                        : 'N/A';
+                                                ?>
+                                            </td>
+                                            <td><code><?php echo sanitizeOutput($log['id_number']); ?></code></td>
+                                            <td>
+                                                <?php 
+                                                    $name = $log['full_name'] ?? 'N/A';
+                                                    echo sanitizeOutput($name);
+                                                ?>
+                                            </td>
+                                            <td>
+                                                <span class="badge badge-<?php echo $log['person_type']; ?>">
+                                                    <?php echo ucfirst($log['person_type']); ?>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="badge <?php echo $log['direction'] === 'in' ? 'badge-entry' : 'badge-exit'; ?>">
+                                                    <?php echo $log['direction'] === 'in' ? 'ENTRY' : 'EXIT'; ?>
+                                                </span>
+                                            </td>
+                                            <td><?php echo sanitizeOutput($log['department'] ?? 'N/A'); ?></td>
+                                            <td><?php echo sanitizeOutput($log['location'] ?? 'N/A'); ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
