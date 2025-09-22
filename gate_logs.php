@@ -1,29 +1,6 @@
 <?php
 session_start();
-// Debug: Check what's in the gate_logs table
-$debug_query = "SELECT * FROM gate_logs ORDER BY id DESC LIMIT 10";
-$debug_result = $db->query($debug_query);
-echo "<div style='background: #f8f9fa; padding: 10px; margin: 10px 0; border: 1px solid #ccc;'>";
-echo "<h4>Debug: Latest 10 gate_logs entries</h4>";
-if ($debug_result && $debug_result->num_rows > 0) {
-    echo "<table border='1' style='width:100%;'>";
-    echo "<tr><th>ID</th><th>Person Type</th><th>ID Number</th><th>Name</th><th>Direction</th><th>Time</th><th>Date</th></tr>";
-    while ($row = $debug_result->fetch_assoc()) {
-        echo "<tr>";
-        echo "<td>" . ($row['id'] ?? 'N/A') . "</td>";
-        echo "<td>" . ($row['person_type'] ?? 'N/A') . "</td>";
-        echo "<td>" . ($row['id_number'] ?? 'N/A') . "</td>";
-        echo "<td>" . ($row['name'] ?? 'N/A') . "</td>";
-        echo "<td>" . ($row['direction'] ?? 'N/A') . "</td>";
-        echo "<td>" . ($row['time'] ?? 'N/A') . "</td>";
-        echo "<td>" . ($row['date'] ?? 'N/A') . "</td>";
-        echo "</tr>";
-    }
-    echo "</table>";
-} else {
-    echo "No records found in gate_logs table!";
-}
-echo "</div>";
+
 // Check if user is logged in as security personnel
 if (!isset($_SESSION['access']) || !isset($_SESSION['access']['security'])) {
     header("Location: index.php");
