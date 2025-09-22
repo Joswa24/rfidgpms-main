@@ -22,64 +22,10 @@ function sanitizeOutput($output) {
     return htmlspecialchars($output ?? '', ENT_QUOTES, 'UTF-8');
 }
 
-// ---- detect which column in gate_logs contains the timestamp/datetime ----
-$colsRes = $db->query("SHOW COLUMNS FROM gate_logs");
-if (!$colsRes) {
-    die("Could not inspect gate_logs structure: (" . $db->errno . ") " . $db->error);
-}
-$columns = [];
-while ($c = $colsRes->fetch_assoc()) {
-    $columns[$c['Field']] = $c['Type'];
-}
+// Use created_at as the timestamp column for your table structure
+$time_col = 'created_at';
 
-// Prefer columns whose TYPE contains timestamp/datetime/date
-$time_col = null;
-$preferred_types = ['timestamp', 'datetime', 'date'];
-foreach ($preferred_types as $ptype) {
-    foreach ($columns as $field => $type) {
-        if (stripos($type, $ptype) !== false) {
-            $time_col = $field;
-            break 2;
-        }
-    }
-}
-
-// If none found by type, prefer common names
-if (!$time_col) {
-    $common_names = ['date_logged', 'timestamp', 'created_at', 'log_timestamp', 'time', 'log_time', 'entry_time', 'date_time', 'date'];
-    foreach ($common_names as $cn) {
-        if (array_key_exists($cn, $columns)) {
-            $time_col = $cn;
-            break;
-        }
-    }
-}
-
-// Last fallback: pick a column with 'time' or 'date' in the name
-if (!$time_col) {
-    foreach ($columns as $field => $type) {
-        if (stripos($field, 'time') !== false || stripos($field, 'date') !== false) {
-            $time_col = $field;
-            break;
-        }
-    }
-}
-
-// If still not found, show the columns and die (so you can tell me which to use)
-if (!$time_col) {
-    $list = implode(', ', array_map(function($f, $t){ return "$f ($t)"; }, array_keys($columns), $columns));
-    die("No datetime/timestamp-like column found in gate_logs. Columns found: <br>" . $list . "<br><br>Please tell me which column stores the log timestamp (or rename/add one).");
-}
-
-// sanitize column name (only allow word characters & underscore)
-if (!preg_match('/^\w+$/', $time_col)) {
-    die("Detected time column name '$time_col' looks unsafe.");
-}
-
-// use backticked column name in queries
-$time_col_backticked = "`" . $db->real_escape_string($time_col) . "`";
-
-// ---- build SELECT with name normalization (based on your schema notes) ----
+// Build SELECT query for your table structure
 $select_full_name = "COALESCE(
     s.fullname,
     i.fullname,
@@ -107,7 +53,7 @@ $search_term      = $_GET['search'] ?? '';
 
 // Apply filters
 if (!empty($date_filter)) {
-    $query .= " AND DATE(gl.$time_col_backticked) = ?";
+    $query .= " AND DATE(gl.created_at) = ?";
     $params[] = $date_filter;
     $types .= 's';
 }
@@ -131,7 +77,7 @@ if (!empty($search_term)) {
     $types .= 'ss';
 }
 
-$query .= " ORDER BY gl.$time_col_backticked DESC";
+$query .= " ORDER BY gl.created_at DESC";
 
 // Prepare & execute safely
 $stmt = checkStmt($db->prepare($query), $db, $query);
@@ -142,7 +88,7 @@ $stmt->execute();
 $result = $stmt->get_result();
 $logs = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
 
-// ----------------- STATS (use detected time column) -----------------
+// ----------------- STATS -----------------
 $today = date('Y-m-d');
 $stats_query = "SELECT 
     COUNT(*) as total_entries,
@@ -150,7 +96,7 @@ $stats_query = "SELECT
     SUM(CASE WHEN direction = 'out' THEN 1 ELSE 0 END) as entries_out,
     COUNT(DISTINCT person_id) as unique_people
 FROM gate_logs
-WHERE DATE($time_col_backticked) = ?";
+WHERE DATE(created_at) = ?";
 
 $stats_stmt = checkStmt($db->prepare($stats_query), $db, $stats_query);
 $stats_stmt->bind_param("s", $today);
@@ -159,7 +105,7 @@ $stats_result = $stats_stmt->get_result();
 $stats = $stats_result ? $stats_result->fetch_assoc() : [];
 
 // ----------------- BREAKDOWN -----------------
-$breakdown_query = "SELECT person_type, COUNT(*) as count FROM gate_logs WHERE DATE($time_col_backticked) = ? GROUP BY person_type";
+$breakdown_query = "SELECT person_type, COUNT(*) as count FROM gate_logs WHERE DATE(created_at) = ? GROUP BY person_type";
 $breakdown_stmt = checkStmt($db->prepare($breakdown_query), $db, $breakdown_query);
 $breakdown_stmt->bind_param("s", $today);
 $breakdown_stmt->execute();
@@ -351,8 +297,8 @@ if ($breakdown_result) {
                         <label for="direction" class="form-label">Direction</label>
                         <select class="form-select" id="direction" name="direction">
                             <option value="all" <?php echo $direction_filter === 'all' ? 'selected' : ''; ?>>Both</option>
-                            <option value="in" <?php echo $direction_filter === 'in' ? 'selected' : ''; ?>>Entry Only</option>
-                            <option value="out" <?php echo $direction_filter === 'out' ? 'selected' : ''; ?>>Exit Only</option>
+                            <option value="IN" <?php echo $direction_filter === 'IN' ? 'selected' : ''; ?>>Entry Only</option>
+                            <option value="OUT" <?php echo $direction_filter === 'OUT' ? 'selected' : ''; ?>>Exit Only</option>
                         </select>
                     </div>
                     <div class="col-md-3">
@@ -405,7 +351,7 @@ if ($breakdown_result) {
                                         <tr class="log-row">
                                             <td>
                                                 <?php 
-                                                    $timeValue = $log[$time_col] ?? null;
+                                                    $timeValue = $log['created_at'] ?? null;
                                                     echo $timeValue 
                                                         ? date('M j, Y h:i A', strtotime($timeValue)) 
                                                         : 'N/A';
@@ -424,8 +370,8 @@ if ($breakdown_result) {
                                                 </span>
                                             </td>
                                             <td>
-                                                <span class="badge <?php echo $log['direction'] === 'in' ? 'badge-entry' : 'badge-exit'; ?>">
-                                                    <?php echo $log['direction'] === 'in' ? 'ENTRY' : 'EXIT'; ?>
+                                                <span class="badge <?php echo $log['direction'] === 'IN' ? 'badge-entry' : 'badge-exit'; ?>">
+                                                    <?php echo $log['direction'] === 'IN' ? 'ENTRY' : 'EXIT'; ?>
                                                 </span>
                                             </td>
                                             <td><?php echo sanitizeOutput($log['department'] ?? 'N/A'); ?></td>
