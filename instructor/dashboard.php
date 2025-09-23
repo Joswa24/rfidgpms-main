@@ -1,6 +1,11 @@
 <?php
 // ✅ Session & Role Check - MUST BE AT THE VERY TOP
 session_start();
+// Ensure secure session settings
+ini_set('session.use_only_cookies', 1);
+ini_set('session.cookie_httponly', 1);
+ini_set('session.cookie_secure', 1); // Use if HTTPS
+ob_start(); // Add output buffering at the very top
 
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true || $_SESSION['role'] !== 'instructor') {
     header("Location: index.php");
