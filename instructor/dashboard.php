@@ -2,7 +2,10 @@
 // ✅ Session & Role Check - MUST BE AT THE VERY TOP
 session_start();
 
-if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true || $_SESSION['role'] !== 'instructor') {
+// Check if essential session variables exist
+if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true || 
+    !isset($_SESSION['role']) || $_SESSION['role'] !== 'instructor' ||
+    !isset($_SESSION['instructor_id']) || !isset($_SESSION['fullname']) || !isset($_SESSION['department'])) {
     header("Location: index.php");
     exit();
 }
@@ -32,16 +35,14 @@ if (!isset($_SESSION['user_agent'])) {
 include 'header.php';   
 include '../connection.php';
 
-
-
 // ✅ Fetch Instructor Schedules
 $today_classes = null;
 $upcoming_classes = null;
 
-// Today’s classes
+// Today's classes
 $today_day = date("l");
 $stmt = $db->prepare("
-    SELECT subject, room_name, section, start_time, end_time, day,year_level
+    SELECT subject, room_name, section, start_time, end_time, day, year_level
     FROM room_schedules
     WHERE instructor_id = ? AND day = ?
     ORDER BY start_time ASC
@@ -51,11 +52,13 @@ if ($stmt) {
     $stmt->execute();
     $today_classes = $stmt->get_result();
     $stmt->close();
+} else {
+    die("Database error: " . $db->error);
 }
 
 // Upcoming classes (week overview)
 $stmt = $db->prepare("
-    SELECT subject, room_name, section, start_time, end_time, day,year_level
+    SELECT subject, room_name, section, start_time, end_time, day, year_level
     FROM room_schedules
     WHERE instructor_id = ?
     ORDER BY FIELD(day,'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'),
@@ -66,6 +69,8 @@ if ($stmt) {
     $stmt->execute();
     $upcoming_classes = $stmt->get_result();
     $stmt->close();
+} else {
+    die("Database error: " . $db->error);
 }
 ?>
 <!DOCTYPE html>
@@ -243,19 +248,18 @@ if ($stmt) {
                                         '<span class="badge bg-secondary float-end">Completed</span>');
                                 ?>
                                     <div class="list-group-item list-group-item-action">
-    <h6 class="mb-1"><?php echo htmlspecialchars($class['subject']); ?> <?php echo $status; ?></h6>
-    <p class="mb-1">Room: <?php echo htmlspecialchars($class['room_name']); ?></p>
-    <small>
-        Section: <?php echo htmlspecialchars($class['section']); ?> | 
-        <?php echo $start_time . ' - ' . $end_time; ?>
-    </small>
-    <br>
-    <a href="attendance.php?year=<?php echo urlencode($class['year_level']); ?>&section=<?php echo urlencode($class['section']); ?>&subject=<?php echo urlencode($class['subject']); ?>" 
-       class="btn btn-sm btn-outline-primary mt-2">
-       <i class="fas fa-eye me-1"></i> View Attendance
-    </a>
-</div>
-
+                                        <h6 class="mb-1"><?php echo htmlspecialchars($class['subject']); ?> <?php echo $status; ?></h6>
+                                        <p class="mb-1">Room: <?php echo htmlspecialchars($class['room_name']); ?></p>
+                                        <small>
+                                            Section: <?php echo htmlspecialchars($class['section']); ?> | 
+                                            <?php echo $start_time . ' - ' . $end_time; ?>
+                                        </small>
+                                        <br>
+                                        <a href="attendance.php?year=<?php echo urlencode($class['year_level']); ?>&section=<?php echo urlencode($class['section']); ?>&subject=<?php echo urlencode($class['subject']); ?>" 
+                                           class="btn btn-sm btn-outline-primary mt-2">
+                                           <i class="fas fa-eye me-1"></i> View Attendance
+                                        </a>
+                                    </div>
                                 <?php endwhile; ?>
                             </div>
                         <?php else: ?>
@@ -293,48 +297,46 @@ if ($stmt) {
 
         <!-- Upcoming Classes -->
         <div class="row mt-4">
-    <div class="col-12">
-        <div class="card card-dashboard">
-            <div class="card-header bg-primary-custom">
-                <h5 class="card-title mb-0"><i class="fas fa-calendar-week me-2"></i>Upcoming Classes This Week</h5>
-            </div>
-            <div class="card-body">
-                <?php if ($upcoming_classes && $upcoming_classes->num_rows > 0): ?>
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Day</th>
-                                    <th>Time</th>
-                                    <th>Subject</th>
-                                    <th>Room</th>
-                                    <th>Year Level</th>
-                                    <th>Section</th>
-                                    
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php while ($class = $upcoming_classes->fetch_assoc()): ?>
-                                    <tr>
-                                        <td><?php echo htmlspecialchars($class['day']); ?></td>
-                                        <td><?php echo date("g:i A", strtotime($class['start_time'])) . ' - ' . date("g:i A", strtotime($class['end_time'])); ?></td>
-                                        <td><?php echo htmlspecialchars($class['subject']); ?></td>
-                                        <td><?php echo htmlspecialchars($class['room_name']); ?></td>                                       
-                                        <td><?php echo isset($class['year_level']) ? htmlspecialchars($class['year_level']) : '-'; ?></td>
-                                        <td><?php echo htmlspecialchars($class['section']); ?></td>
-                                    </tr>
-                                <?php endwhile; ?>
-                            </tbody>
-                        </table>
+            <div class="col-12">
+                <div class="card card-dashboard">
+                    <div class="card-header bg-primary-custom">
+                        <h5 class="card-title mb-0"><i class="fas fa-calendar-week me-2"></i>Upcoming Classes This Week</h5>
                     </div>
-                <?php else: ?>
-                    <p class="text-muted">No upcoming classes this week.</p>
-                <?php endif; ?>
+                    <div class="card-body">
+                        <?php if ($upcoming_classes && $upcoming_classes->num_rows > 0): ?>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Day</th>
+                                            <th>Time</th>
+                                            <th>Subject</th>
+                                            <th>Room</th>
+                                            <th>Year Level</th>
+                                            <th>Section</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php while ($class = $upcoming_classes->fetch_assoc()): ?>
+                                            <tr>
+                                                <td><?php echo htmlspecialchars($class['day']); ?></td>
+                                                <td><?php echo date("g:i A", strtotime($class['start_time'])) . ' - ' . date("g:i A", strtotime($class['end_time'])); ?></td>
+                                                <td><?php echo htmlspecialchars($class['subject']); ?></td>
+                                                <td><?php echo htmlspecialchars($class['room_name']); ?></td>                                       
+                                                <td><?php echo isset($class['year_level']) ? htmlspecialchars($class['year_level']) : '-'; ?></td>
+                                                <td><?php echo htmlspecialchars($class['section']); ?></td>
+                                            </tr>
+                                        <?php endwhile; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php else: ?>
+                            <p class="text-muted">No upcoming classes this week.</p>
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-</div>
-
     </div><!-- /.main-content -->
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
