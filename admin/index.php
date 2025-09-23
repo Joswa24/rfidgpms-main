@@ -3,10 +3,10 @@
 include '../connection.php';
 session_start();
 
-// Security headers
-header("Content-Security-Policy: default-src 'self'");
-header("X-Frame-Options: DENY");
-header("X-Content-Type-Options: nosniff");
+// // Security headers
+// header("Content-Security-Policy: default-src 'self'");
+// header("X-Frame-Options: DENY");
+// header("X-Content-Type-Options: nosniff");
 
 // Initialize variables for login attempts
 $maxAttempts = 5;
@@ -274,7 +274,7 @@ document.getElementById('logform').addEventListener('submit', function(e) {
     loginBtn.disabled = true;
     
     // Form will submit normally via PHP
-    // No need for AJAX since we're doing server-side redirects
+ 
 });
 
 // Countdown timer for lockout
