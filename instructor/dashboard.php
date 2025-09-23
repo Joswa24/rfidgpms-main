@@ -1,10 +1,7 @@
 <?php
-include 'header.php';   
-include '../connection.php';
+// ✅ Session & Role Check - MUST BE AT THE VERY TOP
+session_start();
 
-
-
-// ✅ Session & Role Check
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true || $_SESSION['role'] !== 'instructor') {
     header("Location: index.php");
     exit();
@@ -30,6 +27,12 @@ if (!isset($_SESSION['user_agent'])) {
         exit();
     }
 }
+
+// Now include other files
+include 'header.php';   
+include '../connection.php';
+
+
 
 // ✅ Fetch Instructor Schedules
 $today_classes = null;

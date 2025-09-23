@@ -2,10 +2,6 @@
 ob_start();
 include '../connection.php';
 session_start();
-// Ensure secure session settings
-ini_set('session.use_only_cookies', 1);
-ini_set('session.cookie_httponly', 1);
-ini_set('session.cookie_secure', 1); // Use if HTTPS
 
 // Security headers
 // header("X-Frame-Options: DENY");
@@ -67,41 +63,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                     if ($result->num_rows > 0) {
                         $user = $result->fetch_assoc();
 
-                        /// ... existing login code ...
-
+                        // Verify password
                         if (password_verify($password, $user['password'])) {
-                        // Successful login
-                        $_SESSION['login_attempts'] = 0;
+                            // Successful login
+                            $_SESSION['login_attempts'] = 0;
 
-                        // Store session data
-                        $_SESSION['username'] = htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8');
-                        $_SESSION['instructor_id'] = (int)$user['instructor_id'];
-                        $_SESSION['fullname'] = htmlspecialchars($user['fullname'], ENT_QUOTES, 'UTF-8');
-                        $_SESSION['department'] = htmlspecialchars($user['department'], ENT_QUOTES, 'UTF-8');
-                        $_SESSION['role'] = 'instructor';
-                        $_SESSION['logged_in'] = true;
-                        $_SESSION['last_activity'] = time();
-                        $_SESSION['user_agent'] = $_SERVER['HTTP_USER_AGENT'];
+                            // Store session data
+                            $_SESSION['username'] = htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8');
+                            $_SESSION['instructor_id'] = (int)$user['instructor_id'];
+                            $_SESSION['fullname'] = htmlspecialchars($user['fullname'], ENT_QUOTES, 'UTF-8');
+                            $_SESSION['department'] = htmlspecialchars($user['department'], ENT_QUOTES, 'UTF-8');
+                            $_SESSION['role'] = 'instructor';
+                            $_SESSION['logged_in'] = true;
+                            $_SESSION['last_activity'] = time();
+                            $_SESSION['user_agent'] = $_SERVER['HTTP_USER_AGENT'];
 
-                        // Debug: Check if session variables are set
-                        error_log("Login successful for user: " . $user['username']);
-                        ("Session role: " . $_SESSION['role']);
-                        error_log("Logged in: " . ($_SESSION['logged_in'] ? 'true' : 'false'));
+                            // Update last login timestamp
+                            $updateStmt = $db->prepare("UPDATE instructor_accounts SET last_login = NOW() WHERE instructor_id = ?");
+                            $updateStmt->bind_param("i", $user['instructor_id']);
+                            $updateStmt->execute();
+                            $updateStmt->close();
 
-                        // Update last login timestamp
-                        $updateStmt = $db->prepare("UPDATE instructor_accounts SET last_login = NOW() WHERE instructor_id = ?");
-                        $updateStmt->bind_param("i", $user['instructor_id']);
-                        $updateStmt->execute();
-                        $updateStmt->close();
-
-                        session_regenerate_id(true);
-    
-                        // Debug before redirect
-                        error_log("Redirecting to dashboard.php");
-    
-                        header("Location: dashboard.php");
-                        exit();
-                        }else {
+                            session_regenerate_id(true);
+                            header("Location: dashboard.php");
+                            exit();
+                        } else {
                             $errorMessage = "Invalid username or password";
                             $_SESSION['login_attempts']++;
                         }
