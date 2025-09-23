@@ -17,10 +17,15 @@ if (!isset($_SESSION['login_attempts'])) {
     $_SESSION['lockout_time'] = 0;
 }
 
+// Generate CSRF token
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     
-    // Validate CSRF token (add this for security)
+    // Validate CSRF token
     if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
         $response = [
             'status' => 'error',
@@ -63,6 +68,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     try {
         // Check credentials in database
         $stmt = $db->prepare("SELECT * FROM user WHERE username = ?");
+        if (!$stmt) {
+            throw new Exception("Database prepare failed: " . $db->error);
+        }
+        
         $stmt->bind_param("s", $username);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -70,19 +79,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         if ($result->num_rows > 0) {
             $user = $result->fetch_assoc();
             
-            // Check if password is hashed or plain text (for migration)
+            // Check if password is hashed or plain text
             if (password_verify($password, $user['password'])) {
                 // Successful login with hashed password
                 loginSuccess($user);
             } elseif ($user['password'] === $password) {
-                // Successful login with plain text password (temporary for migration)
+                // Successful login with plain text password
                 loginSuccess($user);
                 
                 // Hash the plain text password for future use
                 $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
                 $updateStmt = $db->prepare("UPDATE user SET password = ? WHERE id = ?");
-                $updateStmt->bind_param("si", $hashedPassword, $user['id']);
-                $updateStmt->execute();
+                if ($updateStmt) {
+                    $updateStmt->bind_param("si", $hashedPassword, $user['id']);
+                    $updateStmt->execute();
+                }
             } else {
                 // Password verification failed
                 handleFailedLogin();
@@ -103,8 +114,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
 }
 
 function loginSuccess($user) {
-    global $db;
-    
     $_SESSION['login_attempts'] = 0;
     $_SESSION['user_id'] = $user['id'];
     $_SESSION['username'] = $user['username'];
@@ -113,12 +122,6 @@ function loginSuccess($user) {
     
     // Regenerate session ID to prevent fixation
     session_regenerate_id(true);
-    
-    // Update last login time (add this field to your table)
-    // ALTER TABLE user ADD last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-    $updateStmt = $db->prepare("UPDATE user SET last_login = NOW() WHERE id = ?");
-    $updateStmt->bind_param("i", $user['id']);
-    $updateStmt->execute();
     
     $response = [
         'status' => 'success',
@@ -146,17 +149,13 @@ function handleFailedLogin() {
         exit();
     }
     
+    $remainingAttempts = $maxAttempts - $_SESSION['login_attempts'];
     $response = [
         'status' => 'error',
-        'message' => "Invalid username or password. Attempts: " . $_SESSION['login_attempts'] . "/" . $maxAttempts
+        'message' => "Invalid username or password. Attempts remaining: " . $remainingAttempts
     ];
     echo json_encode($response);
     exit();
-}
-
-// Generate CSRF token
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 ?>
 <!DOCTYPE html>
@@ -234,47 +233,43 @@ if (empty($_SESSION['csrf_token'])) {
 </head>
 <body>
 <div class="container">
-    <div class="row justify-content-center">
-        <div class="col-12 col-md-8 col-lg-6">
-            <div class="login-container p-4 p-sm-5">
-                <form id="logform" method="POST">
-                    <div class="d-flex align-items-center justify-content-between mb-4">
-                        <h3 class="text-warning"><i class="fas fa-user-shield me-2"></i>ADMIN</h3>
-                        <h3>Sign In</h3>
-                    </div>
+    <div class="login-container p-4 p-sm-5">
+    <form id="logform" method="POST">
+        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+        
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <h3 class="text-warning"><i class="fas fa-user-shield me-2"></i>ADMIN</h3>
+            <h3>Sign In</h3>
+        </div>
 
-                    <div class="form-floating mb-3">
-                        <input id="uname" type="text" class="form-control" name="username" placeholder="Username" autocomplete="off" required>
-                        <label for="uname"><i class="fas fa-user me-2"></i>Username</label>
-                    </div>
+        <div class="form-floating mb-3">
+            <input id="uname" type="text" class="form-control" name="username" placeholder="Username" autocomplete="off" required>
+            <label for="uname"><i class="fas fa-user me-2"></i>Username</label>
+        </div>
 
-                    <div class="form-floating mb-4">
-                        <input id="password" type="password" class="form-control" name="password" placeholder="Password" autocomplete="off" required>
-                        <label for="password"><i class="fas fa-lock me-2"></i>Password</label>
-                    </div>
+        <div class="form-floating mb-4">
+            <input id="password" type="password" class="form-control" name="password" placeholder="Password" autocomplete="off" required>
+            <label for="password"><i class="fas fa-lock me-2"></i>Password</label>
+        </div>
 
-                    <div class="d-flex align-items-center justify-content-between mb-4">
-                        <div class="form-check">
-                            <input type="checkbox" id="remember" class="form-check-input" onclick="togglePasswordVisibility()">
-                            <label class="form-check-label" for="remember">Show Password</label>
-                        </div>
-                        <a class="terms-link" href="forgot_password.php">Forgot Password?</a>
-                    </div>
-                    
-                    <button type="submit" id="loginBtn" name="login" class="btn btn-warning py-3 w-100 mb-4">
-                        <span id="loginText">Sign In</span>
-                        <span id="loginSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                    </button>
-
-                    <div id="lockout-message" class="alert alert-danger text-center">
-                        Account locked. Please try again in <span id="countdown"></span> seconds.
-                    </div>
-                    <form id="logform" method="POST">
-                    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-    
-   
-                </form>
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div class="form-check">
+                <input type="checkbox" id="remember" class="form-check-input" onclick="togglePasswordVisibility()">
+                <label class="form-check-label" for="remember">Show Password</label>
             </div>
+            <a class="terms-link" href="forgot_password.php">Forgot Password?</a>
+        </div>
+        
+        <button type="submit" id="loginBtn" name="login" class="btn btn-warning py-3 w-100 mb-4">
+            <span id="loginText">Sign In</span>
+            <span id="loginSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+        </button>
+
+        <div id="lockout-message" class="alert alert-danger text-center">
+            Account locked. Please try again in <span id="countdown"></span> seconds.
+        </div>
+    </form>
+</div>
         </div>
     </div>
 </div>
@@ -283,120 +278,121 @@ if (empty($_SESSION['csrf_token'])) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    // Toggle password visibility
-    function togglePasswordVisibility() {
-        const passwordField = document.getElementById("password");
-        passwordField.type = passwordField.type === "password" ? "text" : "password";
-    }
+   // Toggle password visibility
+function togglePasswordVisibility() {
+    const passwordField = document.getElementById("password");
+    passwordField.type = passwordField.type === "password" ? "text" : "password";
+}
 
-    // Handle form submission with AJAX and SweetAlerts
-    document.getElementById('logform').addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        // Show loading state
-        const loginBtn = document.getElementById('loginBtn');
-        const loginText = document.getElementById('loginText');
-        const loginSpinner = document.getElementById('loginSpinner');
-        
-        loginText.textContent = 'Authenticating...';
-        loginSpinner.classList.remove('d-none');
-        loginBtn.disabled = true;
-        
-        // Submit form via AJAX
+// Handle form submission with AJAX and SweetAlerts
+document.getElementById('logform').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    // Show loading state
+    const loginBtn = document.getElementById('loginBtn');
+    const loginText = document.getElementById('loginText');
+    const loginSpinner = document.getElementById('loginSpinner');
+    
+    loginText.textContent = 'Authenticating...';
+    loginSpinner.classList.remove('d-none');
+    loginBtn.disabled = true;
+    
+    try {
         const formData = new FormData(this);
         
-        fetch('', {
+        const response = await fetch('', {
             method: 'POST',
             body: formData,
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                Swal.fire({
-                    title: 'Success!',
-                    text: data.message,
-                    icon: 'success',
-                    confirmButtonText: 'OK',
-                    timer: 2000,
-                    timerProgressBar: true
-                }).then(() => {
-                    window.location.href = data.redirect;
-                });
-            } else {
-                Swal.fire({
-                    title: 'Error!',
-                    text: data.message,
-                    icon: 'error',
-                    confirmButtonText: 'OK'
-                });
-                
-                // Update lockout message if needed
-                if (data.message.includes('locked')) {
-                    startCountdown(<?php echo $lockoutTime; ?>);
-                }
-            }
-        })
-        .catch(error => {
-            Swal.fire({
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            // Show success message and redirect immediately
+            await Swal.fire({
+                title: 'Success!',
+                text: data.message,
+                icon: 'success',
+                confirmButtonText: 'OK',
+                timer: 1000,
+                timerProgressBar: true
+            });
+            
+            // Redirect to dashboard
+            window.location.href = data.redirect;
+            
+        } else {
+            await Swal.fire({
                 title: 'Error!',
-                text: 'An unexpected error occurred. Please try again.',
+                text: data.message,
                 icon: 'error',
                 confirmButtonText: 'OK'
             });
-        })
-        .finally(() => {
-            // Reset button state
-            loginText.textContent = 'Sign In';
-            loginSpinner.classList.add('d-none');
-            loginBtn.disabled = false;
-        });
-    });
-
-    // Countdown timer for lockout
-    function startCountdown(duration) {
-        const lockoutMessage = document.getElementById('lockout-message');
-        const countdownElement = document.getElementById('countdown');
-        const form = document.getElementById('logform');
-        const inputs = form.querySelectorAll('input, button');
-        
-        lockoutMessage.style.display = 'block';
-        let timer = duration;
-        
-        // Disable form elements
-        inputs.forEach(input => {
-            if (input.type !== 'hidden') {
-                input.disabled = true;
-            }
-        });
-        
-        const interval = setInterval(() => {
-            const minutes = Math.floor(timer / 60);
-            let seconds = timer % 60;
             
-            seconds = seconds < 10 ? '0' + seconds : seconds;
-            countdownElement.textContent = `${minutes}:${seconds}`;
-            
-            if (--timer < 0) {
-                clearInterval(interval);
-                lockoutMessage.style.display = 'none';
-                
-                // Enable form elements
-                inputs.forEach(input => {
-                    input.disabled = false;
-                });
+            if (data.message.includes('locked')) {
+                startCountdown(<?php echo $lockoutTime; ?>);
             }
-        }, 1000);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        await Swal.fire({
+            title: 'Error!',
+            text: 'An unexpected error occurred. Please try again.',
+            icon: 'error',
+            confirmButtonText: 'OK'
+        });
+    } finally {
+        // Reset button state
+        loginText.textContent = 'Sign In';
+        loginSpinner.classList.add('d-none');
+        loginBtn.disabled = false;
     }
+});
 
-    // Initialize lockout if needed
-    <?php if ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime): ?>
-        const remainingTime = <?php echo $lockoutTime - (time() - $_SESSION['lockout_time']); ?>;
-        startCountdown(remainingTime);
-    <?php endif; ?>
+// Countdown timer for lockout
+function startCountdown(duration) {
+    const lockoutMessage = document.getElementById('lockout-message');
+    const countdownElement = document.getElementById('countdown');
+    const form = document.getElementById('logform');
+    const inputs = form.querySelectorAll('input, button');
+    
+    lockoutMessage.style.display = 'block';
+    let timer = duration;
+    
+    // Disable form elements
+    inputs.forEach(input => {
+        if (input.type !== 'hidden') {
+            input.disabled = true;
+        }
+    });
+    
+    const interval = setInterval(() => {
+        const minutes = Math.floor(timer / 60);
+        let seconds = timer % 60;
+        
+        seconds = seconds < 10 ? '0' + seconds : seconds;
+        countdownElement.textContent = `${minutes}:${seconds}`;
+        
+        if (--timer < 0) {
+            clearInterval(interval);
+            lockoutMessage.style.display = 'none';
+            
+            // Enable form elements
+            inputs.forEach(input => {
+                input.disabled = false;
+            });
+        }
+    }, 1000);
+}
 
+// Initialize lockout if needed
+<?php if (isset($_SESSION['login_attempts']) && $_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime): ?>
+    const remainingTime = <?php echo $lockoutTime - (time() - $_SESSION['lockout_time']); ?>;
+    startCountdown(remainingTime);
+<?php endif; ?>
     // Security: Disable right-click and developer tools
     document.addEventListener('contextmenu', (e) => e.preventDefault());
     
