@@ -3,10 +3,10 @@
 include '../connection.php';
 session_start();
 
-// // Security headers
-// header("Content-Security-Policy: default-src 'self'");
-// header("X-Frame-Options: DENY");
-// header("X-Content-Type-Options: nosniff");
+// Security headers
+header("Content-Security-Policy: default-src 'self'");
+header("X-Frame-Options: DENY");
+header("X-Content-Type-Options: nosniff");
 
 // Initialize variables for login attempts
 $maxAttempts = 5;
