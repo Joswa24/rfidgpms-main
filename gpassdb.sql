@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 23, 2025 at 05:02 AM
+-- Generation Time: Sep 23, 2025 at 08:57 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -359,7 +359,7 @@ CREATE TABLE `instructor_accounts` (
 
 INSERT INTO `instructor_accounts` (`id`, `instructor_id`, `username`, `password`, `created_at`, `updated_at`, `last_login`, `department`, `fullname`) VALUES
 (1, 13, 'Danilo', '$2y$10$0oqoE/tgXBvzmz.WcZ0Dpe3E7QdrBlrAqxHIAWmXG/mqC46GVgJyO', '2025-09-08 08:26:12', '2025-09-19 05:32:50', '2025-09-19 ', 'BSIT', 'Mr. Danilo Villariono'),
-(2, 16, 'jessica', '$2y$10$5WTQH1ItwPa8PT8Dq3MLPuWwkQEbfYoAK5R9wWqU2KeLsyOl/QA0i', '2025-09-11 23:12:18', '2025-09-19 05:33:03', '2025-09-19 ', 'BSIT', 'Ms.Jessica Alcazar'),
+(2, 16, 'jessica', '$2y$10$5WTQH1ItwPa8PT8Dq3MLPuWwkQEbfYoAK5R9wWqU2KeLsyOl/QA0i', '2025-09-11 23:12:18', '2025-09-23 04:06:22', '2025-09-23 ', 'BSIT', 'Ms.Jessica Alcazar'),
 (3, 12, 'alvin', '$2y$10$bxLgIrb/Y216/EbgHWGyFuT9OBEWMwpXQ5ZrWmMrRH71fDaOsmWjq', '2025-09-11 23:36:14', '2025-09-19 05:41:19', '2025-09-19 ', '', '');
 
 -- --------------------------------------------------------
@@ -578,27 +578,6 @@ CREATE TABLE `personell_logs` (
   `time_out` varchar(255) DEFAULT NULL,
   `location` varchar(255) DEFAULT NULL,
   `personnel_id` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `personnel_glogs`
---
-
-CREATE TABLE `personnel_glogs` (
-  `id` int(11) NOT NULL,
-  `personnel_id` int(11) NOT NULL,
-  `id_number` varchar(50) NOT NULL,
-  `name` varchar(255) NOT NULL,
-  `action` enum('IN','OUT') NOT NULL,
-  `time` time NOT NULL,
-  `date` date NOT NULL,
-  `period` enum('AM','PM') NOT NULL,
-  `location` varchar(100) NOT NULL,
-  `department` varchar(100) NOT NULL,
-  `photo` varchar(255) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -1218,17 +1197,6 @@ ALTER TABLE `personell_logs`
   ADD PRIMARY KEY (`id`);
 
 --
--- Indexes for table `personnel_glogs`
---
-ALTER TABLE `personnel_glogs`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_personnel_id` (`personnel_id`),
-  ADD KEY `idx_id_number` (`id_number`),
-  ADD KEY `idx_date` (`date`),
-  ADD KEY `idx_action` (`action`),
-  ADD KEY `idx_period` (`period`);
-
---
 -- Indexes for table `role`
 --
 ALTER TABLE `role`
@@ -1434,12 +1402,6 @@ ALTER TABLE `personell_glogs`
 --
 ALTER TABLE `personell_logs`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=170;
-
---
--- AUTO_INCREMENT for table `personnel_glogs`
---
-ALTER TABLE `personnel_glogs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `role`
