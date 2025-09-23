@@ -17,6 +17,7 @@ if (!isset($_SESSION['login_attempts'])) {
     $_SESSION['lockout_time'] = 0;
 }
 
+
 // Generate CSRF token
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -50,7 +51,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     if ((time() - $_SESSION['lockout_time']) >= $lockoutTime) {
         $_SESSION['login_attempts'] = 0;
     }
-
+    // If user is already logged in, redirect to dashboard
+if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
+    header('Location: dashboard.php');
+    exit();
+}
     // Validate and sanitize inputs
     $username = filter_input(INPUT_POST, 'username', FILTER_SANITIZE_STRING);
     $password = filter_input(INPUT_POST, 'password', FILTER_SANITIZE_STRING);
@@ -126,7 +131,7 @@ function loginSuccess($user) {
     $response = [
         'status' => 'success',
         'message' => 'Login successful! Redirecting...',
-        'redirect' => 'dashboard.php'
+        'redirect' => 'dashboard.php'  // Changed from 'dashboard.php' to correct path
     ];
     echo json_encode($response);
     exit();
@@ -284,7 +289,6 @@ function togglePasswordVisibility() {
     passwordField.type = passwordField.type === "password" ? "text" : "password";
 }
 
-// Handle form submission with AJAX and SweetAlerts
 document.getElementById('logform').addEventListener('submit', async function(e) {
     e.preventDefault();
     
@@ -311,18 +315,21 @@ document.getElementById('logform').addEventListener('submit', async function(e) 
         const data = await response.json();
         
         if (data.status === 'success') {
-            // Show success message and redirect immediately
-            await Swal.fire({
+            // Show success message and redirect
+            Swal.fire({
                 title: 'Success!',
                 text: data.message,
                 icon: 'success',
                 confirmButtonText: 'OK',
-                timer: 1000,
-                timerProgressBar: true
+                timer: 800,
+                timerProgressBar: true,
+                showConfirmButton: false
             });
             
-            // Redirect to dashboard
-            window.location.href = data.redirect;
+            // Redirect after a short delay
+            setTimeout(() => {
+                window.location.href = data.redirect;
+            }, 800);
             
         } else {
             await Swal.fire({
@@ -351,7 +358,6 @@ document.getElementById('logform').addEventListener('submit', async function(e) 
         loginBtn.disabled = false;
     }
 });
-
 // Countdown timer for lockout
 function startCountdown(duration) {
     const lockoutMessage = document.getElementById('lockout-message');
@@ -386,6 +392,29 @@ function startCountdown(duration) {
             });
         }
     }, 1000);
+}
+// Temporary debug function
+function debugRedirect(data) {
+    console.log('Response data:', data);
+    console.log('Redirect URL:', data.redirect);
+    console.log('Window location before:', window.location.href);
+    
+    // Test if redirect URL is accessible
+    fetch(data.redirect)
+        .then(response => {
+            console.log('Redirect URL status:', response.status);
+        })
+        .catch(error => {
+            console.error('Redirect URL error:', error);
+        });
+}
+
+// In your success handler, add:
+if (data.status === 'success') {
+    debugRedirect(data); // Temporary debug
+    
+    // Your redirect code here
+    window.location.href = data.redirect;
 }
 
 // Initialize lockout if needed

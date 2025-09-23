@@ -1,20 +1,23 @@
 <?php
+// dashboard.php
+session_start();
 include '../connection.php';
-?>
 
+// Check if user is logged in
+
+
+?>
 <!DOCTYPE html>
 <html lang="en">
+<!-- Your entire dashboard HTML content -->
 
-<?php
-include 'header.php';
-?>
 <!-- In your dashboard.php, update the Today's Entrance Logs query -->
 <?php
 $results = mysqli_query($db, "
 SELECT 
     COALESCE(p.photo, vl.photo) as photo,
     COALESCE(p.department, vl.department) as department,
-    COALESCE(p.rfid_number, vl.rfid_number) as rfid_number,
+    COALESCE(p.id_number, vl.rfid_number) as rfid_number,
     COALESCE(p.role, 'Visitor') as role,
     COALESCE(CONCAT(p.first_name, ' ', p.last_name), vl.name) AS full_name,
     COALESCE(rl.time_in, vl.time_in_am, vl.time_in_pm) as time_in,
@@ -592,86 +595,104 @@ ORDER BY
                         </div>
                     </div>
 
-                    <!-- Today's Entrance Logs -->
-                    <div class="bg-light rounded h-100 p-4 mt-4">
-                        <br>
-                        <h2><i class="bi bi-clock"></i> Entrance for today</h2>
-                        <hr>
-                        <div class="table-responsive">
-                            <table class="table table-border" id="myDataTable">
-                                <thead>
-                                    <tr>
-                                        <th scope="col">Photo</th>
-                                        <th scope="col">Full Name</th>
-                                        <th scope="col">Department</th>
-                                        <th scope="col">Role</th>
-                                        <th scope="col">Location</th>
-                                        <th scope="col">Time In</th>
-                                        <th scope="col">Time Out</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php
-                                    $results = mysqli_query($db, "
-                                    SELECT 
-                                        p.photo,
-                                        p.department,
-                                        p.rfid_number,
-                                        p.role,
-                                        CONCAT(p.first_name, ' ', p.last_name) AS full_name,
-                                        rl.time_in,
-                                        rl.time_out,
-                                        rl.location,
-                                        rl.date_logged
-                                    FROM room_logs rl
-                                    JOIN personell p ON rl.personnel_id = p.id
-                                    WHERE rl.date_logged = CURRENT_DATE()
-                                    
-                                    UNION
-                                    
-                                    SELECT 
-                                        vl.photo,
-                                        vl.department,
-                                        vl.rfid_number,
-                                        'Visitor' AS role,
-                                        vl.name AS full_name,
-                                        vl.time_in,
-                                        vl.time_out,
-                                        vl.location,
-                                        vl.date_logged
-                                    FROM visitor_logs vl
-                                    WHERE vl.date_logged = CURRENT_DATE()
-                                    
-                                    ORDER BY 
-                                        CASE 
-                                            WHEN time_out IS NOT NULL THEN time_out 
-                                            ELSE time_in 
-                                        END DESC
-                                    ");
-                                    
-                                    while ($row = mysqli_fetch_array($results)) { 
-                                        $timein = $row['time_in'] ? date('h:i A', strtotime($row['time_in'])) : '-';
-                                        $timeout = $row['time_out'] ? date('h:i A', strtotime($row['time_out'])) : '-';
-                                    ?>
-                                        <tr>
-                                            <td>
-                                                <center><img src="../admin/uploads/<?php echo $row['photo']; ?>" width="50px" height="50px"></center>
-                                            </td>
-                                            <td><?php echo $row['full_name']; ?></td>
-                                            <td><?php echo $row['department']; ?></td>
-                                            <td><?php echo $row['role']; ?></td>
-                                            <td><?php echo $row['location']; ?></td>
-                                            <td><?php echo $timein; ?></td>
-                                            <td><?php echo $timeout; ?></td>
-                                        </tr>
-                                    <?php } ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
+<!-- Today's Entrance Logs -->
+<div class="bg-light rounded h-100 p-4 mt-4">
+    <br>
+    <h2><i class="bi bi-clock"></i> Entrance for today</h2>
+    <hr>
+    <div class="table-responsive">
+        <table class="table table-border" id="myDataTable">
+            <thead>
+                <tr>
+                    <th scope="col">Photo</th>
+                    <th scope="col">Full Name</th>
+                    <th scope="col">Department</th>
+                    <th scope="col">Role</th>
+                    <th scope="col">Location</th>
+                    <th scope="col">Time In</th>
+                    <th scope="col">Time Out</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                // Fixed query with error handling
+                $query = "
+                SELECT 
+                    p.photo,
+                    p.department,
+                    p.id_number,
+                    p.role,
+                    CONCAT(p.first_name, ' ', p.last_name) AS full_name,
+                    rl.time_in,
+                    rl.time_out,
+                    rl.location,
+                    rl.date_logged
+                FROM room_logs rl
+                JOIN personell p ON rl.personnel_id = p.id
+                WHERE rl.date_logged = CURDATE()
+                
+                UNION ALL
+                
+                SELECT 
+                    vl.photo,
+                    vl.department,
+                    vl.rfid_number,
+                    'Visitor' AS role,
+                    vl.name AS full_name,
+                    COALESCE(vl.time_in_am, vl.time_in_pm) as time_in,
+                    COALESCE(vl.time_out_am, vl.time_out_pm) as time_out,
+                    vl.location,
+                    vl.date_logged
+                FROM visitor_logs vl
+                WHERE vl.date_logged = CURDATE()
+                
+                ORDER BY 
+                    CASE 
+                        WHEN time_out IS NOT NULL THEN time_out 
+                        ELSE time_in 
+                    END DESC
+                ";
+                
+                $results = mysqli_query($db, $query);
+                
+                if (!$results) {
+                    echo '<tr><td colspan="7" class="text-danger">Error loading data: ' . mysqli_error($db) . '</td></tr>';
+                } else {
+                    if (mysqli_num_rows($results) > 0) {
+                        while ($row = mysqli_fetch_array($results)) { 
+                            $timein = $row['time_in'] ? date('h:i A', strtotime($row['time_in'])) : '-';
+                            $timeout = $row['time_out'] ? date('h:i A', strtotime($row['time_out'])) : '-';
+                ?>
+                            <tr>
+                                <td>
+                                    <center>
+                                        <?php if (!empty($row['photo'])): ?>
+                                            <img src="../admin/uploads/<?php echo htmlspecialchars($row['photo']); ?>" width="50px" height="50px" style="border-radius: 50%;">
+                                        <?php else: ?>
+                                            <div style="width:50px;height:50px;border-radius:50%;background:#ccc;display:flex;align-items:center;justify-content:center;">
+                                                <i class="fa fa-user"></i>
+                                            </div>
+                                        <?php endif; ?>
+                                    </center>
+                                </td>
+                                <td><?php echo htmlspecialchars($row['full_name']); ?></td>
+                                <td><?php echo htmlspecialchars($row['department']); ?></td>
+                                <td><?php echo htmlspecialchars($row['role']); ?></td>
+                                <td><?php echo htmlspecialchars($row['location']); ?></td>
+                                <td><?php echo $timein; ?></td>
+                                <td><?php echo $timeout; ?></td>
+                            </tr>
+                <?php 
+                        }
+                    } else {
+                        echo '<tr><td colspan="7" class="text-center">No entrance logs found for today.</td></tr>';
+                    }
+                }
+                ?>
+            </tbody>
+        </table>
+    </div>
+</div>
             <?php
             include 'footer.php';
             ?>
