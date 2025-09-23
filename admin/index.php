@@ -19,6 +19,17 @@ if (!isset($_SESSION['login_attempts'])) {
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
+    
+    // Validate CSRF token (add this for security)
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        $response = [
+            'status' => 'error',
+            'message' => "Security token invalid. Please refresh the page."
+        ];
+        echo json_encode($response);
+        exit();
+    }
+
     // Check if user is currently locked out
     if ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime) {
         $remainingTime = $lockoutTime - (time() - $_SESSION['lockout_time']);
@@ -28,16 +39,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         ];
         echo json_encode($response);
         exit();
-    } else {
-        // Reset attempts if lockout period has expired
-        if ((time() - $_SESSION['lockout_time']) >= $lockoutTime) {
-            $_SESSION['login_attempts'] = 0;
-        }
+    }
 
-        // Validate and sanitize inputs
-        $username = filter_input(INPUT_POST, 'username', FILTER_SANITIZE_STRING);
-        $password = filter_input(INPUT_POST, 'password', FILTER_SANITIZE_STRING);
-        
+    // Reset attempts if lockout period has expired
+    if ((time() - $_SESSION['lockout_time']) >= $lockoutTime) {
+        $_SESSION['login_attempts'] = 0;
+    }
+
+    // Validate and sanitize inputs
+    $username = filter_input(INPUT_POST, 'username', FILTER_SANITIZE_STRING);
+    $password = filter_input(INPUT_POST, 'password', FILTER_SANITIZE_STRING);
+    
+    // Basic validation
+    if (empty($username) || empty($password)) {
+        $response = [
+            'status' => 'error',
+            'message' => "Please enter both username and password."
+        ];
+        echo json_encode($response);
+        exit();
+    }
+    
+    try {
         // Check credentials in database
         $stmt = $db->prepare("SELECT * FROM user WHERE username = ?");
         $stmt->bind_param("s", $username);
@@ -47,60 +70,93 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         if ($result->num_rows > 0) {
             $user = $result->fetch_assoc();
             
-            // Verify password
+            // Check if password is hashed or plain text (for migration)
             if (password_verify($password, $user['password'])) {
-                // Successful login
-                $_SESSION['login_attempts'] = 0;
-                $_SESSION['user_id'] = $user['id'];
-                $_SESSION['username'] = $user['username'];
-                $_SESSION['email'] = $user['email'];
-                $_SESSION['logged_in'] = true;
+                // Successful login with hashed password
+                loginSuccess($user);
+            } elseif ($user['password'] === $password) {
+                // Successful login with plain text password (temporary for migration)
+                loginSuccess($user);
                 
-                // Regenerate session ID to prevent fixation
-                session_regenerate_id(true);
-                
-                $response = [
-                    'status' => 'success',
-                    'message' => 'Login successful! Redirecting...',
-                    'redirect' => 'dashboard.php'
-                ];
-                echo json_encode($response);
-                exit();
+                // Hash the plain text password for future use
+                $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+                $updateStmt = $db->prepare("UPDATE user SET password = ? WHERE id = ?");
+                $updateStmt->bind_param("si", $hashedPassword, $user['id']);
+                $updateStmt->execute();
             } else {
                 // Password verification failed
-                $_SESSION['login_attempts']++;
-                
-                $response = [
-                    'status' => 'error',
-                    'message' => "Invalid username or password"
-                ];
-                echo json_encode($response);
-                exit();
+                handleFailedLogin();
             }
         } else {
             // User not found
-            $_SESSION['login_attempts']++;
-            
-            $response = [
-                'status' => 'error',
-                'message' => "Invalid username or password"
-            ];
-            echo json_encode($response);
-            exit();
+            handleFailedLogin();
         }
-        
-        // Check if account should be locked
-        if ($_SESSION['login_attempts'] >= $maxAttempts) {
-            $_SESSION['lockout_time'] = time();
-            
-            $response = [
-                'status' => 'error',
-                'message' => "Too many failed attempts. Your account has been locked for 5 minutes."
-            ];
-            echo json_encode($response);
-            exit();
-        }
+    } catch (Exception $e) {
+        error_log("Login error: " . $e->getMessage());
+        $response = [
+            'status' => 'error',
+            'message' => "Database error. Please try again."
+        ];
+        echo json_encode($response);
+        exit();
     }
+}
+
+function loginSuccess($user) {
+    global $db;
+    
+    $_SESSION['login_attempts'] = 0;
+    $_SESSION['user_id'] = $user['id'];
+    $_SESSION['username'] = $user['username'];
+    $_SESSION['email'] = $user['email'];
+    $_SESSION['logged_in'] = true;
+    
+    // Regenerate session ID to prevent fixation
+    session_regenerate_id(true);
+    
+    // Update last login time (add this field to your table)
+    // ALTER TABLE user ADD last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+    $updateStmt = $db->prepare("UPDATE user SET last_login = NOW() WHERE id = ?");
+    $updateStmt->bind_param("i", $user['id']);
+    $updateStmt->execute();
+    
+    $response = [
+        'status' => 'success',
+        'message' => 'Login successful! Redirecting...',
+        'redirect' => 'dashboard.php'
+    ];
+    echo json_encode($response);
+    exit();
+}
+
+function handleFailedLogin() {
+    global $maxAttempts, $lockoutTime;
+    
+    $_SESSION['login_attempts']++;
+    
+    // Check if account should be locked
+    if ($_SESSION['login_attempts'] >= $maxAttempts) {
+        $_SESSION['lockout_time'] = time();
+        
+        $response = [
+            'status' => 'error',
+            'message' => "Too many failed attempts. Your account has been locked for 5 minutes."
+        ];
+        echo json_encode($response);
+        exit();
+    }
+    
+    $response = [
+        'status' => 'error',
+        'message' => "Invalid username or password. Attempts: " . $_SESSION['login_attempts'] . "/" . $maxAttempts
+    ];
+    echo json_encode($response);
+    exit();
+}
+
+// Generate CSRF token
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 ?>
 <!DOCTYPE html>
@@ -213,6 +269,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                     <div id="lockout-message" class="alert alert-danger text-center">
                         Account locked. Please try again in <span id="countdown"></span> seconds.
                     </div>
+                    <form id="logform" method="POST">
+                    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+    
+   
                 </form>
             </div>
         </div>

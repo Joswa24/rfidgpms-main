@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 16, 2025 at 09:13 AM
+-- Generation Time: Sep 23, 2025 at 05:02 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -171,7 +171,10 @@ INSERT INTO `archived_attendance_logs` (`id`, `student_id`, `id_number`, `time_i
 (311, 75, '2024-1570', '2025-09-12 12:38:15', '2025-09-12 12:38:15', 'BSIT', 'ComLab2', '', NULL),
 (312, 75, '2024-1570', '2025-09-12 12:38:52', '2025-09-12 12:38:52', 'BSIT', 'ComLab2', '', NULL),
 (313, 75, '2024-1570', '2025-09-12 12:39:13', '2025-09-12 12:39:13', 'BSIT', 'ComLab2', '', NULL),
-(314, 75, '2024-1570', '2025-09-12 15:29:14', NULL, 'BSIT', 'ComLab2', '', NULL);
+(314, 75, '2024-1570', '2025-09-12 15:29:14', NULL, 'BSIT', 'ComLab2', '', NULL),
+(315, 75, '2024-1570', '2025-09-16 16:01:23', '2025-09-16 16:01:23', 'BSIT', 'ComLab2', '', NULL),
+(316, 75, '2024-1570', '2025-09-16 18:56:06', '2025-09-16 18:56:06', 'BSIT', 'ComLab3', '', NULL),
+(320, 75, '2024-1570', '2025-09-22 09:38:10', NULL, 'BSIT', 'ComLab1', '', NULL);
 
 -- --------------------------------------------------------
 
@@ -226,7 +229,9 @@ INSERT INTO `archived_instructor_logs` (`id`, `instructor_id`, `id_number`, `tim
 (99, 16, '2024-0117', '2025-09-12 12:37:54', '2025-09-12 12:38:26', 'BSIT', 'ComLab2', 'saved', '', '2025-09-12 04:38:26'),
 (100, 16, '2024-0117', '2025-09-12 12:38:26', '2025-09-12 12:38:58', 'BSIT', 'ComLab2', 'saved', '', '2025-09-12 04:38:58'),
 (101, 16, '2024-0117', '2025-09-12 12:38:58', '2025-09-12 12:39:18', 'BSIT', 'ComLab2', 'saved', '', '2025-09-12 04:39:18'),
-(102, 16, '2024-0117', '2025-09-12 12:39:18', '2025-09-12 15:29:55', 'BSIT', 'ComLab2', 'saved', '', '2025-09-12 07:29:55');
+(102, 16, '2024-0117', '2025-09-12 12:39:18', '2025-09-12 15:29:55', 'BSIT', 'ComLab2', 'saved', '', '2025-09-12 07:29:55'),
+(104, 16, '2024-0117', '2025-09-16 18:56:11', '2025-09-16 18:56:24', 'BSIT', 'ComLab3', 'saved', '', '2025-09-16 10:56:24'),
+(108, 16, '2024-0117', '2025-09-22 09:39:40', '2025-09-22 09:39:49', 'BSIT', 'ComLab2', 'saved', '', '2025-09-22 01:39:49');
 
 -- --------------------------------------------------------
 
@@ -245,6 +250,14 @@ CREATE TABLE `attendance_logs` (
   `instructor_id` varchar(9) NOT NULL,
   `status` varchar(20) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `attendance_logs`
+--
+
+INSERT INTO `attendance_logs` (`id`, `student_id`, `id_number`, `time_in`, `time_out`, `department`, `location`, `instructor_id`, `status`) VALUES
+(319, 75, '2024-1570', '2025-09-19 13:41:58', NULL, 'BSIT', 'ComLab2', '', NULL),
+(321, 77, '2024-1697', '2025-09-22 09:40:11', '2025-09-22 09:40:11', 'BSIT', 'ComLab2', '', NULL);
 
 -- --------------------------------------------------------
 
@@ -284,12 +297,14 @@ CREATE TABLE `gate_logs` (
   `id_number` varchar(50) NOT NULL,
   `name` varchar(255) NOT NULL,
   `action` enum('IN','OUT') NOT NULL,
-  `time` time NOT NULL,
+  `time_in` time NOT NULL,
+  `time_out` time NOT NULL,
   `date` date NOT NULL,
   `location` varchar(100) NOT NULL,
   `department` varchar(100) NOT NULL,
   `photo` varchar(255) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `direction` varchar(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -314,7 +329,7 @@ CREATE TABLE `instructor` (
 INSERT INTO `instructor` (`id`, `fullname`, `id_number`, `created_at`, `updated_at`, `department_id`) VALUES
 (11, 'Mr.Kurt Alegre', '0001-0001', '2025-06-28 11:52:22', '2025-07-14 22:16:12', 33),
 (12, 'Mr.Alvin Billiones', '0001-0004', '2025-07-08 08:26:38', '2025-07-14 22:19:33', 33),
-(13, 'Mr.Danilo Villariono', '0001-0003', '2025-07-09 00:38:05', '2025-07-14 22:18:53', 33),
+(13, 'Mr.Danilo Villarino', '0001-0003', '2025-07-09 00:38:05', '2025-07-14 22:18:53', 33),
 (16, 'Ms.Jessica Alcazar', '2024-0117', '2025-07-14 22:18:35', '2025-07-14 22:47:34', 33),
 (17, 'Mr.Richard Bracero', '0001-0005', '2025-07-14 22:20:02', '2025-07-14 22:20:02', 33),
 (18, 'Mrs.Emily Forrosuelo', '0001-0006', '2025-07-14 22:20:39', '2025-07-14 22:20:39', 33),
@@ -343,9 +358,9 @@ CREATE TABLE `instructor_accounts` (
 --
 
 INSERT INTO `instructor_accounts` (`id`, `instructor_id`, `username`, `password`, `created_at`, `updated_at`, `last_login`, `department`, `fullname`) VALUES
-(1, 13, 'Danilo', '$2y$10$0oqoE/tgXBvzmz.WcZ0Dpe3E7QdrBlrAqxHIAWmXG/mqC46GVgJyO', '2025-09-08 08:26:12', '2025-09-11 23:29:24', '2025-09-09 ', 'BSIT', 'Mr. Danilo Villariono'),
-(2, 16, 'jessica', '$2y$10$5WTQH1ItwPa8PT8Dq3MLPuWwkQEbfYoAK5R9wWqU2KeLsyOl/QA0i', '2025-09-11 23:12:18', '2025-09-11 23:29:52', '', 'BSIT', 'Ms.Jessica Alcazar'),
-(3, 12, 'alvin', '$2y$10$bxLgIrb/Y216/EbgHWGyFuT9OBEWMwpXQ5ZrWmMrRH71fDaOsmWjq', '2025-09-11 23:36:14', '2025-09-11 23:36:14', '', '', '');
+(1, 13, 'Danilo', '$2y$10$0oqoE/tgXBvzmz.WcZ0Dpe3E7QdrBlrAqxHIAWmXG/mqC46GVgJyO', '2025-09-08 08:26:12', '2025-09-19 05:32:50', '2025-09-19 ', 'BSIT', 'Mr. Danilo Villariono'),
+(2, 16, 'jessica', '$2y$10$5WTQH1ItwPa8PT8Dq3MLPuWwkQEbfYoAK5R9wWqU2KeLsyOl/QA0i', '2025-09-11 23:12:18', '2025-09-19 05:33:03', '2025-09-19 ', 'BSIT', 'Ms.Jessica Alcazar'),
+(3, 12, 'alvin', '$2y$10$bxLgIrb/Y216/EbgHWGyFuT9OBEWMwpXQ5ZrWmMrRH71fDaOsmWjq', '2025-09-11 23:36:14', '2025-09-19 05:41:19', '2025-09-19 ', '', '');
 
 -- --------------------------------------------------------
 
@@ -381,14 +396,26 @@ CREATE TABLE `instructor_glogs` (
   `id_number` varchar(50) NOT NULL,
   `name` varchar(255) NOT NULL,
   `action` enum('IN','OUT') NOT NULL,
-  `time` time NOT NULL,
+  `time_in` time NOT NULL,
+  `time_out` time NOT NULL,
   `date` date NOT NULL,
   `period` enum('AM','PM') NOT NULL,
   `location` varchar(100) NOT NULL,
   `department` varchar(100) NOT NULL,
   `photo` varchar(255) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `date_logged` date NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `instructor_glogs`
+--
+
+INSERT INTO `instructor_glogs` (`id`, `instructor_id`, `id_number`, `name`, `action`, `time_in`, `time_out`, `date`, `period`, `location`, `department`, `photo`, `created_at`, `date_logged`) VALUES
+(1, 16, '2024-0117', '', 'IN', '10:15:37', '00:00:00', '0000-00-00', 'AM', 'Gate', 'Main', NULL, '2025-09-22 02:15:37', '2025-09-22'),
+(2, 12, '0001-0004', '', 'IN', '10:18:43', '00:00:00', '0000-00-00', 'AM', 'Gate', 'Main', NULL, '2025-09-22 02:18:43', '2025-09-22'),
+(3, 13, '0001-0003', '', 'IN', '10:22:46', '00:00:00', '0000-00-00', 'AM', 'Gate', 'Main', NULL, '2025-09-22 02:22:46', '2025-09-22'),
+(4, 18, '0001-0006', '', 'IN', '12:00:47', '00:00:00', '0000-00-00', 'AM', 'Gate', 'Main', NULL, '2025-09-22 04:00:47', '2025-09-22');
 
 -- --------------------------------------------------------
 
@@ -433,7 +460,11 @@ INSERT INTO `instructor_logs` (`id`, `instructor_id`, `id_number`, `time_in`, `t
 (89, 12, '0001-0004', '2025-09-03 12:54:57', '2025-09-03 12:55:01', NULL, NULL, 'BSIT', 'ComLab2', 'saved'),
 (91, 16, '2024-0117', '2025-09-10 10:19:39', NULL, NULL, NULL, 'BSIT', 'ComLab2', NULL),
 (92, 16, '2024-0117', '2025-09-11 00:40:27', NULL, NULL, NULL, 'BSIT', 'ComLab2', NULL),
-(103, 16, '2024-0117', '2025-09-12 15:29:56', NULL, NULL, NULL, 'BSIT', 'ComLab2', NULL);
+(103, 16, '2024-0117', '2025-09-12 15:29:56', NULL, NULL, NULL, 'BSIT', 'ComLab2', NULL),
+(105, 16, '2024-0117', '2025-09-16 18:56:24', NULL, NULL, NULL, 'BSIT', 'ComLab3', NULL),
+(106, 16, '2024-0117', '2025-09-17 12:45:56', NULL, NULL, NULL, 'BSIT', 'ComLab1', NULL),
+(107, 16, '2024-0117', '2025-09-19 13:31:14', NULL, NULL, NULL, 'BSIT', 'ComLab2', NULL),
+(109, 16, '2024-0117', '2025-09-22 09:39:49', NULL, NULL, NULL, 'BSIT', 'ComLab2', NULL);
 
 -- --------------------------------------------------------
 
@@ -473,7 +504,7 @@ CREATE TABLE `lost_found` (
 CREATE TABLE `personell` (
   `id` int(11) NOT NULL,
   `id_no` varchar(255) NOT NULL,
-  `rfid_number` varchar(10) NOT NULL,
+  `id_number` varchar(10) NOT NULL,
   `last_name` varchar(255) NOT NULL,
   `first_name` varchar(255) NOT NULL,
   `middle_name` varchar(255) DEFAULT NULL,
@@ -498,9 +529,31 @@ CREATE TABLE `personell` (
 -- Dumping data for table `personell`
 --
 
-INSERT INTO `personell` (`id`, `id_no`, `rfid_number`, `last_name`, `first_name`, `middle_name`, `date_of_birth`, `role`, `sex`, `civil_status`, `contact_number`, `email_address`, `department`, `section`, `status`, `complete_address`, `photo`, `place_of_birth`, `category`, `date_added`, `deleted`) VALUES
-(68, '', '22222222', 'Rity', 'Secu', NULL, '1976-02-19', 'Security Personnel', '', '', NULL, NULL, 'BSIT', '', 'Active', '', '68c375d5026eb.png', '', 'Regular', '2025-09-12 01:22:29', 0),
+INSERT INTO `personell` (`id`, `id_no`, `id_number`, `last_name`, `first_name`, `middle_name`, `date_of_birth`, `role`, `sex`, `civil_status`, `contact_number`, `email_address`, `department`, `section`, `status`, `complete_address`, `photo`, `place_of_birth`, `category`, `date_added`, `deleted`) VALUES
+(68, '', '12121212', 'Tuff', 'Ace', NULL, '1991-01-30', 'Security Personnel', '', '', NULL, NULL, 'BSIT', '', 'Active', '', '68cc082d524a5.png', '', 'Regular', '2025-09-18 13:25:01', 0),
 (69, '', '11111111', 'Bantay', 'Tig', NULL, '1986-03-20', 'Security Personnel', '', '', NULL, NULL, 'BSIT', '', 'Active', '', '68c37551339fa.png', '', 'Regular', '2025-09-12 01:20:17', 0);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `personell_glogs`
+--
+
+CREATE TABLE `personell_glogs` (
+  `id` int(11) NOT NULL,
+  `personnel_id` int(11) NOT NULL,
+  `id_number` varchar(50) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `action` enum('IN','OUT') NOT NULL,
+  `time_in` time NOT NULL,
+  `time_out` time NOT NULL,
+  `date` date NOT NULL,
+  `period` enum('AM','PM') NOT NULL,
+  `location` varchar(100) NOT NULL,
+  `department` varchar(100) NOT NULL,
+  `photo` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -567,38 +620,13 @@ INSERT INTO `role` (`id`, `role`) VALUES
 (5, 'Instructor'),
 (6, 'Security Personnel'),
 (8, 'Staff'),
-(20, 'Logistics'),
-(21, 'Director'),
 (23, 'Executive'),
-(24, 'HR'),
-(25, 'Instructor'),
-(26, 'HR'),
 (27, 'Data Analyst'),
-(28, 'Security'),
-(30, 'Instructor'),
 (31, 'Maintenance'),
 (32, 'Developer'),
-(34, 'Designer'),
-(35, 'Quality Assurance'),
 (37, 'Designer'),
-(39, 'Developer'),
-(40, 'Facilities'),
-(41, 'Admin'),
-(99, 'Administrator'),
 (100, 'Service Manager'),
-(101, 'Purchasing Officer'),
-(102, 'Accountant'),
-(103, 'Analyst'),
-(106, 'Director'),
-(107, 'Manager'),
-(110, 'Clerk'),
-(111, 'Clerk'),
-(113, 'Operator'),
-(114, 'Customer Service'),
-(119, 'jkkjjkkj'),
-(125, 'Cutter'),
-(129, 'bubu'),
-(136, '1111');
+(113, 'Operator');
 
 -- --------------------------------------------------------
 
@@ -624,7 +652,7 @@ INSERT INTO `rooms` (`id`, `room`, `department`, `password`, `desc`, `descr`, `a
 (150, 'BSHM 01', 'BSHRM', 'BSHM01', NULL, 'Kitchen Lab', 'Instructor'),
 (151, 'ComLab2', 'BSIT', 'comlab2', NULL, 'IT lab1', 'Instructor'),
 (152, 'ComLab1', 'BSIT', 'comlab1', NULL, 'comlab1', 'Instructor'),
-(153, 'Gate', 'Main', 'gate123', NULL, 'gilugewqe', 'Instructor'),
+(153, 'Gate', 'Main', 'gate123', NULL, 'gilugewqe', 'Security Personnel'),
 (154, 'ComLab3', 'BSIT', 'comlab3', NULL, 'IT lab 3', 'Instructor'),
 (155, 'IT-LEC1', 'BSIT', 'itlec1', NULL, 'IT LECTURE 1', 'Instructor'),
 (156, 'IT-LEC2', 'BSIT', 'itlec2', NULL, 'IT Lecture 2', 'Instructor');
@@ -686,7 +714,6 @@ INSERT INTO `room_schedules` (`department`, `id`, `room_name`, `room_location`, 
 ('BSIT', 25, 'ComLab2', NULL, NULL, 'ITE PROF ELECT 4', 'East', '4th Year', '16:00:00', '17:00:00', 'Saturday', 'Mr.Alvin Billiones', 12),
 ('BSIT', 26, 'ComLab2', NULL, NULL, 'Philippine Popular Culture', 'West', '2nd Year', '00:17:00', '13:11:00', 'Monday', 'Mr.Alvin Billiones', NULL),
 ('BSIT', 27, 'ComLab1', NULL, NULL, 'Program Logic Formulation', 'West', '1st Year', '18:15:00', '19:15:00', 'Monday', 'Ms.Jessica Alcazar', NULL),
-('BSIT', 28, 'ComLab2', NULL, NULL, 'Computer Assembly, Trblshting & Repair', 'West', '1st Year', '18:16:00', '18:16:00', 'Tuesday', 'Ms.Jessica Alcazar', NULL),
 ('BSIT', 29, 'ComLab3', NULL, NULL, 'Program Logic Formulation', 'West', '1st Year', '20:18:00', '23:18:00', 'Wednesday', 'Ms.Jessica Alcazar', NULL);
 
 -- --------------------------------------------------------
@@ -762,14 +789,25 @@ CREATE TABLE `students_glogs` (
   `id_number` varchar(50) NOT NULL,
   `name` varchar(255) NOT NULL,
   `action` enum('IN','OUT') NOT NULL,
-  `time` time NOT NULL,
+  `time_in` time NOT NULL,
+  `time_out` time NOT NULL,
   `date` date NOT NULL,
   `period` enum('AM','PM') NOT NULL,
   `location` varchar(100) NOT NULL,
   `department` varchar(100) NOT NULL,
   `photo` varchar(255) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `date_logged` date NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `students_glogs`
+--
+
+INSERT INTO `students_glogs` (`id`, `student_id`, `id_number`, `name`, `action`, `time_in`, `time_out`, `date`, `period`, `location`, `department`, `photo`, `created_at`, `date_logged`) VALUES
+(1, 75, '2024-1570', '', 'IN', '10:14:52', '00:00:00', '0000-00-00', 'AM', 'Gate', 'Main', NULL, '2025-09-22 02:14:52', '2025-09-22'),
+(2, 77, '2024-1697', '', 'IN', '10:15:19', '00:00:00', '0000-00-00', 'AM', 'Gate', 'Main', NULL, '2025-09-22 02:15:19', '2025-09-22'),
+(3, 78, '0000-0001', '', 'IN', '12:01:08', '00:00:00', '0000-00-00', 'AM', 'Gate', 'Main', NULL, '2025-09-22 04:01:08', '2025-09-22');
 
 -- --------------------------------------------------------
 
@@ -885,105 +923,6 @@ CREATE TABLE `visitor` (
   `v_code` varchar(100) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Dumping data for table `visitor`
---
-
-INSERT INTO `visitor` (`id`, `name`, `department`, `contact_number`, `address`, `purpose`, `sex`, `photo`, `civil_status`, `rfid_number`, `v_code`) VALUES
-(2, '', '', '', '', '', '', '', '', '0009669869', 'Visitor002'),
-(13, '', '', '', '', '', '', '', '', '1111111111', 'sdgsdsedfg'),
-(17, '', '', '', '', '', '', '', '', '7698997991', 'sdfgf'),
-(31, '', '', '', '', '', '', '', '', '0987654321', ''),
-(32, '', '', '', '', '', '', '', '', '5187753692', ''),
-(33, '', '', '', '', '', '', '', '', '0914780959', ''),
-(34, '', '', '', '', '', '', '', '', '7486184439', ''),
-(35, '', '', '', '', '', '', '', '', '1211640195', ''),
-(36, '', '', '', '', '', '', '', '', '3118719031', ''),
-(37, '', '', '', '', '', '', '', '', '2888167227', ''),
-(38, '', '', '', '', '', '', '', '', '0206905146', ''),
-(39, '', '', '', '', '', '', '', '', '7474490588', ''),
-(40, '', '', '', '', '', '', '', '', '4298813407', ''),
-(41, '', '', '', '', '', '', '', '', '8564213767', ''),
-(44, '', '', '', '', '', '', '', '', '2884576225', ''),
-(45, '', '', '', '', '', '', '', '', '1357115735', ''),
-(46, '', '', '', '', '', '', '', '', '7224178482', ''),
-(47, '', '', '', '', '', '', '', '', '7365324101', ''),
-(48, '', '', '', '', '', '', '', '', '3153618285', ''),
-(49, '', '', '', '', '', '', '', '', '0885497719', ''),
-(50, '', '', '', '', '', '', '', '', '6785209688', ''),
-(51, '', '', '', '', '', '', '', '', '6404604576', ''),
-(52, '', '', '', '', '', '', '', '', '0413214449', ''),
-(53, '', '', '', '', '', '', '', '', '0662845200', ''),
-(55, '', '', '', '', '', '', '', '', '4302506668', ''),
-(56, '', '', '', '', '', '', '', '', '3240643840', ''),
-(57, '', '', '', '', '', '', '', '', '6604314909', ''),
-(58, '', '', '', '', '', '', '', '', '2453068181', ''),
-(59, '', '', '', '', '', '', '', '', '0495361030', ''),
-(60, '', '', '', '', '', '', '', '', '7250421127', ''),
-(62, '', '', '', '', '', '', '', '', '2533812870', ''),
-(63, '', '', '', '', '', '', '', '', '4232848677', ''),
-(64, '', '', '', '', '', '', '', '', '0734831735', ''),
-(65, '', '', '', '', '', '', '', '', '4167105671', ''),
-(66, '', '', '', '', '', '', '', '', '5215972187', ''),
-(68, '', '', '', '', '', '', '', '', '1251842896', ''),
-(69, '', '', '', '', '', '', '', '', '0325614706', ''),
-(70, '', '', '', '', '', '', '', '', '0383030484', ''),
-(72, '', '', '', '', '', '', '', '', '3681595736', ''),
-(73, '', '', '', '', '', '', '', '', '4873628718', ''),
-(74, '', '', '', '', '', '', '', '', '5516043504', ''),
-(75, '', '', '', '', '', '', '', '', '0753734967', ''),
-(76, '', '', '', '', '', '', '', '', '6096357539', ''),
-(77, '', '', '', '', '', '', '', '', '1067537789', ''),
-(78, '', '', '', '', '', '', '', '', '0748519543', ''),
-(79, '', '', '', '', '', '', '', '', '4175833370', ''),
-(80, '', '', '', '', '', '', '', '', '2408966258', ''),
-(81, '', '', '', '', '', '', '', '', '5211109402', ''),
-(82, '', '', '', '', '', '', '', '', '1370533925', ''),
-(83, '', '', '', '', '', '', '', '', '6806531704', ''),
-(84, '', '', '', '', '', '', '', '', '3875995871', ''),
-(85, '', '', '', '', '', '', '', '', '2785011108', ''),
-(86, '', '', '', '', '', '', '', '', '2343243423', ''),
-(87, '', '', '', '', '', '', '', '', '4064709907', ''),
-(88, '', '', '', '', '', '', '', '', '3412143639', ''),
-(89, '', '', '', '', '', '', '', '', '1174443772', ''),
-(90, '', '', '', '', '', '', '', '', '1679070822', ''),
-(91, '', '', '', '', '', '', '', '', '0069598353', ''),
-(92, '', '', '', '', '', '', '', '', '7666888684', ''),
-(93, '', '', '', '', '', '', '', '', '4779904125', ''),
-(94, '', '', '', '', '', '', '', '', '5601601294', ''),
-(95, '', '', '', '', '', '', '', '', '2635021670', ''),
-(96, '', '', '', '', '', '', '', '', '3291285548', ''),
-(97, '', '', '', '', '', '', '', '', '7039444845', ''),
-(98, '', '', '', '', '', '', '', '', '0043742223', ''),
-(99, '', '', '', '', '', '', '', '', '1840326393', ''),
-(100, '', '', '', '', '', '', '', '', '5139538034', ''),
-(101, '', '', '', '', '', '', '', '', '6246485118', ''),
-(102, '', '', '', '', '', '', '', '', '0239874705', ''),
-(103, '', '', '', '', '', '', '', '', '0556589801', ''),
-(105, '', '', '', '', '', '', '', '', '3482548405', ''),
-(106, '', '', '', '', '', '', '', '', '7493563613', ''),
-(107, '', '', '', '', '', '', '', '', '2484248566', ''),
-(108, '', '', '', '', '', '', '', '', '2085771360', ''),
-(109, '', '', '', '', '', '', '', '', '4000655662', ''),
-(110, '', '', '', '', '', '', '', '', '6271826161', ''),
-(111, '', '', '', '', '', '', '', '', '6111609690', ''),
-(112, '', '', '', '', '', '', '', '', '2256382014', ''),
-(113, '', '', '', '', '', '', '', '', '5768050518', ''),
-(115, '', '', '', '', '', '', '', '', '4639438742', ''),
-(116, '', '', '', '', '', '', '', '', '4407780893', ''),
-(117, '', '', '', '', '', '', '', '', '1941451470', ''),
-(118, '', '', '', '', '', '', '', '', '3632650737', ''),
-(119, '', '', '', '', '', '', '', '', '8568603799', ''),
-(120, '', '', '', '', '', '', '', '', '3615157062', ''),
-(121, '', '', '', '', '', '', '', '', '8261191217', ''),
-(122, '', '', '', '', '', '', '', '', '8462915688', ''),
-(123, '', '', '', '', '', '', '', '', '5119967235', ''),
-(124, '', '', '', '', '', '', '', '', '5995391685', ''),
-(125, '', '', '', '', '', '', '', '', '3434343434', ''),
-(126, '', '', '', '', '', '', '', '', '5152297351', ''),
-(127, '', '', '', '', '', '', '', '', '7218905170', ''),
-(128, '', '', '', '', '', '', '', '', '1233212121', '');
-
 -- --------------------------------------------------------
 
 --
@@ -1002,7 +941,8 @@ CREATE TABLE `visitor_glogs` (
   `location` varchar(100) NOT NULL,
   `department` varchar(100) NOT NULL,
   `photo` varchar(255) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `date_logged` date NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -1200,7 +1140,8 @@ ALTER TABLE `department`
 -- Indexes for table `gate_logs`
 --
 ALTER TABLE `gate_logs`
-  ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_gate_logs_comprehensive` (`person_type`,`person_id`,`created_at`);
 
 --
 -- Indexes for table `instructor`
@@ -1231,7 +1172,8 @@ ALTER TABLE `instructor_glogs`
   ADD KEY `idx_id_number` (`id_number`),
   ADD KEY `idx_date` (`date`),
   ADD KEY `idx_action` (`action`),
-  ADD KEY `idx_period` (`period`);
+  ADD KEY `idx_period` (`period`),
+  ADD KEY `idx_instructor_glogs` (`instructor_id`,`date_logged`);
 
 --
 -- Indexes for table `instructor_logs`
@@ -1257,6 +1199,17 @@ ALTER TABLE `lost_found`
 --
 ALTER TABLE `personell`
   ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `personell_glogs`
+--
+ALTER TABLE `personell_glogs`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_personnel_id` (`personnel_id`),
+  ADD KEY `idx_id_number` (`id_number`),
+  ADD KEY `idx_date` (`date`),
+  ADD KEY `idx_action` (`action`),
+  ADD KEY `idx_period` (`period`);
 
 --
 -- Indexes for table `personell_logs`
@@ -1321,7 +1274,9 @@ ALTER TABLE `students_glogs`
   ADD KEY `idx_id_number` (`id_number`),
   ADD KEY `idx_date` (`date`),
   ADD KEY `idx_action` (`action`),
-  ADD KEY `idx_period` (`period`);
+  ADD KEY `idx_period` (`period`),
+  ADD KEY `idx_students_glogs` (`student_id`,`date_logged`),
+  ADD KEY `idx_student_glogs` (`student_id`,`date_logged`);
 
 --
 -- Indexes for table `subjects`
@@ -1359,7 +1314,8 @@ ALTER TABLE `visitor_glogs`
   ADD KEY `idx_id_number` (`id_number`),
   ADD KEY `idx_date` (`date`),
   ADD KEY `idx_action` (`action`),
-  ADD KEY `idx_period` (`period`);
+  ADD KEY `idx_period` (`period`),
+  ADD KEY `idx_visitor_glogs` (`visitor_id`,`date_logged`);
 
 --
 -- Indexes for table `visitor_logs`
@@ -1393,25 +1349,25 @@ ALTER TABLE `archived_attendance_20250727_190813`
 -- AUTO_INCREMENT for table `archived_attendance_logs`
 --
 ALTER TABLE `archived_attendance_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=315;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=321;
 
 --
 -- AUTO_INCREMENT for table `archived_instructor_logs`
 --
 ALTER TABLE `archived_instructor_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=103;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=109;
 
 --
 -- AUTO_INCREMENT for table `attendance_logs`
 --
 ALTER TABLE `attendance_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=315;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=322;
 
 --
 -- AUTO_INCREMENT for table `department`
 --
 ALTER TABLE `department`
-  MODIFY `department_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=166;
+  MODIFY `department_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=167;
 
 --
 -- AUTO_INCREMENT for table `gate_logs`
@@ -1423,13 +1379,13 @@ ALTER TABLE `gate_logs`
 -- AUTO_INCREMENT for table `instructor`
 --
 ALTER TABLE `instructor`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- AUTO_INCREMENT for table `instructor_accounts`
 --
 ALTER TABLE `instructor_accounts`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `instructor_attendance`
@@ -1441,13 +1397,13 @@ ALTER TABLE `instructor_attendance`
 -- AUTO_INCREMENT for table `instructor_glogs`
 --
 ALTER TABLE `instructor_glogs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `instructor_logs`
 --
 ALTER TABLE `instructor_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=104;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=110;
 
 --
 -- AUTO_INCREMENT for table `lostcard`
@@ -1468,6 +1424,12 @@ ALTER TABLE `personell`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2147483648;
 
 --
+-- AUTO_INCREMENT for table `personell_glogs`
+--
+ALTER TABLE `personell_glogs`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `personell_logs`
 --
 ALTER TABLE `personell_logs`
@@ -1483,13 +1445,13 @@ ALTER TABLE `personnel_glogs`
 -- AUTO_INCREMENT for table `role`
 --
 ALTER TABLE `role`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=139;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=140;
 
 --
 -- AUTO_INCREMENT for table `rooms`
 --
 ALTER TABLE `rooms`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=157;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=158;
 
 --
 -- AUTO_INCREMENT for table `room_logs`
@@ -1519,7 +1481,7 @@ ALTER TABLE `students`
 -- AUTO_INCREMENT for table `students_glogs`
 --
 ALTER TABLE `students_glogs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `subjects`
