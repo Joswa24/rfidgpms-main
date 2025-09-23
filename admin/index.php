@@ -23,11 +23,11 @@ if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// If user is already logged in, redirect to dashboard
-if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
-    header('Location: dashboard.php');
-    exit();
-}
+// // If user is already logged in, redirect to dashboard
+// if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
+//     header('Location: dashboard.php');
+//     exit();
+// }
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
