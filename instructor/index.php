@@ -8,8 +8,8 @@ ini_set('session.cookie_httponly', 1);
 ini_set('session.cookie_secure', 1); // Use if HTTPS
 
 // Security headers
-// header("X-Frame-Options: DENY");
-// header("X-Content-Type-Options: nosniff");
+ header("X-Frame-Options: DENY");
+ header("X-Content-Type-Options: nosniff");
 
 // Regenerate session ID to prevent fixation
 if (!isset($_SESSION['initiated'])) {
