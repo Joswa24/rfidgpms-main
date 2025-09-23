@@ -23,11 +23,11 @@ if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// // If user is already logged in, redirect to dashboard
-// if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
-//     header('Location: dashboard.php');
-//     exit();
-// }
+// If user is already logged in, redirect to dashboard
+if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
+    header('Location: dashboard.php');
+    exit();
+}
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
@@ -68,48 +68,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                     if ($result->num_rows > 0) {
                         $user = $result->fetch_assoc();
                         
-                        // // Check if password is hashed or plain text
-                        // if (password_verify($password, $user['password'])) {
-                        //     // Successful login with hashed password
-                        //     $_SESSION['login_attempts'] = 0;
-                        //     $_SESSION['user_id'] = $user['id'];
-                        //     $_SESSION['username'] = $user['username'];
-                        //     $_SESSION['email'] = $user['email'];
-                        //     $_SESSION['logged_in'] = true;
+                        // Check if password is hashed or plain text
+                        if (password_verify($password, $user['password'])) {
+                            // Successful login with hashed password
+                            $_SESSION['login_attempts'] = 0;
+                            $_SESSION['user_id'] = $user['id'];
+                            $_SESSION['username'] = $user['username'];
+                            $_SESSION['email'] = $user['email'];
+                            $_SESSION['logged_in'] = true;
                             
-                        //     // Regenerate session ID to prevent fixation
-                        //     session_regenerate_id(true);
+                            // Regenerate session ID to prevent fixation
+                            session_regenerate_id(true);
                             
-                        //     // Redirect immediately
-                        //     header('Location: dashboard.php');
-                        //     exit();
-                        // } elseif ($user['password'] === $password) {
-                        //     // Successful login with plain text password
-                        //     $_SESSION['login_attempts'] = 0;
-                        //     $_SESSION['user_id'] = $user['id'];
-                        //     $_SESSION['username'] = $user['username'];
-                        //     $_SESSION['email'] = $user['email'];
-                        //     $_SESSION['logged_in'] = true;
+                            // Redirect immediately
+                            header('Location: dashboard.php');
+                            exit();
+                        } elseif ($user['password'] === $password) {
+                            // Successful login with plain text password
+                            $_SESSION['login_attempts'] = 0;
+                            $_SESSION['user_id'] = $user['id'];
+                            $_SESSION['username'] = $user['username'];
+                            $_SESSION['email'] = $user['email'];
+                            $_SESSION['logged_in'] = true;
                             
-                        //     // Regenerate session ID to prevent fixation
-                        //     session_regenerate_id(true);
+                            // Regenerate session ID to prevent fixation
+                            session_regenerate_id(true);
                             
-                        //     // Hash the plain text password for future use
-                        //     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-                        //     $updateStmt = $db->prepare("UPDATE user SET password = ? WHERE id = ?");
-                        //     if ($updateStmt) {
-                        //         $updateStmt->bind_param("si", $hashedPassword, $user['id']);
-                        //         $updateStmt->execute();
-                        //     }
+                            // Hash the plain text password for future use
+                            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+                            $updateStmt = $db->prepare("UPDATE user SET password = ? WHERE id = ?");
+                            if ($updateStmt) {
+                                $updateStmt->bind_param("si", $hashedPassword, $user['id']);
+                                $updateStmt->execute();
+                            }
                             
-                        //     // Redirect immediately
-                        //     header('Location: dashboard.php');
-                        //     exit();
-                        // } else {
-                        //     // Password verification failed
-                        //     handleFailedLogin($maxAttempts, $lockoutTime);
-                        //     $error = "Invalid username or password. Attempts remaining: " . ($maxAttempts - $_SESSION['login_attempts']);
-                        // }
+                            // Redirect immediately
+                            header('Location: dashboard.php');
+                            exit();
+                        } else {
+                            // Password verification failed
+                            handleFailedLogin($maxAttempts, $lockoutTime);
+                            $error = "Invalid username or password. Attempts remaining: " . ($maxAttempts - $_SESSION['login_attempts']);
+                        }
                     } else {
                         // User not found
                         handleFailedLogin($maxAttempts, $lockoutTime);
