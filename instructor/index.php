@@ -1,15 +1,19 @@
 <?php
+// Enable full error reporting at the VERY TOP
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 ob_start();
-include '../connection.php';
+
 session_start();
-// Ensure secure session settings
-ini_set('session.use_only_cookies', 1);
-ini_set('session.cookie_httponly', 1);
-ini_set('session.cookie_secure', 1); // Use if HTTPS
 
 // Security headers
- header("X-Frame-Options: DENY");
- header("X-Content-Type-Options: nosniff");
+header("X-Frame-Options: DENY");
+header("X-Content-Type-Options: nosniff");
+
+// Debug session
+error_log("=== LOGIN PAGE LOADED ===");
+error_log("Session ID: " . session_id());
+error_log("Session status: " . json_encode($_SESSION));
 
 // Regenerate session ID to prevent fixation
 if (!isset($_SESSION['initiated'])) {
@@ -35,15 +39,19 @@ if (!isset($_SESSION['login_attempts'])) {
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
+    error_log("=== LOGIN FORM SUBMITTED ===");
+    
     // Validate CSRF token
     if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
         $errorMessage = "Invalid request. Please try again.";
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        error_log("CSRF token validation failed");
     } else {
         // Check if user is currently locked out
         if ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime) {
             $remainingTime = $lockoutTime - (time() - $_SESSION['lockout_time']);
             $errorMessage = "Too many failed attempts. Please wait " . ceil($remainingTime / 60) . " minutes before trying again.";
+            error_log("Account locked out");
         } else {
             // Reset attempts if lockout period has expired
             if ((time() - $_SESSION['lockout_time']) >= $lockoutTime) {
@@ -54,9 +62,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             $username = htmlspecialchars(trim($_POST['username']), ENT_QUOTES, 'UTF-8');
             $password = trim($_POST['password']);
 
+            error_log("Login attempt for username: " . $username);
+
+            include '../connection.php';
+            
             if (!$db) {
                 $errorMessage = "Database connection error. Please try again later.";
+                error_log("Database connection failed");
             } else {
+                error_log("Database connected successfully");
+                
                 // ✅ Match your schema
                 $stmt = $db->prepare("SELECT * FROM instructor_accounts WHERE username = ?");
                 if ($stmt) {
@@ -66,52 +81,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
 
                     if ($result->num_rows > 0) {
                         $user = $result->fetch_assoc();
+                        error_log("User found: " . $user['username']);
 
-                        /// ... existing login code ...
-
+                        // Verify password
                         if (password_verify($password, $user['password'])) {
-                        // Successful login
-                        $_SESSION['login_attempts'] = 0;
+                            error_log("Password verified successfully");
+                            
+                            // Successful login
+                            $_SESSION['login_attempts'] = 0;
 
-                        // Store session data
-                        $_SESSION['username'] = htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8');
-                        $_SESSION['instructor_id'] = (int)$user['instructor_id'];
-                        $_SESSION['fullname'] = htmlspecialchars($user['fullname'], ENT_QUOTES, 'UTF-8');
-                        $_SESSION['department'] = htmlspecialchars($user['department'], ENT_QUOTES, 'UTF-8');
-                        $_SESSION['role'] = 'instructor';
-                        $_SESSION['logged_in'] = true;
-                        $_SESSION['last_activity'] = time();
-                        $_SESSION['user_agent'] = $_SERVER['HTTP_USER_AGENT'];
+                            // Store session data
+                            $_SESSION['username'] = htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8');
+                            $_SESSION['instructor_id'] = (int)$user['instructor_id'];
+                            $_SESSION['fullname'] = htmlspecialchars($user['fullname'], ENT_QUOTES, 'UTF-8');
+                            $_SESSION['department'] = htmlspecialchars($user['department'], ENT_QUOTES, 'UTF-8');
+                            $_SESSION['role'] = 'instructor';
+                            $_SESSION['logged_in'] = true;
+                            $_SESSION['last_activity'] = time();
+                            $_SESSION['user_agent'] = $_SERVER['HTTP_USER_AGENT'];
 
-                        // Debug: Check if session variables are set
-                        error_log("Login successful for user: " . $user['username']);
-                        ("Session role: " . $_SESSION['role']);
-                        error_log("Logged in: " . ($_SESSION['logged_in'] ? 'true' : 'false'));
+                            error_log("Session variables set:");
+                            error_log("- Username: " . $_SESSION['username']);
+                            error_log("- Instructor ID: " . $_SESSION['instructor_id']);
+                            error_log("- Role: " . $_SESSION['role']);
+                            error_log("- Logged in: " . $_SESSION['logged_in']);
 
-                        // Update last login timestamp
-                        $updateStmt = $db->prepare("UPDATE instructor_accounts SET last_login = NOW() WHERE instructor_id = ?");
-                        $updateStmt->bind_param("i", $user['instructor_id']);
-                        $updateStmt->execute();
-                        $updateStmt->close();
+                            // Update last login timestamp
+                            $updateStmt = $db->prepare("UPDATE instructor_accounts SET last_login = NOW() WHERE instructor_id = ?");
+                            $updateStmt->bind_param("i", $user['instructor_id']);
+                            $updateStmt->execute();
+                            $updateStmt->close();
 
-                        session_regenerate_id(true);
-    
-                        // Debug before redirect
-                        error_log("Redirecting to dashboard.php");
-    
-                        header("Location: dashboard.php");
-                        exit();
-                        }else {
+                            session_regenerate_id(true);
+                            
+                            error_log("Redirecting to dashboard.php...");
+                            
+                            // Try multiple redirect methods
+                            header("Location: dashboard.php");
+                            echo "<script>window.location.href = 'dashboard.php';</script>";
+                            exit();
+                        } else {
                             $errorMessage = "Invalid username or password";
                             $_SESSION['login_attempts']++;
+                            error_log("Password verification failed");
                         }
                     } else {
                         $errorMessage = "Invalid username or password";
                         $_SESSION['login_attempts']++;
+                        error_log("User not found in database");
                     }
                     $stmt->close();
                 } else {
                     $errorMessage = "Database error. Please try again later.";
+                    error_log("Statement preparation failed");
                 }
             }
 
@@ -119,6 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             if ($_SESSION['login_attempts'] >= $maxAttempts) {
                 $_SESSION['lockout_time'] = time();
                 $errorMessage = "Too many failed attempts. Your account has been locked for 5 minutes.";
+                error_log("Account locked due to too many attempts");
             }
         }
 
@@ -126,6 +149,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
 }
+
+// If we reach here, redirect failed
+error_log("=== REDIRECT FAILED - SHOWING LOGIN FORM ===");
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -137,9 +163,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <meta name="description" content="Gate and Personnel Management System">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <style>
-         :root {
+        /* Your existing CSS styles here */
+        :root {
             --primary-color: #e1e7f0ff;
             --secondary-color: #b0caf0ff;
             --accent-color: #4e73df;
@@ -410,7 +436,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                     <div class="text-muted">© <?php echo date('Y'); ?></div>
                 </div>
             </form>
+            
+            <!-- Debug info (remove after testing) -->
+            <div style="display: none; background: #f8f9fa; padding: 10px; margin-top: 15px; border-radius: 5px; font-size: 12px;">
+                <strong>Debug Info:</strong><br>
+                Session ID: <?php echo session_id(); ?><br>
+                Session Data: <?php echo json_encode($_SESSION); ?>
+            </div>
         </div>
     </div>
+
+    <script>
+        function togglePassword() {
+            const passwordField = document.getElementById('password');
+            const toggleIcon = document.querySelector('.password-toggle i');
+            
+            if (passwordField.type === 'password') {
+                passwordField.type = 'text';
+                toggleIcon.className = 'fas fa-eye-slash';
+            } else {
+                passwordField.type = 'password';
+                toggleIcon.className = 'fas fa-eye';
+            }
+        }
+    </script>
 </body>
 </html>
