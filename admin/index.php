@@ -1,348 +1,137 @@
 <?php
-
+// index.php
 include '../connection.php';
 session_start();
 
-
-header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;");
+// Security headers
+header("Content-Security-Policy: default-src 'self'");
 header("X-Frame-Options: DENY");
 header("X-Content-Type-Options: nosniff");
-header("Referrer-Policy: strict-origin-when-cross-origin");
-header("Strict-Transport-Security: max-age=31536000; includeSubDomains");
-header("X-XSS-Protection: 1; mode=block");
 
+// Initialize variables for login attempts
+$maxAttempts = 5;
+$lockoutTime = 300; // 5 minutes in seconds
 
-class SecurityConfig {
-    const MAX_ATTEMPTS = 5;
-    const LOCKOUT_TIME = 900; // 15 minutes
-    const SESSION_TIMEOUT = 1800; // 30 minutes
-    const CSRF_TOKEN_LIFETIME = 3600; // 1 hour
+// Initialize session variables if not set
+if (!isset($_SESSION['login_attempts'])) {
+    $_SESSION['login_attempts'] = 0;
+    $_SESSION['lockout_time'] = 0;
 }
 
-// Initialize security session variables
-if (!isset($_SESSION['security_data'])) {
-    $_SESSION['security_data'] = [
-        'login_attempts' => 0,
-        'lockout_time' => 0,
-        'last_activity' => time(),
-        'ip_address' => getClientIP(),
-        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? ''
-    ];
+// Generate CSRF token
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// Session timeout and fixation protection
-if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) > SecurityConfig::SESSION_TIMEOUT) {
-    session_unset();
-    session_destroy();
-    session_start();
-}
-
-$_SESSION['last_activity'] = time();
-
-// IP and user agent validation
-if (!validateSession()) {
-    session_unset();
-    session_destroy();
-    header('HTTP/1.1 403 Forbidden');
-    exit('Security violation detected.');
-}
-
-// Generate and manage CSRF tokens
-manageCSRFToken();
-
-// Redirect if already logged in
+// If user is already logged in, redirect to dashboard
 if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
     header('Location: dashboard.php');
     exit();
 }
 
-// Rate limiting
-if (!checkRateLimit()) {
-    header('HTTP/1.1 429 Too Many Requests');
-    exit('Rate limit exceeded. Please try again later.');
-}
-
-// Handle login request
+// Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
-    processLogin();
-}
-
-// Security utility functions
-function getClientIP() {
-    $ip_keys = ['HTTP_CLIENT_IP', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_FORWARDED', 'HTTP_X_CLUSTER_CLIENT_IP', 'HTTP_FORWARDED_FOR', 'HTTP_FORWARDED', 'REMOTE_ADDR'];
     
-    foreach ($ip_keys as $key) {
-        if (array_key_exists($key, $_SERVER) === true) {
-            foreach (explode(',', $_SERVER[$key]) as $ip) {
-                $ip = trim($ip);
-                if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false) {
-                    return $ip;
+    // Validate CSRF token
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        $error = "Security token invalid. Please refresh the page.";
+    } else {
+        // Check if user is currently locked out
+        if ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime) {
+            $remainingTime = $lockoutTime - (time() - $_SESSION['lockout_time']);
+            $error = "Too many failed attempts. Please wait " . ceil($remainingTime / 60) . " minutes before trying again.";
+        } else {
+            // Reset attempts if lockout period has expired
+            if ((time() - $_SESSION['lockout_time']) >= $lockoutTime) {
+                $_SESSION['login_attempts'] = 0;
+            }
+
+            // Validate and sanitize inputs
+            $username = filter_input(INPUT_POST, 'username', FILTER_SANITIZE_STRING);
+            $password = filter_input(INPUT_POST, 'password', FILTER_SANITIZE_STRING);
+            
+            // Basic validation
+            if (empty($username) || empty($password)) {
+                $error = "Please enter both username and password.";
+            } else {
+                try {
+                    // Check credentials in database
+                    $stmt = $db->prepare("SELECT * FROM user WHERE username = ?");
+                    if (!$stmt) {
+                        throw new Exception("Database prepare failed: " . $db->error);
+                    }
+                    
+                    $stmt->bind_param("s", $username);
+                    $stmt->execute();
+                    $result = $stmt->get_result();
+                    
+                    if ($result->num_rows > 0) {
+                        $user = $result->fetch_assoc();
+                        
+                        // Check if password is hashed or plain text
+                        if (password_verify($password, $user['password'])) {
+                            // Successful login with hashed password
+                            $_SESSION['login_attempts'] = 0;
+                            $_SESSION['user_id'] = $user['id'];
+                            $_SESSION['username'] = $user['username'];
+                            $_SESSION['email'] = $user['email'];
+                            $_SESSION['logged_in'] = true;
+                            
+                            // Regenerate session ID to prevent fixation
+                            session_regenerate_id(true);
+                            
+                            // Redirect immediately
+                            header('Location: dashboard.php');
+                            exit();
+                        } elseif ($user['password'] === $password) {
+                            // Successful login with plain text password
+                            $_SESSION['login_attempts'] = 0;
+                            $_SESSION['user_id'] = $user['id'];
+                            $_SESSION['username'] = $user['username'];
+                            $_SESSION['email'] = $user['email'];
+                            $_SESSION['logged_in'] = true;
+                            
+                            // Regenerate session ID to prevent fixation
+                            session_regenerate_id(true);
+                            
+                            // Hash the plain text password for future use
+                            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+                            $updateStmt = $db->prepare("UPDATE user SET password = ? WHERE id = ?");
+                            if ($updateStmt) {
+                                $updateStmt->bind_param("si", $hashedPassword, $user['id']);
+                                $updateStmt->execute();
+                            }
+                            
+                            // Redirect immediately
+                            header('Location: dashboard.php');
+                            exit();
+                        } else {
+                            // Password verification failed
+                            handleFailedLogin($maxAttempts, $lockoutTime);
+                            $error = "Invalid username or password. Attempts remaining: " . ($maxAttempts - $_SESSION['login_attempts']);
+                        }
+                    } else {
+                        // User not found
+                        handleFailedLogin($maxAttempts, $lockoutTime);
+                        $error = "Invalid username or password. Attempts remaining: " . ($maxAttempts - $_SESSION['login_attempts']);
+                    }
+                } catch (Exception $e) {
+                    error_log("Login error: " . $e->getMessage());
+                    $error = "Database error. Please try again.";
                 }
             }
         }
     }
-    return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 }
 
-function validateSession() {
-    if (!isset($_SESSION['security_data'])) return false;
+function handleFailedLogin($maxAttempts, $lockoutTime) {
+    $_SESSION['login_attempts']++;
     
-    $security = $_SESSION['security_data'];
-    
-    // Check IP consistency
-    if ($security['ip_address'] !== getClientIP()) {
-        return false;
-    }
-    
-    // Check user agent consistency
-    if ($security['user_agent'] !== ($_SERVER['HTTP_USER_AGENT'] ?? '')) {
-        return false;
-    }
-    
-    return true;
-}
-
-function manageCSRFToken() {
-    if (empty($_SESSION['csrf_tokens'])) {
-        $_SESSION['csrf_tokens'] = [];
-    }
-    
-    // Clean expired tokens
-    $current_time = time();
-    foreach ($_SESSION['csrf_tokens'] as $token => $data) {
-        if ($current_time - $data['created'] > SecurityConfig::CSRF_TOKEN_LIFETIME) {
-            unset($_SESSION['csrf_tokens'][$token]);
-        }
-    }
-    
-    // Generate new token if none exists or all expired
-    if (empty($_SESSION['csrf_tokens'])) {
-        $new_token = bin2hex(random_bytes(32));
-        $_SESSION['csrf_tokens'][$new_token] = [
-            'created' => $current_time,
-            'used' => false
-        ];
-        $_SESSION['current_csrf_token'] = $new_token;
+    // Check if account should be locked
+    if ($_SESSION['login_attempts'] >= $maxAttempts) {
+        $_SESSION['lockout_time'] = time();
     }
 }
-
-function checkRateLimit() {
-    $ip = getClientIP();
-    $rate_limit_file = sys_get_temp_dir() . '/rate_limit_' . md5($ip);
-    $current_time = time();
-    $window = 300; // 5 minutes
-    $max_requests = 20;
-    
-    if (file_exists($rate_limit_file)) {
-        $data = json_decode(file_get_contents($rate_limit_file), true);
-        // Remove old entries
-        $data = array_filter($data, function($time) use ($current_time, $window) {
-            return $time > $current_time - $window;
-        });
-    } else {
-        $data = [];
-    }
-    
-    $data[] = $current_time;
-    
-    if (count($data) > $max_requests) {
-        return false;
-    }
-    
-    file_put_contents($rate_limit_file, json_encode(array_slice($data, -$max_requests)));
-    return true;
-}
-
-function validateInput($input, $type = 'string') {
-    switch ($type) {
-        case 'username':
-            return preg_match('/^[a-zA-Z0-9_]{3,20}$/', $input) ? htmlspecialchars(trim($input), ENT_QUOTES, 'UTF-8') : false;
-        case 'password':
-            return (strlen($input) >= 8 && strlen($input) <= 128) ? $input : false;
-        case 'email':
-            return filter_var($input, FILTER_VALIDATE_EMAIL) ? htmlspecialchars(trim($input), ENT_QUOTES, 'UTF-8') : false;
-        default:
-            return htmlspecialchars(trim($input), ENT_QUOTES, 'UTF-8');
-    }
-}
-
-function processLogin() {
-    global $db;
-    
-    // Validate CSRF token
-    if (!validateCSRFToken()) {
-        logSecurityEvent('CSRF token validation failed', getClientIP());
-        sendJSONResponse(['error' => 'Security token invalid.'], 403);
-        return;
-    }
-    
-    // Validate request content type
-    if ($_SERVER['CONTENT_TYPE'] !== 'application/x-www-form-urlencoded') {
-        sendJSONResponse(['error' => 'Invalid content type.'], 400);
-        return;
-    }
-    
-    // Check lockout status
-    if (isLockedOut()) {
-        $remaining = SecurityConfig::LOCKOUT_TIME - (time() - $_SESSION['security_data']['lockout_time']);
-        sendJSONResponse(['error' => "Account locked. Try again in " . ceil($remaining/60) . " minutes."], 429);
-        return;
-    }
-    
-    // Validate inputs
-    $username = validateInput($_POST['username'] ?? '', 'username');
-    $password = validateInput($_POST['password'] ?? '', 'password');
-    
-    if (!$username || !$password) {
-        handleFailedLogin();
-        sendJSONResponse(['error' => 'Invalid input format.'], 400);
-        return;
-    }
-    
-    try {
-        // Use prepared statement with parameterized queries
-        $stmt = $db->prepare("SELECT id, username, password, email, failed_attempts, last_login, is_active FROM user WHERE username = ?");
-        
-        if (!$stmt) {
-            throw new Exception("Database preparation failed.");
-        }
-        
-        $stmt->bind_param("s", $username);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        if ($result->num_rows === 1) {
-            $user = $result->fetch_assoc();
-            
-            // Check if account is active
-            if (!$user['is_active']) {
-                sendJSONResponse(['error' => 'Account deactivated.'], 403);
-                return;
-            }
-            
-            // Verify password with timing attack protection
-            if (password_verify($password, $user['password'])) {
-                handleSuccessfulLogin($user);
-            } else {
-                handleFailedLogin();
-                updateUserFailedAttempts($user['id'], $user['failed_attempts'] + 1);
-                sendJSONResponse(['error' => 'Invalid credentials.'], 401);
-            }
-        } else {
-            // User not found - simulate similar processing time
-            handleFailedLogin();
-            usleep(rand(100000, 500000)); // Random delay to prevent user enumeration
-            sendJSONResponse(['error' => 'Invalid credentials.'], 401);
-        }
-    } catch (Exception $e) {
-        error_log("Login error: " . $e->getMessage());
-        sendJSONResponse(['error' => 'System error. Please try again.'], 500);
-    }
-}
-
-function validateCSRFToken() {
-    $token = $_POST['csrf_token'] ?? '';
-    
-    if (empty($token) || !isset($_SESSION['csrf_tokens'][$token])) {
-        return false;
-    }
-    
-    $token_data = $_SESSION['csrf_tokens'][$token];
-    
-    // Check if token expired
-    if (time() - $token_data['created'] > SecurityConfig::CSRF_TOKEN_LIFETIME) {
-        unset($_SESSION['csrf_tokens'][$token]);
-        return false;
-    }
-    
-    // Mark token as used
-    $_SESSION['csrf_tokens'][$token]['used'] = true;
-    
-    // Remove used token
-    unset($_SESSION['csrf_tokens'][$token]);
-    
-    return true;
-}
-
-function isLockedOut() {
-    $security = $_SESSION['security_data'];
-    
-    if ($security['login_attempts'] >= SecurityConfig::MAX_ATTEMPTS) {
-        if (time() - $security['lockout_time'] < SecurityConfig::LOCKOUT_TIME) {
-            return true;
-        } else {
-            // Reset attempts after lockout period
-            $_SESSION['security_data']['login_attempts'] = 0;
-        }
-    }
-    
-    return false;
-}
-
-function handleSuccessfulLogin($user) {
-    // Reset security data
-    $_SESSION['security_data']['login_attempts'] = 0;
-    $_SESSION['security_data']['lockout_time'] = 0;
-    
-    // Set user session
-    $_SESSION['user_id'] = $user['id'];
-    $_SESSION['username'] = $user['username'];
-    $_SESSION['email'] = $user['email'];
-    $_SESSION['logged_in'] = true;
-    $_SESSION['login_time'] = time();
-    
-    // Regenerate session ID
-    session_regenerate_id(true);
-    
-    // Update user record
-    updateUserLoginSuccess($user['id']);
-    
-    // Log successful login
-    logSecurityEvent('Successful login', getClientIP(), $user['id']);
-    
-    sendJSONResponse(['success' => true, 'redirect' => 'dashboard.php']);
-}
-
-function handleFailedLogin() {
-    $_SESSION['security_data']['login_attempts']++;
-    
-    if ($_SESSION['security_data']['login_attempts'] >= SecurityConfig::MAX_ATTEMPTS) {
-        $_SESSION['security_data']['lockout_time'] = time();
-        logSecurityEvent('Account locked due to failed attempts', getClientIP());
-    }
-}
-
-function updateUserFailedAttempts($user_id, $attempts) {
-    global $db;
-    
-    $stmt = $db->prepare("UPDATE user SET failed_attempts = ?, last_attempt = NOW() WHERE id = ?");
-    $stmt->bind_param("ii", $attempts, $user_id);
-    $stmt->execute();
-}
-
-function updateUserLoginSuccess($user_id) {
-    global $db;
-    
-    $stmt = $db->prepare("UPDATE user SET failed_attempts = 0, last_login = NOW(), login_count = login_count + 1 WHERE id = ?");
-    $stmt->bind_param("i", $user_id);
-    $stmt->execute();
-}
-
-function logSecurityEvent($event, $ip, $user_id = null) {
-    global $db;
-    
-    $stmt = $db->prepare("INSERT INTO security_logs (user_id, event_type, ip_address, user_agent, timestamp) VALUES (?, ?, ?, ?, NOW())");
-    $stmt->bind_param("isss", $user_id, $event, $ip, $_SERVER['HTTP_USER_AGENT'] ?? '');
-    $stmt->execute();
-}
-
-function sendJSONResponse($data, $status_code = 200) {
-    http_response_code($status_code);
-    header('Content-Type: application/json');
-    echo json_encode($data);
-    exit();
-}
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -350,320 +139,203 @@ function sendJSONResponse($data, $status_code = 200) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>GPASS - Admin Login</title>
-    
-    <!-- Subresource Integrity (SRI) for CDN resources -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/css/bootstrap.min.css" 
-          rel="stylesheet" 
-          integrity="sha384-wEmeIV1mKuiNpC+IOBjI7aAzPcEZeedi5yW5f2yOq55WWLwNGmvvx4Um1vskeMj0" 
-          crossorigin="anonymous">
-    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Add SweetAlert CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <style>
-        :root {
-            --primary-color: #ffc107;
-            --error-color: #dc3545;
-            --success-color: #198754;
-        }
-        
         body {
             background: linear-gradient(135deg, #e5e9f1ff, #d0d7e4ff);
             height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: 'Segoe UI', system-ui, sans-serif;
         }
-        
         .login-container {
-            background: white;
+            background-color: white;
             border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
             overflow: hidden;
             width: 100%;
             max-width: 450px;
-            animation: fadeIn 0.6s ease;
-            position: relative;
+            animation: fadeIn 0.5s ease;
         }
         
-        .login-container::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, var(--primary-color), #ff6b35);
-        }
-        
-        .security-indicator {
-            font-size: 12px;
-            color: #28a745;
-            margin-bottom: 10px;
+        .login-container:hover {
+            transform: translateY(-5px);
+            transition: transform 0.3s ease;
         }
         
         .form-floating {
             margin-bottom: 1rem;
         }
         
-        .btn-primary {
-            background: var(--primary-color);
-            border: none;
+        .btn-warning {
+            background-color: #ffc107;
+            border-color: #ffc107;
             font-weight: 600;
-            transition: all 0.3s ease;
         }
         
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(255, 193, 7, 0.4);
+        .btn-warning:hover {
+            background-color: #e0a800;
+            border-color: #e0a800;
+        }
+        
+        .terms-link {
+            font-size: 12px;
+            color: gray;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        
+        .terms-link:hover {
+            text-decoration: underline;
+            color: black;
+        }
+        
+        #lockout-message {
+            display: none;
+            margin-top: 15px;
         }
         
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(30px); }
+            from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .shake {
-            animation: shake 0.5s ease-in-out;
-        }
-        
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-10px); }
-            75% { transform: translateX(10px); }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="login-container p-4 p-sm-5">
-            <form id="loginForm" method="POST" novalidate>
-                <input type="hidden" name="csrf_token" id="csrf_token" value="<?php echo $_SESSION['current_csrf_token'] ?? ''; ?>">
-                
-                <div class="text-center mb-4">
-                    <h3 class="text-warning mb-2"><i class="fas fa-shield-alt"></i> ADMIN PORTAL</h3>
-                    <p class="text-muted">Secure Authentication Required</p>
-                </div>
+<div class="container">
+    <div class="login-container p-4 p-sm-5">
+    <form id="logform" method="POST">
+        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+        
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <h3 class="text-warning"><i class="fas fa-user-shield me-2"></i>ADMIN</h3>
+            <h3>Sign In</h3>
+        </div>
 
-                <div class="security-indicator text-center">
-                    <i class="fas fa-lock"></i> Secure Connection Established
-                </div>
+        <?php if (isset($error)): ?>
+            <div class="alert alert-danger"><?php echo $error; ?></div>
+        <?php endif; ?>
 
-                <div id="alertContainer"></div>
+        <div class="form-floating mb-3">
+            <input id="uname" type="text" class="form-control" name="username" placeholder="Username" autocomplete="off" required value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : ''; ?>">
+            <label for="uname"><i class="fas fa-user me-2"></i>Username</label>
+        </div>
 
-                <div class="form-floating mb-3">
-                    <input type="text" class="form-control" id="username" name="username" 
-                           placeholder="Username" required maxlength="20" pattern="[a-zA-Z0-9_]{3,20}"
-                           autocomplete="username">
-                    <label for="username"><i class="fas fa-user me-2"></i>Username</label>
-                    <div class="invalid-feedback">Please enter a valid username (3-20 characters, letters/numbers only)</div>
-                </div>
+        <div class="form-floating mb-4">
+            <input id="password" type="password" class="form-control" name="password" placeholder="Password" autocomplete="off" required>
+            <label for="password"><i class="fas fa-lock me-2"></i>Password</label>
+        </div>
 
-                <div class="form-floating mb-4">
-                    <input type="password" class="form-control" id="password" name="password" 
-                           placeholder="Password" required minlength="8" maxlength="128"
-                           autocomplete="current-password">
-                    <label for="password"><i class="fas fa-key me-2"></i>Password</label>
-                    <div class="invalid-feedback">Password must be at least 8 characters</div>
-                </div>
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div class="form-check">
+                <input type="checkbox" id="remember" class="form-check-input" onclick="togglePasswordVisibility()">
+                <label class="form-check-label" for="remember">Show Password</label>
+            </div>
+            <a class="terms-link" href="forgot_password.php">Forgot Password?</a>
+        </div>
+        
+        <button type="submit" id="loginBtn" name="login" class="btn btn-warning py-3 w-100 mb-4">
+            <span id="loginText">Sign In</span>
+            <span id="loginSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+        </button>
 
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div class="form-check">
-                        <input type="checkbox" class="form-check-input" id="showPassword">
-                        <label class="form-check-label" for="showPassword">Show Password</label>
-                    </div>
-                    <a href="forgot_password.php" class="text-decoration-none">Forgot Password?</a>
-                </div>
-
-                <button type="submit" class="btn btn-primary w-100 py-3 mb-3" id="loginBtn">
-                    <span id="loginText">Secure Sign In</span>
-                    <span id="loginSpinner" class="spinner-border spinner-border-sm d-none ms-2"></span>
-                </button>
-
-                <div class="text-center">
-                    <small class="text-muted">
-                        <i class="fas fa-info-circle"></i> All activities are logged and monitored
-                    </small>
-                </div>
-            </form>
+        <div id="lockout-message" class="alert alert-danger text-center">
+            Account locked. Please try again in <span id="countdown"></span> seconds.
+        </div>
+    </form>
+</div>
         </div>
     </div>
+</div>
 
-    <!-- SRI-protected scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"
-            integrity="sha384-p34f1UUtsS3wqzfto5wAAmdvj+osOnFyQFpp4Ua3gs/ZVWx6oOypYoCJhGGScy+8"
-            crossorigin="anonymous"></script>
+<!-- Include required libraries -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+   // Toggle password visibility
+function togglePasswordVisibility() {
+    const passwordField = document.getElementById("password");
+    passwordField.type = passwordField.type === "password" ? "text" : "password";
+}
 
-    <script>
-        class LoginSecurity {
-            constructor() {
-                this.form = document.getElementById('loginForm');
-                this.init();
-            }
+document.getElementById('logform').addEventListener('submit', function(e) {
+    // Show loading state
+    const loginBtn = document.getElementById('loginBtn');
+    const loginText = document.getElementById('loginText');
+    const loginSpinner = document.getElementById('loginSpinner');
+    
+    loginText.textContent = 'Authenticating...';
+    loginSpinner.classList.remove('d-none');
+    loginBtn.disabled = true;
+    
+    // Form will submit normally via PHP
+ 
+});
 
-            init() {
-                this.setupEventListeners();
-                this.setupSecurityMeasures();
-            }
-
-            setupEventListeners() {
-                this.form.addEventListener('submit', (e) => this.handleSubmit(e));
-                document.getElementById('showPassword').addEventListener('change', (e) => this.togglePasswordVisibility(e));
-                
-                // Input sanitization
-                this.form.querySelectorAll('input').forEach(input => {
-                    input.addEventListener('input', (e) => this.sanitizeInput(e.target));
-                });
-            }
-
-            setupSecurityMeasures() {
-                // Prevent copy-paste on username
-                document.getElementById('username').addEventListener('paste', (e) => e.preventDefault());
-                
-                // Auto-logout on inactivity
-                this.setupInactivityTimer();
-            }
-
-            async handleSubmit(e) {
-                e.preventDefault();
-                
-                if (!this.validateForm()) {
-                    return;
-                }
-
-                this.setLoadingState(true);
-
-                try {
-                    const formData = new FormData(this.form);
-                    
-                    const response = await fetch('', {
-                        method: 'POST',
-                        body: formData,
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        }
-                    });
-
-                    const data = await response.json();
-
-                    if (!response.ok) {
-                        throw new Error(data.error || 'Login failed');
-                    }
-
-                    if (data.success) {
-                        this.showSuccess('Login successful! Redirecting...');
-                        setTimeout(() => {
-                            window.location.href = data.redirect;
-                        }, 1000);
-                    }
-
-                } catch (error) {
-                    this.showError(error.message);
-                    this.form.classList.add('shake');
-                    setTimeout(() => this.form.classList.remove('shake'), 500);
-                } finally {
-                    this.setLoadingState(false);
-                }
-            }
-
-            validateForm() {
-                let isValid = true;
-                
-                this.form.querySelectorAll('input').forEach(input => {
-                    if (!input.checkValidity()) {
-                        input.classList.add('is-invalid');
-                        isValid = false;
-                    } else {
-                        input.classList.remove('is-invalid');
-                    }
-                });
-
-                return isValid;
-            }
-
-            sanitizeInput(input) {
-                const originalValue = input.value;
-                
-                // Remove potentially dangerous characters based on input type
-                switch(input.type) {
-                    case 'text':
-                        input.value = originalValue.replace(/[<>]/g, '');
-                        break;
-                    case 'password':
-                        // Basic password sanitization
-                        input.value = originalValue.replace(/[<>&]/g, '');
-                        break;
-                }
-            }
-
-            togglePasswordVisibility(e) {
-                const passwordField = document.getElementById('password');
-                passwordField.type = e.target.checked ? 'text' : 'password';
-            }
-
-            setLoadingState(loading) {
-                const button = document.getElementById('loginBtn');
-                const text = document.getElementById('loginText');
-                const spinner = document.getElementById('loginSpinner');
-
-                button.disabled = loading;
-                text.textContent = loading ? 'Authenticating...' : 'Secure Sign In';
-                spinner.classList.toggle('d-none', !loading);
-            }
-
-            showError(message) {
-                this.showAlert(message, 'danger');
-            }
-
-            showSuccess(message) {
-                this.showAlert(message, 'success');
-            }
-
-            showAlert(message, type) {
-                const container = document.getElementById('alertContainer');
-                const alert = document.createElement('div');
-                alert.className = `alert alert-${type} alert-dismissible fade show`;
-                alert.innerHTML = `
-                    ${message}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                `;
-                container.appendChild(alert);
-
-                setTimeout(() => alert.remove(), 5000);
-            }
-
-            setupInactivityTimer() {
-                let timeout;
-                const logoutTime = 30 * 60 * 1000; // 30 minutes
-
-                const resetTimer = () => {
-                    clearTimeout(timeout);
-                    timeout = setTimeout(() => {
-                        this.showError('Session expired due to inactivity');
-                        setTimeout(() => window.location.reload(), 2000);
-                    }, logoutTime);
-                };
-
-                ['click', 'mousemove', 'keypress'].forEach(event => {
-                    document.addEventListener(event, resetTimer);
-                });
-
-                resetTimer();
-            }
+// Countdown timer for lockout
+function startCountdown(duration) {
+    const lockoutMessage = document.getElementById('lockout-message');
+    const countdownElement = document.getElementById('countdown');
+    const form = document.getElementById('logform');
+    const inputs = form.querySelectorAll('input, button');
+    
+    lockoutMessage.style.display = 'block';
+    let timer = duration;
+    
+    // Disable form elements
+    inputs.forEach(input => {
+        if (input.type !== 'hidden') {
+            input.disabled = true;
         }
-
-        // Initialize when DOM is loaded
-        document.addEventListener('DOMContentLoaded', () => {
-            new LoginSecurity();
-        });
-
-        // Enhanced security measures
-        Object.freeze(Object.prototype);
+    });
+    
+    const interval = setInterval(() => {
+        const minutes = Math.floor(timer / 60);
+        let seconds = timer % 60;
         
-        // Prevent console usage in production
-        if (window.location.hostname !== 'localhost') {
-            console.log = function() {};
-            console.warn = function() {};
-            console.error = function() {};
+        seconds = seconds < 10 ? '0' + seconds : seconds;
+        countdownElement.textContent = `${minutes}:${seconds}`;
+        
+        if (--timer < 0) {
+            clearInterval(interval);
+            lockoutMessage.style.display = 'none';
+            
+            // Enable form elements
+            inputs.forEach(input => {
+                input.disabled = false;
+            });
         }
-    </script>
+    }, 1000);
+}
+
+// Security: Disable right-click and developer tools
+document.addEventListener('contextmenu', (e) => e.preventDefault());
+    
+document.onkeydown = function(e) {
+    if (e.keyCode === 123 || // F12
+        (e.ctrlKey && e.shiftKey && e.keyCode === 73) || // Ctrl+Shift+I
+        (e.ctrlKey && e.shiftKey && e.keyCode === 74) || // Ctrl+Shift+J
+        (e.ctrlKey && e.shiftKey && e.keyCode === 67) || // Ctrl+Shift+C
+        (e.ctrlKey && e.keyCode === 85)) { // Ctrl+U
+        e.preventDefault();
+        Swal.fire({
+            title: 'Restricted Action',
+            text: 'This action is not allowed.',
+            icon: 'warning'
+        });
+    }
+};
+
+// Initialize lockout if needed
+<?php if (isset($_SESSION['login_attempts']) && $_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime): ?>
+    const remainingTime = <?php echo $lockoutTime - (time() - $_SESSION['lockout_time']); ?>;
+    startCountdown(remainingTime);
+<?php endif; ?>
+</script>
 </body>
 </html>
