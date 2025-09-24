@@ -18,6 +18,7 @@ $logsResult = getTodaysLogs($db);
 ?>
 <!DOCTYPE html>
 <html lang="en">
+    <?php include 'header.php'; ?>
 <head>
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <script type="text/javascript">
