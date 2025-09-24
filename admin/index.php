@@ -136,17 +136,16 @@ function handleFailedLogin($maxAttempts, $lockoutTime) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>GPASS - Admin Login</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Add SweetAlert CSS -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - RFID System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <meta name="description" content="Gate and Personnel Management System">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <style>
-         :root {
+        :root {
             --primary-color: #e1e7f0ff;
             --secondary-color: #b0caf0ff;
             --accent-color: #4e73df;
@@ -355,6 +354,12 @@ function handleFailedLogin($maxAttempts, $lockoutTime) {
             margin-top: 1rem;
         }
         
+        .lockout-message {
+            display: none;
+            margin-top: 15px;
+            text-align: center;
+        }
+        
         @media (max-width: 576px) {
             .login-container {
                 max-width: 100%;
@@ -372,143 +377,187 @@ function handleFailedLogin($maxAttempts, $lockoutTime) {
                 font-size: 1.5rem;
             }
         }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
     </style>
 </head>
 <body>
-<div class="container">
-    <div class="login-container p-4 p-sm-5">
-    <form id="logform" method="POST">
-        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-        
-        <div class="d-flex align-items-center justify-content-between mb-4">
-            <h3 class="text-warning"><i class="fas fa-user-shield me-2"></i>ADMIN</h3>
-            <h3>Sign In</h3>
+    <div class="login-container">
+        <div class="login-header">
+            <h3><i class="fas fa-user-shield me-2"></i>ADMIN LOGIN</h3>
+            <p>Gate and Personnel Management System</p>
         </div>
+        <div class="login-body">
+            <?php if (isset($error)): ?>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-circle me-2"></i><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            <?php endif; ?>
 
-        <?php if (isset($error)): ?>
-            <div class="alert alert-danger"><?php echo $error; ?></div>
-        <?php endif; ?>
+            <form method="POST" id="loginForm">
+                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
 
-        <div class="form-floating mb-3">
-            <input id="uname" type="text" class="form-control" name="username" placeholder="Username" autocomplete="off" required value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : ''; ?>">
-            <label for="uname"><i class="fas fa-user me-2"></i>Username</label>
-        </div>
+                <div class="form-group">
+                    <label for="username" class="form-label"><i class="fas fa-user"></i>Username</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-user"></i></span>
+                        <input type="text" class="form-control" id="username" name="username" 
+                               placeholder="Enter your username" required autocomplete="off"
+                               value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : ''; ?>">
+                    </div>
+                </div>
 
-        <div class="form-floating mb-4">
-            <input id="password" type="password" class="form-control" name="password" placeholder="Password" autocomplete="off" required>
-            <label for="password"><i class="fas fa-lock me-2"></i>Password</label>
-        </div>
+                <div class="form-group">
+                    <label for="password" class="form-label"><i class="fas fa-lock"></i>Password</label>
+                    <div class="input-group password-field">
+                        <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                        <input type="password" class="form-control" id="password" name="password" 
+                               placeholder="Enter your password" required>
+                        <span class="password-toggle" onclick="togglePassword()">
+                            <i class="fas fa-eye"></i>
+                        </span>
+                    </div>
+                </div>
 
-        <div class="d-flex align-items-center justify-content-between mb-4">
-            <div class="form-check">
-                <input type="checkbox" id="remember" class="form-check-input" onclick="togglePasswordVisibility()">
-                <label class="form-check-label" for="remember">Show Password</label>
-            </div>
-            <a class="terms-link" href="forgot_password.php">Forgot Password?</a>
-        </div>
-        
-        <button type="submit" id="loginBtn" name="login" class="btn btn-warning py-3 w-100 mb-4">
-            <span id="loginText">Sign In</span>
-            <span id="loginSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-        </button>
+                <div class="form-group">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="showPasswordCheck" onclick="togglePasswordVisibility()">
+                        <label class="form-check-label" for="showPasswordCheck">Show Password</label>
+                    </div>
+                </div>
 
-        <div id="lockout-message" class="alert alert-danger text-center">
-            Account locked. Please try again in <span id="countdown"></span> seconds.
-        </div>
-    </form>
-</div>
+                <button type="submit" name="login" class="btn btn-login mb-3" id="loginBtn">
+                    <i class="fas fa-sign-in-alt me-2"></i>
+                    <span id="loginText">Sign In</span>
+                    <span id="loginSpinner" class="spinner-border spinner-border-sm d-none ms-2" role="status"></span>
+                </button>
+
+                <div id="lockout-message" class="alert alert-danger text-center lockout-message">
+                    Account locked. Please try again in <span id="countdown"></span> seconds.
+                </div>
+
+                <div class="login-footer">
+                    <a href="forgot_password.php" class="forgot-link">Forgot Password?</a>
+                    <div class="text-muted">© <?php echo date('Y'); ?> GPASS</div>
+                </div>
+            </form>
         </div>
     </div>
-</div>
 
-<!-- Include required libraries -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script>
-   // Toggle password visibility
-function togglePasswordVisibility() {
-    const passwordField = document.getElementById("password");
-    passwordField.type = passwordField.type === "password" ? "text" : "password";
-}
-
-document.getElementById('logform').addEventListener('submit', function(e) {
-    // Show loading state
-    const loginBtn = document.getElementById('loginBtn');
-    const loginText = document.getElementById('loginText');
-    const loginSpinner = document.getElementById('loginSpinner');
-    
-    loginText.textContent = 'Authenticating...';
-    loginSpinner.classList.remove('d-none');
-    loginBtn.disabled = true;
-    
-    // Form will submit normally via PHP
- 
-});
-
-// Countdown timer for lockout
-function startCountdown(duration) {
-    const lockoutMessage = document.getElementById('lockout-message');
-    const countdownElement = document.getElementById('countdown');
-    const form = document.getElementById('logform');
-    const inputs = form.querySelectorAll('input, button');
-    
-    lockoutMessage.style.display = 'block';
-    let timer = duration;
-    
-    // Disable form elements
-    inputs.forEach(input => {
-        if (input.type !== 'hidden') {
-            input.disabled = true;
-        }
-    });
-    
-    const interval = setInterval(() => {
-        const minutes = Math.floor(timer / 60);
-        let seconds = timer % 60;
-        
-        seconds = seconds < 10 ? '0' + seconds : seconds;
-        countdownElement.textContent = `${minutes}:${seconds}`;
-        
-        if (--timer < 0) {
-            clearInterval(interval);
-            lockoutMessage.style.display = 'none';
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Toggle password visibility
+        function togglePassword() {
+            const passwordField = document.getElementById("password");
+            const eyeIcon = document.querySelector('.password-toggle i');
             
-            // Enable form elements
-            inputs.forEach(input => {
-                input.disabled = false;
-            });
+            if (passwordField.type === "password") {
+                passwordField.type = "text";
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordField.type = "password";
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye');
+            }
         }
-    }, 1000);
-}
 
-// Security: Disable right-click and developer tools
-document.addEventListener('contextmenu', (e) => e.preventDefault());
-    
-document.onkeydown = function(e) {
-    if (e.keyCode === 123 || // F12
-        (e.ctrlKey && e.shiftKey && e.keyCode === 73) || // Ctrl+Shift+I
-        (e.ctrlKey && e.shiftKey && e.keyCode === 74) || // Ctrl+Shift+J
-        (e.ctrlKey && e.shiftKey && e.keyCode === 67) || // Ctrl+Shift+C
-        (e.ctrlKey && e.keyCode === 85)) { // Ctrl+U
-        e.preventDefault();
-        Swal.fire({
-            title: 'Restricted Action',
-            text: 'This action is not allowed.',
-            icon: 'warning'
+        // Alternative toggle function for checkbox
+        function togglePasswordVisibility() {
+            const passwordField = document.getElementById("password");
+            const eyeIcon = document.querySelector('.password-toggle i');
+            const checkbox = document.getElementById('showPasswordCheck');
+            
+            if (checkbox.checked) {
+                passwordField.type = "text";
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordField.type = "password";
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye');
+            }
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            // Show loading state
+            const loginBtn = document.getElementById('loginBtn');
+            const loginText = document.getElementById('loginText');
+            const loginSpinner = document.getElementById('loginSpinner');
+            
+            loginText.textContent = 'Authenticating...';
+            loginSpinner.classList.remove('d-none');
+            loginBtn.disabled = true;
+            
+            // Form will submit normally via PHP
         });
-    }
-};
 
-// Initialize lockout if needed
-<?php if (isset($_SESSION['login_attempts']) && $_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime): ?>
-    const remainingTime = <?php echo $lockoutTime - (time() - $_SESSION['lockout_time']); ?>;
-    startCountdown(remainingTime);
-<?php endif; ?>
-</script>
+        // Countdown timer for lockout
+        function startCountdown(duration) {
+            const lockoutMessage = document.getElementById('lockout-message');
+            const countdownElement = document.getElementById('countdown');
+            const form = document.getElementById('loginForm');
+            const inputs = form.querySelectorAll('input, button');
+            
+            lockoutMessage.style.display = 'block';
+            let timer = duration;
+            
+            // Disable form elements
+            inputs.forEach(input => {
+                if (input.type !== 'hidden') {
+                    input.disabled = true;
+                }
+            });
+            
+            const interval = setInterval(() => {
+                const minutes = Math.floor(timer / 60);
+                let seconds = timer % 60;
+                
+                seconds = seconds < 10 ? '0' + seconds : seconds;
+                countdownElement.textContent = `${minutes}:${seconds}`;
+                
+                if (--timer < 0) {
+                    clearInterval(interval);
+                    lockoutMessage.style.display = 'none';
+                    
+                    // Enable form elements
+                    inputs.forEach(input => {
+                        input.disabled = false;
+                    });
+                }
+            }, 1000);
+        }
+
+        // Security: Disable right-click and developer tools
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+            
+        document.onkeydown = function(e) {
+            if (e.keyCode === 123 || // F12
+                (e.ctrlKey && e.shiftKey && e.keyCode === 73) || // Ctrl+Shift+I
+                (e.ctrlKey && e.shiftKey && e.keyCode === 74) || // Ctrl+Shift+J
+                (e.ctrlKey && e.shiftKey && e.keyCode === 67) || // Ctrl+Shift+C
+                (e.ctrlKey && e.keyCode === 85)) { // Ctrl+U
+                e.preventDefault();
+                Swal.fire({
+                    title: 'Restricted Action',
+                    text: 'This action is not allowed.',
+                    icon: 'warning',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            }
+        };
+
+        // Initialize lockout if needed
+        <?php if (isset($_SESSION['login_attempts']) && $_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime): ?>
+            const remainingTime = <?php echo $lockoutTime - (time() - $_SESSION['lockout_time']); ?>;
+            startCountdown(remainingTime);
+        <?php endif; ?>
+
+        // Auto-focus on username field
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('username').focus();
+        });
+    </script>
 </body>
 </html>
