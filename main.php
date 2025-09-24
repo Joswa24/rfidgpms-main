@@ -560,7 +560,7 @@ function onScanError(error) {
     console.error('Scanner error:', error);
 }
 
-// Process scanned barcode
+
 // Process scanned barcode
 function processBarcode(barcode) {
     $.ajax({
