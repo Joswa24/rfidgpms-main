@@ -7,6 +7,13 @@
     <link rel="icon" href="uploads/logo.png" type="image/png">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --primary-color: #e1e7f0ff;
+            --secondary-color: #b0caf0ff;
+            --accent-color: #4e73df;
+            --light-bg: #f8f9fc;
+            --dark-text: #5a5c69;
+        }
         body {
             font-family: 'Poppins', sans-serif;
             background-color: #f3f4f6;
