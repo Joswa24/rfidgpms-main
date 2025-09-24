@@ -383,7 +383,7 @@ function handleFailedLogin($maxAttempts, $lockoutTime) {
     <div class="login-container">
         <div class="login-header">
             <h3><i class="fas fa-user-shield me-2"></i>ADMIN LOGIN</h3>
-            <p>Gate and Personnel Management System</p>
+            
         </div>
         <div class="login-body">
             <?php if (isset($error)): ?>
@@ -437,7 +437,7 @@ function handleFailedLogin($maxAttempts, $lockoutTime) {
 
                 <div class="login-footer">
                     <a href="forgot_password.php" class="forgot-link">Forgot Password?</a>
-                    <div class="text-muted">© <?php echo date('Y'); ?> GPASS</div>
+                    <div class="text-muted">© <?php echo date('Y'); ?></div>
                 </div>
             </form>
         </div>
