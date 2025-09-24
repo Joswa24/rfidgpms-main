@@ -8,11 +8,12 @@ header("Content-Security-Policy: default-src 'self'");
 header("X-Frame-Options: DENY");
 header("X-Content-Type-Options: nosniff");
 
-// Initialize variables for login attempts
+// Initialize variables
 $maxAttempts = 5;
-$lockoutTime = 300; // 5 minutes in seconds
+$lockoutTime = 300;
+$error = '';
 
-// Initialize session variables if not set
+// Initialize session variables
 if (!isset($_SESSION['login_attempts'])) {
     $_SESSION['login_attempts'] = 0;
     $_SESSION['lockout_time'] = 0;
@@ -23,7 +24,7 @@ if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// If user is already logged in, redirect to dashboard
+// Redirect if already logged in
 if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
     header('Location: dashboard.php');
     exit();
@@ -36,29 +37,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
         $error = "Security token invalid. Please refresh the page.";
     } else {
-        // Check if user is currently locked out
+        // Check lockout
         if ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime) {
             $remainingTime = $lockoutTime - (time() - $_SESSION['lockout_time']);
-            $error = "Too many failed attempts. Please wait " . ceil($remainingTime / 60) . " minutes before trying again.";
+            $error = "Too many failed attempts. Please wait " . ceil($remainingTime / 60) . " minutes.";
         } else {
-            // Reset attempts if lockout period has expired
+            // Reset attempts if lockout expired
             if ((time() - $_SESSION['lockout_time']) >= $lockoutTime) {
                 $_SESSION['login_attempts'] = 0;
             }
 
-            // Validate and sanitize inputs
-            $username = filter_input(INPUT_POST, 'username', FILTER_SANITIZE_STRING);
-            $password = filter_input(INPUT_POST, 'password', FILTER_SANITIZE_STRING);
+            $username = trim($_POST['username']);
+            $password = trim($_POST['password']);
             
-            // Basic validation
             if (empty($username) || empty($password)) {
                 $error = "Please enter both username and password.";
             } else {
                 try {
-                    // Check credentials in database
                     $stmt = $db->prepare("SELECT * FROM user WHERE username = ?");
                     if (!$stmt) {
-                        throw new Exception("Database prepare failed: " . $db->error);
+                        throw new Exception("Database error");
                     }
                     
                     $stmt->bind_param("s", $username);
@@ -68,7 +66,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                     if ($result->num_rows > 0) {
                         $user = $result->fetch_assoc();
                         
-                        // Check if password is hashed or plain text
+                        // Debug: Check what we're getting
+                        error_log("User found: " . $user['username']);
+                        error_log("Stored password: " . $user['password']);
+                        error_log("Input password: " . $password);
+                        
+                        // Check password (both hashed and plain text)
                         if (password_verify($password, $user['password'])) {
                             // Successful login with hashed password
                             $_SESSION['login_attempts'] = 0;
@@ -77,10 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                             $_SESSION['email'] = $user['email'];
                             $_SESSION['logged_in'] = true;
                             
-                            // Regenerate session ID to prevent fixation
                             session_regenerate_id(true);
-                            
-                            // Redirect immediately
                             header('Location: dashboard.php');
                             exit();
                         } elseif ($user['password'] === $password) {
@@ -91,7 +91,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                             $_SESSION['email'] = $user['email'];
                             $_SESSION['logged_in'] = true;
                             
-                            // Regenerate session ID to prevent fixation
                             session_regenerate_id(true);
                             
                             // Hash the plain text password for future use
@@ -102,17 +101,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                                 $updateStmt->execute();
                             }
                             
-                            // Redirect immediately
                             header('Location: dashboard.php');
                             exit();
                         } else {
-                            // Password verification failed
-                            handleFailedLogin($maxAttempts, $lockoutTime);
+                            $_SESSION['login_attempts']++;
                             $error = "Invalid username or password. Attempts remaining: " . ($maxAttempts - $_SESSION['login_attempts']);
                         }
                     } else {
-                        // User not found
-                        handleFailedLogin($maxAttempts, $lockoutTime);
+                        $_SESSION['login_attempts']++;
                         $error = "Invalid username or password. Attempts remaining: " . ($maxAttempts - $_SESSION['login_attempts']);
                     }
                 } catch (Exception $e) {
@@ -120,16 +116,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                     $error = "Database error. Please try again.";
                 }
             }
+            
+            // Check if account should be locked
+            if ($_SESSION['login_attempts'] >= $maxAttempts) {
+                $_SESSION['lockout_time'] = time();
+            }
         }
-    }
-}
-
-function handleFailedLogin($maxAttempts, $lockoutTime) {
-    $_SESSION['login_attempts']++;
-    
-    // Check if account should be locked
-    if ($_SESSION['login_attempts'] >= $maxAttempts) {
-        $_SESSION['lockout_time'] = time();
     }
 }
 ?>
@@ -385,62 +377,48 @@ function handleFailedLogin($maxAttempts, $lockoutTime) {
             <h3><i class="fas fa-user-shield me-2"></i>ADMIN LOGIN</h3>
             
         </div>
-        <div class="login-body">
-            <?php if (isset($error)): ?>
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="fas fa-exclamation-circle me-2"></i><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            <?php endif; ?>
-
-            <form method="POST" id="loginForm">
-                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-
-                <div class="form-group">
-                    <label for="username" class="form-label"><i class="fas fa-user"></i>Username</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="fas fa-user"></i></span>
-                        <input type="text" class="form-control" id="username" name="username" 
-                               placeholder="Enter your username" required autocomplete="off"
-                               value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : ''; ?>">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="password" class="form-label"><i class="fas fa-lock"></i>Password</label>
-                    <div class="input-group password-field">
-                        <span class="input-group-text"><i class="fas fa-lock"></i></span>
-                        <input type="password" class="form-control" id="password" name="password" 
-                               placeholder="Enter your password" required>
-                        <span class="password-toggle" onclick="togglePassword()">
-                            <i class="fas fa-eye"></i>
-                        </span>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <div class="form-check">
-                        <input type="checkbox" class="form-check-input" id="showPasswordCheck" onclick="togglePasswordVisibility()">
-                        <label class="form-check-label" for="showPasswordCheck">Show Password</label>
-                    </div>
-                </div>
-
-                <button type="submit" name="login" class="btn btn-login mb-3" id="loginBtn">
-                    <i class="fas fa-sign-in-alt me-2"></i>
-                    <span id="loginText">Sign In</span>
-                    <span id="loginSpinner" class="spinner-border spinner-border-sm d-none ms-2" role="status"></span>
-                </button>
-
-                <div id="lockout-message" class="alert alert-danger text-center lockout-message">
-                    Account locked. Please try again in <span id="countdown"></span> seconds.
-                </div>
-
-                <div class="login-footer">
-                    <a href="forgot_password.php" class="forgot-link">Forgot Password?</a>
-                    <div class="text-muted">© <?php echo date('Y'); ?></div>
-                </div>
-            </form>
+        
+<div class="login-body">
+    <?php if (isset($error)): ?>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
+    <?php endif; ?>
+
+    <form method="POST" id="loginForm">
+        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+        <input type="hidden" name="login" value="1">
+
+        <div class="form-group">
+            <label for="username" class="form-label"><i class="fas fa-user"></i>Username</label>
+            <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                <input type="text" class="form-control" id="username" name="username" 
+                       placeholder="Enter your username" required autocomplete="off"
+                       value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : 'joshua'; ?>">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="password" class="form-label"><i class="fas fa-lock"></i>Password</label>
+            <div class="input-group password-field">
+                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                <input type="password" class="form-control" id="password" name="password" 
+                       placeholder="Enter your password" required value="joshua@123">
+                <span class="password-toggle" onclick="togglePassword()">
+                    <i class="fas fa-eye"></i>
+                </span>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-login mb-3" id="loginBtn">
+            <i class="fas fa-sign-in-alt me-2"></i>
+            <span id="loginText">Sign In</span>
+            <span id="loginSpinner" class="spinner-border spinner-border-sm d-none ms-2" role="status"></span>
+        </button>
+    </form>
+</div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
