@@ -560,7 +560,6 @@ function onScanError(error) {
     console.error('Scanner error:', error);
 }
 
-
 // Process scanned barcode
 function processBarcode(barcode) {
     $.ajax({
@@ -574,6 +573,7 @@ function processBarcode(barcode) {
         success: function(response) {
             try {
                 const data = typeof response === 'string' ? JSON.parse(response) : response;
+                console.log("Response data:", data); // Debug log
 
                 if (data.error) {
                     showErrorMessage(data.error);
@@ -604,58 +604,38 @@ function processBarcode(barcode) {
     });
 }
 
-// Update gate UI with access data
+// CORRECTED: Update gate UI with access data - FIXED LOGIC
 function updateGateUI(data) {
     const alertElement = document.getElementById('alert');
-    alertElement.classList.remove('alert-primary', 'alert-success', 'alert-danger', 'alert-warning');
+    alertElement.classList.remove('alert-primary', 'alert-success', 'alert-warning', 'alert-danger', 'alert-info');
     
-    if (data.time_in_out === 'TIME IN') {
+    // Use the correct response fields from process_gate.php
+    if (data.time_in_out === 'Time In Recorded' || data.time_in_out === 'TIME IN') {
         alertElement.classList.add('alert-success');
-        document.getElementById('in_out').innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>ENTRY GRANTED';
-    } else if (data.time_in_out === 'TIME OUT') {
+        document.getElementById('in_out').innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>ENTRY GRANTED - TIME IN RECORDED';
+    } else if (data.time_in_out === 'Time Out Recorded' || data.time_in_out === 'TIME OUT') {
         alertElement.classList.add('alert-warning');
-        document.getElementById('in_out').innerHTML = '<i class="fas fa-sign-out-alt me-2"></i>EXIT RECORDED';
-    } else if (data.time_in_out === 'UNAUTHORIZED') {
+        document.getElementById('in_out').innerHTML = '<i class="fas fa-sign-out-alt me-2"></i>EXIT RECORDED - TIME OUT RECORDED';
+    } else if (data.error) {
         alertElement.classList.add('alert-danger');
-        document.getElementById('in_out').innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>ACCESS DENIED';
-    } else if (data.time_in_out === 'COMPLETED') {
+        document.getElementById('in_out').innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i>${data.error}`;
+    } else if (data.time_in_out === 'Already timed out today') {
         alertElement.classList.add('alert-info');
-        document.getElementById('in_out').innerHTML = '<i class="fas fa-check-circle me-2"></i>ALREADY COMPLETED';
+        document.getElementById('in_out').innerHTML = '<i class="fas fa-check-circle me-2"></i>ALREADY TIMED OUT TODAY';
     } else {
         alertElement.classList.add('alert-primary');
         document.getElementById('in_out').innerHTML = '<i class="fas fa-id-card me-2"></i>Scan Your ID Card for Gate Access';
     }
     
-    // Update photo
+    // Update photo - handle both base64 and file path photos
     if (data.photo) {
-        document.getElementById('pic').src = data.photo;
-    } else {
-        document.getElementById('pic').src = "uploads/students/default.png";
-    }
-}
-
-// Update gate UI with access data
-function updateGateUI(data) {
-    const alertElement = document.getElementById('alert');
-    alertElement.classList.remove('alert-primary', 'alert-success', 'alert-danger', 'alert-warning');
-    
-    if (data.time_in_out === 'TIME IN') {
-        alertElement.classList.add('alert-success');
-        document.getElementById('in_out').innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>ENTRY GRANTED';
-    } else if (data.time_in_out === 'TIME OUT') {
-        alertElement.classList.add('alert-warning');
-        document.getElementById('in_out').innerHTML = '<i class="fas fa-sign-out-alt me-2"></i>EXIT RECORDED';
-    } else if (data.time_in_out === 'UNAUTHORIZED') {
-        alertElement.classList.add('alert-danger');
-        document.getElementById('in_out').innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>ACCESS DENIED';
-    } else {
-        alertElement.classList.add('alert-primary');
-        document.getElementById('in_out').innerHTML = '<i class="fas fa-id-card me-2"></i>Scan Your ID Card for Gate Access';
-    }
-    
-    // Update photo
-    if (data.photo) {
-        document.getElementById('pic').src = data.photo;
+        if (data.photo.startsWith('data:image')) {
+            // Base64 photo
+            document.getElementById('pic').src = data.photo;
+        } else {
+            // File path photo
+            document.getElementById('pic').src = data.photo + "?t=" + new Date().getTime();
+        }
     } else if (personPhotos[data.id_number]) {
         document.getElementById('pic').src = personPhotos[data.id_number] + "?t=" + new Date().getTime();
     } else {
@@ -663,7 +643,7 @@ function updateGateUI(data) {
     }
 }
 
-// Show confirmation modal
+// CORRECTED: Show confirmation modal - FIXED LOGIC
 function showConfirmationModal(data) {
     const now = new Date();
     const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -680,30 +660,41 @@ function showConfirmationModal(data) {
     // Set photo
     let photoPath = "uploads/students/default.png";
     if (data.photo) {
-        photoPath = data.photo;
+        if (data.photo.startsWith('data:image')) {
+            photoPath = data.photo;
+        } else {
+            photoPath = data.photo;
+        }
     } else if (personPhotos[data.id_number]) {
         photoPath = personPhotos[data.id_number];
     }
     document.getElementById("modalPersonPhoto").src = photoPath + "?t=" + new Date().getTime();
 
-    // Update access status
+    // CORRECTED: Update access status - FIXED LOGIC
     const statusElement = document.getElementById('modalAccessStatus');
     statusElement.className = 'access-status';
     
-    if (data.time_in_out === 'TIME IN') {
+    if (data.time_in_out === 'Time In Recorded' || data.time_in_out === 'TIME IN') {
         statusElement.classList.add('time-in');
         statusElement.innerHTML = `
             <i class="fas fa-sign-in-alt me-2"></i>
-            ENTRY GRANTED
+            TIME IN RECORDED
         `;
-        speakMessage(`Welcome ${data.first_name || data.full_name || ''}`);
-    } else if (data.time_in_out === 'TIME OUT') {
+        speakMessage(`Welcome ${data.full_name || ''}. Time in recorded.`);
+    } else if (data.time_in_out === 'Time Out Recorded' || data.time_in_out === 'TIME OUT') {
         statusElement.classList.add('time-out');
         statusElement.innerHTML = `
             <i class="fas fa-sign-out-alt me-2"></i>
-            EXIT RECORDED
+            TIME OUT RECORDED
         `;
-        speakMessage(`Goodbye ${data.first_name || data.full_name || ''}`);
+        speakMessage(`Goodbye ${data.full_name || ''}. Time out recorded.`);
+    } else if (data.error) {
+        statusElement.classList.add('access-denied');
+        statusElement.innerHTML = `
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            ${data.error}
+        `;
+        speakMessage(data.error);
     } else {
         statusElement.classList.add('access-denied');
         statusElement.innerHTML = `
