@@ -38,7 +38,7 @@ function getGateEntranceStats($db) {
     $sql = "SELECT 
         SUM(CASE WHEN time_in = 'TIME IN' THEN 1 ELSE 0 END) as entries,
         SUM(CASE WHEN time_out = 'TIME OUT' THEN 1 ELSE 0 END) as exits,
-        SUM(CASE WHEN role = 'Visitor' AND DATE(timestamp) = '$today' THEN 1 ELSE 0 END) as visitors
+        -- SUM(CASE WHEN role = 'Visitor' AND DATE(timestamp) = '$today' THEN 1 ELSE 0 END) as visitors
     FROM gate_logs 
     WHERE DATE(timestamp) = '$today'";
     
