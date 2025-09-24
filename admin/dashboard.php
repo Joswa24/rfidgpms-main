@@ -36,8 +36,8 @@ function getGateEntranceStats($db) {
     // Today's entries and exits
     $today = date('Y-m-d');
     $sql = "SELECT 
-        SUM(CASE WHEN time_in_out = 'TIME IN' THEN 1 ELSE 0 END) as entries,
-        SUM(CASE WHEN time_in_out = 'TIME OUT' THEN 1 ELSE 0 END) as exits,
+        SUM(CASE WHEN time_in = 'TIME IN' THEN 1 ELSE 0 END) as entries,
+        SUM(CASE WHEN time_out = 'TIME OUT' THEN 1 ELSE 0 END) as exits,
         SUM(CASE WHEN role = 'Visitor' AND DATE(timestamp) = '$today' THEN 1 ELSE 0 END) as visitors
     FROM gate_logs 
     WHERE DATE(timestamp) = '$today'";
@@ -268,13 +268,13 @@ $recentGateActivities = getRecentGateActivities($db, 5);
                                                     <td><?php echo sanitizeOutput($activity['role']); ?></td>
                                                     <td><?php echo sanitizeOutput($activity['department'] ?? 'N/A'); ?></td>
                                                     <td>
-                                                        <span class="badge <?php echo $activity['time_in_out'] == 'TIME IN' ? 'bg-success' : 'bg-warning'; ?>">
-                                                            <?php echo $activity['time_in_out']; ?>
+                                                        <span class="badge <?php echo $activity['time_in'] == 'TIME IN' ? 'bg-success' : 'bg-warning'; ?>">
+                                                            <?php echo $activity['time_in']; ?>
                                                         </span>
                                                     </td>
                                                     <td><?php echo formatTime($activity['timestamp']); ?></td>
                                                     <td>
-                                                        <?php if ($activity['time_in_out'] == 'TIME IN'): ?>
+                                                        <?php if ($activity['time_in'] == 'TIME IN'): ?>
                                                             <span class="text-success"><i class="fa fa-check-circle"></i> Entered</span>
                                                         <?php else: ?>
                                                             <span class="text-warning"><i class="fa fa-sign-out-alt"></i> Exited</span>
@@ -339,14 +339,14 @@ $recentGateActivities = getRecentGateActivities($db, 5);
                                                 <td><?php echo sanitizeOutput($row['department']); ?></td>
                                                 <td><?php echo sanitizeOutput($row['location']); ?></td>
                                                 <td>
-                                                    <span class="badge <?php echo $row['time_in_out'] == 'TIME IN' ? 'bg-success' : 'bg-warning'; ?>">
-                                                        <?php echo $row['time_in_out']; ?>
+                                                    <span class="badge <?php echo $row['time_in'] == 'TIME IN' ? 'bg-success' : 'bg-warning'; ?>">
+                                                        <?php echo $row['time_in']; ?>
                                                     </span>
                                                 </td>
                                                 <td><?php echo $timein; ?></td>
                                                 <td><?php echo $timeout; ?></td>
                                                 <td>
-                                                    <?php if ($row['time_in_out'] == 'TIME IN' && empty($row['time_out'])): ?>
+                                                    <?php if ($row['time_in'] == 'TIME IN' && empty($row['time_out'])): ?>
                                                         <span class="text-success"><i class="fa fa-building"></i> Inside</span>
                                                     <?php elseif (!empty($row['time_out'])): ?>
                                                         <span class="text-secondary"><i class="fa fa-home"></i> Left</span>
