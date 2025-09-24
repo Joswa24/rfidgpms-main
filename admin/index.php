@@ -3,7 +3,7 @@
 include '../connection.php';
 session_start();
 
-// Enhanced security headers
+
 header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;");
 header("X-Frame-Options: DENY");
 header("X-Content-Type-Options: nosniff");
