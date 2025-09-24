@@ -31,7 +31,7 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
     header('Location: dashboard.php');
     exit();
 }
-$allowed_domains = ['rfid-gpms.com', 'www.rfid-gpms.com'];
+$allowed_domains = ['rfid-gpms.com/admin', 'www.rfid-gpms.com/admin'];
 $current_domain = $_SERVER['HTTP_HOST'];
 if (!in_array($current_domain, $allowed_domains)) {
     die("Invalid domain access detected!");
