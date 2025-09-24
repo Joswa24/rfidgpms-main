@@ -81,7 +81,7 @@
 
         button {
             padding: 12px;
-            background-color: #ffc107;
+            background-color: #4e73df;
             color: white;
             font-size: 16px;
             border: none;
