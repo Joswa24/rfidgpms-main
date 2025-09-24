@@ -5,7 +5,7 @@ session_start();
 
 // Security headers
  header("X-Frame-Options: DENY");
- header("X-Content-Type-Options: nosniff");
+// header("X-Content-Type-Options: nosniff");
 
 // Regenerate session ID to prevent fixation
 if (!isset($_SESSION['initiated'])) {

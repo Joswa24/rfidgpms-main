@@ -221,7 +221,7 @@ if ($stmt) {
     <div class="main-content">
         <div class="welcome-header">
             <h2><i class="fas fa-chalkboard-teacher me-2"></i>Welcome, <?php echo htmlspecialchars($_SESSION['fullname']); ?>!</h2>
-            <p class="mb-0">ID: <?php echo htmlspecialchars($_SESSION['instructor_id']); ?> | Department: <?php echo htmlspecialchars($_SESSION['department']); ?></p>
+            <p class="mb-0">Department: <?php echo htmlspecialchars($_SESSION['department']); ?></p>
             <p class="mb-0">Today is <?php echo date('l, F j, Y'); ?></p>
         </div>
 
