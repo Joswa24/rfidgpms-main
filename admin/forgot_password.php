@@ -91,7 +91,7 @@
         }
 
         button:hover {
-            background-color: #dda80a;
+            background-color: #b0caf0ff;
         }
 
         .back-link {
