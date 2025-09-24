@@ -1,19 +1,4 @@
-# Secure admin directory
-<FilesMatch "\.(php|html?)$">
-    Order Deny,Allow
-    Deny from all
-    Allow from 127.0.0.1
-    Allow from your-server-ip
-</FilesMatch>
 
-# Prevent directory listing
-Options -Indexes
-
-# Block access to sensitive files
-<Files ~ "^\.">
-    Order allow,deny
-    Deny from all
-</Files>
 RewriteEngine On
 <<<<<<< HEAD
 RewriteRule ^index\.php$ [R=301,L]
