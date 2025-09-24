@@ -11,7 +11,7 @@ header("Referrer-Policy: strict-origin-when-cross-origin");
 header("Strict-Transport-Security: max-age=31536000; includeSubDomains");
 header("X-XSS-Protection: 1; mode=block");
 
-// Security configuration
+
 class SecurityConfig {
     const MAX_ATTEMPTS = 5;
     const LOCKOUT_TIME = 900; // 15 minutes
