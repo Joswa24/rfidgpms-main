@@ -111,79 +111,87 @@ $response = [
     'voice' => ''
 ];
 
-// Determine the appropriate log table based on person type
-$log_tables = [
-    'student' => 'students_glogs',
-    'instructor' => 'instructor_glogs', 
-    'personell' => 'personell_glogs',
-    'visitor' => 'visitor_glogs'
-];
-
-$log_table = $log_tables[$person_type];
-$fk_column = $person_type . '_id';
-
-// Check existing logs for today
-$log_query = "SELECT * FROM $log_table 
-              WHERE $fk_column = ? 
-              AND date_logged = ?
+// Check existing logs in gate_logs table for today
+$log_query = "SELECT * FROM gate_logs 
+              WHERE person_type = ? 
+              AND person_id = ? 
+              AND date = ?
               AND department = ?
               AND location = ?
-              ORDER BY id DESC LIMIT 1";
+              ORDER BY created_at DESC LIMIT 1";
               
 $log_stmt = $db->prepare($log_query);
-$log_stmt->bind_param("isss", $person['id'], $today, $current_department, $current_location);
+$log_stmt->bind_param("sisss", $person_type, $person['id'], $today, $current_department, $current_location);
 $log_stmt->execute();
 $log_result = $log_stmt->get_result();
 $existing_log = $log_result->fetch_assoc();
 
-// Process attendance logic (same structure as process_barcode.php)
+// Process attendance logic using gate_logs table
 if ($existing_log) {
-    if (empty($existing_log['time_out'])) {
+    // Check if person has already logged OUT today
+    if (!empty($existing_log['time_out']) && $existing_log['time_out'] != '00:00:00') {
+        $response['error'] = 'Already timed out today';
+        $response['voice'] = "Already timed out today";
+    } 
+    // Check if person has logged IN but not OUT yet
+    else if (!empty($existing_log['time_in']) && (empty($existing_log['time_out']) || $existing_log['time_out'] == '00:00:00')) {
         // Record time out
-        $update_query = "UPDATE $log_table SET time_out = ? WHERE id = ?";
+        $update_query = "UPDATE gate_logs SET time_out = ?, action = 'OUT', direction = 'OUT' WHERE id = ?";
         $update_stmt = $db->prepare($update_query);
-        $update_stmt->bind_param("si", $now, $existing_log['id']);
+        $current_time = date('H:i:s');
+        $update_stmt->bind_param("si", $current_time, $existing_log['id']);
         
         if ($update_stmt->execute()) {
-            $response['time_out'] = date('h:i A', strtotime($now));
+            $response['time_out'] = date('h:i A', strtotime($current_time));
             $response['time_in'] = !empty($existing_log['time_in']) ? date('h:i A', strtotime($existing_log['time_in'])) : 'N/A';
             $response['time_in_out'] = 'Time Out Recorded';
             $response['alert_class'] = 'alert-warning';
             $response['voice'] = "Time out recorded for {$person['full_name']}";
-            
-            // Also update gate_logs for OUT action
-            addToGateLogs($db, $person_type, $person['id'], $person['id_number'], $person['full_name'], 'OUT', $current_department, $current_location, $now);
         } else {
             $response['error'] = 'Failed to record time out';
         }
         $update_stmt->close();
     } else {
-        $response['error'] = 'Already timed out today';
-        $response['voice'] = "Already timed out today";
+        // Record time in (update existing record)
+        $update_query = "UPDATE gate_logs SET time_in = ?, action = 'IN', direction = 'IN' WHERE id = ?";
+        $update_stmt = $db->prepare($update_query);
+        $current_time = date('H:i:s');
+        $update_stmt->bind_param("si", $current_time, $existing_log['id']);
+        
+        if ($update_stmt->execute()) {
+            $response['time_in'] = date('h:i A', strtotime($current_time));
+            $response['time_in_out'] = 'Time In Recorded';
+            $response['alert_class'] = 'alert-success';
+            $response['voice'] = "Time in recorded for {$person['full_name']}";
+        } else {
+            $response['error'] = 'Failed to record time in';
+        }
+        $update_stmt->close();
     }
 } else {
-    // Record time in
-    $insert_query = "INSERT INTO $log_table 
-                    ($fk_column, id_number, date_logged, time_in, department, location) 
-                    VALUES (?, ?, ?, ?, ?, ?)";
+    // First entry of the day - record time in
+    $insert_query = "INSERT INTO gate_logs 
+                    (person_type, person_id, id_number, name, action, time_in, time_out, date, location, department, direction) 
+                    VALUES (?, ?, ?, ?, 'IN', ?, NULL, ?, ?, ?, 'IN')";
     $insert_stmt = $db->prepare($insert_query);
-    $insert_stmt->bind_param("isssss", 
+    $current_time = date('H:i:s');
+    
+    $insert_stmt->bind_param("sisssssss", 
+        $person_type, 
         $person['id'], 
         $person['id_number'], 
+        $person['full_name'],
+        $current_time,
         $today,
-        $now, 
-        $current_department, 
-        $current_location
+        $current_location, 
+        $current_department
     );
     
     if ($insert_stmt->execute()) {
-        $response['time_in'] = date('h:i A', strtotime($now));
+        $response['time_in'] = date('h:i A', strtotime($current_time));
         $response['time_in_out'] = 'Time In Recorded';
         $response['alert_class'] = 'alert-success';
         $response['voice'] = "Time in recorded for {$person['full_name']}";
-        
-        // Also update gate_logs for IN action
-        addToGateLogs($db, $person_type, $person['id'], $person['id_number'], $person['full_name'], 'IN', $current_department, $current_location, $now);
     } else {
         $response['error'] = 'Failed to record time in';
     }
@@ -195,42 +203,4 @@ $log_stmt->close();
 
 echo json_encode($response);
 exit;
-
-// Function to maintain gate_logs records (keeping your existing functionality)
-function addToGateLogs($db, $person_type, $person_id, $id_number, $full_name, $action, $department, $location, $now) {
-    $time = date('H:i:s');
-    $date = date('Y-m-d');
-    $direction = strtoupper($action);
-    
-    if (empty($full_name)) $full_name = "Unknown";
-    if (empty($department)) $department = "N/A";
-    if (empty($location)) $location = "Gate";
-    
-    $time_in = ($action === 'IN') ? $time : NULL;
-    $time_out = ($action === 'OUT') ? $time : NULL;
-    
-    $insert_log = "INSERT INTO gate_logs (person_type, person_id, id_number, name, action, time_in, time_out, date, location, department, created_at, direction) 
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    $stmt = $db->prepare($insert_log);
-    
-    if ($stmt) {
-        $stmt->bind_param(
-            "sissssssssss", 
-            $person_type, 
-            $person_id, 
-            $id_number, 
-            $full_name, 
-            $direction, 
-            $time_in, 
-            $time_out, 
-            $date, 
-            $location, 
-            $department, 
-            $now, 
-            $direction
-        );
-        $stmt->execute();
-        $stmt->close();
-    }
-}
 ?>
