@@ -1,10 +1,16 @@
 <?php
-// dashboard.php
+// Enable error reporting
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Start session and check login
 session_start();
-include '../connection.php';
 
-
-
+// Check if user is logged in
+if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
+    header('Location: index.php');
+    exit();
+}
 
 ?>
 <!DOCTYPE html>
