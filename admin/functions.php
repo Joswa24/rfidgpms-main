@@ -50,13 +50,13 @@ function getDashboardStats($db) {
     // Total entrants today (from gate logs)
     $stats['total_entrants_today'] = $getCount("
         SELECT COUNT(*) AS count FROM (
-            SELECT id FROM students_glogs WHERE date_logged = '$today'
+            SELECT id FROM students_glogs WHERE date = '$today'
             UNION ALL
-            SELECT id FROM instructor_glogs WHERE date_logged = '$today'
+            SELECT id FROM instructor_glogs WHERE date = '$today'
             UNION ALL
-            SELECT id FROM personell_glogs WHERE date_logged = '$today'
+            SELECT id FROM personell_glogs WHERE date = '$today'
             UNION ALL
-            SELECT id FROM visitor_glogs WHERE date_logged = '$today'
+            SELECT id FROM visitor_glogs WHERE date = '$today'
         ) AS combined_logs
     ");
     
@@ -65,7 +65,7 @@ function getDashboardStats($db) {
     $stats['students_today'] = $getCount("
         SELECT COUNT(DISTINCT student_id) AS count 
         FROM students_glogs 
-        WHERE date_logged = '$today'
+        WHERE date = '$today'
     ");
     
     // Instructors
@@ -73,7 +73,7 @@ function getDashboardStats($db) {
     $stats['instructors_today'] = $getCount("
         SELECT COUNT(DISTINCT instructor_id) AS count 
         FROM instructor_glogs 
-        WHERE date_logged = '$today'
+        WHERE date = '$today'
     ");
     
     // Staff (personell with specific roles)
@@ -81,11 +81,11 @@ function getDashboardStats($db) {
     $stats['staff_today'] = $getCount("
         SELECT COUNT(DISTINCT personnel_id) AS count 
         FROM personell_glogs 
-        WHERE date_logged = '$today'
+        WHERE date = '$today'
     ");
     
     // Visitors and Blocked (personell with status = 'Block' - but status column doesn't exist in your schema)
-    $stats['visitors_today'] = $getCount("SELECT COUNT(DISTINCT visitor_id) AS count FROM visitor_glogs WHERE date_logged = '$today'");
+    $stats['visitors_today'] = $getCount("SELECT COUNT(DISTINCT visitor_id) AS count FROM visitor_glogs WHERE date = '$today'");
     $stats['blocked'] = 0; // No status column in personell table
     
     return $stats;
@@ -105,10 +105,10 @@ function getTodaysLogs($db) {
         sg.time_in,
         sg.time_out,
         sg.location,
-        sg.date_logged
+        sg.date
     FROM students_glogs sg
     JOIN students s ON sg.student_id = s.id
-    WHERE sg.date_logged = '$today'
+    WHERE sg.date = '$today'
     
     UNION ALL
     
@@ -122,10 +122,10 @@ function getTodaysLogs($db) {
         ig.time_in,
         ig.time_out,
         ig.location,
-        ig.date_logged
+        ig.date
     FROM instructor_glogs ig
     JOIN instructor i ON ig.instructor_id = i.id
-    WHERE ig.date_logged = '$today'
+    WHERE ig.date = '$today'
     
     UNION ALL
     
@@ -156,10 +156,10 @@ function getTodaysLogs($db) {
         vg.time as time_in,
         '00:00:00' as time_out, -- visitors might not have time_out in your schema
         vg.location,
-        vg.date_logged
+        vg.date
     FROM visitor_glogs vg
     JOIN visitor v ON vg.visitor_id = v.id
-    WHERE vg.date_logged = '$today'
+    WHERE vg.date = '$today'
     
     ORDER BY 
         CASE 
@@ -184,7 +184,7 @@ function getHoverLogs($db, $type, $limit = 10) {
                 vg.time as time_in
             FROM visitor_glogs vg
             JOIN visitor v ON vg.visitor_id = v.id
-            WHERE vg.date_logged = '$today'
+            WHERE vg.date = '$today'
             ORDER BY vg.time DESC
             LIMIT $limit";
             break;
@@ -222,7 +222,7 @@ function getHoverLogs($db, $type, $limit = 10) {
                 vg.time as time_in
             FROM visitor_glogs vg
             JOIN visitor v ON vg.visitor_id = v.id
-            WHERE vg.date_logged = '$today'
+            WHERE vg.date = '$today'
             
             UNION ALL
             
@@ -233,7 +233,7 @@ function getHoverLogs($db, $type, $limit = 10) {
                 sg.time_in
             FROM students_glogs sg
             JOIN students s ON sg.student_id = s.id
-            WHERE sg.date_logged = '$today'
+            WHERE sg.date = '$today'
             
             UNION ALL
             
@@ -244,7 +244,7 @@ function getHoverLogs($db, $type, $limit = 10) {
                 ig.time_in
             FROM instructor_glogs ig
             JOIN instructor i ON ig.instructor_id = i.id
-            WHERE ig.date_logged = '$today'
+            WHERE ig.date = '$today'
             
             ORDER BY time_in DESC
             LIMIT $limit";
@@ -258,11 +258,11 @@ function getHoverLogs($db, $type, $limit = 10) {
                 d.department_name as department,
                 sg.time_in,
                 CASE 
-                    WHEN sg.date_logged = '$today' THEN 'Present'
+                    WHEN sg.date = '$today' THEN 'Present'
                     ELSE 'Absent'
                 END as status
             FROM students s
-            LEFT JOIN students_glogs sg ON sg.student_id = s.id AND sg.date_logged = '$today'
+            LEFT JOIN students_glogs sg ON sg.student_id = s.id AND sg.date = '$today'
             LEFT JOIN department d ON s.department_id = d.department_id
             ORDER BY s.fullname
             LIMIT $limit";
@@ -276,11 +276,11 @@ function getHoverLogs($db, $type, $limit = 10) {
                 d.department_name as department,
                 ig.time_in,
                 CASE 
-                    WHEN ig.date_logged = '$today' THEN 'Present'
+                    WHEN ig.date = '$today' THEN 'Present'
                     ELSE 'Absent'
                 END as status
             FROM instructor i
-            LEFT JOIN instructor_glogs ig ON ig.instructor_id = i.id AND ig.date_logged = '$today'
+            LEFT JOIN instructor_glogs ig ON ig.instructor_id = i.id AND ig.date = '$today'
             LEFT JOIN department d ON i.department_id = d.department_id
             ORDER BY i.fullname
             LIMIT $limit";
