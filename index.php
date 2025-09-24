@@ -143,7 +143,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $availablePersonnel[] = " RFID:{$row['id_number']}, Name:{$row['first_name']} {$row['last_name']}";
             }
             
-            die("Unauthorized access. Security personnel not found with ID: $id_number (clean: $clean_id). Available: " . implode('; ', $availablePersonnel));
+            die("Unauthorized access. Security personnel not found with ID: $id_number " );
         }
 
         $securityGuard = $securityResult->fetch_assoc();
