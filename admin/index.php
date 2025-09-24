@@ -149,7 +149,7 @@ function handleFailedLogin($maxAttempts, $lockoutTime) {
         body {
             background: linear-gradient(135deg, #e5e9f1ff, #d0d7e4ff);
             height: 100vh;
-            display: flex;
+            display: center;
             align-items: center;
             justify-content: center;
         }
