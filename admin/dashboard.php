@@ -190,17 +190,7 @@ $logsResult = getTodaysLogs($db);
                                 <?php
                                 $studentLogs = getHoverLogs($db, 'students');
                                 if (!empty($studentLogs)) {
-                                    foreach ($studentLogs as $row) {
-                                        echo '<li class="mb-2 d-flex align-items-center">';
-                                        echo '<span><img style="border-radius:50%;" src="../admin/uploads/' . sanitizeOutput($row["photo"]) . '" width="20px" height="20px"/></span>';
-                                        echo '<span class="ms-3"><b>' . sanitizeOutput($row["full_name"]) . '</b><br>';
-                                        echo '<small class="' . ($row['status'] == 'Present' ? 'text-success' : 'text-danger') . '">' . $row['status'] . '</small>';
-                                        if ($row['status'] == 'Present') {
-                                            echo '<br><small>' . sanitizeOutput($row["department"]) . '</small>';
-                                        }
-                                        echo '</span>';
-                                        echo '</li>';
-                                    }
+                                    
                                 } else {
                                     echo '<li><p class="text-center">No students found</p></li>';
                                 }
