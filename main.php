@@ -567,7 +567,7 @@ function processBarcode(barcode) {
         type: "POST",
         url: "process_gate.php",
         data: { 
-            id_number: barcode,
+            barcode: barcode,
             department: "<?php echo $department; ?>",
             location: "<?php echo $location; ?>"
         },
