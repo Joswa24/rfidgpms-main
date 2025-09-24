@@ -47,82 +47,123 @@ function getDashboardStats($db) {
         return 0;
     };
     
-    // Total entrants today
+    // Total entrants today (from gate logs)
     $stats['total_entrants_today'] = $getCount("
         SELECT COUNT(*) AS count FROM (
-            SELECT id FROM personell_logs WHERE date_logged = '$today'
+            SELECT id FROM students_glogs WHERE date_logged = '$today'
             UNION ALL
-            SELECT id FROM visitor_logs WHERE date_logged = '$today'
+            SELECT id FROM instructor_glogs WHERE date_logged = '$today'
+            UNION ALL
+            SELECT id FROM personell_glogs WHERE date_logged = '$today'
+            UNION ALL
+            SELECT id FROM visitor_glogs WHERE date_logged = '$today'
         ) AS combined_logs
     ");
     
     // Students
-    $stats['total_students'] = $getCount("SELECT COUNT(*) AS count FROM students WHERE status != 'Block'");
+    $stats['total_students'] = $getCount("SELECT COUNT(*) AS count FROM students");
     $stats['students_today'] = $getCount("
-        SELECT COUNT(DISTINCT s.id) AS count 
-        FROM students s 
-        INNER JOIN personell_logs pl ON s.id_number = pl.rfid_number 
-        WHERE pl.date_logged = '$today'
+        SELECT COUNT(DISTINCT student_id) AS count 
+        FROM students_glogs 
+        WHERE date_logged = '$today'
     ");
     
     // Instructors
-    $stats['total_instructors'] = $getCount("SELECT COUNT(*) AS count FROM instructor WHERE status != 'Block'");
+    $stats['total_instructors'] = $getCount("SELECT COUNT(*) AS count FROM instructor");
     $stats['instructors_today'] = $getCount("
-        SELECT COUNT(DISTINCT i.id) AS count 
-        FROM instructor i 
-        INNER JOIN personell_logs pl ON i.id_number = pl.rfid_number 
-        WHERE pl.date_logged = '$today'
+        SELECT COUNT(DISTINCT instructor_id) AS count 
+        FROM instructor_glogs 
+        WHERE date_logged = '$today'
     ");
     
-    // Staff
-    $stats['total_staff'] = $getCount("SELECT COUNT(*) AS count FROM personell WHERE role IN ('Staff', 'Security Personnel', 'Administrator') AND status != 'Block'");
+    // Staff (personell with specific roles)
+    $stats['total_staff'] = $getCount("SELECT COUNT(*) AS count FROM personell WHERE role IN ('Staff', 'Security Personnel', 'Executive', 'Data Analyst', 'Developer', 'Designer', 'Service Manager', 'Operator')");
     $stats['staff_today'] = $getCount("
-        SELECT COUNT(*) AS count FROM personell_logs pl
-        JOIN personell p ON pl.personnel_id = p.id
-        WHERE pl.date_logged = '$today' AND p.role IN ('Staff', 'Security Personnel', 'Administrator')
+        SELECT COUNT(DISTINCT personnel_id) AS count 
+        FROM personell_glogs 
+        WHERE date_logged = '$today'
     ");
     
-    // Visitors and Blocked
-    $stats['visitors_today'] = $getCount("SELECT COUNT(*) AS count FROM visitor_logs WHERE date_logged = '$today'");
-    $stats['blocked'] = $getCount("SELECT COUNT(*) AS count FROM personell WHERE status = 'Block'");
+    // Visitors and Blocked (personell with status = 'Block' - but status column doesn't exist in your schema)
+    $stats['visitors_today'] = $getCount("SELECT COUNT(DISTINCT visitor_id) AS count FROM visitor_glogs WHERE date_logged = '$today'");
+    $stats['blocked'] = 0; // No status column in personell table
     
     return $stats;
 }
 
 function getTodaysLogs($db) {
+    $today = date('Y-m-d');
+    
     $query = "
+    -- Student logs from gate
+    SELECT 
+        s.photo,
+        s.department_id as department,
+        s.id_number,
+        'Student' as role,
+        s.fullname as full_name,
+        sg.time_in,
+        sg.time_out,
+        sg.location,
+        sg.date_logged
+    FROM students_glogs sg
+    JOIN students s ON sg.student_id = s.id
+    WHERE sg.date_logged = '$today'
+    
+    UNION ALL
+    
+    -- Instructor logs from gate
+    SELECT 
+        '' as photo, -- instructors don't have photos in your schema
+        i.department_id as department,
+        i.id_number,
+        'Instructor' as role,
+        i.fullname as full_name,
+        ig.time_in,
+        ig.time_out,
+        ig.location,
+        ig.date_logged
+    FROM instructor_glogs ig
+    JOIN instructor i ON ig.instructor_id = i.id
+    WHERE ig.date_logged = '$today'
+    
+    UNION ALL
+    
+    -- Personell logs from gate
     SELECT 
         p.photo,
         p.department,
         p.id_number,
         p.role,
-        CONCAT(p.first_name, ' ', p.last_name) AS full_name,
-        rl.time_in,
-        rl.time_out,
-        rl.location,
-        rl.date_logged
-    FROM room_logs rl
-    JOIN personell p ON rl.personnel_id = p.id
-    WHERE rl.date_logged = CURDATE()
+        CONCAT(p.first_name, ' ', p.last_name) as full_name,
+        pg.time_in,
+        pg.time_out,
+        pg.location,
+        pg.date
+    FROM personell_glogs pg
+    JOIN personell p ON pg.personnel_id = p.id
+    WHERE pg.date = '$today'
     
     UNION ALL
     
+    -- Visitor logs from gate
     SELECT 
-        vl.photo,
-        vl.department,
-        vl.rfid_number,
-        'Visitor' AS role,
-        vl.name AS full_name,
-        COALESCE(vl.time_in_am, vl.time_in_pm) as time_in,
-        COALESCE(vl.time_out_am, vl.time_out_pm) as time_out,
-        vl.location,
-        vl.date_logged
-    FROM visitor_logs vl
-    WHERE vl.date_logged = CURDATE()
+        v.photo,
+        v.department,
+        v.rfid_number as id_number,
+        'Visitor' as role,
+        v.name as full_name,
+        vg.time as time_in,
+        '00:00:00' as time_out, -- visitors might not have time_out in your schema
+        vg.location,
+        vg.date_logged
+    FROM visitor_glogs vg
+    JOIN visitor v ON vg.visitor_id = v.id
+    WHERE vg.date_logged = '$today'
     
     ORDER BY 
         CASE 
-            WHEN time_out IS NOT NULL THEN time_out 
+            WHEN time_out != '00:00:00' THEN time_out 
             ELSE time_in 
         END DESC
     ";
@@ -131,31 +172,33 @@ function getTodaysLogs($db) {
 }
 
 function getHoverLogs($db, $type, $limit = 10) {
+    $today = date('Y-m-d');
+    
     switch ($type) {
         case 'visitors':
             $sql = "
             SELECT 
-                vl.photo,
-                vl.name AS full_name,
-                vl.department,
-                vl.time_in_am,
-                vl.time_in_pm
-            FROM visitor_logs vl
-            WHERE vl.date_logged = CURRENT_DATE()
-            ORDER BY COALESCE(vl.time_in_pm, vl.time_in_am) DESC
+                v.photo,
+                v.name AS full_name,
+                v.department,
+                vg.time as time_in
+            FROM visitor_glogs vg
+            JOIN visitor v ON vg.visitor_id = v.id
+            WHERE vg.date_logged = '$today'
+            ORDER BY vg.time DESC
             LIMIT $limit";
             break;
             
         case 'blocked':
+            // Since there's no status column, return empty or handle differently
             $sql = "
             SELECT 
                 photo,
                 CONCAT(first_name, ' ', last_name) AS full_name,
                 role,
                 department
-            FROM personell
-            WHERE status = 'Block'
-            ORDER BY first_name, last_name
+            FROM personell 
+            WHERE 1=0  -- No blocked functionality in current schema
             LIMIT $limit";
             break;
             
@@ -165,62 +208,81 @@ function getHoverLogs($db, $type, $limit = 10) {
                 p.photo,
                 CONCAT(p.first_name, ' ', p.last_name) AS full_name,
                 p.role,
-                pl.time_in_am,
-                pl.time_in_pm
-            FROM personell p
-            JOIN personell_logs pl ON pl.personnel_id = p.id
-            WHERE pl.date_logged = CURRENT_DATE()
+                pg.time_in
+            FROM personell_glogs pg
+            JOIN personell p ON pg.personnel_id = p.id
+            WHERE pg.date = '$today'
             
             UNION ALL
             
             SELECT 
-                vl.photo,
-                vl.name AS full_name,
+                v.photo,
+                v.name AS full_name,
                 'Visitor' AS role,
-                vl.time_in_am,
-                vl.time_in_pm
-            FROM visitor_logs vl
-            WHERE vl.date_logged = CURRENT_DATE()
+                vg.time as time_in
+            FROM visitor_glogs vg
+            JOIN visitor v ON vg.visitor_id = v.id
+            WHERE vg.date_logged = '$today'
             
-            ORDER BY COALESCE(time_in_pm, time_in_am) DESC
+            UNION ALL
+            
+            SELECT 
+                s.photo,
+                s.fullname AS full_name,
+                'Student' AS role,
+                sg.time_in
+            FROM students_glogs sg
+            JOIN students s ON sg.student_id = s.id
+            WHERE sg.date_logged = '$today'
+            
+            UNION ALL
+            
+            SELECT 
+                '' as photo,
+                i.fullname AS full_name,
+                'Instructor' AS role,
+                ig.time_in
+            FROM instructor_glogs ig
+            JOIN instructor i ON ig.instructor_id = i.id
+            WHERE ig.date_logged = '$today'
+            
+            ORDER BY time_in DESC
             LIMIT $limit";
             break;
             
         case 'students':
             $sql = "
             SELECT 
-                p.photo,
-                CONCAT(p.first_name, ' ', p.last_name) AS full_name,
-                p.department,
-                pl.time_in_am,
-                pl.time_in_pm,
+                s.photo,
+                s.fullname AS full_name,
+                d.department_name as department,
+                sg.time_in,
                 CASE 
-                    WHEN pl.date_logged = CURRENT_DATE() THEN 'Present'
+                    WHEN sg.date_logged = '$today' THEN 'Present'
                     ELSE 'Absent'
                 END as status
-            FROM personell p
-            LEFT JOIN personell_logs pl ON pl.personnel_id = p.id AND pl.date_logged = CURRENT_DATE()
-            WHERE p.role = 'Student' AND p.status != 'Block'
-            ORDER BY p.first_name, p.last_name
+            FROM students s
+            LEFT JOIN students_glogs sg ON sg.student_id = s.id AND sg.date_logged = '$today'
+            LEFT JOIN department d ON s.department_id = d.department_id
+            ORDER BY s.fullname
             LIMIT $limit";
             break;
             
         case 'instructors':
             $sql = "
             SELECT 
-                p.photo,
-                CONCAT(p.first_name, ' ', p.last_name) AS full_name,
-                p.department,
-                pl.time_in_am,
-                pl.time_in_pm,
+                '' as photo, -- instructors don't have photos in your schema
+                i.fullname AS full_name,
+                d.department_name as department,
+                ig.time_in,
                 CASE 
-                    WHEN pl.date_logged = CURRENT_DATE() THEN 'Present'
+                    WHEN ig.date_logged = '$today' THEN 'Present'
                     ELSE 'Absent'
                 END as status
-            FROM personell p
-            LEFT JOIN personell_logs pl ON pl.personnel_id = p.id AND pl.date_logged = CURRENT_DATE()
-            WHERE p.role = 'Instructor' AND p.status != 'Block'
-            ORDER BY p.first_name, p.last_name
+            FROM instructor i
+            LEFT JOIN instructor_glogs ig ON ig.instructor_id = i.id AND ig.date_logged = '$today'
+            LEFT JOIN department d ON i.department_id = d.department_id
+            ORDER BY i.fullname
             LIMIT $limit";
             break;
             
@@ -231,15 +293,14 @@ function getHoverLogs($db, $type, $limit = 10) {
                 CONCAT(p.first_name, ' ', p.last_name) AS full_name,
                 p.department,
                 p.role,
-                pl.time_in_am,
-                pl.time_in_pm,
+                pg.time_in,
                 CASE 
-                    WHEN pl.date_logged = CURRENT_DATE() THEN 'Present'
+                    WHEN pg.date = '$today' THEN 'Present'
                     ELSE 'Absent'
                 END as status
             FROM personell p
-            LEFT JOIN personell_logs pl ON pl.personnel_id = p.id AND pl.date_logged = CURRENT_DATE()
-            WHERE p.role IN ('Staff', 'Security Personnel', 'Administrator') AND p.status != 'Block'
+            LEFT JOIN personell_glogs pg ON pg.personnel_id = p.id AND pg.date = '$today'
+            WHERE p.role IN ('Staff', 'Security Personnel', 'Executive', 'Data Analyst', 'Developer', 'Designer', 'Service Manager', 'Operator')
             ORDER BY p.first_name, p.last_name
             LIMIT $limit";
             break;
@@ -265,6 +326,9 @@ function sanitizeOutput($data) {
 }
 
 function formatTime($time) {
-    return $time ? date('h:i A', strtotime($time)) : '-';
+    if (!$time || $time == '00:00:00') {
+        return '-';
+    }
+    return date('h:i A', strtotime($time));
 }
 ?>
