@@ -36,11 +36,11 @@ function getGateEntranceStats($db) {
     // Today's entries and exits
     $today = date('Y-m-d');
     $sql = "SELECT 
-        SUM(CASE WHEN time_in = 'TIME IN' THEN 1 ELSE 0 END) as entries,
-        SUM(CASE WHEN time_out = 'TIME OUT' THEN 1 ELSE 0 END) as exits,
-        -- SUM(CASE WHEN role = 'Visitor' AND DATE(timestamp) = '$today' THEN 1 ELSE 0 END) as visitors
+        SUM(CASE WHEN action = 'IN' THEN 1 ELSE 0 END) as entries,
+        SUM(CASE WHEN action = 'OUT' THEN 1 ELSE 0 END) as exits,
+        SUM(CASE WHEN person_type = 'visitor' AND date = '$today' THEN 1 ELSE 0 END) as visitors
     FROM gate_logs 
-    WHERE DATE(timestamp) = '$today'";
+    WHERE date = '$today'";
     
     $result = $db->query($sql);
     if ($result && $row = $result->fetch_assoc()) {
@@ -58,25 +58,50 @@ function getGateEntranceStats($db) {
 // Get recent gate activities
 function getRecentGateActivities($db, $limit = 10) {
     $activities = [];
-    $sql = "SELECT gl.*, 
-                   COALESCE(s.photo, v.photo, p.photo) as photo,
-                   COALESCE(s.full_name, v.full_name, p.full_name) as full_name,
-                   COALESCE(s.department, v.department, p.department) as department,
-                   gl.role
+    $sql = "SELECT gl.* 
             FROM gate_logs gl
-            LEFT JOIN students s ON gl.id_number = s.id_number AND gl.role = 'Student'
-            LEFT JOIN visitors v ON gl.id_number = v.id_number AND gl.role = 'Visitor'
-            LEFT JOIN personell p ON gl.id_number = p.id_number AND gl.role IN ('Instructor', 'Staff')
-            ORDER BY gl.timestamp DESC 
+            ORDER BY gl.created_at DESC 
             LIMIT $limit";
     
     $result = $db->query($sql);
     if ($result) {
         while ($row = $result->fetch_assoc()) {
-            $activities[] = $row;
+            // Get person details based on person_type
+            $personDetails = getPersonDetails($db, $row['person_type'], $row['person_id']);
+            $activities[] = array_merge($row, $personDetails);
         }
     }
     return $activities;
+}
+
+// Helper function to get person details
+function getPersonDetails($db, $personType, $personId) {
+    $details = [
+        'full_name' => 'Unknown',
+        'photo' => null,
+        'department' => 'N/A',
+        'role' => ucfirst($personType)
+    ];
+    
+    $tableMap = [
+        'student' => 'students',
+        'instructor' => 'personell', 
+        'personell' => 'personell',
+        'visitor' => 'visitors'
+    ];
+    
+    if (isset($tableMap[$personType])) {
+        $table = $tableMap[$personType];
+        $sql = "SELECT full_name, photo, department FROM $table WHERE id = $personId LIMIT 1";
+        $result = $db->query($sql);
+        if ($result && $row = $result->fetch_assoc()) {
+            $details['full_name'] = $row['full_name'] ?? 'Unknown';
+            $details['photo'] = $row['photo'] ?? null;
+            $details['department'] = $row['department'] ?? 'N/A';
+        }
+    }
+    
+    return $details;
 }
 
 $gateStats = getGateEntranceStats($db);
@@ -98,7 +123,7 @@ $recentGateActivities = getRecentGateActivities($db, 5);
                     $data = array_fill(0, 7, 0);
                     for ($i = 0; $i < 7; $i++) {
                         $date = date('Y-m-d', strtotime("last Monday +$i days"));
-                        $sql = "SELECT COUNT(*) as count FROM gate_logs WHERE DATE(timestamp) = '$date'";
+                        $sql = "SELECT COUNT(*) as count FROM gate_logs WHERE date = '$date'";
                         $result = $db->query($sql);
                         if ($result && $row = $result->fetch_assoc()) {
                             $data[$i] = $row['count'];
@@ -166,8 +191,7 @@ $recentGateActivities = getRecentGateActivities($db, 5);
                 <div class="row g-4 mb-4">
                     <!-- Gate Entries Today -->
                     <div class="col-sm-6 col-xl-3">
-                        <div class="bg-light rounded d-flex align-items-center justify-content-between p-4"
-                        onmouseover="showGateEntries()" onmouseout="hideGateEntries()">
+                        <div class="bg-light rounded d-flex align-items-center justify-content-between p-4">
                             <i class="fa fa-sign-in-alt fa-3x text-success"></i>
                             <div class="ms-3">
                                 <p class="mb-2">Gate Entries Today</p>
@@ -178,8 +202,7 @@ $recentGateActivities = getRecentGateActivities($db, 5);
 
                     <!-- Gate Exits Today -->
                     <div class="col-sm-6 col-xl-3">
-                        <div class="bg-light rounded d-flex align-items-center justify-content-between p-4"
-                        onmouseover="showGateExits()" onmouseout="hideGateExits()">
+                        <div class="bg-light rounded d-flex align-items-center justify-content-between p-4">
                             <i class="fa fa-sign-out-alt fa-3x text-warning"></i>
                             <div class="ms-3">
                                 <p class="mb-2">Gate Exits Today</p>
@@ -194,7 +217,7 @@ $recentGateActivities = getRecentGateActivities($db, 5);
                             <i class="fa fa-users fa-3x text-primary"></i>
                             <div class="ms-3">
                                 <p class="mb-2">Currently Inside</p>
-                                <h6 class="mb-0"><?php echo $gateStats['current_inside']; ?></h6>
+                                <h6 class="mb-0"><?php echo max(0, $gateStats['current_inside']); ?></h6>
                             </div>
                         </div>
                     </div>
@@ -239,17 +262,19 @@ $recentGateActivities = getRecentGateActivities($db, 5);
                                         <tr>
                                             <th>Photo</th>
                                             <th>Name</th>
-                                            <th>Role</th>
+                                            <th>ID Number</th>
+                                            <th>Type</th>
                                             <th>Department</th>
                                             <th>Activity</th>
+                                            <th>Date</th>
                                             <th>Time</th>
-                                            <th>Status</th>
+                                            <th>Location</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <?php if (empty($recentGateActivities)): ?>
                                             <tr>
-                                                <td colspan="7" class="text-center">No recent gate activities found</td>
+                                                <td colspan="9" class="text-center">No recent gate activities found</td>
                                             </tr>
                                         <?php else: ?>
                                             <?php foreach ($recentGateActivities as $activity): ?>
@@ -264,22 +289,28 @@ $recentGateActivities = getRecentGateActivities($db, 5);
                                                             </div>
                                                         <?php endif; ?>
                                                     </td>
-                                                    <td><?php echo sanitizeOutput($activity['full_name'] ?? 'Unknown'); ?></td>
-                                                    <td><?php echo sanitizeOutput($activity['role']); ?></td>
-                                                    <td><?php echo sanitizeOutput($activity['department'] ?? 'N/A'); ?></td>
+                                                    <td><?php echo sanitizeOutput($activity['full_name']); ?></td>
+                                                    <td><?php echo sanitizeOutput($activity['id_number']); ?></td>
                                                     <td>
-                                                        <span class="badge <?php echo $activity['time_in'] == 'TIME IN' ? 'bg-success' : 'bg-warning'; ?>">
-                                                            <?php echo $activity['time_in']; ?>
+                                                        <span class="badge bg-info text-dark">
+                                                            <?php echo ucfirst($activity['person_type']); ?>
                                                         </span>
                                                     </td>
-                                                    <td><?php echo formatTime($activity['timestamp']); ?></td>
+                                                    <td><?php echo sanitizeOutput($activity['department']); ?></td>
                                                     <td>
-                                                        <?php if ($activity['time_in'] == 'TIME IN'): ?>
-                                                            <span class="text-success"><i class="fa fa-check-circle"></i> Entered</span>
+                                                        <span class="badge <?php echo $activity['action'] == 'IN' ? 'bg-success' : 'bg-warning'; ?>">
+                                                            <?php echo $activity['action'] == 'IN' ? 'ENTRY' : 'EXIT'; ?>
+                                                        </span>
+                                                    </td>
+                                                    <td><?php echo date('M j, Y', strtotime($activity['date'])); ?></td>
+                                                    <td>
+                                                        <?php if ($activity['action'] == 'IN'): ?>
+                                                            <?php echo date('h:i A', strtotime($activity['time_in'])); ?>
                                                         <?php else: ?>
-                                                            <span class="text-warning"><i class="fa fa-sign-out-alt"></i> Exited</span>
+                                                            <?php echo date('h:i A', strtotime($activity['time_out'])); ?>
                                                         <?php endif; ?>
                                                     </td>
+                                                    <td><?php echo sanitizeOutput($activity['location']); ?></td>
                                                 </tr>
                                             <?php endforeach; ?>
                                         <?php endif; ?>
@@ -290,7 +321,7 @@ $recentGateActivities = getRecentGateActivities($db, 5);
                     </div>
                 </div>
 
-                <!-- Today's Detailed Entrance Logs -->
+                <!-- Today's Detailed Gate Logs -->
                 <div class="bg-light rounded h-100 p-4 mt-4">
                     <h4><i class="bi bi-clock"></i> Today's Detailed Gate Logs</h4>
                     <hr>
@@ -301,30 +332,35 @@ $recentGateActivities = getRecentGateActivities($db, 5);
                                     <th>Photo</th>
                                     <th>Full Name</th>
                                     <th>ID Number</th>
-                                    <th>Role</th>
+                                    <th>Type</th>
                                     <th>Department</th>
                                     <th>Location</th>
                                     <th>Activity</th>
                                     <th>Time In</th>
                                     <th>Time Out</th>
-                                    <th>Status</th>
+                                    <th>Date</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php
-                                if (!$logsResult) {
+                                // Get today's gate logs
+                                $today = date('Y-m-d');
+                                $sql = "SELECT * FROM gate_logs WHERE date = '$today' ORDER BY created_at DESC";
+                                $todayLogsResult = $db->query($sql);
+                                
+                                if (!$todayLogsResult) {
                                     echo '<tr><td colspan="10" class="text-danger">Error loading data: ' . mysqli_error($db) . '</td></tr>';
                                 } else {
-                                    if (mysqli_num_rows($logsResult) > 0) {
-                                        while ($row = mysqli_fetch_array($logsResult)) { 
-                                            $timein = formatTime($row['time_in']);
-                                            $timeout = formatTime($row['time_out']);
+                                    if (mysqli_num_rows($todayLogsResult) > 0) {
+                                        while ($row = mysqli_fetch_array($todayLogsResult)) { 
+                                            $personDetails = getPersonDetails($db, $row['person_type'], $row['person_id']);
+                                            $mergedRow = array_merge($row, $personDetails);
                                 ?>
                                             <tr>
                                                 <td>
                                                     <center>
-                                                        <?php if (!empty($row['photo'])): ?>
-                                                            <img src="../admin/uploads/<?php echo sanitizeOutput($row['photo']); ?>" 
+                                                        <?php if (!empty($mergedRow['photo'])): ?>
+                                                            <img src="../admin/uploads/<?php echo sanitizeOutput($mergedRow['photo']); ?>" 
                                                                  width="50px" height="50px" style="border-radius: 50%; object-fit: cover;">
                                                         <?php else: ?>
                                                             <div style="width:50px;height:50px;border-radius:50%;background:#ccc;display:flex;align-items:center;justify-content:center;">
@@ -333,27 +369,29 @@ $recentGateActivities = getRecentGateActivities($db, 5);
                                                         <?php endif; ?>
                                                     </center>
                                                 </td>
-                                                <td><?php echo sanitizeOutput($row['full_name']); ?></td>
-                                                <td><?php echo sanitizeOutput($row['id_number'] ?? 'N/A'); ?></td>
-                                                <td><?php echo sanitizeOutput($row['role']); ?></td>
-                                                <td><?php echo sanitizeOutput($row['department']); ?></td>
-                                                <td><?php echo sanitizeOutput($row['location']); ?></td>
+                                                <td><?php echo sanitizeOutput($mergedRow['full_name']); ?></td>
+                                                <td><?php echo sanitizeOutput($mergedRow['id_number']); ?></td>
                                                 <td>
-                                                    <span class="badge <?php echo $row['time_in'] == 'TIME IN' ? 'bg-success' : 'bg-warning'; ?>">
-                                                        <?php echo $row['time_in']; ?>
+                                                    <span class="badge bg-info text-dark">
+                                                        <?php echo ucfirst($mergedRow['person_type']); ?>
                                                     </span>
                                                 </td>
-                                                <td><?php echo $timein; ?></td>
-                                                <td><?php echo $timeout; ?></td>
+                                                <td><?php echo sanitizeOutput($mergedRow['department']); ?></td>
+                                                <td><?php echo sanitizeOutput($mergedRow['location']); ?></td>
                                                 <td>
-                                                    <?php if ($row['time_in'] == 'TIME IN' && empty($row['time_out'])): ?>
-                                                        <span class="text-success"><i class="fa fa-building"></i> Inside</span>
-                                                    <?php elseif (!empty($row['time_out'])): ?>
-                                                        <span class="text-secondary"><i class="fa fa-home"></i> Left</span>
+                                                    <span class="badge <?php echo $mergedRow['action'] == 'IN' ? 'bg-success' : 'bg-warning'; ?>">
+                                                        <?php echo $mergedRow['action'] == 'IN' ? 'ENTRY' : 'EXIT'; ?>
+                                                    </span>
+                                                </td>
+                                                <td><?php echo date('h:i A', strtotime($mergedRow['time_in'])); ?></td>
+                                                <td>
+                                                    <?php if ($mergedRow['time_out'] != '00:00:00'): ?>
+                                                        <?php echo date('h:i A', strtotime($mergedRow['time_out'])); ?>
                                                     <?php else: ?>
-                                                        <span class="text-info"><i class="fa fa-clock"></i> Processing</span>
+                                                        <span class="text-muted">-</span>
                                                     <?php endif; ?>
                                                 </td>
+                                                <td><?php echo date('M j, Y', strtotime($mergedRow['date'])); ?></td>
                                             </tr>
                                 <?php 
                                         }
@@ -391,6 +429,7 @@ $recentGateActivities = getRecentGateActivities($db, 5);
     <script src="js/main.js"></script>
 
     <!-- DataTables for better table functionality -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
     
@@ -398,7 +437,7 @@ $recentGateActivities = getRecentGateActivities($db, 5);
     // Initialize DataTable
     $(document).ready(function() {
         $('#gateLogsTable').DataTable({
-            "order": [[7, "desc"]], // Sort by time in descending order
+            "order": [[9, "desc"]], // Sort by date descending
             "pageLength": 10,
             "responsive": true
         });
@@ -408,24 +447,6 @@ $recentGateActivities = getRecentGateActivities($db, 5);
     setTimeout(function() {
         location.reload();
     }, 30000); // 30 seconds
-
-    // Hover functions for gate statistics
-    function showGateEntries() {
-        // You can implement hover details for gate entries here
-        console.log('Showing gate entries details');
-    }
-    
-    function hideGateEntries() {
-        console.log('Hiding gate entries details');
-    }
-    
-    function showGateExits() {
-        console.log('Showing gate exits details');
-    }
-    
-    function hideGateExits() {
-        console.log('Hiding gate exits details');
-    }
     </script>
 </body>
 </html>
