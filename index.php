@@ -7,6 +7,20 @@ ob_start();
 
 
 session_start();
+// Security headers
+header("X-Frame-Options: DENY");
+header("X-XSS-Protection: 1; mode=block");
+header("X-Content-Type-Options: nosniff");
+header("Strict-Transport-Security: max-age=31536000; includeSubDomains");
+
+// CSRF token generation
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+function sanitize_input($data) {
+    return htmlspecialchars(strip_tags(trim($data)), ENT_QUOTES, 'UTF-8');
+}
 include 'connection.php';
 
 
