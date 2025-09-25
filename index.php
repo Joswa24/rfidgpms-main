@@ -1,5 +1,5 @@
 <?php
-// Start output buffering with maximum level
+
 while (ob_get_level()) {
     ob_end_clean();
 }
