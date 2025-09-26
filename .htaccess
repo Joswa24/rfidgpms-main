@@ -1,1 +1,15 @@
 
+RewriteEngine On
+<<<<<<< HEAD
+RewriteRule ^index\.php$ [R=301,L]
+
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^(.*)$ $1.php [L]
+=======
+RewriteRule ^index\.php$ [R=301,L]
+
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^(.*)$ $1.php [L]
+>>>>>>> fc442d7b5bc121a692d8c422dd8ef027a3181750
