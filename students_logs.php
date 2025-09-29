@@ -32,6 +32,82 @@ function getClassmatesByYearSection($db, $year, $section) {
     return $classmates;
 }
 
+// NEW FUNCTION: Save classmates data to instructor attendance records
+function saveClassmatesToInstructorAttendance($db, $classmates, $instructor_id, $year, $section, $subject = null) {
+    $today = date('Y-m-d');
+    
+    foreach ($classmates as $student) {
+        // Check if record already exists for today
+        $check_query = "SELECT id FROM instructor_attendance_records 
+                       WHERE instructor_id = ? 
+                       AND student_id_number = ? 
+                       AND date = ? 
+                       AND year = ? 
+                       AND section = ?";
+        
+        $check_stmt = $db->prepare($check_query);
+        $check_stmt->bind_param("issss", $instructor_id, $student['id_number'], $today, $year, $section);
+        $check_stmt->execute();
+        $check_result = $check_stmt->get_result();
+        
+        if ($check_result->num_rows == 0) {
+            // Insert new record
+            $insert_query = "INSERT INTO instructor_attendance_records 
+                           (instructor_id, student_id_number, student_name, section, year, 
+                            department, status, date, subject, created_at) 
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+            
+            $insert_stmt = $db->prepare($insert_query);
+            $status = ($student['attendance_count'] > 0) ? 'Present' : 'Absent';
+            
+            $insert_stmt->bind_param(
+                "issssssss", 
+                $instructor_id, 
+                $student['id_number'],
+                $student['fullname'],
+                $section,
+                $year,
+                $student['department_name'],
+                $status,
+                $today,
+                $subject
+            );
+            
+            $insert_stmt->execute();
+            $insert_stmt->close();
+        } else {
+            // Update existing record
+            $update_query = "UPDATE instructor_attendance_records 
+                           SET status = ?, updated_at = NOW() 
+                           WHERE instructor_id = ? 
+                           AND student_id_number = ? 
+                           AND date = ? 
+                           AND year = ? 
+                           AND section = ?";
+            
+            $update_stmt = $db->prepare($update_query);
+            $status = ($student['attendance_count'] > 0) ? 'Present' : 'Absent';
+            
+            $update_stmt->bind_param(
+                "sissss", 
+                $status,
+                $instructor_id, 
+                $student['id_number'],
+                $today,
+                $year,
+                $section
+            );
+            
+            $update_stmt->execute();
+            $update_stmt->close();
+        }
+        
+        $check_stmt->close();
+    }
+    
+    return true;
+}
+
 // Function to display classmates table
 function displayClassmatesTable($classmates, $year, $section) {
     if (empty($classmates)) {
@@ -178,7 +254,7 @@ if (isset($_SESSION['access']['instructor']['id'])) {
     }
 }
 
-// Handle Save Attendance action
+// Handle Save Attendance action - MODIFIED TO INCLUDE CLASSMATES SAVING
 if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
     $instructor_id = $_SESSION['access']['instructor']['id'];
     $currentDate = date('Y-m-d');
@@ -196,6 +272,13 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
 
     try {
         $db->begin_transaction();
+
+        // NEW: Save classmates data before archiving
+        if ($first_student_section && $first_student_year) {
+            $classmates = getClassmatesByYearSection($db, $first_student_year, $first_student_section);
+            $subject = $_SESSION['access']['subject']['name'] ?? null;
+            saveClassmatesToInstructorAttendance($db, $classmates, $instructor_id, $first_student_year, $first_student_section, $subject);
+        }
 
         // 1. Record time-out for instructor
         $update_instructor = $db->prepare("UPDATE instructor_logs 
@@ -481,10 +564,6 @@ if ($show_timeout_message) {
                 <button type="button" class="btn btn-primary mb-2" data-bs-toggle="modal" data-bs-target="#idModal">
                     <i class="fas fa-save me-1"></i> Save Today's Attendance
                 </button>
-                
-                <?php if ($first_student_section && $first_student_year): ?>
-                    
-                <?php endif; ?>
             </div>
 
             <?php if ($attendance_saved): ?>
@@ -492,6 +571,7 @@ if ($show_timeout_message) {
                     <h4>Attendance Records Archived</h4>
                     <p><?php echo htmlspecialchars($archive_message); ?></p>
                     <p>Your time-out was recorded at <strong><?php echo htmlspecialchars($timeout_time); ?></strong></p>
+                    <p class="text-success"><i class="fas fa-check-circle me-2"></i>Classmates data has been saved to your instructor panel.</p>
                 </div>
             <?php else: ?>
                 <div class="instructor-header">
@@ -588,7 +668,7 @@ if ($show_timeout_message) {
                     </table>
                 </div>
 
-                <!-- Classmates Section - This is the new addition -->
+                <!-- Classmates Section -->
                 <?php if ($first_student_section && $first_student_year): ?>
                     <div class="classmates-section">
                         <?php if (!empty($_SESSION['access']['subject']['name'])): ?>
@@ -705,7 +785,7 @@ if ($show_timeout_message) {
             function confirmAttendanceSave() {
                 Swal.fire({
                     title: 'Confirm Save Attendance',
-                    text: 'This will record your time-out and archive today\'s records. Continue?',
+                    text: 'This will record your time-out and save classmates data to your instructor panel. Continue?',
                     icon: 'warning',
                     showCancelButton: true,
                     confirmButtonColor: '#3085d6',
@@ -739,6 +819,7 @@ if ($show_timeout_message) {
                           <h5>Your time-out has been recorded</h5>
                           <div class="timeout-display"><?php echo $timeout_time; ?></div>
                           <p><?php echo $archive_message; ?></p>
+                          <p class="text-success"><i class="fas fa-check-circle me-2"></i>Classmates data has been saved to your instructor panel.</p>
                        </div>`,
                 confirmButtonText: 'OK',
                 allowOutsideClick: false

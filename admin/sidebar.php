@@ -55,7 +55,7 @@ if ($result1->num_rows > 0) {
         </a>
         <div class="d-flex align-items-center ms-4 mb-4">
             <div class="position-relative">
-                <img class="rounded-circle" src="<?php echo 'uploads/'.$logo1; ?>" alt="" style="width: 40px; height: 40px;">
+                <img class="rounded-circle" src="img\2601828.png" alt="" style="width: 40px; height: 40px;">
                 <div class="bg-success rounded-circle border border-2 border-white position-absolute end-0 bottom-0 p-1"></div>
             </div>
             <div class="ms-3">

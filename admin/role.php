@@ -1,531 +1,419 @@
 <!DOCTYPE html>
-
-
-
-
 <html lang="en">
 <?php
 include 'header.php';
-   ?>
+include '../connection.php';
+?>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Roles</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <style>
+        .bg-light {
+            background-color: #f8f9fa !important;
+        }
+        .card {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+        .table th {
+            background-color: #4e73df;
+            color: white;
+        }
+        .badge {
+            font-size: 0.85em;
+        }
+        .section-header {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+        .btn-del {
+            transition: all 0.3s ease;
+        }
+        .btn-del:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+        }
+        .swal2-popup {
+            font-family: inherit;
+        }
+        .error-message {
+            color: #dc3545;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
 
 <body>
     <div class="container-fluid position-relative bg-white d-flex p-0">
-        <!-- Spinner Start 
-        <div id="spinner" class="show bg-white position-fixed translate-middle w-100 vh-100 top-50 start-50 d-flex align-items-center justify-content-center">
-            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
-                <span class="sr-only">Loading...</span>
-            </div>
-        </div>
-      Spinner End -->
         <!-- Sidebar Start -->
-        <?php
-		include 'sidebar.php';
-		?>
+        <?php include 'sidebar.php'; ?>
         <!-- Sidebar End -->
 
         <!-- Content Start -->
         <div class="content">
-        <?php
-		include 'navbar.php';
-		?>
-
+            <?php include 'navbar.php'; ?>
 
             <div class="container-fluid pt-4 px-4">
                 <div class="col-sm-12 col-xl-12">
-
-                    <div class="col-sm-12 col-xl-12">
-                        <div class="bg-light rounded h-100 p-4">
-                            <div class="row">
-                                <div class="col-9">
-                                    <h6 class="mb-4">Manage Role</h6>
-                                </div>
-                                <div class="col-3">
-                                    <button type="button" class="btn btn-outline-warning m-2" data-bs-toggle="modal" data-bs-target="#roleModal">Add Role</button>
-                                </div>
+                    <div class="bg-light rounded h-100 p-4">
+                        <div class="row">
+                            <div class="col-9">
+                                <h6 class="mb-4">Manage Roles</h6>
                             </div>
-                            <hr></hr>
-                            <div class="table-responsive">
-                                <table class="table table-border" id="myDataTable">
-                                    <thead>
-                                        <tr>
-                                         <th scope="col">Role</th>
-                                            <th scope="col">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        
-                                        <?php include '../connection.php'; ?>
-                                 <?php $results = mysqli_query($db, "SELECT * FROM role"); ?>
-                                 <?php while ($row = mysqli_fetch_array($results)) { ?>
-                                    <tr  class="table-<?php echo $row['id'];?>">
-                                           <td><?php echo $row['role']; ?></td>
-                                            <td width="14%">
+                            <div class="col-3">
+                                <button type="button" class="btn btn-outline-warning m-2" data-bs-toggle="modal" data-bs-target="#roleModal">
+                                    <i class="fas fa-plus-circle"></i> Add Role
+                                </button>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="table-responsive">
+                            <table class="table table-border" id="myDataTable">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Role</th>
+                                        <th scope="col">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php $results = mysqli_query($db, "SELECT * FROM role"); ?>
+                                    <?php while ($row = mysqli_fetch_array($results)) { ?>
+                                    <tr class="table-<?php echo $row['id'];?>" data-role-id="<?php echo $row['id'];?>">
+                                        <td><?php echo $row['role']; ?></td>
+                                        <td width="14%">
                                             <center>
-                                          <button role="<?php echo $row['role'];?>" data-id="<?php echo $row['id'];?>" class="btn btn-outline-primary btn-sm btn-edit e_role_id" >
-                                          <i class="bi bi-plus-edit"></i> Edit </button>
-                                          <button id="d_role_id" role="<?php echo $row['role'];?>"  data-id="<?php echo $row['id']; ?>" class="btn btn-outline-danger btn-sm btn-del d_role_id">
-                                          <i class="bi bi-plus-trash"></i> Delete </button>
-                                       </center> </td>
-                                        </tr>
-                                       
-                                   
-                                 <?php } ?>
-                                    </tbody>
-                                </table>
-                            </div>
+                                                <button role="<?php echo $row['role'];?>" 
+                                                        data-id="<?php echo $row['id'];?>" 
+                                                        class="btn btn-outline-primary btn-sm btn-edit e_role_id">
+                                                    <i class="fas fa-edit"></i> Edit 
+                                                </button>
+                                                <button role="<?php echo $row['role'];?>"  
+                                                        data-id="<?php echo $row['id']; ?>" 
+                                                        class="btn btn-outline-danger btn-sm btn-del d_role_id">
+                                                    <i class="fas fa-trash"></i> Delete 
+                                                </button>
+                                            </center> 
+                                        </td>
+                                    </tr>
+                                    <?php } ?>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
             </div>
-            <script>
-$(document).ready(function() {
-    $('#myDataTable').DataTable({ order: [[0, 'desc']] });
 
-    // ==============
-    // CREATE (ADD)
-    // ==============
-    $('#btn-role').click(function(){
-    var inputField = document.getElementById('role');
-    var role = $('#role').val().trim();
-
-    // Clear previous errors
-    $('#role-error').text('');
-
-    // Validation
-    if (!role) {
-        $('#role-error').text('This field is required.');
-        inputField.focus();
-        return;
-    }
-
-    $.ajax({
-        type: "POST",
-        url: "transac.php?action=add_role",
-        data: {role: role},
-        dataType: 'json', // Expect JSON response
-        success: function(response){
-            if (response.status === 'success') {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Successfully Added',
-                    showConfirmButton: false,
-                    timer: 1500
-                }).then(() => {
-                    window.location.reload(); // Reload to show new role
-                });
-            } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: response.message
-                });
-            }
-        },
-        error: function(xhr, status, error) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Oops...',
-                text: 'An error occurred: ' + error
-            });
-        }
-    });
-});
-
-    // ==========
-    // READ (EDIT)
-    // ==========
-    $(document).on('click', '.e_role_id', function(){
-        var id = $(this).attr('data-id');
-        var role = $(this).attr('role');
-        $('#edit_roleid').val(id);
-        $('#erole').val(role);
-        $('#editrole-modal').modal('show');
-    });
-
-    // ==========
-    // UPDATE
-    // ==========
-    $('#btn-editrole').click(function(e){
-        e.preventDefault();
-        var inputField = document.getElementById('erole');
-        if (inputField.value === '') {
-            $('#erole-error').text('This field is required.');
-            inputField.focus();
-            return;
-        } else {
-            $('#erole-error').text('');
-        }
-        var id = $('#edit_roleid').val();
-        var role = $('#erole').val();
-        $.ajax({
-            type: "POST",
-            url: "edit1.php?edit=role&id=" + id,
-            data: {role: role},
-            dataType: 'json',
-            success: function(response){
-                if (response.status === 'success') {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Successfully Updated.',
-                        showConfirmButton: false,
-                        timer: 1500
-                    }).then(() => {
-                        window.location.reload();
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Oops...',
-                        text: response.message
-                    });
-                }
-            },
-            error: function(xhr, status, error) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Oops...',
-                    text: 'An error occurred: ' + error
-                });
-            }
-        });
-    });
-
-    // ==========
-    // DELETE
-    // ==========
-    $(document).on('click', '.d_role_id', function(){
-        var id = $(this).attr('data-id');
-        var roleName = $(this).attr('role');
-        Swal.fire({
-            title: "Delete Role",
-            text: "Are you sure you want to delete the role: " + roleName + "?",
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonColor: "#3085d6",
-            cancelButtonColor: "#d33",
-            confirmButtonText: "Yes, delete it!"
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $.ajax({
-                    type: "POST",
-                    url: "del.php",
-                    data: { type: 'role', id: id },
-                    dataType: 'json',
-                    success: function(response){
-                        if (response.status === 'success') {
-                            Swal.fire({
-                                title: "Deleted!",
-                                text: response.message,
-                                icon: "success"
-                            }).then(() => {
-                                window.location.reload();
-                            });
-                        } else {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error',
-                                text: response.message
-                            });
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: 'An error occurred: ' + error
-                        });
-                    }
-                });
-            }
-        });
-    });
-});
-</script>
-            <!-- Modal -->
+            <!-- Add Role Modal -->
             <div class="modal fade" id="roleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title" id="exampleModalLabel"><i class="bi bi-plus-circle"></i> New Role</h5>
-                            <button type="button" onclick="resetForm()"  class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <form id="myForm">
-                            <div class="modal-body">
-                                <div class="col-lg-12 mt-1" id="mgs-dept"></div>
-                                <div class="col-lg-12 mb-1">
-                                    <div class="form-group">
-                                        <label for="inputTime"><b>Role:</b></label>
-                                        <input name="role1" type="text" id="role" class="form-control" autocomplete="off">
-                                        <span class="role-error" id="role-error" style="color:red;font-size:10px;"></span>
-                                    </div>
-                                </div>
-                              
-
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" onclick="resetForm()" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                                <button type="button" class="btn btn-outline-warning" id="btn-role">Save</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-            <script>
-            function resetForm() {
-                 document.getElementById('role-error').innerHTML = '';
-        document.getElementById('erole-error').innerHTML = '';
-    document.getElementById('myForm').reset();  // Reset all input fields
-}
-         $('#btn-role').click(function(){
-    var inputField = document.getElementById('role');
-
-    // Function to handle error display
-    function showError(input, errorId, message) {
-        if (input.value === '') {
-            document.getElementById(errorId).innerHTML = message;
-            input.focus();
-            return false;
-        } else {
-            document.getElementById(errorId).innerHTML = '';
-            return true;
-        }
-    }
-
-    // Check inputs
-    if (!showError(inputField, 'role-error', 'This field is required.')) {
-        // Prevent submission or continue handling as necessary
-        return;
-    } else {
-        // Clear error messages if validation passes
-        document.getElementById('role-error').innerHTML = '';
-
-        var role = document.getElementById('role').value;
-        
-        $.ajax({
-            type: "POST",
-            url: "transac.php?action=add_role",
-            data: {role: role},
-            dataType: 'text',
-            success: function(data){
-                var response = JSON.parse(data);
-                if (response.status == 'success') {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Successfully Added.',
-                        showConfirmButton: false,
-                        timer: 1500
-                    }).then(() => {
-                        window.location.href = 'role.php'; // Redirect after 1.5 seconds
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Oops...',
-                        text: response.message
-                    });
-                }
-            },
-            error: function(xhr, status, error) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Oops...',
-                    text: 'An error occurred: ' + error
-                });
-            }
-        });
-    }
-});
-          
-          
-          
-          
-          </script>
-
-            <script type="text/javascript">
-         $(document).ready(function() {
-         	$("#myDataTable").DataTable();
-	// 		 $('.d_role_id').click(function(){
-    //             $('#delrole-modal').modal('show');
-						
-    //            		$id = $(this).attr('data-id');
-    //                    $role =  $(this).attr('role');
-       
-    //    $('.d-role').val($role);
-    //            		$('.remove_id').click(function(){
-    //            			window.location = 'del.php?type=role&id=' + $id;
-						 
-    //            		});
-    //            	});
-               	$('.e_role_id').click(function(){
-               		$id = $(this).attr('data-id');
-                       $('#editrole-modal').modal('show');
-               		// $('#editModal').load('edit.php?id=' + $id);
-                      
-                       $role =  $(this).attr('role');
-                      
-       
-
-
-				
-					$('.edit-role').val($role);
-					//$('.edit-form').attr('action','edit1.php?id='+$id+'&edit=role');
-					
-               	});
-         });
-		 
-		 </script>
-
-            
-            <div class="modal fade" id="editrole-modal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title"><i class="bi bi-pencil"></i> Edit Role</h5>
-                            <button type="button" onclick="resetForm()"  class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <!-- <form method="POST"  class="edit-form" role="form" action=""> -->
-                            <div class="modal-body">
-                                <div class="col-lg-12 mt-1" id="mgs-editdept"></div>
-                                <div class="col-lg-12 mb-1">
-                                    <div class="form-group">
-                                        <label for="inputTime"><b>Enter Role:</b></label>
-                                        <input name="role" type="text" id="erole" class="form-control edit-role" autocomplete="off">
-                                        <span class="erole-error" id="erole-error" style="color:red;font-size:10px;"></span>
-                                    </div>
-                                </div>
-                               
-
-                            </div>
-                            <div class="modal-footer">
-                                <input type="hidden" name="" id="edit_roleid">
-                                <button type="button" onclick="resetForm()"  class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                                <button type="submit" class="btn btn-outline-primary" id="btn-editrole">Update</button>
-                            </div>
-                        <!-- </form> -->
-                    </div>
-                </div>
-            </div>
-
-          
-            <script>
-$('#btn-editrole').click(function(){
-    var inputField = document.getElementById('erole');
-
-// Function to handle error display
-function showError(input, errorId, message) {
-    if (input.value === '') {
-        document.getElementById(errorId).innerHTML = message;
-        input.focus();
-        return false;
-    } else {
-        document.getElementById(errorId).innerHTML = '';
-        return true;
-    }
-}
-
-// Check inputs
-if (!showError(inputField, 'erole-error', 'This field is required.')) {
-    // Prevent submission or continue handling as necessary
-    return;
-} else {
-    // Clear error messages if validation passes
-    document.getElementById('erole-error').innerHTML = '';
-
-
-        var role =  document.getElementById('erole').value;
-    
-
-        $('.e_role_id').click(function(){
-               		$id = $(this).attr('data-id');
-                      
-					
-               	});
-
-
-    $.ajax({
-                type: "POST",
-                url: "edit1.php?id="+$id+"&edit=role",
-                data:{role:role},
-                dataType: 'text',
-                success: function(data){
-                    if (data.trim() == 'success') {
-                        Swal.fire({
-                icon: 'success',
-                title: 'Sucessfully Updated.',
-                showConfirmButton: false,
-                timer: 1500
-            }).then(() => {
-                window.location.href = '.php'; // Redirect after 1.5 seconds
-            });
-                    } else {
-                        Swal.fire({
-            icon: 'error',
-            title: 'Oops...',
-            text: data
-        });
-                    }
-                }
-});
-    }
-
-
-
-
-
-};
-
-
-
-</script>
-            <div class="modal fade" id="delrole-modal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title"><i class="bi bi-trash"></i> Delete Role</h5>
+                            <h5 class="modal-title" id="exampleModalLabel">
+                                <i class="fas fa-plus-circle"></i> New Role
+                            </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <form method="POST">
+                        <form id="roleForm">
                             <div class="modal-body">
-                                <div class="col-lg-12 mt-1" id="mgs-deldept"></div>
-                                <div class="col-lg-12 mb-1">
+                                <div class="col-lg-12 mt-1" id="mgs-role"></div>
+                                <div class="col-lg-12 mb-3">
                                     <div class="form-group">
                                         <label for="inputTime"><b>Role:</b></label>
-                                        <input  type="text" id="delete_role" class="form-control d-role" autocomplete="off" readonly="">
-                                        <span class="deptname-error"></span>
+                                        <input name="role" type="text" id="role" class="form-control" autocomplete="off">
+                                        <span class="error-message" id="role-error"></span>
                                     </div>
                                 </div>
-
                             </div>
                             <div class="modal-footer">
-                                <input type="hidden" name="" id="delete_roleid">
-                                <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">No</button>
-                                <button type="button" class="btn btn-outline-primary remove_id" id="btn-delrole">Yes</button>
+                                <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-outline-warning" id="btn-role">Save</button>
                             </div>
                         </form>
                     </div>
                 </div>
             </div>
 
-            <?php
-include 'footer.php';
-			?>
+            <!-- Edit Role Modal -->
+            <div class="modal fade" id="editRoleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="fas fa-edit"></i> Edit Role
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form id="editRoleForm">
+                            <div class="modal-body">
+                                <div class="col-lg-12 mt-1" id="mgs-editrole"></div>
+                                <div class="col-lg-12 mb-3">
+                                    <div class="form-group">
+                                        <label for="inputTime"><b>Role:</b></label>
+                                        <input name="erole" type="text" id="erole" class="form-control" autocomplete="off">
+                                        <span class="error-message" id="erole-error"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <input type="hidden" name="role_id" id="edit_roleid">
+                                <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-outline-primary" id="btn-editrole">Update</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
 
-          
+            <?php include 'footer.php'; ?>
         </div>
-
-        <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top"><i class="bi bi-arrow-up"></i></a>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="lib/chart/chart.min.js"></script>
-    <script src="lib/easing/easing.min.js"></script>
-    <script src="lib/waypoints/waypoints.min.js"></script>
-    <script src="lib/owlcarousel/owl.carousel.min.js"></script>
-    <script src="lib/tempusdominus/js/moment.min.js"></script>
-    <script src="lib/tempusdominus/js/moment-timezone.min.js"></script>
-    <script src="lib/tempusdominus/js/tempusdominus-bootstrap-4.min.js"></script>
-    <!-- Template Javascript -->
-    <script src="js/main.js"></script>
 
+    <!-- JavaScript Libraries -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+    $(document).ready(function() {
+        // Initialize DataTable
+        var dataTable = $('#myDataTable').DataTable({
+            order: [[0, 'desc']],
+            stateSave: true
+        });
+
+        // Reset form function
+        function resetForm() {
+            $('.error-message').text('');
+            $('#roleForm')[0].reset();
+        }
+
+        // ==============
+        // CREATE (ADD ROLE)
+        // ==============
+        $('#roleForm').submit(function(e) {
+            e.preventDefault();
+            
+            $('.error-message').text('');
+            const role = $('#role').val().trim();
+            let isValid = true;
+
+            // Validation
+            if (!role) { 
+                $('#role-error').text('Role name is required'); 
+                isValid = false; 
+            }
+            
+            if (!isValid) return;
+
+            // Show loading state
+            $('#btn-role').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
+            $('#btn-role').prop('disabled', true);
+
+            $.ajax({
+                type: "POST",
+                url: "transac.php?action=add_role",
+                data: { role: role },
+                dataType: 'json',
+                success: function(response) {
+                    // Reset button state
+                    $('#btn-role').html('Save');
+                    $('#btn-role').prop('disabled', false);
+                    
+                    if (response.status === 'success') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success!',
+                            text: response.message,
+                            showConfirmButton: true
+                        }).then(() => {
+                            $('#roleModal').modal('hide');
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: response.message
+                        });
+                    }
+                },
+                error: function(xhr, status, error) {
+                    // Reset button state
+                    $('#btn-role').html('Save');
+                    $('#btn-role').prop('disabled', false);
+                    
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: 'An error occurred: ' + error
+                    });
+                }
+            });
+        });
+
+        // ==========
+        // READ (EDIT ROLE)
+        // ==========
+        $(document).on('click', '.e_role_id', function() {
+            const id = $(this).data('id');
+            const role = $(this).attr('role');
+
+            // Populate edit form
+            $('#edit_roleid').val(id);
+            $('#erole').val(role);
+            
+            // Show modal
+            $('#editRoleModal').modal('show');
+        });
+
+        // ==========
+        // UPDATE ROLE
+        // ==========
+        $('#editRoleForm').submit(function(e) {
+            e.preventDefault();
+            
+            const id = $('#edit_roleid').val();
+            const role = $('#erole').val().trim();
+
+            // Validation
+            let isValid = true;
+            if (!role) { 
+                $('#erole-error').text('Role name is required'); 
+                isValid = false; 
+            } else { 
+                $('#erole-error').text(''); 
+            }
+            
+            if (!isValid) return;
+
+            // Show loading state
+            $('#btn-editrole').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
+            $('#btn-editrole').prop('disabled', true);
+
+            $.ajax({
+                type: "POST",
+                url: "edit1.php?edit=role&id=" + id,
+                data: { role: role },
+                dataType: 'json',
+                success: function(response) {
+                    // Reset button state
+                    $('#btn-editrole').html('Update');
+                    $('#btn-editrole').prop('disabled', false);
+                    
+                    if (response.status === 'success') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success!',
+                            text: response.message,
+                            showConfirmButton: true
+                        }).then(() => {
+                            $('#editRoleModal').modal('hide');
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: response.message
+                        });
+                    }
+                },
+                error: function(xhr) {
+                    // Reset button state
+                    $('#btn-editrole').html('Update');
+                    $('#btn-editrole').prop('disabled', false);
+                    
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: 'An error occurred while processing your request'
+                    });
+                }
+            });
+        });
+
+        // ==========
+        // DELETE ROLE
+        // ==========
+        $(document).on('click', '.d_role_id', function() {
+            const $button = $(this);
+            const id = $button.data('id');
+            const roleName = $button.attr('role');
+            
+            Swal.fire({
+                title: 'Delete Role?',
+                text: `Are you sure you want to delete "${roleName}"?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Show loading state
+                    $button.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
+                    $button.prop('disabled', true);
+                    
+                    $.ajax({
+                        type: 'POST',
+                        url: 'del.php',
+                        data: { type: 'role', id: id },
+                        dataType: 'json',
+                        success: function(response) {
+                            if (response.status === 'success') {
+                                // Remove row from DataTable
+                                dataTable.row($button.closest('tr')).remove().draw();
+                                
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Deleted!',
+                                    text: response.message,
+                                    showConfirmButton: false,
+                                    timer: 1500
+                                });
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error!',
+                                    text: response.message || 'Failed to delete role'
+                                });
+                            }
+                        },
+                        error: function(xhr) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error!',
+                                text: 'An error occurred while deleting the role'
+                            });
+                        },
+                        complete: function() {
+                            // Restore button state
+                            $button.html('<i class="fas fa-trash"></i> Delete');
+                            $button.prop('disabled', false);
+                        }
+                    });
+                }
+            });
+        });
+
+        // Reset modal when closed
+        $('#roleModal').on('hidden.bs.modal', function() {
+            resetForm();
+        });
+        
+        $('#editRoleModal').on('hidden.bs.modal', function() {
+            $('.error-message').text('');
+        });
+    });
+    </script>
 </body>
-
 </html>
