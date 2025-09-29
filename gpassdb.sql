@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 23, 2025 at 08:57 AM
+-- Generation Time: Sep 29, 2025 at 07:45 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -41,6 +41,35 @@ CREATE TABLE `about` (
 
 INSERT INTO `about` (`id`, `logo1`, `logo2`, `name`, `address`) VALUES
 (1, 'mcc.png', 'madridejos.png', 'Madridejos Community College', 'Bunakan, Madridejos, Cebu');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `access_rules`
+--
+
+CREATE TABLE `access_rules` (
+  `id` int(11) NOT NULL,
+  `rule_name` varchar(100) NOT NULL,
+  `rule_type` enum('time_based','day_based','person_type','specific_person') NOT NULL,
+  `target_type` enum('all','student','instructor','personell','visitor','specific') DEFAULT 'all',
+  `target_id` int(11) DEFAULT NULL,
+  `start_time` time DEFAULT NULL,
+  `end_time` time DEFAULT NULL,
+  `days_of_week` varchar(20) DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT 1,
+  `description` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `access_rules`
+--
+
+INSERT INTO `access_rules` (`id`, `rule_name`, `rule_type`, `target_type`, `target_id`, `start_time`, `end_time`, `days_of_week`, `is_active`, `description`, `created_at`) VALUES
+(1, 'Office Hours', 'time_based', 'all', NULL, '08:00:00', '17:00:00', '1,2,3,4,5', 1, 'Standard office hours access', '2025-09-27 09:35:17'),
+(2, 'Weekend Restrictions', 'day_based', 'visitor', NULL, NULL, NULL, '6,0', 1, 'Visitor restrictions on weekends', '2025-09-27 09:35:17'),
+(3, '24/7 Staff Access', 'time_based', 'personell', NULL, '00:00:00', '23:59:59', '1,2,3,4,5,6,0', 1, '24/7 access for security personnel', '2025-09-27 09:35:17');
 
 -- --------------------------------------------------------
 
@@ -281,8 +310,82 @@ INSERT INTO `department` (`department_id`, `department_name`, `department_desc`)
 (60, 'BSHRM', 'Bachelor of Science in Hotel and Restaurant Manage'),
 (62, 'BEED', 'Bachelor of Elementary Education'),
 (63, 'BSED', 'Bachelor of Secondary Education'),
-(164, 'BSCE', 'Bachelor of Science in Civil Engineering'),
 (165, 'Main', 'adada');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `gate_alerts`
+--
+
+CREATE TABLE `gate_alerts` (
+  `id` int(11) NOT NULL,
+  `alert_type` enum('security','system','maintenance','access_denied') NOT NULL,
+  `alert_level` enum('low','medium','high','critical') DEFAULT 'medium',
+  `title` varchar(255) NOT NULL,
+  `message` text DEFAULT NULL,
+  `person_id` int(11) DEFAULT NULL,
+  `person_type` enum('student','instructor','personell','visitor') DEFAULT NULL,
+  `id_number` varchar(50) DEFAULT NULL,
+  `resolved` tinyint(1) DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `resolved_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `gate_config`
+--
+
+CREATE TABLE `gate_config` (
+  `id` int(11) NOT NULL,
+  `config_key` varchar(100) NOT NULL,
+  `config_value` text DEFAULT NULL,
+  `description` varchar(255) DEFAULT NULL,
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `gate_config`
+--
+
+INSERT INTO `gate_config` (`id`, `config_key`, `config_value`, `description`, `updated_at`) VALUES
+(1, 'system_name', 'Gate Access Control System', 'Name of the gate system', '2025-09-27 09:35:17'),
+(2, 'auto_timeout_minutes', '30', 'Auto logout after minutes of inactivity', '2025-09-27 09:35:17'),
+(3, 'max_manual_entries_per_hour', '10', 'Maximum manual entries allowed per hour', '2025-09-27 09:35:17'),
+(4, 'require_photo_verification', 'true', 'Whether to require photo verification', '2025-09-27 09:35:17'),
+(5, 'enable_voice_announcements', 'true', 'Enable voice announcements for access', '2025-09-27 09:35:17'),
+(6, 'backup_interval_hours', '24', 'Hours between automatic backups', '2025-09-27 09:35:17'),
+(7, 'alert_retention_days', '30', 'Days to keep alert records', '2025-09-27 09:35:17'),
+(8, 'statistics_retention_days', '365', 'Days to keep statistics records', '2025-09-27 09:35:17');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `gate_devices`
+--
+
+CREATE TABLE `gate_devices` (
+  `id` int(11) NOT NULL,
+  `device_name` varchar(100) NOT NULL,
+  `device_location` varchar(100) NOT NULL,
+  `device_type` enum('main_gate','side_gate','back_gate','emergency_exit') DEFAULT 'main_gate',
+  `ip_address` varchar(45) DEFAULT NULL,
+  `mac_address` varchar(17) DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT 1,
+  `last_seen` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `gate_devices`
+--
+
+INSERT INTO `gate_devices` (`id`, `device_name`, `device_location`, `device_type`, `ip_address`, `mac_address`, `is_active`, `last_seen`, `created_at`) VALUES
+(1, 'Main Entrance Scanner', 'Main Gate', 'main_gate', NULL, NULL, 1, NULL, '2025-09-27 09:35:17'),
+(2, 'Faculty Entrance', 'Side Gate', 'side_gate', NULL, NULL, 1, NULL, '2025-09-27 09:35:17'),
+(3, 'Emergency Exit', 'Back Gate', 'emergency_exit', NULL, NULL, 0, NULL, '2025-09-27 09:35:17');
 
 -- --------------------------------------------------------
 
@@ -301,10 +404,48 @@ CREATE TABLE `gate_logs` (
   `time_out` time NOT NULL,
   `date` date NOT NULL,
   `location` varchar(100) NOT NULL,
+  `date_logged` date DEFAULT NULL,
+  `time_in_am` time DEFAULT NULL,
+  `time_out_am` time DEFAULT NULL,
+  `time_in_pm` time DEFAULT NULL,
+  `time_out_pm` time DEFAULT NULL,
   `department` varchar(100) NOT NULL,
   `photo` varchar(255) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `direction` varchar(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `gate_logs`
+--
+
+INSERT INTO `gate_logs` (`id`, `person_type`, `person_id`, `id_number`, `name`, `action`, `time_in`, `time_out`, `date`, `location`, `date_logged`, `time_in_am`, `time_out_am`, `time_in_pm`, `time_out_pm`, `department`, `photo`, `created_at`, `direction`) VALUES
+(1, 'student', 75, '2024-1570', 'John Cyrus Pescante', 'OUT', '14:28:05', '17:36:27', '2025-09-27', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-09-27 06:28:05', 'OUT'),
+(2, 'instructor', 17, '0001-0005', 'Mr.Richard Bracero', 'OUT', '14:28:09', '17:36:11', '2025-09-27', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-09-27 06:28:09', 'OUT'),
+(3, 'instructor', 13, '0001-0003', 'Mr.Danilo Villarino', 'OUT', '14:28:13', '14:44:26', '2025-09-27', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-09-27 06:28:13', 'OUT'),
+(4, 'instructor', 16, '2024-0117', 'Ms.Jessica Alcazar', 'OUT', '14:28:40', '14:28:49', '2025-09-27', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-09-27 06:28:40', 'OUT'),
+(5, 'instructor', 19, '0001-0007', 'Mr.GlennFord Buncal', 'OUT', '17:40:44', '17:47:01', '2025-09-27', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-09-27 09:40:44', 'OUT');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `gate_statistics`
+--
+
+CREATE TABLE `gate_statistics` (
+  `id` int(11) NOT NULL,
+  `stat_date` date NOT NULL,
+  `total_entries` int(11) DEFAULT 0,
+  `entries_in` int(11) DEFAULT 0,
+  `entries_out` int(11) DEFAULT 0,
+  `unique_people` int(11) DEFAULT 0,
+  `students_count` int(11) DEFAULT 0,
+  `instructors_count` int(11) DEFAULT 0,
+  `personell_count` int(11) DEFAULT 0,
+  `visitors_count` int(11) DEFAULT 0,
+  `peak_hour` time DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -359,7 +500,7 @@ CREATE TABLE `instructor_accounts` (
 
 INSERT INTO `instructor_accounts` (`id`, `instructor_id`, `username`, `password`, `created_at`, `updated_at`, `last_login`, `department`, `fullname`) VALUES
 (1, 13, 'Danilo', '$2y$10$0oqoE/tgXBvzmz.WcZ0Dpe3E7QdrBlrAqxHIAWmXG/mqC46GVgJyO', '2025-09-08 08:26:12', '2025-09-19 05:32:50', '2025-09-19 ', 'BSIT', 'Mr. Danilo Villariono'),
-(2, 16, 'jessica', '$2y$10$5WTQH1ItwPa8PT8Dq3MLPuWwkQEbfYoAK5R9wWqU2KeLsyOl/QA0i', '2025-09-11 23:12:18', '2025-09-23 04:06:22', '2025-09-23 ', 'BSIT', 'Ms.Jessica Alcazar'),
+(2, 16, 'jessica', '$2y$10$5WTQH1ItwPa8PT8Dq3MLPuWwkQEbfYoAK5R9wWqU2KeLsyOl/QA0i', '2025-09-11 23:12:18', '2025-09-27 08:12:10', '2025-09-27 ', 'BSIT', 'Ms.Jessica Alcazar'),
 (3, 12, 'alvin', '$2y$10$bxLgIrb/Y216/EbgHWGyFuT9OBEWMwpXQ5ZrWmMrRH71fDaOsmWjq', '2025-09-11 23:36:14', '2025-09-19 05:41:19', '2025-09-19 ', '', '');
 
 -- --------------------------------------------------------
@@ -383,6 +524,27 @@ CREATE TABLE `instructor_attendance` (
 
 INSERT INTO `instructor_attendance` (`id`, `date`, `instructor_name`, `instructor_id`, `time_in`, `time_out`) VALUES
 (1, '2025-07-26', 'Ms.Jessica Alcazar', 2024, '2025-07-26 17:25:34', '2025-07-26 17:25:34');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `instructor_attendance_records`
+--
+
+CREATE TABLE `instructor_attendance_records` (
+  `id` int(11) NOT NULL,
+  `instructor_id` int(11) NOT NULL,
+  `student_id_number` varchar(50) NOT NULL,
+  `student_name` varchar(255) NOT NULL,
+  `section` varchar(50) NOT NULL,
+  `year` varchar(50) NOT NULL,
+  `department` varchar(255) DEFAULT NULL,
+  `status` enum('Present','Absent') NOT NULL,
+  `date` date NOT NULL,
+  `subject` varchar(255) DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -415,7 +577,11 @@ INSERT INTO `instructor_glogs` (`id`, `instructor_id`, `id_number`, `name`, `act
 (1, 16, '2024-0117', '', 'IN', '10:15:37', '00:00:00', '0000-00-00', 'AM', 'Gate', 'Main', NULL, '2025-09-22 02:15:37', '2025-09-22'),
 (2, 12, '0001-0004', '', 'IN', '10:18:43', '00:00:00', '0000-00-00', 'AM', 'Gate', 'Main', NULL, '2025-09-22 02:18:43', '2025-09-22'),
 (3, 13, '0001-0003', '', 'IN', '10:22:46', '00:00:00', '0000-00-00', 'AM', 'Gate', 'Main', NULL, '2025-09-22 02:22:46', '2025-09-22'),
-(4, 18, '0001-0006', '', 'IN', '12:00:47', '00:00:00', '0000-00-00', 'AM', 'Gate', 'Main', NULL, '2025-09-22 04:00:47', '2025-09-22');
+(4, 18, '0001-0006', '', 'IN', '12:00:47', '00:00:00', '0000-00-00', 'AM', 'Gate', 'Main', NULL, '2025-09-22 04:00:47', '2025-09-22'),
+(5, 17, '0001-0005', 'Mr.Richard Bracero', 'OUT', '14:28:09', '17:36:11', '2025-09-27', 'PM', 'Gate', 'Main', NULL, '2025-09-27 06:28:09', '2025-09-27'),
+(6, 13, '0001-0003', 'Mr.Danilo Villarino', 'OUT', '14:28:13', '14:44:26', '2025-09-27', 'PM', 'Gate', 'Main', NULL, '2025-09-27 06:28:13', '2025-09-27'),
+(7, 16, '2024-0117', 'Ms.Jessica Alcazar', 'OUT', '14:28:40', '14:28:49', '2025-09-27', 'PM', 'Gate', 'Main', NULL, '2025-09-27 06:28:40', '2025-09-27'),
+(8, 19, '0001-0007', 'Mr.GlennFord Buncal', 'OUT', '17:40:44', '17:47:01', '2025-09-27', 'PM', 'Gate', 'Main', NULL, '2025-09-27 09:40:44', '2025-09-27');
 
 -- --------------------------------------------------------
 
@@ -469,31 +635,16 @@ INSERT INTO `instructor_logs` (`id`, `instructor_id`, `id_number`, `time_in`, `t
 -- --------------------------------------------------------
 
 --
--- Table structure for table `lostcard`
+-- Table structure for table `login_attempts`
 --
 
-CREATE TABLE `lostcard` (
+CREATE TABLE `login_attempts` (
   `id` int(11) NOT NULL,
-  `personnel_id` int(11) NOT NULL,
-  `date_requested` datetime NOT NULL,
-  `status` int(1) NOT NULL,
-  `verification_photo` varchar(255) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `lost_found`
---
-
-CREATE TABLE `lost_found` (
-  `id` int(11) NOT NULL,
-  `sender` varchar(255) NOT NULL,
-  `status` int(11) NOT NULL,
-  `department` varchar(255) NOT NULL,
-  `name` varchar(255) NOT NULL,
-  `date` datetime NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `ip_address` varchar(45) NOT NULL,
+  `username` varchar(255) NOT NULL,
+  `attempted_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `success` tinyint(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -600,7 +751,6 @@ INSERT INTO `role` (`id`, `role`) VALUES
 (6, 'Security Personnel'),
 (8, 'Staff'),
 (23, 'Executive'),
-(27, 'Data Analyst'),
 (31, 'Maintenance'),
 (32, 'Developer'),
 (37, 'Designer'),
@@ -698,6 +848,21 @@ INSERT INTO `room_schedules` (`department`, `id`, `room_name`, `room_location`, 
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `security_logs`
+--
+
+CREATE TABLE `security_logs` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  `event_type` varchar(255) NOT NULL,
+  `ip_address` varchar(45) NOT NULL,
+  `user_agent` text DEFAULT NULL,
+  `timestamp` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `stranger_logs`
 --
 
@@ -754,7 +919,8 @@ CREATE TABLE `students` (
 INSERT INTO `students` (`id`, `id_number`, `fullname`, `section`, `year`, `status`, `created_at`, `updated_at`, `department_id`, `photo`, `date_added`) VALUES
 (75, '2024-1570', 'John Cyrus Pescante', 'West', '1st Year', '', '2025-09-03 03:40:12', '2025-09-03 04:53:21', '33', '68b7b89cc0097_2024-1570.j', '2025-09-03 03:40:12'),
 (77, '2024-1697', 'Rose Ann V. Forrosuelo', 'West', '1st Year', '', '2025-09-03 03:41:47', '2025-09-03 04:53:08', '33', '68b7b8fb407f5_2024-1697.j', '2025-09-03 03:41:47'),
-(78, '0000-0001', 'Truy', 'West', '1st Year', '', '2025-09-10 01:45:14', '2025-09-10 01:45:14', '33', '68c0d82a10aff_0000-0001.p', '2025-09-10 01:45:14');
+(78, '0000-0001', 'Truy', 'West', '1st Year', '', '2025-09-10 01:45:14', '2025-09-10 01:45:14', '33', '68c0d82a10aff_0000-0001.p', '2025-09-10 01:45:14'),
+(79, '1212-1111', 'Try', 'West', '1st Year', '', '2025-09-27 07:33:37', '2025-09-27 07:33:37', '33', '68d7935108118_1212-1111.p', '2025-09-27 07:33:37');
 
 -- --------------------------------------------------------
 
@@ -786,7 +952,8 @@ CREATE TABLE `students_glogs` (
 INSERT INTO `students_glogs` (`id`, `student_id`, `id_number`, `name`, `action`, `time_in`, `time_out`, `date`, `period`, `location`, `department`, `photo`, `created_at`, `date_logged`) VALUES
 (1, 75, '2024-1570', '', 'IN', '10:14:52', '00:00:00', '0000-00-00', 'AM', 'Gate', 'Main', NULL, '2025-09-22 02:14:52', '2025-09-22'),
 (2, 77, '2024-1697', '', 'IN', '10:15:19', '00:00:00', '0000-00-00', 'AM', 'Gate', 'Main', NULL, '2025-09-22 02:15:19', '2025-09-22'),
-(3, 78, '0000-0001', '', 'IN', '12:01:08', '00:00:00', '0000-00-00', 'AM', 'Gate', 'Main', NULL, '2025-09-22 04:01:08', '2025-09-22');
+(3, 78, '0000-0001', '', 'IN', '12:01:08', '00:00:00', '0000-00-00', 'AM', 'Gate', 'Main', NULL, '2025-09-22 04:01:08', '2025-09-22'),
+(4, 75, '2024-1570', 'John Cyrus Pescante', 'OUT', '14:28:05', '17:36:27', '2025-09-27', 'PM', 'Gate', 'Main', NULL, '2025-09-27 06:28:05', '2025-09-27');
 
 -- --------------------------------------------------------
 
@@ -870,17 +1037,23 @@ CREATE TABLE `user` (
   `email` varchar(255) NOT NULL,
   `username` varchar(255) NOT NULL,
   `password` varchar(255) NOT NULL,
-  `rfid_number` varchar(50) NOT NULL
+  `rfid_number` varchar(50) NOT NULL,
+  `failed_attempts` int(11) DEFAULT 0,
+  `last_attempt` timestamp NULL DEFAULT NULL,
+  `last_login` timestamp NULL DEFAULT NULL,
+  `login_count` int(11) DEFAULT 0,
+  `is_active` tinyint(1) DEFAULT 1,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `user`
 --
 
-INSERT INTO `user` (`id`, `contact`, `email`, `username`, `password`, `rfid_number`) VALUES
-(2, '09560379350', 'kyebejeanu@gmail.com', 'admin', '$2y$10$jcAd4HtKBXyVxRRGNf39sOmX6FzsDb4hOcu6DGRnISwPGNSs6YM4.', '1234567899'),
-(23, '09483733246', 'try@gmail.com', 'admin', '$2y$10$SVcfbC0I/jGhtwrU8ajneeKdEAPv7QpStuWCXXJeG7.r2ZrK5SOwa', '9876543211'),
-(20240331, '', 'kyebejeanungon@gmail.com', 'rfidgpms', '$2y$10$NOm2di8hyRuWXbopq10XTunGgHflPyjE.g//WGND0hmuW/MBIIXb.', '1122334455');
+INSERT INTO `user` (`id`, `contact`, `email`, `username`, `password`, `rfid_number`, `failed_attempts`, `last_attempt`, `last_login`, `login_count`, `is_active`, `created_at`) VALUES
+(2, '09560379350', 'kyebejeanu@gmail.com', 'admin', '$2y$10$jcAd4HtKBXyVxRRGNf39sOmX6FzsDb4hOcu6DGRnISwPGNSs6YM4.', '1234567899', 0, NULL, NULL, 0, 1, '2025-09-24 07:52:42'),
+(23, '09483733246', 'try@gmail.com', 'admin', '$2y$10$SVcfbC0I/jGhtwrU8ajneeKdEAPv7QpStuWCXXJeG7.r2ZrK5SOwa', '9876543211', 0, NULL, NULL, 0, 1, '2025-09-24 07:52:42'),
+(20240331, '', 'kyebejeanungon@gmail.com', 'rfidgpms', '$2y$10$NOm2di8hyRuWXbopq10XTunGgHflPyjE.g//WGND0hmuW/MBIIXb.', '1122334455', 0, NULL, NULL, 0, 1, '2025-09-24 07:52:42');
 
 -- --------------------------------------------------------
 
@@ -1076,6 +1249,14 @@ ALTER TABLE `about`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `access_rules`
+--
+ALTER TABLE `access_rules`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_rule_type` (`rule_type`),
+  ADD KEY `idx_is_active` (`is_active`);
+
+--
 -- Indexes for table `admin_sessions`
 --
 ALTER TABLE `admin_sessions`
@@ -1116,11 +1297,42 @@ ALTER TABLE `department`
   ADD PRIMARY KEY (`department_id`);
 
 --
+-- Indexes for table `gate_alerts`
+--
+ALTER TABLE `gate_alerts`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_alert_type` (`alert_type`),
+  ADD KEY `idx_resolved` (`resolved`),
+  ADD KEY `idx_created_at` (`created_at`);
+
+--
+-- Indexes for table `gate_config`
+--
+ALTER TABLE `gate_config`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `config_key` (`config_key`);
+
+--
+-- Indexes for table `gate_devices`
+--
+ALTER TABLE `gate_devices`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_device_location` (`device_location`);
+
+--
 -- Indexes for table `gate_logs`
 --
 ALTER TABLE `gate_logs`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_gate_logs_comprehensive` (`person_type`,`person_id`,`created_at`);
+
+--
+-- Indexes for table `gate_statistics`
+--
+ALTER TABLE `gate_statistics`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `stat_date` (`stat_date`),
+  ADD KEY `idx_stat_date` (`stat_date`);
 
 --
 -- Indexes for table `instructor`
@@ -1143,6 +1355,15 @@ ALTER TABLE `instructor_attendance`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `instructor_attendance_records`
+--
+ALTER TABLE `instructor_attendance_records`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_attendance` (`instructor_id`,`student_id_number`,`date`,`year`,`section`),
+  ADD KEY `idx_instructor_date` (`instructor_id`,`date`),
+  ADD KEY `idx_student_date` (`student_id_number`,`date`);
+
+--
 -- Indexes for table `instructor_glogs`
 --
 ALTER TABLE `instructor_glogs`
@@ -1162,16 +1383,11 @@ ALTER TABLE `instructor_logs`
   ADD KEY `instructor_id` (`instructor_id`);
 
 --
--- Indexes for table `lostcard`
+-- Indexes for table `login_attempts`
 --
-ALTER TABLE `lostcard`
-  ADD PRIMARY KEY (`id`);
-
---
--- Indexes for table `lost_found`
---
-ALTER TABLE `lost_found`
-  ADD PRIMARY KEY (`id`);
+ALTER TABLE `login_attempts`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_ip_time` (`ip_address`,`attempted_at`);
 
 --
 -- Indexes for table `personell`
@@ -1219,6 +1435,14 @@ ALTER TABLE `room_logs`
 --
 ALTER TABLE `room_schedules`
   ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `security_logs`
+--
+ALTER TABLE `security_logs`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_ip_time` (`ip_address`,`timestamp`),
+  ADD KEY `idx_user_time` (`user_id`,`timestamp`);
 
 --
 -- Indexes for table `stranger_logs`
@@ -1302,6 +1526,12 @@ ALTER TABLE `about`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
+-- AUTO_INCREMENT for table `access_rules`
+--
+ALTER TABLE `access_rules`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
 -- AUTO_INCREMENT for table `admin_sessions`
 --
 ALTER TABLE `admin_sessions`
@@ -1335,12 +1565,36 @@ ALTER TABLE `attendance_logs`
 -- AUTO_INCREMENT for table `department`
 --
 ALTER TABLE `department`
-  MODIFY `department_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=167;
+  MODIFY `department_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=169;
+
+--
+-- AUTO_INCREMENT for table `gate_alerts`
+--
+ALTER TABLE `gate_alerts`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `gate_config`
+--
+ALTER TABLE `gate_config`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+
+--
+-- AUTO_INCREMENT for table `gate_devices`
+--
+ALTER TABLE `gate_devices`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `gate_logs`
 --
 ALTER TABLE `gate_logs`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+
+--
+-- AUTO_INCREMENT for table `gate_statistics`
+--
+ALTER TABLE `gate_statistics`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
@@ -1362,10 +1616,16 @@ ALTER TABLE `instructor_attendance`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
+-- AUTO_INCREMENT for table `instructor_attendance_records`
+--
+ALTER TABLE `instructor_attendance_records`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `instructor_glogs`
 --
 ALTER TABLE `instructor_glogs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `instructor_logs`
@@ -1374,15 +1634,9 @@ ALTER TABLE `instructor_logs`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=110;
 
 --
--- AUTO_INCREMENT for table `lostcard`
+-- AUTO_INCREMENT for table `login_attempts`
 --
-ALTER TABLE `lostcard`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=103;
-
---
--- AUTO_INCREMENT for table `lost_found`
---
-ALTER TABLE `lost_found`
+ALTER TABLE `login_attempts`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
@@ -1413,7 +1667,7 @@ ALTER TABLE `role`
 -- AUTO_INCREMENT for table `rooms`
 --
 ALTER TABLE `rooms`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=158;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=159;
 
 --
 -- AUTO_INCREMENT for table `room_logs`
@@ -1428,6 +1682,12 @@ ALTER TABLE `room_schedules`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
 
 --
+-- AUTO_INCREMENT for table `security_logs`
+--
+ALTER TABLE `security_logs`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `stranger_logs`
 --
 ALTER TABLE `stranger_logs`
@@ -1437,13 +1697,13 @@ ALTER TABLE `stranger_logs`
 -- AUTO_INCREMENT for table `students`
 --
 ALTER TABLE `students`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=79;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=80;
 
 --
 -- AUTO_INCREMENT for table `students_glogs`
 --
 ALTER TABLE `students_glogs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `subjects`
