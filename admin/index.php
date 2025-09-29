@@ -3,12 +3,12 @@
 include '../connection.php';
 session_start();
 
-// Add this to your admin/index.php or config file
-header("Strict-Transport-Security: max-age=31536000; includeSubDomains");
-header("X-Frame-Options: DENY");
-header("X-Content-Type-Options: nosniff");
-header("Referrer-Policy: strict-origin-when-cross-origin");
-header("Content-Security-Policy: default-src 'self'");
+// // Add this to your admin/index.php or config file
+// header("Strict-Transport-Security: max-age=31536000; includeSubDomains");
+// header("X-Frame-Options: DENY");
+// header("X-Content-Type-Options: nosniff");
+// header("Referrer-Policy: strict-origin-when-cross-origin");
+// header("Content-Security-Policy: default-src 'self'");
 
 // Initialize variables
 $maxAttempts = 5;
@@ -31,11 +31,11 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
     header('Location: dashboard.php');
     exit();
 }
-$allowed_domains = ['rfid-gpms.com', 'www.rfid-gpms.com'];
-$current_domain = $_SERVER['HTTP_HOST'];
-if (!in_array($current_domain, $allowed_domains)) {
-    die("Invalid domain access detected!");
-}
+// $allowed_domains = ['rfid-gpms.com', 'www.rfid-gpms.com'];
+// $current_domain = $_SERVER['HTTP_HOST'];
+// if (!in_array($current_domain, $allowed_domains)) {
+//     die("Invalid domain access detected!");
+// }
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     

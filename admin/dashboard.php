@@ -156,23 +156,7 @@ $logsResult = getTodaysLogs($db);
                                 <h6 class="mb-0"><?php echo $stats['total_entrants_today']; ?></h6>
                             </div>
                         </div>
-                        <div id="entrantsLogs" class="stranger-logs" style="display:none; position: absolute;background: white; border: 1px solid #ccc; padding: 10px;border-radius: 5px; z-index: 100;box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-height: 300px;">
-                            <ul class="list-unstyled">
-                                <?php
-                                $entrantLogs = getHoverLogs($db, 'entrants');
-                                if (!empty($entrantLogs)) {
-                                    foreach ($entrantLogs as $row) {
-                                        echo '<li class="mb-2 d-flex align-items-center">';
-                                        echo '<span><img style="border-radius:50%;" src="../admin/uploads/' . sanitizeOutput($row["photo"]) . '" width="20px" height="20px"/></span>';
-                                        echo '<span class="text-muted ms-3"><b>' . sanitizeOutput($row["full_name"]) . '</b> (' . sanitizeOutput($row["role"]) . ')</span>';
-                                        echo '</li>';
-                                    }
-                                } else {
-                                    echo '<li><p class="text-center">No logs found</p></li>';
-                                }
-                                ?>
-                            </ul>
-                        </div>
+                       
                     </div>
 
                     <!-- Students Card -->
@@ -205,7 +189,6 @@ $logsResult = getTodaysLogs($db);
                                 if (!empty($instructorLogs)) {
                                     foreach ($instructorLogs as $row) {
                                         echo '<li class="mb-2 d-flex align-items-center">';
-                                        echo '<span><img style="border-radius:50%;" src="../admin/uploads/' . sanitizeOutput($row["photo"]) . '" width="20px" height="20px"/></span>';
                                         echo '<span class="ms-3"><b>' . sanitizeOutput($row["full_name"]) . '</b><br>';
                                         echo '<small class="' . ($row['status'] == 'Present' ? 'text-success' : 'text-danger') . '">' . $row['status'] . '</small>';
                                         if ($row['status'] == 'Present') {
@@ -257,8 +240,6 @@ $logsResult = getTodaysLogs($db);
                     </div>
                 </div>
 
-                <!-- Charts Section (keep your existing chart code) -->
-                <!-- ... your existing chart code ... -->
 
                 <!-- Today's Entrance Logs -->
                 <div class="bg-light rounded h-100 p-4 mt-4">
@@ -269,9 +250,7 @@ $logsResult = getTodaysLogs($db);
                         <table class="table table-border" id="myDataTable">
                             <thead>
                                 <tr>
-                                    <th scope="col">Photo</th>
                                     <th scope="col">Full Name</th>
-                                    <th scope="col">Department</th>
                                     <th scope="col">Role</th>
                                     <th scope="col">Location</th>
                                     <th scope="col">Time In</th>
@@ -289,19 +268,8 @@ $logsResult = getTodaysLogs($db);
                                             $timeout = formatTime($row['time_out']);
                                 ?>
                                             <tr>
-                                                <td>
-                                                    <center>
-                                                        <?php if (!empty($row['photo'])): ?>
-                                                            <img src="../admin/uploads/<?php echo sanitizeOutput($row['photo']); ?>" width="50px" height="50px" style="border-radius: 50%;">
-                                                        <?php else: ?>
-                                                            <div style="width:50px;height:50px;border-radius:50%;background:#ccc;display:flex;align-items:center;justify-content:center;">
-                                                                <i class="fa fa-user"></i>
-                                                            </div>
-                                                        <?php endif; ?>
-                                                    </center>
-                                                </td>
+                                                
                                                 <td><?php echo sanitizeOutput($row['full_name']); ?></td>
-                                                <td><?php echo sanitizeOutput($row['department']); ?></td>
                                                 <td><?php echo sanitizeOutput($row['role']); ?></td>
                                                 <td><?php echo sanitizeOutput($row['location']); ?></td>
                                                 <td><?php echo $timein; ?></td>

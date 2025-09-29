@@ -28,16 +28,84 @@ function getStudentPhoto($photo) {
 <html lang="en">
 <?php include 'header.php'; ?>
 
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Students</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        .bg-light {
+            background-color: #f8f9fa !important;
+        }
+        .card {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+        .table th {
+            background-color: #4e73df;
+            color: white;
+        }
+        .badge {
+            font-size: 0.85em;
+        }
+        .section-header {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+        .btn-del {
+            transition: all 0.3s ease;
+        }
+        .btn-del:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+        }
+        .swal2-popup {
+            font-family: inherit;
+        }
+        .error-message {
+            color: #dc3545;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+        .student-photo {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #dee2e6;
+        }
+        .upload-img-btn {
+            cursor: pointer;
+            display: block;
+            position: relative;
+        }
+        .preview-1 {
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        .preview-1:hover {
+            opacity: 0.8;
+        }
+        .file-uploader {
+            position: relative;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+
 <body>
     <div class="container-fluid position-relative bg-white d-flex p-0">
         <!-- Sidebar Start -->
         <?php include 'sidebar.php'; ?>
         <!-- Sidebar End -->
-        
+
         <!-- Content Start -->
         <div class="content">
             <?php include 'navbar.php'; ?>
-            
+
             <div class="container-fluid pt-4 px-4">
                 <div class="col-sm-12 col-xl-12">
                     <div class="bg-light rounded h-100 p-4">
@@ -47,7 +115,7 @@ function getStudentPhoto($photo) {
                             </div>
                             <div class="col-3">
                                 <button type="button" class="btn btn-outline-warning m-2" data-bs-toggle="modal" data-bs-target="#studentModal">
-                                    Add Student
+                                    <i class="fas fa-plus-circle"></i> Add Student
                                 </button>
                             </div>
                         </div>
@@ -67,62 +135,63 @@ function getStudentPhoto($photo) {
                                     </tr>
                                 </thead>
                                 <tbody>
-    <?php 
-    $results = mysqli_query($db, "SELECT s.*, d.department_name 
-                                FROM students s 
-                                LEFT JOIN department d 
-                                ON s.department_id = d.department_id 
-                                ORDER BY s.id DESC"); 
-    
-    if ($results === false) {
-        die("Query failed: " . mysqli_error($db));
-    }
-    ?>
-    <?php while ($row = mysqli_fetch_array($results)) { 
-        // Use the getStudentPhoto function to get the correct photo path
-        $photoPath = getStudentPhoto($row['photo']);
-    ?>
-    <tr class="table-<?php echo $row['id'];?>">
-        <input class="department_id" type="hidden" value="<?php echo $row['department_id']; ?>" />
-        <input class="id_number" type="hidden" value="<?php echo $row['id_number']; ?>" />
-        <input class="fullname" type="hidden" value="<?php echo $row['fullname']; ?>" />
-        <input class="section" type="hidden" value="<?php echo $row['section']; ?>" />
-        <input class="year" type="hidden" value="<?php echo $row['year']; ?>" />
-        <?php if (isset($row['date_added'])): ?>
-        <input class="date_added" type="hidden" value="<?php echo $row['date_added']; ?>" />
-        <?php endif; ?>
+                                    <?php 
+                                    $results = mysqli_query($db, "SELECT s.*, d.department_name 
+                                                                FROM students s 
+                                                                LEFT JOIN department d 
+                                                                ON s.department_id = d.department_id 
+                                                                ORDER BY s.id DESC"); 
+                                    
+                                    if ($results === false) {
+                                        die("Query failed: " . mysqli_error($db));
+                                    }
+                                    ?>
+                                    <?php while ($row = mysqli_fetch_array($results)) { 
+                                        // Use the getStudentPhoto function to get the correct photo path
+                                        $photoPath = getStudentPhoto($row['photo']);
+                                    ?>
+                                    <tr class="table-<?php echo $row['id'];?>" data-student-id="<?php echo $row['id'];?>">
+                                        <input class="department_id" type="hidden" value="<?php echo $row['department_id']; ?>" />
+                                        <input class="id_number" type="hidden" value="<?php echo $row['id_number']; ?>" />
+                                        <input class="fullname" type="hidden" value="<?php echo $row['fullname']; ?>" />
+                                        <input class="section" type="hidden" value="<?php echo $row['section']; ?>" />
+                                        <input class="year" type="hidden" value="<?php echo $row['year']; ?>" />
+                                        <?php if (isset($row['date_added'])): ?>
+                                        <input class="date_added" type="hidden" value="<?php echo $row['date_added']; ?>" />
+                                        <?php endif; ?>
 
-        <td>
-            <center>
-                <img class="photo" src="<?php echo $photoPath; ?>" width="50px" height="50px" 
-                     onerror="this.onerror=null; this.src='../assets/img/default-avatar.png';">
-            </center>
-        </td>
-        <td class="student_id"><?php echo $row['id_number']; ?></td>
-        <td><?php echo $row['fullname']; ?></td>
-        <td><?php echo $row['department_name']; ?></td>
-        <td><?php echo $row['year']; ?></td>
-        <td><?php echo $row['section']; ?></td>
-        <td width="14%">
-            <center>
-                <button data-id="<?php echo $row['id'];?>" class="btn btn-outline-primary btn-sm btn-edit e_student_id">
-                    <i class="bi bi-plus-edit"></i> Edit 
-                </button>
-                <button student_name="<?php echo $row['fullname']; ?>" 
-                        data-id="<?php echo $row['id']; ?>" 
-                        class="btn btn-outline-danger btn-sm btn-del d_student_id">
-                    <i class="bi bi-plus-trash"></i> Delete
-                </button>
-            </center>
-        </td>
-        <?php if (isset($row['date_added'])): ?>
-        <td style="display:none;" class="hidden-date"><?php echo $row['date_added']; ?></td>
-        <?php else: ?>
-        <td style="display:none;" class="hidden-date"><?php echo date('Y-m-d H:i:s'); ?></td>
-        <?php endif; ?>
-    </tr>
-    <?php } ?>
-</tbody>
+                                        <td>
+                                            <center>
+                                                <img class="photo student-photo" src="<?php echo $photoPath; ?>" 
+                                                     onerror="this.onerror=null; this.src='../assets/img/default-avatar.png';">
+                                            </center>
+                                        </td>
+                                        <td class="student_id"><?php echo $row['id_number']; ?></td>
+                                        <td><?php echo $row['fullname']; ?></td>
+                                        <td><?php echo $row['department_name']; ?></td>
+                                        <td><?php echo $row['year']; ?></td>
+                                        <td><?php echo $row['section']; ?></td>
+                                        <td width="14%">
+                                            <center>
+                                                <button data-id="<?php echo $row['id'];?>" 
+                                                        class="btn btn-outline-primary btn-sm btn-edit e_student_id">
+                                                    <i class="fas fa-edit"></i> Edit 
+                                                </button>
+                                                <button student_name="<?php echo $row['fullname']; ?>" 
+                                                        data-id="<?php echo $row['id']; ?>" 
+                                                        class="btn btn-outline-danger btn-sm btn-del d_student_id">
+                                                    <i class="fas fa-trash"></i> Delete 
+                                                </button>
+                                            </center>
+                                        </td>
+                                        <?php if (isset($row['date_added'])): ?>
+                                        <td style="display:none;" class="hidden-date"><?php echo $row['date_added']; ?></td>
+                                        <?php else: ?>
+                                        <td style="display:none;" class="hidden-date"><?php echo date('Y-m-d H:i:s'); ?></td>
+                                        <?php endif; ?>
+                                    </tr>
+                                    <?php } ?>
+                                </tbody>
                             </table>
                         </div>
                     </div>
@@ -130,22 +199,24 @@ function getStudentPhoto($photo) {
             </div>
 
             <!-- Add Student Modal -->
-            <form id="studentForm" role="form" method="post" action="" enctype="multipart/form-data">
-                <div class="modal fade" id="studentModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                    <div class="modal-dialog modal-lg">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="exampleModalLabel">
-                                    <i class="bi bi-plus-circle"></i> New Student
-                                </h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="col-lg-11 mb-2 mt-1" id="mgs-student" style="margin-left: 4%"></div>
+            <div class="modal fade" id="studentModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="exampleModalLabel">
+                                <i class="fas fa-plus-circle"></i> New Student
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form id="studentForm" role="form" method="post" action="" enctype="multipart/form-data">
                             <div class="modal-body">
+                                <div class="col-lg-12 mt-1" id="mgs-student"></div>
                                 <div class="row justify-content-md-center">
                                     <div id="msg-student"></div>
                                     <div class="col-sm-12 col-md-12 col-lg-10">
-                                        <div class="" style="border: 1PX solid #b3f0fc;padding: 1%;background-color: #f7cfa1;color: black;font-size: 1.2rem">STUDENT INFORMATION</div>
+                                        <div class="section-header p-2 mb-3 rounded">
+                                            <strong>STUDENT INFORMATION</strong>
+                                        </div>
                                         <div class="row">
                                             <div class="col-lg-3 col-md-6 col-sm-12" id="up_img">
                                                 <div class="file-uploader">
@@ -156,12 +227,13 @@ function getStudentPhoto($photo) {
                                                     </label>
                                                     <input type="file" id="photo" name="photo" class="upload-field-1" 
                                                             style="opacity: 0; position: absolute; z-index: -1;" accept="image/*" required>
+                                                    <span class="error-message" id="photo-error"></span>
                                                 </div>
                                             </div>
 
                                             <div class="col-lg-4 col-md-6 col-sm-12">
                                                 <div class="form-group">
-                                                    <label>DEPARTMENT:</label>
+                                                    <label><b>Department:</b></label>
                                                     <select required class="form-control dept_ID" name="department_id" id="department_id" autocomplete="off">
                                                         <option value="">Select Department</option>
                                                         <?php
@@ -172,15 +244,15 @@ function getStudentPhoto($photo) {
                                                             }
                                                         ?>
                                                     </select>
-                                                    <span class="dept-error"></span>
+                                                    <span class="error-message" id="department_id-error"></span>
                                                 </div>
                                             </div>
 
                                             <div class="col-lg-5 col-md-6 col-sm-12" id="idnumberz">
                                                 <div class="form-group">
-                                                    <label>ID NUMBER:</label>
+                                                    <label><b>ID Number:</b></label>
                                                     <input required type="text" class="form-control" name="id_number" id="id_number" autocomplete="off">
-                                                    <span class="id-error"></span>
+                                                    <span class="error-message" id="id_number-error"></span>
                                                 </div>
                                             </div>
                                         </div>
@@ -192,14 +264,14 @@ function getStudentPhoto($photo) {
                                             </div>
                                             <div class="col-lg-4 col-md-6 col-sm-12 mt-1">
                                                 <div class="form-group">
-                                                    <label>FULL NAME:</label>
+                                                    <label><b>Full Name:</b></label>
                                                     <input required type="text" class="form-control" name="fullname" id="fullname" autocomplete="off">
-                                                    <span class="name-error"></span>
+                                                    <span class="error-message" id="fullname-error"></span>
                                                 </div>
                                             </div>
                                             <div class="col-lg-2 col-md-6 col-sm-12 mt-1">
                                                 <div class="form-group">
-                                                    <label>YEAR:</label>
+                                                    <label><b>Year:</b></label>
                                                     <select required class="form-control" name="year" id="year" autocomplete="off">
                                                         <option value="">Select Year</option>
                                                         <option value="1st Year">1st Year</option>
@@ -207,12 +279,12 @@ function getStudentPhoto($photo) {
                                                         <option value="3rd Year">3rd Year</option>
                                                         <option value="4th Year">4th Year</option>
                                                     </select>
-                                                    <span class="year-error"></span>
+                                                    <span class="error-message" id="year-error"></span>
                                                 </div>
                                             </div>
                                             <div class="col-lg-3 col-md-6 col-sm-12 mt-1">
                                                 <div class="form-group">
-                                                    <label>SECTION:</label>
+                                                    <label><b>Section:</b></label>
                                                     <select required class="form-control" name="section" id="section" autocomplete="off">
                                                         <option value="">Select Section</option>
                                                         <option value="West">West</option>
@@ -220,7 +292,7 @@ function getStudentPhoto($photo) {
                                                         <option value="East">East</option>
                                                         <option value="South">South</option>
                                                     </select>
-                                                    <span class="section-error"></span>
+                                                    <span class="error-message" id="section-error"></span>
                                                 </div>
                                             </div>
                                         </div>
@@ -231,33 +303,35 @@ function getStudentPhoto($photo) {
                                 <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
                                 <button type="submit" id="btn-student" class="btn btn-outline-warning">Save</button>
                             </div>
-                        </div>
+                        </form>
                     </div>
                 </div>
-            </form>
+            </div>
 
             <!-- Edit Student Modal -->
             <div class="modal fade" id="editstudentModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
                 <div class="modal-dialog modal-lg">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title" id="exampleModalLabel">
-                                <i class="bi bi-pencil"></i> Edit Student
+                            <h5 class="modal-title">
+                                <i class="fas fa-edit"></i> Edit Student
                             </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <div class="col-lg-11 mb-2 mt-1" id="mgs-student" style="margin-left: 4%"></div>
                         <form id="editStudentForm" class="edit-form" role="form" method="post" action="" enctype="multipart/form-data">
                             <div class="modal-body" id="editModal">
+                                <div class="col-lg-12 mt-1" id="mgs-editstudent"></div>
                                 <div class="row justify-content-md-center">
-                                    <div id="msg-student" style=""></div>
+                                    <div id="msg-editstudent"></div>
                                     <div class="col-sm-12 col-md-12 col-lg-10">
-                                        <div class="" style="border: 1PX solid #b3f0fc;padding: 1%;background-color: #f7cfa1;color: black;font-size: 1.2rem">STUDENT INFORMATION</div>
+                                        <div class="section-header p-2 mb-3 rounded">
+                                            <strong>STUDENT INFORMATION</strong>
+                                        </div>
                                         <div class="row">
                                             <div class="col-lg-3 col-md-6 col-sm-12" id="up_img">
                                                 <div class="file-uploader">
                                                     <label name="upload-label" class="upload-img-btn">
-                                                        <input type="file" id="photo" name="photo" class="upload-field-1" style="display:none;" accept="image/*" title="Upload Foto.."/>
+                                                        <input type="file" id="editPhoto" name="photo" class="upload-field-1" style="display:none;" accept="image/*" title="Upload Photo.."/>
                                                         <input type="hidden" id="capturedImage" name="capturedImage" class="capturedImage">
                                                         <img class="preview-1 edit-photo" src="" style="width: 140px!important;height: 130px!important;position: absolute;border: 1px solid gray;top: 25%" title="Upload Photo.." />
                                                     </label>
@@ -265,7 +339,7 @@ function getStudentPhoto($photo) {
                                             </div>
                                             <div class="col-lg-4 col-md-6 col-sm-12">
                                                 <div class="form-group">
-                                                    <label>DEPARTMENT:</label>
+                                                    <label><b>Department:</b></label>
                                                     <select class="form-control dept_ID" name="department_id" id="edepartment_id" autocomplete="off">
                                                         <option class="edit-dept-val" value=""></option>
                                                         <?php
@@ -276,15 +350,15 @@ function getStudentPhoto($photo) {
                                                             }
                                                         ?>
                                                     </select>
-                                                    <span class="dept-error"></span>
+                                                    <span class="error-message" id="edepartment_id-error"></span>
                                                 </div>
                                             </div>
 
                                             <div class="col-lg-5 col-md-6 col-sm-12" id="idnumberz">
                                                 <div class="form-group">
-                                                    <label>ID NUMBER:</label>
-                                                    <input required type="text" class="form-control edit-idnumber" name="id_number" id="id_number1" autocomplete="off">
-                                                    <span class="id-error"></span>
+                                                    <label><b>ID Number:</b></label>
+                                                    <input required type="text" class="form-control edit-idnumber" name="id_number" id="eid_number" autocomplete="off">
+                                                    <span class="error-message" id="eid_number-error"></span>
                                                 </div>
                                             </div>
                                         </div>
@@ -296,14 +370,14 @@ function getStudentPhoto($photo) {
                                             </div>
                                             <div class="col-lg-4 col-md-6 col-sm-12 mt-1">
                                                 <div class="form-group">
-                                                    <label>FULL NAME:</label>
-                                                    <input type="text" class="form-control edit-fullname" name="fullname" id="fullname" autocomplete="off">
-                                                    <span class="name-error"></span>
+                                                    <label><b>Full Name:</b></label>
+                                                    <input type="text" class="form-control edit-fullname" name="fullname" id="efullname" autocomplete="off">
+                                                    <span class="error-message" id="efullname-error"></span>
                                                 </div>
                                             </div>
                                             <div class="col-lg-2 col-md-6 col-sm-12 mt-1">
                                                 <div class="form-group">
-                                                    <label>YEAR:</label>
+                                                    <label><b>Year:</b></label>
                                                     <select class="form-control" name="year" id="eyear" autocomplete="off">
                                                         <option class="edit-year-val" value=""></option>
                                                         <option value="1st Year">1st Year</option>
@@ -311,12 +385,12 @@ function getStudentPhoto($photo) {
                                                         <option value="3rd Year">3rd Year</option>
                                                         <option value="4th Year">4th Year</option>
                                                     </select>
-                                                    <span class="year-error"></span>
+                                                    <span class="error-message" id="eyear-error"></span>
                                                 </div>
                                             </div>
                                             <div class="col-lg-3 col-md-6 col-sm-12 mt-1">
                                                 <div class="form-group">
-                                                    <label>SECTION:</label>
+                                                    <label><b>Section:</b></label>
                                                     <select class="form-control" name="section" id="esection" autocomplete="off">
                                                         <option class="edit-section-val" value=""></option>
                                                         <option value="West">West</option>
@@ -324,7 +398,7 @@ function getStudentPhoto($photo) {
                                                         <option value="East">East</option>
                                                         <option value="South">South</option>
                                                     </select>
-                                                    <span class="section-error"></span>
+                                                    <span class="error-message" id="esection-error"></span>
                                                 </div>
                                             </div>
                                         </div>
@@ -332,40 +406,9 @@ function getStudentPhoto($photo) {
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <input type="hidden" id="edit_studentid" name="">
+                                <input type="hidden" id="edit_studentid" name="student_id" class="edit-id">
                                 <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                                <input value="Update" name="update" type="submit" id="btn-editstudent" class="btn btn-outline-warning"/>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Delete Student Modal -->
-            <div class="modal fade" id="delstudent-modal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">
-                                <i class="bi bi-trash"></i> Delete Student
-                            </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <form method="POST" id="delete-form">
-                            <div class="modal-body">
-                                <div class="col-lg-12 mt-1" id="mgs-delstudent"></div>
-                                <div class="col-lg-12 mb-1">
-                                    <div class="form-group">
-                                        <label for="inputTime"><b>Name:</b></label>
-                                        <input type="text" id="delete_studentname" class="form-control d-student student_name" autocomplete="off" readonly="">
-                                        <span class="studentname-error"></span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <input type="hidden" name="student_id" id="delete_studentid">
-                                <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">No</button>
-                                <button type="button" class="btn btn-outline-primary remove_id" id="btn-delstudent">Yes</button>
+                                <button type="submit" id="btn-editstudent" class="btn btn-outline-primary">Update</button>
                             </div>
                         </form>
                     </div>
@@ -377,67 +420,13 @@ function getStudentPhoto($photo) {
     </div>
 
     <!-- JavaScript Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="lib/chart/chart.min.js"></script>
-    <script src="lib/easing/easing.min.js"></script>
-    <script src="lib/waypoints/waypoints.min.js"></script>
-    <script src="lib/owlcarousel/owl.carousel.min.js"></script>
-    <script src="lib/tempusdominus/js/moment.min.js"></script>
-    <script src="lib/tempusdominus/js/moment-timezone.min.js"></script>
-    <script src="lib/tempusdominus/js/tempusdominus-bootstrap-4.min.js"></script>
-    <!-- Template Javascript -->
-    <script src="js/main.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
-      var currentDeleteStudentId = null;
-      var currentDeleteStudentName = null;
-
-      // Handle delete button click
-      $(document).on('click', '.d_student_id', function() {
-          currentDeleteStudentId = $(this).data('id');
-          currentDeleteStudentName = $(this).attr('student_name');
-          
-          $('#delete_studentid').val(currentDeleteStudentId);
-          $('#delete_studentname').val(currentDeleteStudentName);
-          
-          $('#delstudent-modal').modal('show');
-      });
-
-      // Handle delete confirmation
-      $('#btn-delstudent').on('click', function() {
-          if (currentDeleteStudentId) {
-              $.ajax({
-                  url: 'transac.php?action=delete_student',
-                  type: 'POST',
-                  data: { student_id: currentDeleteStudentId },
-                  success: function(response) {
-                      var res = JSON.parse(response);
-                      if (res.status === 'success') {
-                          Swal.fire({
-                              title: 'Success!',
-                              text: res.message,
-                              icon: 'success'
-                          }).then(() => {
-                              location.reload();
-                          });
-                      } else {
-                          Swal.fire({
-                              title: 'Error!',
-                              text: res.message,
-                              icon: 'error'
-                          });
-                      }
-                  },
-                  error: function(xhr, status, error) {
-                      Swal.fire({
-                          title: 'Error!',
-                          text: 'An error occurred while deleting the student.',
-                          icon: 'error'
-                      });
-                  }
-              });
-          }
-      });
     $(document).ready(function() {
         // Initialize DataTable
         var dataTable = $('#myDataTable').DataTable({
@@ -445,42 +434,65 @@ function getStudentPhoto($photo) {
             stateSave: true
         });
 
-        // Handle form submission for adding student
+        // Reset form function
+        function resetForm() {
+            $('.error-message').text('');
+            $('#studentForm')[0].reset();
+            $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
+        }
+
+        // ==============
+        // CREATE (ADD STUDENT)
+        // ==============
         $('#studentForm').submit(function(e) {
             e.preventDefault();
             
-            // Validate required fields
-            const requiredFields = ['department_id', 'id_number', 'fullname', 'year', 'section'];
+            $('.error-message').text('');
+            const department_id = $('#department_id').val();
+            const id_number = $('#id_number').val().trim();
+            const fullname = $('#fullname').val().trim();
+            const year = $('#year').val();
+            const section = $('#section').val();
+            const photo = $('#photo')[0].files[0];
             let isValid = true;
-            
-            requiredFields.forEach(field => {
-                const fieldValue = $('#' + field).val();
-                if (!fieldValue || fieldValue.trim() === '') {
-                    isValid = false;
-                    $('.' + field + '-error').text('This field is required').css('color', 'red');
-                } else {
-                    $('.' + field + '-error').text('');
-                }
-            });
-            
-            if (!isValid) {
-                Swal.fire({
-                    title: 'Error!',
-                    text: 'Please fill all required fields correctly',
-                    icon: 'error'
-                });
-                return;
-            }
 
-            var formData = new FormData(this);
+            // Validation
+            if (!department_id) { 
+                $('#department_id-error').text('Department is required'); 
+                isValid = false; 
+            }
+            if (!id_number) { 
+                $('#id_number-error').text('ID Number is required'); 
+                isValid = false; 
+            }
+            if (!fullname) { 
+                $('#fullname-error').text('Full name is required'); 
+                isValid = false; 
+            }
+            if (!year) { 
+                $('#year-error').text('Year is required'); 
+                isValid = false; 
+            }
+            if (!section) { 
+                $('#section-error').text('Section is required'); 
+                isValid = false; 
+            }
+            if (!photo) { 
+                $('#photo-error').text('Photo is required'); 
+                isValid = false; 
+            }
             
-            // Show loading indicator
+            if (!isValid) return;
+
+            // Show loading state
             $('#btn-student').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
             $('#btn-student').prop('disabled', true);
-            
+
+            var formData = new FormData(this);
+
             $.ajax({
-                url: 'transac.php?action=add_student',
-                type: 'POST',
+                type: "POST",
+                url: "transac.php?action=add_student",
                 data: formData,
                 contentType: false,
                 processData: false,
@@ -491,31 +503,20 @@ function getStudentPhoto($photo) {
                     $('#btn-student').prop('disabled', false);
                     
                     if (response.status === 'success') {
-                        // Store success message in session
-                        $.ajax({
-                            url: '',
-                            type: 'POST',
-                            data: { 
-                                message: response.message,
-                                type: 'success'
-                            },
-                            success: function() {
-                                Swal.fire({
-                                    title: 'Success!',
-                                    text: response.message,
-                                    icon: 'success'
-                                }).then(() => {
-                                    // Close modal and refresh page to show new record
-                                    $('#studentModal').modal('hide');
-                                    location.reload();
-                                });
-                            }
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success!',
+                            text: response.message,
+                            showConfirmButton: true
+                        }).then(() => {
+                            $('#studentModal').modal('hide');
+                            location.reload();
                         });
                     } else {
                         Swal.fire({
+                            icon: 'error',
                             title: 'Error!',
-                            text: response.message,
-                            icon: 'error'
+                            text: response.message
                         });
                     }
                 },
@@ -525,108 +526,100 @@ function getStudentPhoto($photo) {
                     $('#btn-student').prop('disabled', false);
                     
                     Swal.fire({
+                        icon: 'error',
                         title: 'Error!',
-                        text: 'An error occurred: ' + error,
-                        icon: 'error'
+                        text: 'An error occurred: ' + error
                     });
                 }
             });
         });
 
-        // ID number duplicate check on blur
-        $('#id_number').on('blur', function() {
-            const idNumber = $(this).val();
-            
-            if (idNumber) {
-                $.ajax({
-                    url: 'check_id.php',
-                    method: 'POST',
-                    data: { id_number: idNumber },
-                    success: function(response) {
-                        const res = JSON.parse(response);
-                        if (res.exists) {
-                            Swal.fire({
-                                icon: 'warning',
-                                title: 'Duplicate ID Number',
-                                text: 'This ID number already exists in the system.',
-                            }).then(() => {
-                                $('#id_number').val('').focus();
-                            });
-                        }
-                    }
-                });
-            }
-        });
-
-        // Handle edit button click
-        $(document).on('click', '.btn-edit', function() {
-            var $id = $(this).data('id');
+        // ==========
+        // READ (EDIT STUDENT)
+        // ==========
+        $(document).on('click', '.e_student_id', function() {
+            const id = $(this).data('id');
             
             // Retrieve data from the selected row
-            var $getphoto = $('.table-' + $id + ' .photo').attr('src');
-            var $getidnumber = $('.table-' + $id + ' .student_id').html();
-            var $getdept = $('.table-' + $id + ' .department_id').val();
-            var $getfullname = $('.table-' + $id + ' .fullname').val();
-            var $getyear = $('.table-' + $id + ' .year').val();
-            var $getsection = $('.table-' + $id + ' .section').val();
+            const $getphoto = $('.table-' + id + ' .photo').attr('src');
+            const $getidnumber = $('.table-' + id + ' .student_id').html();
+            const $getdept = $('.table-' + id + ' .department_id').val();
+            const $getfullname = $('.table-' + id + ' .fullname').val();
+            const $getyear = $('.table-' + id + ' .year').val();
+            const $getsection = $('.table-' + id + ' .section').val();
 
-            // Update the modal fields with data
+            // Populate edit form
+            $('#edit_studentid').val(id);
             $('.edit-photo').attr('src', $getphoto);
-            $('.edit-idnumber').val($getidnumber);
-            $('.edit-id').val($id);
+            $('#eid_number').val($getidnumber);
             $('#edepartment_id').val($getdept);
-            $('.edit-fullname').val($getfullname);
+            $('#efullname').val($getfullname);
             $('#eyear').val($getyear);
             $('#esection').val($getsection);
             $('.capturedImage').val($getphoto);
-
-            // Show the modal
+            
+            // Show modal
             $('#editstudentModal').modal('show');
         });
 
-        // Handle edit form submission
-        var currentEditStudentId = null;
-
-        $(document).on('click', '.btn-edit', function() {
-            currentEditStudentId = $(this).data('id');
-            
-            // Retrieve data from the selected row
-            var $getphoto = $('.table-' + currentEditStudentId + ' .photo').attr('src');
-            var $getidnumber = $('.table-' + currentEditStudentId + ' .student_id').html();
-            // ... rest of your existing code ...
-
-            // Add the ID to the hidden input field
-            $('.edit-id').val(currentEditStudentId);
-            
-            // Show the modal
-            $('#editstudentModal').modal('show');
-        });
-
+        // ==========
+        // UPDATE STUDENT
+        // ==========
         $('#editStudentForm').submit(function(e) {
             e.preventDefault();
             
-            // Use the stored user ID or get it from the hidden field
-            var studentId = currentEditStudentId || $('.edit-id').val();
-            
-            if (!studentId) {
-                Swal.fire({
-                    title: 'Error!',
-                    text: 'No student selected. Please select a student first.',
-                    icon: 'error'
-                });
-                return;
+            const id = $('#edit_studentid').val();
+            const department_id = $('#edepartment_id').val();
+            const id_number = $('#eid_number').val().trim();
+            const fullname = $('#efullname').val().trim();
+            const year = $('#eyear').val();
+            const section = $('#esection').val();
+
+            // Validation
+            let isValid = true;
+            if (!department_id) { 
+                $('#edepartment_id-error').text('Department is required'); 
+                isValid = false; 
+            } else { 
+                $('#edepartment_id-error').text(''); 
             }
+            if (!id_number) { 
+                $('#eid_number-error').text('ID Number is required'); 
+                isValid = false; 
+            } else { 
+                $('#eid_number-error').text(''); 
+            }
+            if (!fullname) { 
+                $('#efullname-error').text('Full name is required'); 
+                isValid = false; 
+            } else { 
+                $('#efullname-error').text(''); 
+            }
+            if (!year) { 
+                $('#eyear-error').text('Year is required'); 
+                isValid = false; 
+            } else { 
+                $('#eyear-error').text(''); 
+            }
+            if (!section) { 
+                $('#esection-error').text('Section is required'); 
+                isValid = false; 
+            } else { 
+                $('#esection-error').text(''); 
+            }
+            
+            if (!isValid) return;
 
-            var formData = new FormData(this);
-            formData.append('id', studentId);
-
-            // Show loading indicator
+            // Show loading state
             $('#btn-editstudent').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
             $('#btn-editstudent').prop('disabled', true);
-            
+
+            var formData = new FormData(this);
+            formData.append('id', id);
+
             $.ajax({
-                url: 'edit1.php?edit=student&id=' + studentId,
-                type: 'POST',
+                type: "POST",
+                url: "edit1.php?edit=student&id=" + id,
                 data: formData,
                 contentType: false,
                 processData: false,
@@ -638,9 +631,10 @@ function getStudentPhoto($photo) {
                     
                     if (response.status === 'success') {
                         Swal.fire({
+                            icon: 'success',
                             title: 'Success!',
                             text: response.message,
-                            icon: 'success'
+                            showConfirmButton: true
                         }).then(() => {
                             location.reload();
                         });

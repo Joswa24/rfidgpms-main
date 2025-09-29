@@ -4,11 +4,11 @@ include '../connection.php';
 session_start();
 
 // Security headers
- header("X-Frame-Options: DENY");
-header("Strict-Transport-Security: max-age=31536000; includeSubDomains");
-header("X-Content-Type-Options: nosniff");
-header("Referrer-Policy: strict-origin-when-cross-origin");
-header("Content-Security-Policy: default-src 'self'");
+//  header("X-Frame-Options: DENY");
+// header("Strict-Transport-Security: max-age=31536000; includeSubDomains");
+// header("X-Content-Type-Options: nosniff");
+// header("Referrer-Policy: strict-origin-when-cross-origin");
+// header("Content-Security-Policy: default-src 'self'");
 // header("X-Content-Type-Options: nosniff");
 
 // Regenerate session ID to prevent fixation

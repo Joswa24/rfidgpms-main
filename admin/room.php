@@ -1,11 +1,46 @@
+<?php
+session_start();
+// Display success/error messages
+if (isset($_SESSION['success_message'])) {
+    echo '<div class="alert alert-success">' . $_SESSION['success_message'] . '</div>';
+    unset($_SESSION['success_message']);
+}
+if (isset($_SESSION['error_message'])) {
+    echo '<div class="alert alert-danger">' . $_SESSION['error_message'] . '</div>';
+    unset($_SESSION['error_message']);
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
+<?php include 'header.php'; ?>
+<?php include '../connection.php'; ?>
+
 <head>
-    <?php include 'header.php'; ?>
-    <!-- Add SweetAlert CSS -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Rooms</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <style>
-        /* Additional CSS for better button styling */
+        .bg-light {
+            background-color: #f8f9fa !important;
+        }
+        .card {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+        .table th {
+            background-color: #4e73df;
+            color: white;
+        }
+        .badge {
+            font-size: 0.85em;
+        }
+        .section-header {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
         .btn-del {
             transition: all 0.3s ease;
         }
@@ -21,31 +56,21 @@
             font-size: 0.875rem;
             margin-top: 0.25rem;
         }
-        /* Your existing styles */
-        .terms-link {
-            padding-left: 65%;
-            font-size: 12px;
-            color: gray;
-            text-decoration: none;
+        .password-field {
+            position: relative;
+        }
+        .password-toggle {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
             cursor: pointer;
-        }
-        .terms-link:hover {
-            text-decoration: underline;
-            color: black;
-        }
-        #lockout-message {
-            display: none;
-            margin-top: 15px;
-        }
-        .login-container {
-            animation: fadeIn 0.5s ease-in-out;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
+
 <body>
     <div class="container-fluid position-relative bg-white d-flex p-0">
         <!-- Sidebar Start -->
@@ -58,73 +83,67 @@
 
             <div class="container-fluid pt-4 px-4">
                 <div class="col-sm-12 col-xl-12">
-                    <div class="col-sm-12 col-xl-12">
-                        <div class="bg-light rounded h-100 p-4">
-                            <div class="row">
-                                <div class="col-9">
-                                    <h6 class="mb-4">Manage Rooms</h6>
-                                </div>
-                                <div class="col-3">
-                                    <button type="button" class="btn btn-outline-warning m-2" data-bs-toggle="modal" data-bs-target="#roomModal">Add Room</button>
-                                </div>
+                    <div class="bg-light rounded h-100 p-4">
+                        <div class="row">
+                            <div class="col-9">
+                                <h6 class="mb-4">Manage Rooms</h6>
                             </div>
-                            <hr>
-                            <div class="table-responsive">
-                                <table class="table table-border" id="myDataTable">
-                                    <thead>
-                                        <tr>
-                                            <th scope="col">Department</th>
-                                            <th scope="col">Authorized Role</th>
-                                            <th scope="col">Room</th>
-                                            <th scope="col">Description</th>
-                                            <th scope="col">Password</th>
-                                            <th scope="col">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php 
-                                        include '../connection.php';  
-                                        $results = mysqli_query($db, "SELECT * FROM rooms order by id"); 
-                                        while ($row = mysqli_fetch_array($results)) { 
-                                        ?>
-                                        <tr class="table-<?php echo $row['id'];?>" data-room-id="<?php echo $row['id'];?>">
-                                            <td class="department"><?php echo $row['department']; ?></td>
-                                            <td><?php echo $row['authorized_personnel']; ?></td>
-                                            <td><?php echo $row['room']; ?></td>
-                                            <td><?php echo $row['descr']; ?></td>
-                                            <td><?php echo substr($row['password'], 0, 10) . '...'; ?></td>
-                                            <td width="14%">
-                                                <center>
-                                                    <button authrole="<?php echo $row['authorized_personnel'];?>" 
-                                                            descr="<?php echo $row['descr'];?>" 
-                                                            pass="<?php echo $row['password'];?>" 
-                                                            room="<?php echo $row['room'];?>" 
-                                                            department="<?php echo $row['department'];?>" 
-                                                            data-id="<?php echo $row['id'];?>" 
-                                                            class="btn btn-outline-primary btn-sm btn-edit e_room_id">
-                                                        <i class="bi bi-plus-edit"></i> Edit 
-                                                    </button>
-                                                    <button authrole="<?php echo $row['authorized_personnel'];?>" 
-                                                            descr="<?php echo $row['descr'];?>" 
-                                                            pass="<?php echo $row['password'];?>" 
-                                                            room="<?php echo $row['room'];?>" 
-                                                            department="<?php echo $row['department'];?>"  
-                                                            data-id="<?php echo $row['id']; ?>" 
-                                                            class="btn btn-outline-danger btn-sm btn-del d_room_id">
-                                                        <i class="bi bi-plus-trash"></i> Delete 
-                                                    </button>
-                                                    <input type="hidden" id="dpt" value="<?php echo $row['department'];?>"/>
-                                                    <input type="hidden" id="role" value="<?php echo $row['authorized_personnel'];?>"/>
-                                                    <input type="hidden" id="desc" value="<?php echo $row['descr'];?>"/>
-                                                    <input type="hidden" id="pass" value="<?php echo $row['password'];?>"/>
-                                                    <input type="hidden" id="name" value="<?php echo $row['room'];?>"/>
-                                                </center> 
-                                            </td>
-                                        </tr>
-                                        <?php } ?>
-                                    </tbody>
-                                </table>
+                            <div class="col-3">
+                                <button type="button" class="btn btn-outline-warning m-2" data-bs-toggle="modal" data-bs-target="#roomModal">
+                                    <i class="fas fa-plus-circle"></i> Add Room
+                                </button>
                             </div>
+                        </div>
+                        <hr>
+                        <div class="table-responsive">
+                            <table class="table table-border" id="myDataTable">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Department</th>
+                                        <th scope="col">Authorized Role</th>
+                                        <th scope="col">Room</th>
+                                        <th scope="col">Description</th>
+                                        <th scope="col">Password</th>
+                                        <th scope="col">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php 
+                                    $results = mysqli_query($db, "SELECT * FROM rooms ORDER BY id"); 
+                                    while ($row = mysqli_fetch_array($results)) { 
+                                    ?>
+                                    <tr class="table-<?php echo $row['id'];?>" data-room-id="<?php echo $row['id'];?>">
+                                        <td class="department"><?php echo $row['department']; ?></td>
+                                        <td><?php echo $row['authorized_personnel']; ?></td>
+                                        <td><?php echo $row['room']; ?></td>
+                                        <td><?php echo $row['descr']; ?></td>
+                                        <td><?php echo substr($row['password'], 0, 10) . '...'; ?></td>
+                                        <td width="14%">
+                                            <center>
+                                                <button authrole="<?php echo $row['authorized_personnel'];?>" 
+                                                        descr="<?php echo $row['descr'];?>" 
+                                                        pass="<?php echo $row['password'];?>" 
+                                                        room="<?php echo $row['room'];?>" 
+                                                        department="<?php echo $row['department'];?>" 
+                                                        data-id="<?php echo $row['id'];?>" 
+                                                        class="btn btn-outline-primary btn-sm btn-edit e_room_id">
+                                                    <i class="fas fa-edit"></i> Edit 
+                                                </button>
+                                                <button authrole="<?php echo $row['authorized_personnel'];?>" 
+                                                        descr="<?php echo $row['descr'];?>" 
+                                                        pass="<?php echo $row['password'];?>" 
+                                                        room="<?php echo $row['room'];?>" 
+                                                        department="<?php echo $row['department'];?>"  
+                                                        data-id="<?php echo $row['id']; ?>" 
+                                                        class="btn btn-outline-danger btn-sm btn-del d_room_id">
+                                                    <i class="fas fa-trash"></i> Delete 
+                                                </button>
+                                            </center> 
+                                        </td>
+                                    </tr>
+                                    <?php } ?>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -135,13 +154,15 @@
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title" id="exampleModalLabel"><i class="bi bi-plus-circle"></i> New Room</h5>
-                            <button type="button" onclick="resetForm()" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            <h5 class="modal-title" id="exampleModalLabel">
+                                <i class="fas fa-plus-circle"></i> New Room
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <form id="myForm">
+                        <form id="roomForm">
                             <div class="modal-body">
-                                <div class="col-lg-12 mt-1" id="mgs-dept"></div>
-                                <div class="col-lg-12">
+                                <div class="col-lg-12 mt-1" id="mgs-room"></div>
+                                <div class="col-lg-12 mb-3">
                                     <div class="form-group">
                                         <label for="inputTime"><b>Department: </b></label>
                                         <select class="form-control" name="roomdpt" id="roomdpt" autocomplete="off">
@@ -156,7 +177,7 @@
                                     </div>
                                 </div>
 
-                                <div class="col-lg-12">
+                                <div class="col-lg-12 mb-3">
                                     <div class="form-group">
                                         <label for="inputTime"><b>Authorized Role: </b></label>
                                         <select class="form-control" name="roomrole" id="roomrole" autocomplete="off">
@@ -170,37 +191,34 @@
                                         </select>
                                     </div>
                                 </div>
-                                <div class="col-lg-12 mb-1">
+                                <div class="col-lg-12 mb-3">
                                     <div class="form-group">
-                                        <label for="inputTime"><b>Room:</b></label>
+                                        <label for="inputTime"><b>Room Name:</b></label>
                                         <input name="roomname" type="text" id="roomname" class="form-control" autocomplete="off">
                                         <span class="error-message" id="roomname-error"></span>
                                     </div>
                                 </div>
-                                <div class="col-lg-12 mb-1">
+                                <div class="col-lg-12 mb-3">
                                     <div class="form-group">
                                         <label for="inputTime"><b>Description:</b></label>
                                         <input name="roomdesc" type="text" id="roomdesc" class="form-control" autocomplete="off">
                                         <span class="error-message" id="roomdesc-error"></span>
                                     </div>
                                 </div>
-                                <div class="col-lg-12 mb-1">
-                                    <div class="form-group">
+                                <div class="col-lg-12 mb-3">
+                                    <div class="form-group password-field">
                                         <label for="inputTime"><b>Password:</b></label>
                                         <input name="roompass" type="password" id="roompass" class="form-control" autocomplete="off">
+                                        <button type="button" class="password-toggle" onclick="togglePasswordVisibility('roompass')">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
                                         <span class="error-message" id="roompass-error"></span>
-                                    </div>
-                                </div>
-                                <div class="d-flex align-items-center justify-content-between mb-4">
-                                    <div class="form-check">
-                                        <input type="checkbox" id="remember" onclick="togglePasswordVisibility('roompass')" class="form-check-input">
-                                        <label class="form-check-label" for="remember">Show Password</label>
                                     </div>
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" onclick="resetForm()" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                                <button type="button" class="btn btn-outline-warning" id="btn-room">Save</button>
+                                <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-outline-warning" id="btn-room">Save</button>
                             </div>
                         </form>
                     </div>
@@ -208,135 +226,165 @@
             </div>
 
             <!-- Edit Room Modal -->
-            <div class="modal fade" id="editdepartment-modal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+            <div class="modal fade" id="editRoomModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title"><i class="bi bi-pencil"></i> Edit Room</h5>
-                            <button onclick="resetForm()" type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            <h5 class="modal-title">
+                                <i class="fas fa-edit"></i> Edit Room
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <div class="modal-body">
-                            <div class="col-lg-12 mt-1" id="mgs-editdept"></div>
-                            <div class="col-lg-12">
-                                <div class="form-group">
-                                    <label for="inputTime"><b>Department: </b></label>
-                                    <select class="form-control" name="eroomdpt" id="eroomdpt" autocomplete="off">
-                                        <option class="edit-department"></option>
-                                        <?php
-                                        $sql = "SELECT * FROM department";
-                                        $result = $db->query($sql);
-                                        while ($row = $result->fetch_assoc()) {
-                                            echo "<option value='{$row['department_name']}'>{$row['department_name']}</option>";
-                                        }
-                                        ?>
-                                    </select>
+                        <form id="editRoomForm">
+                            <div class="modal-body">
+                                <div class="col-lg-12 mt-1" id="mgs-editroom"></div>
+                                <div class="col-lg-12 mb-3">
+                                    <div class="form-group">
+                                        <label for="inputTime"><b>Department: </b></label>
+                                        <select class="form-control" name="eroomdpt" id="eroomdpt" autocomplete="off">
+                                            <?php
+                                            $sql = "SELECT * FROM department";
+                                            $result = $db->query($sql);
+                                            while ($row = $result->fetch_assoc()) {
+                                                echo "<option value='{$row['department_name']}'>{$row['department_name']}</option>";
+                                            }
+                                            ?>
+                                        </select>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div class="col-lg-12">
-                                <div class="form-group">
-                                    <label for="inputTime"><b>Authorized Role: </b></label>
-                                    <select class="form-control" name="eroomrole" id="eroomrole" autocomplete="off">
-                                        <option class="edit-role"></option>
-                                        <?php
-                                        $sql = "SELECT * FROM role";
-                                        $result = $db->query($sql);
-                                        while ($row = $result->fetch_assoc()) {
-                                            echo "<option value='{$row['role']}'>{$row['role']}</option>";
-                                        }
-                                        ?>
-                                    </select>
+                                <div class="col-lg-12 mb-3">
+                                    <div class="form-group">
+                                        <label for="inputTime"><b>Authorized Role: </b></label>
+                                        <select class="form-control" name="eroomrole" id="eroomrole" autocomplete="off">
+                                            <?php
+                                            $sql = "SELECT * FROM role";
+                                            $result = $db->query($sql);
+                                            while ($row = $result->fetch_assoc()) {
+                                                echo "<option value='{$row['role']}'>{$row['role']}</option>";
+                                            }
+                                            ?>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-lg-12 mb-3">
+                                    <div class="form-group">
+                                        <label for="inputTime"><b>Room Name:</b></label>
+                                        <input name="eroomname" type="text" id="eroomname" class="form-control" autocomplete="off">
+                                        <span class="error-message" id="eroomname-error"></span>
+                                    </div>
+                                </div>
+                                <div class="col-lg-12 mb-3">
+                                    <div class="form-group">
+                                        <label for="inputTime"><b>Description:</b></label>
+                                        <input name="eroomdesc" type="text" id="eroomdesc" class="form-control" autocomplete="off">
+                                        <span class="error-message" id="eroomdesc-error"></span>
+                                    </div>
+                                </div>
+                                <div class="col-lg-12 mb-3">
+                                    <div class="form-group password-field">
+                                        <label for="inputTime"><b>Password:</b></label>
+                                        <input name="eroompass" type="password" id="eroompass" class="form-control" autocomplete="off">
+                                        <button type="button" class="password-toggle" onclick="togglePasswordVisibility('eroompass')">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <span class="error-message" id="eroompass-error"></span>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-lg-12 mb-1">
-                                <div class="form-group">
-                                    <label for="inputTime"><b>Room:</b></label>
-                                    <input name="eroomname" type="text" id="eroomname" class="form-control edit-name" autocomplete="off">
-                                    <span class="error-message" id="eroomname-error"></span>
-                                </div>
+                            <div class="modal-footer">
+                                <input type="hidden" name="room_id" id="edit_roomid">
+                                <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-outline-primary" id="btn-editroom">Update</button>
                             </div>
-                            <div class="col-lg-12 mb-1">
-                                <div class="form-group">
-                                    <label for="inputTime"><b>Description:</b></label>
-                                    <input name="eroomdesc" type="text" id="eroomdesc" class="form-control edit-desc" autocomplete="off">
-                                    <span class="error-message" id="eroomdesc-error"></span>
-                                </div>
-                            </div>
-                            <div class="col-lg-12 mb-1">
-                                <div class="form-group">
-                                    <label for="inputTime"><b>Password:</b></label>
-                                    <input name="eroompass" type="password" id="eroompass" class="form-control edit-pass" autocomplete="off">
-                                    <span class="error-message" id="eroompass-error"></span>
-                                </div>
-                            </div>
-
-                            <div class="d-flex align-items-center justify-content-between mb-4">
-                                <div class="form-check">
-                                    <input type="checkbox" id="remember" onclick="togglePasswordVisibility('eroompass')" class="form-check-input">
-                                    <label class="form-check-label" for="remember">Show Password</label>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <input type="hidden" name="" id="edit_departmentid">
-                            <button onclick="resetForm()" type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                            <button type="submit" class="btn btn-outline-primary" id="btn-editdepartment">Update</button>
-                        </div>
+                        </form>
                     </div>
                 </div>
             </div>
 
             <?php include 'footer.php'; ?>
         </div>
-
-        <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top"><i class="bi bi-arrow-up"></i></a>
     </div>
 
     <!-- JavaScript Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="lib/chart/chart.min.js"></script>
-    <script src="lib/easing/easing.min.js"></script>
-    <script src="lib/waypoints/waypoints.min.js"></script>
-    <script src="lib/owlcarousel/owl.carousel.min.js"></script>
-    <script src="lib/tempusdominus/js/moment.min.js"></script>
-    <script src="lib/tempusdominus/js/moment-timezone.min.js"></script>
-    <script src="lib/tempusdominus/js/tempusdominus-bootstrap-4.min.js"></script>
-    <!-- Template Javascript -->
-    <script src="js/main.js"></script>
 
-    <!-- Custom JavaScript -->
-   <script>
-    // Initialize DataTable
+    <script>
     $(document).ready(function() {
-        $('#myDataTable').DataTable({ order: [[0, 'desc']] });
+        // Initialize DataTable
+        var dataTable = $('#myDataTable').DataTable({
+            order: [[0, 'desc']],
+            stateSave: true
+        });
 
-        // Helper: Reset form
-        window.resetForm = function() {
+        // Password visibility toggle function
+        function togglePasswordVisibility(inputId) {
+            const input = document.getElementById(inputId);
+            const toggle = input.parentNode.querySelector('.password-toggle i');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                toggle.classList.remove('fa-eye');
+                toggle.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                toggle.classList.remove('fa-eye-slash');
+                toggle.classList.add('fa-eye');
+            }
+        }
+
+        // Reset form function
+        function resetForm() {
             $('.error-message').text('');
-            $('#myForm')[0].reset();
+            $('#roomForm')[0].reset();
+            // Reset password visibility
+            const eyeIcons = document.querySelectorAll('.password-toggle i');
+            eyeIcons.forEach(icon => {
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            });
         }
 
         // ==============
-        // CREATE (ADD)
+        // CREATE (ADD ROOM)
         // ==============
-        $('#btn-room').click(function() {
+        $('#roomForm').submit(function(e) {
+            e.preventDefault();
+            
             $('.error-message').text('');
-            var roomdpt = $('#roomdpt').val();
-            var roomrole = $('#roomrole').val();
-            var roomname = $('#roomname').val().trim();
-            var roomdesc = $('#roomdesc').val().trim();
-            var roompass = $('#roompass').val().trim();
-            var isValid = true;
+            const roomdpt = $('#roomdpt').val();
+            const roomrole = $('#roomrole').val();
+            const roomname = $('#roomname').val().trim();
+            const roomdesc = $('#roomdesc').val().trim();
+            const roompass = $('#roompass').val().trim();
+            let isValid = true;
 
-            if (!roomname) { $('#roomname-error').text('Room name is required'); isValid = false; }
-            if (!roomdesc) { $('#roomdesc-error').text('Description is required'); isValid = false; }
-            if (!roompass) { $('#roompass-error').text('Password is required'); isValid = false; }
-            else if (roompass.length < 6) { $('#roompass-error').text('Password must be at least 6 characters'); isValid = false; }
+            // Validation
+            if (!roomname) { 
+                $('#roomname-error').text('Room name is required'); 
+                isValid = false; 
+            }
+            if (!roomdesc) { 
+                $('#roomdesc-error').text('Description is required'); 
+                isValid = false; 
+            }
+            if (!roompass) { 
+                $('#roompass-error').text('Password is required'); 
+                isValid = false; 
+            } else if (roompass.length < 6) { 
+                $('#roompass-error').text('Password must be at least 6 characters'); 
+                isValid = false; 
+            }
+            
             if (!isValid) return;
 
-            var $btn = $(this), originalText = $btn.html();
-            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Saving...');
+            // Show loading state
+            $('#btn-room').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
+            $('#btn-room').prop('disabled', true);
 
             $.ajax({
                 type: "POST",
@@ -344,66 +392,110 @@
                 data: { roomdpt, roomrole, roomname, roomdesc, roompass },
                 dataType: 'json',
                 success: function(response) {
+                    // Reset button state
+                    $('#btn-room').html('Save');
+                    $('#btn-room').prop('disabled', false);
+                    
                     if (response.status === 'success') {
-                        Swal.fire({ icon: 'success', title: 'Success', text: response.message, showConfirmButton: true })
-                            .then(() => window.location.reload());
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success!',
+                            text: response.message,
+                            showConfirmButton: true
+                        }).then(() => {
+                            $('#roomModal').modal('hide');
+                            location.reload();
+                        });
                     } else {
-                        Swal.fire({ icon: 'error', title: 'Error', text: response.message, showConfirmButton: true });
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: response.message
+                        });
                     }
                 },
                 error: function(xhr, status, error) {
-                    Swal.fire({ icon: 'error', title: 'Error', text: 'An error occurred: ' + error, showConfirmButton: true });
-                },
-                complete: function() {
-                    $btn.prop('disabled', false).html(originalText);
+                    // Reset button state
+                    $('#btn-room').html('Save');
+                    $('#btn-room').prop('disabled', false);
+                    
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: 'An error occurred: ' + error
+                    });
                 }
             });
         });
 
         // ==========
-        // READ (EDIT)
+        // READ (EDIT ROOM)
         // ==========
-        $('.e_room_id').click(function() {
-            var id = $(this).attr('data-id');
-            var department = $(this).attr('department');
-            var role = $(this).attr('authrole');
-            var room = $(this).attr('room');
-            var descr = $(this).attr('descr');
-            var pass = $(this).attr('pass');
+        $(document).on('click', '.e_room_id', function() {
+            const id = $(this).data('id');
+            const department = $(this).attr('department');
+            const role = $(this).attr('authrole');
+            const room = $(this).attr('room');
+            const descr = $(this).attr('descr');
+            const pass = $(this).attr('pass');
 
-            $('#editdepartment-modal').modal('show');
-            $('#edit_departmentid').val(id);
+            // Populate edit form
+            $('#edit_roomid').val(id);
             $('#eroomdpt').val(department);
             $('#eroomrole').val(role);
             $('#eroomname').val(room);
             $('#eroomdesc').val(descr);
             $('#eroompass').val(pass);
+            
+            // Reset password visibility
+            const eyeIcon = document.querySelector('#editRoomModal .password-toggle i');
+            eyeIcon.classList.remove('fa-eye-slash');
+            eyeIcon.classList.add('fa-eye');
+            $('#eroompass').attr('type', 'password');
+            
+            // Show modal
+            $('#editRoomModal').modal('show');
         });
 
         // ==========
-        // UPDATE
+        // UPDATE ROOM
         // ==========
-        $('#btn-editdepartment').click(function(e) {
+        $('#editRoomForm').submit(function(e) {
             e.preventDefault();
-            var id = $('#edit_departmentid').val();
-            var roomdpt = $('#eroomdpt').val();
-            var roomrole = $('#eroomrole').val();
-            var roomname = $('#eroomname').val().trim();
-            var roomdesc = $('#eroomdesc').val().trim();
-            var roompass = $('#eroompass').val().trim();
+            
+            const id = $('#edit_roomid').val();
+            const roomdpt = $('#eroomdpt').val();
+            const roomrole = $('#eroomrole').val();
+            const roomname = $('#eroomname').val().trim();
+            const roomdesc = $('#eroomdesc').val().trim();
+            const roompass = $('#eroompass').val().trim();
 
-            // Validate
-            var isValid = true;
-            if (!roomname) { $('#eroomname-error').text('This field is required.'); isValid = false; }
-            else { $('#eroomname-error').text(''); }
-            if (!roomdesc) { $('#eroomdesc-error').text('This field is required.'); isValid = false; }
-            else { $('#eroomdesc-error').text(''); }
-            if (!roompass) { $('#eroompass-error').text('This field is required.'); isValid = false; }
-            else { $('#eroompass-error').text(''); }
+            // Validation
+            let isValid = true;
+            if (!roomname) { 
+                $('#eroomname-error').text('Room name is required'); 
+                isValid = false; 
+            } else { 
+                $('#eroomname-error').text(''); 
+            }
+            if (!roomdesc) { 
+                $('#eroomdesc-error').text('Description is required'); 
+                isValid = false; 
+            } else { 
+                $('#eroomdesc-error').text(''); 
+            }
+            if (!roompass) { 
+                $('#eroompass-error').text('Password is required'); 
+                isValid = false; 
+            } else { 
+                $('#eroompass-error').text(''); 
+            }
+            
             if (!isValid) return;
 
-            var $btn = $(this), originalText = $btn.html();
-            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Updating...');
+            // Show loading state
+            $('#btn-editroom').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
+            $('#btn-editroom').prop('disabled', true);
 
             $.ajax({
                 type: "POST",
@@ -411,118 +503,116 @@
                 data: { roomdpt, roomrole, roomname, roomdesc, roompass },
                 dataType: 'json',
                 success: function(response) {
+                    // Reset button state
+                    $('#btn-editroom').html('Update');
+                    $('#btn-editroom').prop('disabled', false);
+                    
                     if (response.status === 'success') {
-                        Swal.fire({ icon: 'success', title: 'Successfully Updated.', showConfirmButton: true })
-                            .then(() => window.location.reload());
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success!',
+                            text: response.message,
+                            showConfirmButton: true
+                        }).then(() => {
+                            $('#editRoomModal').modal('hide');
+                            location.reload();
+                        });
                     } else {
-                        Swal.fire({ icon: 'error', title: 'Oops...', text: response.message, showConfirmButton: true });
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: response.message
+                        });
                     }
                 },
                 error: function(xhr) {
-                    Swal.fire({ icon: 'error', title: 'Error', text: 'An error occurred while processing your request', showConfirmButton: true });
-                },
-                complete: function() {
-                    $btn.prop('disabled', false).html(originalText);
+                    // Reset button state
+                    $('#btn-editroom').html('Update');
+                    $('#btn-editroom').prop('disabled', false);
+                    
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: 'An error occurred while processing your request'
+                    });
                 }
             });
         });
 
-       // ==========
-// DELETE ROOM - WORKING VERSION
-// ==========
-$(document).on('click', '.btn-del', function() {
-    const $button = $(this);
-    const id = $button.data('id');
-    const roomName = $button.attr('room');
-    const $row = $button.closest('tr');
-    
-    // Show confirmation dialog
-    Swal.fire({
-        title: 'Delete Room?',
-        text: `Are you sure you want to delete "${roomName}"?`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Yes, delete it!',
-        cancelButtonText: 'Cancel'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // Show loading state immediately
-            $button.html('<span class="spinner-border spinner-border-sm"></span>');
-            $button.prop('disabled', true);
+        // ==========
+        // DELETE ROOM
+        // ==========
+        $(document).on('click', '.d_room_id', function() {
+            const $button = $(this);
+            const id = $button.data('id');
+            const roomName = $button.attr('room');
             
-            // Make AJAX request
-            $.ajax({
-                type: 'POST',
-                url: 'del.php',
-                data: { 
-                    type: 'room', 
-                    id: id 
-                },
-                dataType: 'json',
-                success: function(response) {
-                    if (response.status === 'success') {
-                        // Remove row from DataTable
-                        $('#myDataTable').DataTable().row($row).remove().draw();
-                        
-                        // Show success message
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Deleted!',
-                            text: response.message,
-                            showConfirmButton: false,
-                            timer: 1500
-                        });
-                    } else {
-                        // Show error message
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: response.message || 'Failed to delete room'
-                        });
-                    }
-                },
-                error: function(xhr) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'An error occurred while deleting the room'
+            Swal.fire({
+                title: 'Delete Room?',
+                text: `Are you sure you want to delete "${roomName}"?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Show loading state
+                    $button.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
+                    $button.prop('disabled', true);
+                    
+                    $.ajax({
+                        type: 'POST',
+                        url: 'del.php',
+                        data: { type: 'room', id: id },
+                        dataType: 'json',
+                        success: function(response) {
+                            if (response.status === 'success') {
+                                // Remove row from DataTable
+                                dataTable.row($button.closest('tr')).remove().draw();
+                                
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Deleted!',
+                                    text: response.message,
+                                    showConfirmButton: false,
+                                    timer: 1500
+                                });
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error!',
+                                    text: response.message || 'Failed to delete room'
+                                });
+                            }
+                        },
+                        error: function(xhr) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error!',
+                                text: 'An error occurred while deleting the room'
+                            });
+                        },
+                        complete: function() {
+                            // Restore button state
+                            $button.html('<i class="fas fa-trash"></i> Delete');
+                            $button.prop('disabled', false);
+                        }
                     });
-                },
-                complete: function() {
-                    // Restore button state
-                    $button.html('<i class="bi bi-plus-trash"></i> Delete');
-                    $button.prop('disabled', false);
                 }
             });
-        }
-    });
-});
-    });
-    // Add this to your JavaScript section
-function fetchInstructorRFIDs() {
-    $.ajax({
-        url: 'get_rfids.php',
-        type: 'GET',
-        dataType: 'json',
-        success: function(response) {
-            if (response.status === 'success') {
-                // Populate your RFID input field with autocomplete
-                $("#rfid_number").autocomplete({
-                    source: response.data,
-                    minLength: 3
-                });
-            }
-        }
-    });
-}
+        });
 
-// Call this when the page loads
-$(document).ready(function() {
-    fetchInstructorRFIDs();
-});
-
-</script>
+        // Reset modal when closed
+        $('#roomModal').on('hidden.bs.modal', function() {
+            resetForm();
+        });
+        
+        $('#editRoomModal').on('hidden.bs.modal', function() {
+            $('.error-message').text('');
+        });
+    });
+    </script>
 </body>
 </html>

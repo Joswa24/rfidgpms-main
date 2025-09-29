@@ -1,4 +1,3 @@
-
 <?php
 session_start();
 if (isset($_SESSION['reload_flag'])) {
@@ -6,35 +5,26 @@ if (isset($_SESSION['reload_flag'])) {
     unset($_SESSION['month']); 
     unset($_SESSION['name']);
     unset($_SESSION['id']);
-
-
 } 
 //include 'auth.php'; // Include session validation
-$personnel = [];
+$instructors = [];
 $query = '';
 
 $id=0;
 include '../connection.php';
 ?>
 <?php
-
-
 include 'header.php';
-
-// Initialize database connection
-
-
-// Initialize variables
 
 // Check if there's a search query
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['query'])) {
     
     $query = trim($_POST['query']);  // Get the search query and remove leading/trailing spaces
 
-    // SQL query to fetch first_name, last_name, and category, excluding 'Student'
-    $sql = "SELECT id,first_name, last_name, category 
-            FROM personell 
-            WHERE (first_name LIKE ? OR last_name LIKE ?) AND category != 'Student'";
+    // SQL query to fetch instructors from instructor table
+    $sql = "SELECT id, fullname 
+            FROM instructor 
+            WHERE fullname LIKE ?";
 
     // Prepare the SQL statement
     $stmt = $db->prepare($sql);
@@ -42,8 +32,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['query'])) {
     // Use wildcard to match partial strings
     $searchTerm = "%" . $query . "%";  
 
-    // Bind parameters for both first_name and last_name (searching both fields)
-    $stmt->bind_param("ss", $searchTerm, $searchTerm);  // 'ss' because both are strings
+    // Bind parameters for fullname search
+    $stmt->bind_param("s", $searchTerm);  // 's' for string
 
     // Execute the query and get the result
     $stmt->execute();
@@ -51,15 +41,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['query'])) {
 
     // Fetch the results into an array
     while ($row = $result->fetch_assoc()) {
-        $personnel[] = $row;
+        $instructors[] = $row;
     }
 
     // Close the statement and the database connection
     $stmt->close();
     $db->close();
 }
-
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -74,18 +62,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['query'])) {
 		include 'navbar.php';
 		?>
  <style>
-        .personnel-list {
+        .instructor-list {
             list-style-type: none;
             padding: 0;
             margin-top: 10px;
             border: 1px solid #ddd;
             border-radius: 5px;
         }
-        .personnel-list li {
+        .instructor-list li {
             padding: 8px;
             cursor: pointer;
         }
-        .personnel-list li:hover {
+        .instructor-list li:hover {
             background-color: #f0f0f0;
         }
     </style>
@@ -93,13 +81,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['query'])) {
          #suggestions {
             position: absolute;
             z-index: 9999; /* Ensure it appears on top */
-            /* border: 1px solid #ddd; */
             max-height: 200px;
             overflow-y: auto;
-            background-color: white; /* Make background white to distinguish from page */
-            width: 200px; /* Adjust width as needed */
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); Add shadow for better visibility
-            margin-top: 5px; /* Slight margin below the input box */
+            background-color: white;
+            width: 200px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-top: 5px;
         }
 
         #suggestions div {
@@ -117,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['query'])) {
                     <div class="bg-light rounded h-100 p-4">
                         <div class="row">
                             <div class="col-9">
-                                <h6 class="mb-4">Generate DTR</h6>
+                                <h6 class="mb-4">Generate Instructor DTR</h6>
                             </div>
                         </div>
                         <br>
@@ -126,12 +113,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['query'])) {
 
               
                         <div class="col-lg-3">
-            <label>Search Personnel:</label>
+            <label>Search Instructor:</label>
            
             <input type="text" name="pname" class="form-control" id="searchInput" autocomplete="off">
             <input hidden type="text" id="pername" name="pername" autocomplete="off">
             <input hidden type="text" id="perid" name="perid" autocomplete="off">
-    <div id="suggestions"></div> <!-- Display search results here -->
+    <div id="suggestions"></div>
 
     <script>
         const searchInput = document.getElementById('searchInput');
@@ -153,24 +140,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['query'])) {
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                    return response.json(); // Parse JSON from the response
+                    return response.json();
                 })
                 .then(data => {
-                    suggestionsDiv.innerHTML = ''; // Clear previous suggestions
+                    suggestionsDiv.innerHTML = '';
                     if (data.error) {
                         suggestionsDiv.innerHTML = '<div>Error fetching data</div>';
                         console.error(data.error);
                     } else if (data.length > 0) {
-                        // Display the search results
-                        data.forEach(person => {
+                        data.forEach(instructor => {
                             const div = document.createElement('div');
-                            div.textContent = `${person.first_name} ${person.last_name}`;
+                            div.textContent = instructor.fullname;
                             div.addEventListener('click', () => {
-                                searchInput.value = `${person.first_name} ${person.last_name}`; // Autofill the input
-                                suggestionsDiv.innerHTML = ''; // Clear suggestions after selection
-                               
+                                searchInput.value = instructor.fullname;
+                                suggestionsDiv.innerHTML = '';
                                 document.getElementById('pername').value = searchInput.value;
-                                document.getElementById('perid').value = `${person.id}`;
+                                document.getElementById('perid').value = instructor.id;
                             });
                             suggestionsDiv.appendChild(div);
                         });
@@ -181,11 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['query'])) {
                 .catch(error => {
                     console.error('Error fetching data:', error);
                 });
-
-                
         });
-
-  
     </script>
                
             
@@ -295,10 +276,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $_SESSION['name'] =$name;
     $_SESSION['month']=$month;
 
-// Query to fetch first_name and last_name for the given personnel ID
-$personnel = [];
-$sql = "SELECT first_name, last_name
-        FROM personell 
+// Query to fetch fullname for the given instructor ID
+$instructor = [];
+$sql = "SELECT fullname
+        FROM instructor 
         WHERE id = ?";
 
 // Prepare and execute the query
@@ -307,32 +288,33 @@ $stmt->bind_param("i", $id);
 $stmt->execute();
 $result = $stmt->get_result();
 
-// Fetch the personnel data
+// Fetch the instructor data
 if ($row = $result->fetch_assoc()) {
-    $personnel = $row; // Store first_name and last_name
+    $instructor = $row; // Store fullname
 }
 
 // Close the statement
 $stmt->close();
 
-// Check if personnel data is available
-if (empty($personnel)) {
-    echo "No personnel found for the given ID.";
-    
+// Check if instructor data is available
+if (empty($instructor)) {
+    echo "No instructor found for the given ID.";
     exit;
 }
 
-// Get current date, month, and year
-$currentMonth = date('m'); // Current month
-$currentYear = date('Y'); // Current year
+// Get current year and month number
+$currentYear = date('Y');
 $month1 = date('m', strtotime($month)); 
+
 // Initialize the array to store the data for each day
 $daysData = [];
 
-// SQL query to fetch all logs for the current month and personnel ID
-$sql = "SELECT date_logged, time_in_am, time_out_am, time_in_pm, time_out_pm 
-        FROM personell_logs 
-        WHERE MONTH(date_logged) = ? AND YEAR(date_logged) = ? AND personnel_id = ?";
+// SQL query to fetch all gate logs for the current month and instructor ID from gate_logs table
+$sql = "SELECT date, time_in, time_out, action, direction
+        FROM gate_logs 
+        WHERE MONTH(date) = ? AND YEAR(date) = ? 
+        AND person_id = ? AND person_type = 'instructor'
+        ORDER BY date, time_in";
 
 // Prepare statement
 $stmt = $db->prepare($sql);
@@ -341,7 +323,7 @@ if (!$stmt) {
     die("Error preparing statement: " . $db->error);
 }
 
-// Bind parameters (current month, current year, and personnel ID)
+// Bind parameters (current month, current year, and instructor ID)
 $stmt->bind_param("iii", $month1, $currentYear, $id);
 
 // Execute the statement
@@ -352,32 +334,57 @@ if (!$stmt->execute()) {
 // Get the result
 $result = $stmt->get_result();
 
-// Process the fetched records
+// Process the fetched records and calculate AM/PM times
 while ($row = $result->fetch_assoc()) {
-    // Extract the day from date_logged
-    $day = (int)date('d', strtotime($row['date_logged']));
-
-    // Assign default values for null fields
-    if ($row['time_in_am'] != '?' && $row['time_in_am'] != null) {
-        $row['time_in_am'] = '08:00 AM';
+    // Extract the day from date
+    $day = (int)date('d', strtotime($row['date']));
+    
+    // Initialize or get existing day data
+    if (!isset($daysData[$day])) {
+        $daysData[$day] = [
+            'time_in_am' => '',
+            'time_out_am' => '',
+            'time_in_pm' => '',
+            'time_out_pm' => ''
+        ];
     }
-    if ($row['time_out_am'] != '?' && $row['time_out_am'] != null) {
-        $row['time_out_am'] = '12:00 PM';
+    
+    // Convert times to 12-hour format and determine AM/PM
+    if (!empty($row['time_in']) && $row['time_in'] != '00:00:00') {
+        $time_in_12h = date('g:i A', strtotime($row['time_in']));
+        $time_in_hour = date('H', strtotime($row['time_in']));
+        
+        // Check if time is AM (before 12:00) or PM (after 12:00)
+        if ($time_in_hour < 12) {
+            if ($row['action'] == 'IN' || $row['direction'] == 'IN') {
+                $daysData[$day]['time_in_am'] = $time_in_12h;
+            }
+        } else {
+            if ($row['action'] == 'IN' || $row['direction'] == 'IN') {
+                $daysData[$day]['time_in_pm'] = $time_in_12h;
+            }
+        }
     }
-    if ($row['time_in_pm'] != '?' && $row['time_in_pm'] != null) {
-        $row['time_in_pm'] = '01:00 PM';
+    
+    if (!empty($row['time_out']) && $row['time_out'] != '00:00:00') {
+        $time_out_12h = date('g:i A', strtotime($row['time_out']));
+        $time_out_hour = date('H', strtotime($row['time_out']));
+        
+        // Check if time is AM (before 12:00) or PM (after 12:00)
+        if ($time_out_hour < 12) {
+            if ($row['action'] == 'OUT' || $row['direction'] == 'OUT') {
+                $daysData[$day]['time_out_am'] = $time_out_12h;
+            }
+        } else {
+            if ($row['action'] == 'OUT' || $row['direction'] == 'OUT') {
+                $daysData[$day]['time_out_pm'] = $time_out_12h;
+            }
+        }
     }
-    if ($row['time_out_pm'] != '?' && $row['time_out_pm'] != null) {
-        $row['time_out_pm'] = '05:00 PM';
-    }
-
-    // Store the record in the corresponding day
-    $daysData[$day] = $row;
 }
 
 // Close the statement
 $stmt->close();
-
 
 // Close the database connection
 $db->close();
@@ -393,26 +400,6 @@ $db->close();
             <p>(Name)</p>
         <?php endif; ?>
     </div>
-
-    <?php
-    // Get the current month and year
-    $currentMonthName = date('F'); // Full month name (e.g., January, February)
-    $currentYear = date('Y');  // Full year (e.g., 2024)
-    ?>
-<?php
-// Function to convert 24-hour time to 12-hour AM/PM time
-function convertTo12Hour($time) {
-    // Use strtotime to parse the time and convert it to a Unix timestamp
-    $timestamp = strtotime($time);
-    
-    // If strtotime successfully parses the time, format it into 12-hour AM/PM format
-    if ($timestamp !== false) {
-        return date("g:i A", $timestamp); // Return the time in 12-hour AM/PM format (e.g., 2:30 PM)
-    }
-    // If the time cannot be parsed, return the original time string
-    return $time;
-}
-?>
 
     <table class="info-table">
         <tr>
@@ -455,21 +442,20 @@ function convertTo12Hour($time) {
         // Loop through all the days of the month (1 to 31)
         for ($day = 1; $day <= 31; $day++) {
             // Check if time data exists for this day
-            $timeData = isset($daysData[$day]) ? $daysData[$day] : null;
-        
-            // Set default values for time_in_am if it's empty or a placeholder
-            // if ($timeData && (empty($timeData['time_in_am']) || $timeData['time_in_am'] === '?')) {
-            //     $timeData['time_in_am'] = '08:00 AM';
-            // }
+            $timeData = isset($daysData[$day]) ? $daysData[$day] : [
+                'time_in_am' => '',
+                'time_out_am' => '',
+                'time_in_pm' => '',
+                'time_out_pm' => ''
+            ];
         
             // Display the row for each day
             echo "<tr>";
             echo "<td>" . $day . "</td>";
-            echo "<td>" . (isset($timeData['time_in_am']) ? htmlspecialchars($timeData['time_in_am']) : '') . "</td>";
-            echo "<td>" . (isset($timeData['time_out_am']) ? htmlspecialchars($timeData['time_out_am']) : '') . "</td>";
-            // Convert PM time to 12-hour AM/PM format before displaying
-            echo "<td>" . (isset($timeData['time_in_pm']) ? htmlspecialchars($timeData['time_in_pm']) : '') . "</td>";
-            echo "<td>" . (isset($timeData['time_out_pm']) ? htmlspecialchars($timeData['time_out_pm']) : '') . "</td>";
+            echo "<td>" . htmlspecialchars($timeData['time_in_am']) . "</td>";
+            echo "<td>" . htmlspecialchars($timeData['time_out_am']) . "</td>";
+            echo "<td>" . htmlspecialchars($timeData['time_in_pm']) . "</td>";
+            echo "<td>" . htmlspecialchars($timeData['time_out_pm']) . "</td>";
             echo "<td></td>"; // Placeholder for undertime
             echo "<td></td>"; // Placeholder for undertime
             echo "</tr>";
@@ -494,11 +480,7 @@ function convertTo12Hour($time) {
             <p>In-Charge</p>
         </div>
     </div>
-</div><!-- JavaScript to handle printing -->
-
-
-
-
+</div>
 
                         </div>
                     </div>
@@ -510,77 +492,29 @@ function convertTo12Hour($time) {
     
         <script type="text/javascript">
     $(document).ready(function() {
-        $('#date1').datepicker();
-        $('#date2').datepicker();
-        
-        // $('#btn_search').on('click', function() {
-        //     if ($('#date1').val() == "" || $('#date2').val() == "") {
-        //         alert("Please enter Date 'From' and 'To' before submit");
-        //     } else {
-        //         $date1 = $('#date1').val();
-        //         $date2 = $('#date2').val();
-        //         $('#load_data').empty();
-        //         $loader = $('<tr ><td colspan = "6"><center>Searching....</center></td></tr>');
-        //         $loader.appendTo('#load_data');
-        //         setTimeout(function() {
-        //             $loader.remove();
-        //             $.ajax({
-        //                 url: '../config/init/report_attendance.php',
-        //                 type: 'POST',
-        //                 data: {
-        //                     date1: $date1,
-        //                     date2: $date2
-        //                 },
-        //                 success: function(res) {
-        //                     $('#load_data').html(res);
-        //                 }
-        //             });
-        //         }, 1000);
-        //     }
-        // });
-
-        $('#reset').on('click', function() {
-            location.reload();
-        });
-
         $('#btn_print').on('click', function() {
-           
-                // Load print.php content into a hidden iframe
-                var iframe = $('<iframe>', {
-                    id: 'printFrame',
-                    style: 'visibility:hidden; display:none'
-                }).appendTo('body');
+            // Load print.php content into a hidden iframe
+            var iframe = $('<iframe>', {
+                id: 'printFrame',
+                style: 'visibility:hidden; display:none'
+            }).appendTo('body');
 
-                // Set iframe source to print.php
-                iframe.attr('src', 'dtr_print.php');
+            // Set iframe source to print.php
+            iframe.attr('src', 'dtr_print.php');
 
-                // Wait for iframe to load
-                iframe.on('load', function() {
-                    // Call print function of the iframe content
-                    this.contentWindow.print();
+            // Wait for iframe to load
+            iframe.on('load', function() {
+                // Call print function of the iframe content
+                this.contentWindow.print();
 
-                    // Remove the iframe after printing
-                    setTimeout(function() {
-                        iframe.remove();
-                    }, 1000); // Adjust time as needed for printing to complete
-                });
-            
+                // Remove the iframe after printing
+                setTimeout(function() {
+                    iframe.remove();
+                }, 1000);
+            });
         });
     });
 </script>
-
-
-        <script>
-            $(function() {
-                $("#date1").datepicker();
-            });
-        </script>
-        <script>
-            $(function() {
-                $("#date2").datepicker();
-            });
-        </script>
-
 
         <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top"><i class="bi bi-arrow-up"></i></a>
     </div>
@@ -592,10 +526,6 @@ function convertTo12Hour($time) {
     <script src="lib/tempusdominus/js/moment.min.js"></script>
     <script src="lib/tempusdominus/js/moment-timezone.min.js"></script>
     <script src="lib/tempusdominus/js/tempusdominus-bootstrap-4.min.js"></script>
-
-
-     
-    </div>
 
 </body>
 </html>

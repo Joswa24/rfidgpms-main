@@ -1,110 +1,266 @@
 <!DOCTYPE html>
 <html lang="en">
+<?php 
+session_start();
+// Display success/error messages
+if (isset($_SESSION['success_message'])) {
+    echo '<div class="alert alert-success">' . $_SESSION['success_message'] . '</div>';
+    unset($_SESSION['success_message']);
+}
+if (isset($_SESSION['error_message'])) {
+    echo '<div class="alert alert-danger">' . $_SESSION['error_message'] . '</div>';
+    unset($_SESSION['error_message']);
+}
+
+include '../connection.php';
+?>
 <?php include 'header.php'; ?>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Instructors</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        .bg-light {
+            background-color: #f8f9fa !important;
+        }
+        .card {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+        .table th {
+            background-color: #4e73df;
+            color: white;
+        }
+        .badge {
+            font-size: 0.85em;
+        }
+        .section-header {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+        .btn-del {
+            transition: all 0.3s ease;
+        }
+        .btn-del:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+        }
+        .swal2-popup {
+            font-family: inherit;
+        }
+        .error-message {
+            color: #dc3545;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+        .instructor-photo {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #dee2e6;
+        }
+        .upload-img-btn {
+            cursor: pointer;
+            display: block;
+            position: relative;
+        }
+        .preview-1 {
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        .preview-1:hover {
+            opacity: 0.8;
+        }
+        .file-uploader {
+            position: relative;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+
 <body>
     <div class="container-fluid position-relative bg-white d-flex p-0">
         <!-- Sidebar Start -->
         <?php include 'sidebar.php'; ?>
         <!-- Sidebar End -->
 
+        <!-- Content Start -->
         <div class="content">
             <?php include 'navbar.php'; ?>
 
             <div class="container-fluid pt-4 px-4">
                 <div class="col-sm-12 col-xl-12">
-                    <div class="col-sm-12 col-xl-12">
-                        <div class="bg-light rounded h-100 p-4">
-                            <div class="row">
-                                <div class="col-9">
-                                    <h6 class="mb-4">Manage Instructors</h6>
-                                </div>
-                                <div class="col-3">
-                                    <button type="button" class="btn btn-outline-warning m-2" data-bs-toggle="modal" data-bs-target="#instructorModal">Add Instructor</button>
-                                </div>
+                    <div class="bg-light rounded h-100 p-4">
+                        <div class="row">
+                            <div class="col-9">
+                                <h6 class="mb-4">Manage Instructors</h6>
                             </div>
-                            <hr>
-                            <div class="table-responsive">
-                                <table class="table table-border" id="instructorTable">
-                                   <thead>
-                                        <tr>
-                                            <th scope="col" style="text-align:left;">Full Name</th>
-                                            <th scope="col" style="text-align:left;">Department</th>
-                                            <th scope="col" style="text-align:left;">ID Number</th>
-                                            <th scope="col">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php include '../connection.php'; ?>
-                                        <?php $results = mysqli_query($db, "SELECT i.*, d.department_name 
-                                        FROM instructor i 
-                                        LEFT JOIN department d ON i.department_id = d.department_id"); ?>
-                                        <?php while ($row = mysqli_fetch_array($results)) { ?>
-                                        <tr data-id="<?php echo $row['id']; ?>">
-                                            <td style="text-align:left;" class="fullname"><?php echo $row['fullname']; ?></td>
-                                            <td style="text-align:left;" class="department" data-id="<?php echo $row['department_id']; ?>"><?php echo $row['department_name']; ?></td>
-                                            <td style="text-align:left;" class="id_number"><?php echo $row['id_number']; ?></td>
-                                            <td width="14%">
-                                                <center>
-                                                    <button data-id="<?php echo $row['id'];?>" 
-                                                            class="btn btn-outline-primary btn-sm btn-edit">
-                                                        <i class="bi bi-plus-edit"></i> Edit 
-                                                    </button>
-                                                    <button data-id="<?php echo $row['id']; ?>" 
-                                                            class="btn btn-outline-danger btn-sm btn-del">
-                                                        <i class="bi bi-plus-trash"></i> Delete 
-                                                    </button>
-                                                </center> 
-                                            </td>
-                                        </tr>
-                                        <?php } ?>
-                                    </tbody>
-                                </table>
+                            <div class="col-3">
+                                <button type="button" class="btn btn-outline-warning m-2" data-bs-toggle="modal" data-bs-target="#instructorModal">
+                                    <i class="fas fa-plus-circle"></i> Add Instructor
+                                </button>
                             </div>
+                        </div>
+                        <hr>
+                        <div class="table-responsive">
+                            <table class="table table-border" id="myDataTable">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Photo</th>
+                                        <th scope="col">ID Number</th>
+                                        <th scope="col">Full Name</th>
+                                        <th scope="col">Department</th>
+                                        <th scope="col">Action</th>
+                                        <th style="display: none;">Date Added</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php 
+                                    $results = mysqli_query($db, "SELECT i.*, d.department_name 
+                                                                FROM instructor i 
+                                                                LEFT JOIN department d 
+                                                                ON i.department_id = d.department_id 
+                                                                ORDER BY i.id DESC"); 
+                                    
+                                    if ($results === false) {
+                                        die("Query failed: " . mysqli_error($db));
+                                    }
+                                    ?>
+                                    <?php while ($row = mysqli_fetch_array($results)) { 
+                                        // Get instructor photo path
+                                        $photoPath = '../assets/img/default-avatar.png'; // Default photo
+                                        if (!empty($row['photo']) && file_exists('../uploads/instructors/' . $row['photo'])) {
+                                            $photoPath = '../uploads/instructors/' . $row['photo'];
+                                        }
+                                    ?>
+                                    <tr class="table-<?php echo $row['id'];?>" data-instructor-id="<?php echo $row['id'];?>">
+                                        <input class="department_id" type="hidden" value="<?php echo $row['department_id']; ?>" />
+                                        <input class="id_number" type="hidden" value="<?php echo $row['id_number']; ?>" />
+                                        <input class="fullname" type="hidden" value="<?php echo $row['fullname']; ?>" />
+                                        <?php if (isset($row['date_added'])): ?>
+                                        <input class="date_added" type="hidden" value="<?php echo $row['date_added']; ?>" />
+                                        <?php endif; ?>
+
+                                        <td>
+                                            <center>
+                                                <img class="photo instructor-photo" src="<?php echo $photoPath; ?>" 
+                                                     onerror="this.onerror=null; this.src='../assets/img/default-avatar.png';">
+                                            </center>
+                                        </td>
+                                        <td class="instructor_id"><?php echo $row['id_number']; ?></td>
+                                        <td><?php echo $row['fullname']; ?></td>
+                                        <td><?php echo $row['department_name']; ?></td>
+                                        <td width="14%">
+                                            <center>
+                                                <button data-id="<?php echo $row['id'];?>" 
+                                                        class="btn btn-outline-primary btn-sm btn-edit e_instructor_id">
+                                                    <i class="fas fa-edit"></i> Edit 
+                                                </button>
+                                                <button instructor_name="<?php echo $row['fullname']; ?>" 
+                                                        data-id="<?php echo $row['id']; ?>" 
+                                                        class="btn btn-outline-danger btn-sm btn-del d_instructor_id">
+                                                    <i class="fas fa-trash"></i> Delete 
+                                                </button>
+                                            </center>
+                                        </td>
+                                        <?php if (isset($row['date_added'])): ?>
+                                        <td style="display:none;" class="hidden-date"><?php echo $row['date_added']; ?></td>
+                                        <?php else: ?>
+                                        <td style="display:none;" class="hidden-date"><?php echo date('Y-m-d H:i:s'); ?></td>
+                                        <?php endif; ?>
+                                    </tr>
+                                    <?php } ?>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Add Instructor Modal -->
-            <div class="modal fade" id="instructorModal" tabindex="-1" aria-labelledby="instructorModalLabel" aria-hidden="true">
-                <div class="modal-dialog">
+            <div class="modal fade" id="instructorModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title" id="instructorModalLabel"><i class="bi bi-plus-circle"></i> New Instructor</h5>
+                            <h5 class="modal-title" id="exampleModalLabel">
+                                <i class="fas fa-plus-circle"></i> New Instructor
+                            </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <form id="instructorForm">
+                        <form id="instructorForm" role="form" method="post" action="" enctype="multipart/form-data">
                             <div class="modal-body">
-                                <div class="alert alert-danger d-none" role="alert" id="form-error"></div>
-                                <div class="mb-3">
-                                    <label for="department" class="form-label"><b>Department: </b></label>
-                                    <select name="department" id="department" class="form-control">
-                                        <option value="">Select Department</option>
-                                        <?php 
-                                        $dept_query = mysqli_query($db, "SELECT * FROM department ORDER BY department_name");
-                                        while ($dept = mysqli_fetch_array($dept_query)) { ?>
-                                            <option value="<?php echo $dept['department_id']; ?>">
-                                                <?php echo $dept['department_name']; ?>
-                                            </option>
-                                        <?php } ?>
-                                    </select>
-                                    <div class="error-message" id="department-error"></div>
-                                </div>
+                                <div class="col-lg-12 mt-1" id="mgs-instructor"></div>
+                                <div class="row justify-content-md-center">
+                                    <div id="msg-instructor"></div>
+                                    <div class="col-sm-12 col-md-12 col-lg-10">
+                                        <div class="section-header p-2 mb-3 rounded">
+                                            <strong>INSTRUCTOR INFORMATION</strong>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-lg-3 col-md-6 col-sm-12" id="up_img">
+                                                <div class="file-uploader">
+                                                    <label for="photo" class="upload-img-btn" style="cursor: pointer;">
+                                                        <img class="preview-1" src="../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg"
+                                                            style="width: 140px!important; height: 130px!important; position: absolute; border: 1px solid gray; top: 25%;"
+                                                            title="Upload Photo.." />
+                                                    </label>
+                                                    <input type="file" id="photo" name="photo" class="upload-field-1" 
+                                                            style="opacity: 0; position: absolute; z-index: -1;" accept="image/*">
+                                                    <span class="error-message" id="photo-error"></span>
+                                                </div>
+                                            </div>
 
-                                <div class="mb-3">
-                                    <label for="fullname" class="form-label"><b>Full Name: </b></label>
-                                    <input name="fullname" type="text" id="fullname" class="form-control" autocomplete="off" required>
-                                    <div class="error-message" id="fullname-error"></div>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="id_number" class="form-label"><b>ID Number: </b></label>
-                                    <input name="id_number" type="text" id="id_number" class="form-control" autocomplete="off" placeholder="0000-0000">
-                                    <div class="error-message" id="id_number-error"></div>
+                                            <div class="col-lg-4 col-md-6 col-sm-12">
+                                                <div class="form-group">
+                                                    <label><b>Department:</b></label>
+                                                    <select required class="form-control dept_ID" name="department_id" id="department_id" autocomplete="off">
+                                                        <option value="">Select Department</option>
+                                                        <?php
+                                                            $sql = "SELECT * FROM department ORDER BY department_name";
+                                                            $result = $db->query($sql);
+                                                            while ($dept = $result->fetch_assoc()) {
+                                                                echo "<option value='{$dept['department_id']}'>{$dept['department_name']}</option>";
+                                                            }
+                                                        ?>
+                                                    </select>
+                                                    <span class="error-message" id="department_id-error"></span>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-lg-5 col-md-6 col-sm-12" id="idnumberz">
+                                                <div class="form-group">
+                                                    <label><b>ID Number:</b></label>
+                                                    <input required type="text" class="form-control" name="id_number" id="id_number" autocomplete="off" placeholder="0000-0000">
+                                                    <span class="error-message" id="id_number-error"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row mb-3 mt-1">
+                                            <div class="col-lg-3 col-md-6 col-sm-12">
+                                                <div class="form-group">
+                                                    <!-- empty -->
+                                                </div>
+                                            </div>
+                                            <div class="col-lg-9 col-md-6 col-sm-12 mt-1">
+                                                <div class="form-group">
+                                                    <label><b>Full Name:</b></label>
+                                                    <input required type="text" class="form-control" name="fullname" id="fullname" autocomplete="off">
+                                                    <span class="error-message" id="fullname-error"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                                <button type="button" class="btn btn-outline-warning" id="btn-instructor">Save</button>
+                                <button type="submit" id="btn-instructor" class="btn btn-outline-warning">Save</button>
                             </div>
                         </form>
                     </div>
@@ -112,361 +268,463 @@
             </div>
 
             <!-- Edit Instructor Modal -->
-            <div class="modal fade" id="editInstructorModal" tabindex="-1" aria-labelledby="editInstructorModalLabel" aria-hidden="true">
-                <div class="modal-dialog">
+            <div class="modal fade" id="editinstructorModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title"><i class="bi bi-pencil"></i> Edit Instructor</h5>
+                            <h5 class="modal-title">
+                                <i class="fas fa-edit"></i> Edit Instructor
+                            </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <form id="editInstructorForm">
-                            <input type="hidden" name="id" id="edit_instructorid">
-                            <div class="modal-body">
-                                <div class="alert alert-danger d-none" role="alert" id="edit-form-error"></div>
-                                <div class="mb-3">
-                                    <label for="edit_department" class="form-label"><b>Department: </b></label>
-                                    <select name="department" id="edit_department" class="form-control">
-                                        <option value="">Select Department</option>
-                                        <?php 
-                                        mysqli_data_seek($dept_query, 0); // Reset pointer
-                                        while ($dept = mysqli_fetch_array($dept_query)) { ?>
-                                            <option value="<?php echo $dept['department_id']; ?>">
-                                                <?php echo $dept['department_name']; ?>
-                                            </option>
-                                        <?php } ?>
-                                    </select>
-                                    <div class="error-message" id="edit_department-error"></div>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="edit_fullname" class="form-label"><b>Full Name: </b></label>
-                                    <input name="fullname" type="text" id="edit_fullname" class="form-control" autocomplete="off" required>
-                                    <div class="error-message" id="edit_fullname-error"></div>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="edit_id_number" class="form-label"><b>ID Number: </b></label>
-                                    <input name="id_number" type="text" id="edit_id_number" class="form-control" autocomplete="off" placeholder="0000-0000">
-                                    <div class="error-message" id="edit_id_number-error"></div>
+                        <form id="editInstructorForm" class="edit-form" role="form" method="post" action="" enctype="multipart/form-data">
+                            <div class="modal-body" id="editModal">
+                                <div class="col-lg-12 mt-1" id="mgs-editinstructor"></div>
+                                <div class="row justify-content-md-center">
+                                    <div id="msg-editinstructor"></div>
+                                    <div class="col-sm-12 col-md-12 col-lg-10">
+                                        <div class="section-header p-2 mb-3 rounded">
+                                            <strong>INSTRUCTOR INFORMATION</strong>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-lg-3 col-md-6 col-sm-12" id="up_img">
+                                                <div class="file-uploader">
+                                                    <label name="upload-label" class="upload-img-btn">
+                                                        <input type="file" id="editPhoto" name="photo" class="upload-field-1" style="display:none;" accept="image/*" title="Upload Photo.."/>
+                                                        <input type="hidden" id="capturedImage" name="capturedImage" class="capturedImage">
+                                                        <img class="preview-1 edit-photo" src="" style="width: 140px!important;height: 130px!important;position: absolute;border: 1px solid gray;top: 25%" title="Upload Photo.." />
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-lg-4 col-md-6 col-sm-12">
+                                                <div class="form-group">
+                                                    <label><b>Department:</b></label>
+                                                    <select class="form-control dept_ID" name="department_id" id="edepartment_id" autocomplete="off">
+                                                        <option class="edit-dept-val" value=""></option>
+                                                        <?php
+                                                            $sql = "SELECT * FROM department ORDER BY department_name";
+                                                            $result = $db->query($sql);
+                                                            while ($dept = $result->fetch_assoc()) {
+                                                                echo "<option value='{$dept['department_id']}'>{$dept['department_name']}</option>";
+                                                            }
+                                                        ?>
+                                                    </select>
+                                                    <span class="error-message" id="edepartment_id-error"></span>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-lg-5 col-md-6 col-sm-12" id="idnumberz">
+                                                <div class="form-group">
+                                                    <label><b>ID Number:</b></label>
+                                                    <input required type="text" class="form-control edit-idnumber" name="id_number" id="eid_number" autocomplete="off" placeholder="0000-0000">
+                                                    <span class="error-message" id="eid_number-error"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row mb-3 mt-1">
+                                            <div class="col-lg-3 col-md-6 col-sm-12">
+                                                <div class="form-group">
+                                                    <!-- empty -->
+                                                </div>
+                                            </div>
+                                            <div class="col-lg-9 col-md-6 col-sm-12 mt-1">
+                                                <div class="form-group">
+                                                    <label><b>Full Name:</b></label>
+                                                    <input type="text" class="form-control edit-fullname" name="fullname" id="efullname" autocomplete="off">
+                                                    <span class="error-message" id="efullname-error"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div class="modal-footer">
+                                <input type="hidden" id="edit_instructorid" name="instructor_id" class="edit-id">
                                 <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                                <button type="button" class="btn btn-outline-primary" id="btn-editinstructor">Update</button>
+                                <button type="submit" id="btn-editinstructor" class="btn btn-outline-primary">Update</button>
                             </div>
                         </form>
                     </div>
                 </div>
             </div>
 
+            <!-- Delete Confirmation Modal -->
+            <div class="modal fade" id="delinstructor-modal" tabindex="-1" aria-labelledby="delinstructorModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="delinstructorModalLabel">Confirm Delete</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Are you sure you want to delete instructor: <strong id="delete_instructorname"></strong>?</p>
+                            <input type="hidden" id="delete_instructorid">
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-danger" id="btn-delinstructor">Yes, Delete</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <?php include 'footer.php'; ?>
         </div>
-
-        <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top"><i class="bi bi-arrow-up"></i></a>
     </div>
 
     <!-- JavaScript Libraries -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="lib/chart/chart.min.js"></script>
-    <script src="lib/easing/easing.min.js"></script>
-    <script src="lib/waypoints/waypoints.min.js"></script>
-    <script src="lib/owlcarousel/owl.carousel.min.js"></script>
-    <script src="lib/tempusdominus/js/moment.min.js"></script>
-    <script src="lib/tempusdominus/js/moment-timezone.min.js"></script>
-    <script src="lib/tempusdominus/js/tempusdominus-bootstrap-4.min.js"></script>
-    <script src="js/main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
 
-    <!-- Instructor CRUD JavaScript -->
     <script>
     $(document).ready(function() {
         // Initialize DataTable
-        $('#instructorTable').DataTable({ 
-            order: [[0, 'desc']],
-            columnDefs: [
-                { orderable: false, targets: 2 } // Disable sorting on action column
-            ]
+        var dataTable = $('#myDataTable').DataTable({
+            order: [[5, 'desc']],
+            stateSave: true
         });
-        
-        // Helper function to reset form
+
+        // Reset form function
         function resetForm() {
             $('.error-message').text('');
-            $('.alert').addClass('d-none').text('');
-            $('.form-control').removeClass('is-invalid');
             $('#instructorForm')[0].reset();
+            $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
         }
 
-        // Reset form when modal closes
-        $('#instructorModal').on('hidden.bs.modal', resetForm);
-
-        // ==============
-        // CREATE (ADD INSTRUCTOR)
-        // ==============
-        $(document).on('click', '#btn-instructor', function() {
-            const $btn = $(this);
-            const fullname = $('#fullname').val().trim();
-            const id_number = $('#id_number').val().trim();
-            const department_id = $('#department').val();
-
-            // Reset previous errors
-            $('.error-message').text('');
-            $('.form-control').removeClass('is-invalid');
-            $('#form-error').addClass('d-none');
-            
-            // Validate inputs
-            let isValid = true;
-            
-            if (!fullname) {
-                $('#fullname').addClass('is-invalid');
-                $('#fullname-error').text('Full name is required');
-                isValid = false;
-            }
-            
-            if (!department_id) {
-                $('#department').addClass('is-invalid');
-                $('#department-error').text('Department is required');
-                isValid = false;
-            }
-            
-            if (!/^\d{4}-\d{4}$/.test(id_number)) {
-                $('#id_number').addClass('is-invalid');
-                $('#id_number-error').text('Invalid ID format. Must be in 0000-0000 format');
-                isValid = false;
-            }
-            
-            if (!isValid) {
-                $('#form-error').removeClass('d-none').text('Please fix the errors in the form');
-                return;
-            }
-            
-            // Show loading state
-            const originalBtnText = $btn.html();
-            $btn.html('<span class="spinner-border spinner-border-sm"></span> Saving...');
-            $btn.prop('disabled', true);
-            
-            // Make AJAX request to transac.php
-            $.ajax({
-                type: "POST",
-                url: "transac.php?action=add_instructor",
-                data: { 
-                    fullname: fullname,
-                    id_number: id_number,
-                    department_id: department_id
-                },
-                dataType: 'json',
-                success: function(response) {
-                    if (response.status === 'success') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success!',
-                            text: response.message,
-                            showConfirmButton: false,
-                            timer: 1500
-                        }).then(() => {
-                            $('#instructorModal').modal('hide');
-                            location.reload();
-                        });
-                    } else {
-                        // Show specific error messages
-                        if (response.message.includes('ID')) {
-                            $('#id_number').addClass('is-invalid');
-                            $('#id_number-error').text(response.message);
-                        } else if (response.message.includes('Department')) {
-                            $('#department').addClass('is-invalid');
-                            $('#department-error').text(response.message);
-                        } else {
-                            $('#form-error').removeClass('d-none').text(response.message);
-                        }
-                    }
-                },
-                error: function(xhr) {
-                    $('#form-error').removeClass('d-none').text('An error occurred: ' + xhr.responseText);
-                },
-                complete: function() {
-                    $btn.html(originalBtnText);
-                    $btn.prop('disabled', false);
-                }
-            });
-        });
-
-        // ==========
-        // READ (EDIT)
-        // ==========
-        $(document).on('click', '.btn-edit', function() {
-            var id = $(this).data('id');
-            var $row = $(this).closest('tr');
-
-            // Populate modal with instructor data
-            $('#edit_instructorid').val(id);
-            $('#edit_fullname').val($row.find('.fullname').text());
-            $('#edit_id_number').val($row.find('.id_number').text());
-            $('#edit_department').val($row.find('.department').data('id'));
-
-            $('#editInstructorModal').modal('show');
-        });
-
-        // ==========
-        // UPDATE (Edit Instructor)
-        // ==========
-        $(document).on('click', '#btn-editinstructor', function() {
-            var $btn = $(this);
-            var id = $('#edit_instructorid').val();
-            var fullname = $('#edit_fullname').val().trim();
-            var id_number = $('#edit_id_number').val().trim();
-            var department_id = $('#edit_department').val();
-            
-            // Reset previous errors
-            $('.error-message').text('');
-            $('.form-control').removeClass('is-invalid');
-            $('#edit-form-error').addClass('d-none').text('');
-            
-            // Validate inputs
-            let isValid = true;
-            
-            if (!fullname) {
-                $('#edit_fullname').addClass('is-invalid');
-                $('#edit_fullname-error').text('Full name is required');
-                isValid = false;
-            }
-            
-            if (!department_id) {
-                $('#edit_department').addClass('is-invalid');
-                $('#edit_department-error').text('Department is required');
-                isValid = false;
-            }
-            
-            if (!/^\d{4}-\d{4}$/.test(id_number)) {
-                $('#edit_id_number').addClass('is-invalid');
-                $('#edit_id_number-error').text('Invalid ID format. Must be in 0000-0000 format');
-                isValid = false;
-            }
-            
-            if (!isValid) {
-                $('#edit-form-error').removeClass('d-none').text('Please fix the errors in the form');
-                return;
-            }
-            
-            // Show loading state
-            const originalBtnText = $btn.html();
-            $btn.html('<span class="spinner-border spinner-border-sm"></span> Updating...');
-            $btn.prop('disabled', true);
-            
-            // Make AJAX request to edit1.php
-            $.ajax({
-                type: "POST",
-                url: "edit1.php?edit=instructor",
-                data: { 
-                    id: id,
-                    fullname: fullname,
-                    id_number: id_number,
-                    department_id: department_id
-                },
-                dataType: 'json',
-                success: function(response) {
-                    if (response.status === 'success') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success!',
-                            text: response.message,
-                            showConfirmButton: false,
-                            timer: 1500
-                        }).then(() => {
-                            $('#editInstructorModal').modal('hide');
-                            location.reload();
-                        });
-                    } else {
-                        if (response.message.includes('ID')) {
-                            $('#edit_id_number').addClass('is-invalid');
-                            $('#edit_id_number-error').text(response.message);
-                        } else if (response.message.includes('Department')) {
-                            $('#edit_department').addClass('is-invalid');
-                            $('#edit_department-error').text(response.message);
-                        } else {
-                            $('#edit-form-error').removeClass('d-none').text(response.message);
-                        }
-                    }
-                },
-                error: function(xhr) {
-                    $('#edit-form-error').removeClass('d-none').text('An error occurred: ' + xhr.responseText);
-                },
-                complete: function() {
-                    $btn.html(originalBtnText);
-                    $btn.prop('disabled', false);
-                }
-            });
-        });
-
-        // ==========
-        // DELETE (Using del.php)
-        // ==========
-        $(document).on('click', '.btn-del', function(e) {
-            e.preventDefault();
-            var id = $(this).data('id');
-            var $row = $(this).closest('tr');
-            var fullname = $row.find('.fullname').text();
-            var $btn = $(this);
-            
-            Swal.fire({
-                title: 'Are you sure?',
-                text: `You are about to delete instructor: ${fullname}`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, delete it!'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Show loading state
-                    const originalBtnText = $btn.html();
-                    $btn.html('<span class="spinner-border spinner-border-sm"></span>');
-                    $btn.prop('disabled', true);
-                    
-                    // Make AJAX request to del.php
-                    $.ajax({
-                        type: 'POST',
-                        url: 'del.php',
-                        data: { 
-                            type: 'delete_instructor', 
-                            id: id 
-                        },
-                        dataType: 'json',
-                        success: function(response) {
-                            if (response.status === 'success') {
-                                Swal.fire({
-                                    title: 'Deleted!',
-                                    text: response.message,
-                                    icon: 'success',
-                                    timer: 1500,
-                                    showConfirmButton: false
-                                }).then(() => {
-                                    // Remove row from DataTable
-                                    var table = $('#instructorTable').DataTable();
-                                    table.row($row).remove().draw();
-                                });
-                            } else {
-                                Swal.fire('Error!', response.message, 'error');
-                            }
-                        },
-                        error: function(xhr) {
-                            Swal.fire('Error!', 'An error occurred: ' + xhr.responseText, 'error');
-                        },
-                        complete: function() {
-                            $btn.html(originalBtnText);
-                            $btn.prop('disabled', false);
-                        }
-                    });
-                }
-            });
-        });
-
-        // Format ID number input as user types (for both add and edit modals)
-        $('#id_number, #edit_id_number').on('input', function() {
+        // Format ID number input as user types
+        $('#id_number, #eid_number').on('input', function() {
             var value = $(this).val().replace(/-/g, '');
             if (value.length > 4) {
                 value = value.substring(0, 4) + '-' + value.substring(4, 8);
             }
             $(this).val(value);
         });
+
+        // ==============
+        // CREATE (ADD INSTRUCTOR)
+        // ==============
+        $('#instructorForm').submit(function(e) {
+            e.preventDefault();
+            
+            $('.error-message').text('');
+            const department_id = $('#department_id').val();
+            const id_number = $('#id_number').val().trim();
+            const fullname = $('#fullname').val().trim();
+            const photo = $('#photo')[0].files[0];
+            let isValid = true;
+
+            // Validation
+            if (!department_id) { 
+                $('#department_id-error').text('Department is required'); 
+                isValid = false; 
+            }
+            if (!id_number) { 
+                $('#id_number-error').text('ID Number is required'); 
+                isValid = false; 
+            } else if (!/^\d{4}-\d{4}$/.test(id_number)) {
+                $('#id_number-error').text('Invalid ID format. Must be in 0000-0000 format'); 
+                isValid = false; 
+            }
+            if (!fullname) { 
+                $('#fullname-error').text('Full name is required'); 
+                isValid = false; 
+            }
+            
+            if (!isValid) return;
+
+            // Show loading state
+            $('#btn-instructor').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
+            $('#btn-instructor').prop('disabled', true);
+
+            var formData = new FormData(this);
+
+            $.ajax({
+                type: "POST",
+                url: "transac.php?action=add_instructor",
+                data: formData,
+                contentType: false,
+                processData: false,
+                dataType: 'json',
+                success: function(response) {
+                    // Reset button state
+                    $('#btn-instructor').html('Save');
+                    $('#btn-instructor').prop('disabled', false);
+                    
+                    if (response.status === 'success') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success!',
+                            text: response.message,
+                            showConfirmButton: true
+                        }).then(() => {
+                            $('#instructorModal').modal('hide');
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: response.message
+                        });
+                    }
+                },
+                error: function(xhr, status, error) {
+                    // Reset button state
+                    $('#btn-instructor').html('Save');
+                    $('#btn-instructor').prop('disabled', false);
+                    
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: 'An error occurred: ' + error
+                    });
+                }
+            });
+        });
+
+        // ==========
+        // READ (EDIT INSTRUCTOR)
+        // ==========
+        $(document).on('click', '.e_instructor_id', function() {
+            const id = $(this).data('id');
+            
+            // Retrieve data from the selected row
+            const $getphoto = $('.table-' + id + ' .photo').attr('src');
+            const $getidnumber = $('.table-' + id + ' .instructor_id').html();
+            const $getdept = $('.table-' + id + ' .department_id').val();
+            const $getfullname = $('.table-' + id + ' .fullname').val();
+
+            // Populate edit form
+            $('#edit_instructorid').val(id);
+            $('.edit-photo').attr('src', $getphoto);
+            $('#eid_number').val($getidnumber);
+            $('#edepartment_id').val($getdept);
+            $('#efullname').val($getfullname);
+            $('.capturedImage').val($getphoto);
+            
+            // Show modal
+            $('#editinstructorModal').modal('show');
+        });
+
+        // ==========
+        // UPDATE INSTRUCTOR
+        // ==========
+        $('#editInstructorForm').submit(function(e) {
+            e.preventDefault();
+            
+            const id = $('#edit_instructorid').val();
+            const department_id = $('#edepartment_id').val();
+            const id_number = $('#eid_number').val().trim();
+            const fullname = $('#efullname').val().trim();
+
+            // Validation
+            let isValid = true;
+            if (!department_id) { 
+                $('#edepartment_id-error').text('Department is required'); 
+                isValid = false; 
+            } else { 
+                $('#edepartment_id-error').text(''); 
+            }
+            if (!id_number) { 
+                $('#eid_number-error').text('ID Number is required'); 
+                isValid = false; 
+            } else if (!/^\d{4}-\d{4}$/.test(id_number)) {
+                $('#eid_number-error').text('Invalid ID format. Must be in 0000-0000 format'); 
+                isValid = false; 
+            } else { 
+                $('#eid_number-error').text(''); 
+            }
+            if (!fullname) { 
+                $('#efullname-error').text('Full name is required'); 
+                isValid = false; 
+            } else { 
+                $('#efullname-error').text(''); 
+            }
+            
+            if (!isValid) return;
+
+            // Show loading state
+            $('#btn-editinstructor').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
+            $('#btn-editinstructor').prop('disabled', true);
+
+            var formData = new FormData(this);
+            formData.append('id', id);
+
+            $.ajax({
+                type: "POST",
+                url: "edit1.php?edit=instructor&id=" + id,
+                data: formData,
+                contentType: false,
+                processData: false,
+                dataType: 'json',
+                success: function(response) {
+                    // Reset button state
+                    $('#btn-editinstructor').html('Update');
+                    $('#btn-editinstructor').prop('disabled', false);
+                    
+                    if (response.status === 'success') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success!',
+                            text: response.message,
+                            showConfirmButton: true
+                        }).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Error!',
+                            text: response.message,
+                            icon: 'error'
+                        });
+                    }
+                },
+                error: function(xhr) {
+                    // Reset button state
+                    $('#btn-editinstructor').html('Update');
+                    $('#btn-editinstructor').prop('disabled', false);
+                    
+                    try {
+                        // Try to parse the error response as JSON
+                        var errorResponse = JSON.parse(xhr.responseText);
+                        Swal.fire({
+                            title: 'Error!',
+                            text: errorResponse.message || 'An error occurred',
+                            icon: 'error'
+                        });
+                    } catch (e) {
+                        // If not JSON, show raw response
+                        Swal.fire({
+                            title: 'Error!',
+                            text: 'An error occurred: ' + xhr.responseText,
+                            icon: 'error'
+                        });
+                    }
+                }
+            });
+        });
+
+        // Handle delete button click
+        $(document).on('click', '.btn-del', function() {
+            var instructorId = $(this).data('id');
+            var instructorName = $(this).attr('instructor_name');
+            
+            // Show confirmation dialog
+            $('#delete_instructorname').val(instructorName);
+            $('#delete_instructorid').val(instructorId);
+            $('#delinstructor-modal').modal('show');
+        });
+
+        // Handle the actual deletion when "Yes" is clicked in the modal
+        $(document).on('click', '#btn-delinstructor', function() {
+            var instructorId = $('#delete_instructorid').val();
+            var instructorName = $('#delete_instructorname').val();
+            
+            // Show loading indicator
+            $('#btn-delinstructor').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...');
+            $('#btn-delinstructor').prop('disabled', true);
+            
+            $.ajax({
+                url: 'del.php',
+                type: 'POST',
+                data: { 
+                    type: 'instructor',
+                    id: instructorId 
+                },
+                dataType: 'json',
+                success: function(response) {
+                    // Reset button state
+                    $('#btn-delinstructor').html('Yes');
+                    $('#btn-delinstructor').prop('disabled', false);
+                    
+                    if (response.status === 'success') {
+                        // Close the modal
+                        $('#delinstructor-modal').modal('hide');
+                        
+                        // Remove the row from the table
+                        dataTable.row($('.table-' + instructorId)).remove().draw();
+                        
+                        // Show success message
+                        Swal.fire({
+                            title: 'Success!',
+                            text: response.message,
+                            icon: 'success',
+                            timer: 3000,
+                            showConfirmButton: false
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Error!',
+                            text: response.message,
+                            icon: 'error'
+                        });
+                    }
+                },
+                error: function(xhr, status, error) {
+                    // Reset button state
+                    $('#btn-delinstructor').html('Yes');
+                    $('#btn-delinstructor').prop('disabled', false);
+                    
+                    Swal.fire({
+                        title: 'Error!',
+                        text: 'An error occurred: ' + error,
+                        icon: 'error'
+                    });
+                }
+            });
+        });
+
+        // Reset modal when closed
+        $('#instructorModal').on('hidden.bs.modal', function () {
+            $(this).find('form')[0].reset();
+            $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
+        });
+
+        // Image preview functionality
+        $("[class^=upload-field-]").change(function () {
+            readURL(this);
+        });
+
+        function readURL(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const validFormats = ['image/jpeg', 'image/png'];
+                const maxSize = 2 * 1024 * 1024; // 2MB
+
+                // Validate file format
+                if (!validFormats.includes(file.type)) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Invalid Format',
+                        text: 'Only JPG and PNG formats are allowed.',
+                    });
+                    input.value = ''; // Reset the input
+                    return;
+                }
+
+                // Validate file size
+                if (file.size > maxSize) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'File Too Large',
+                        text: 'Maximum file size is 2MB.',
+                    });
+                    input.value = ''; // Reset the input
+                    return;
+                }
+
+                // Preview the image
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    var num = $(input).attr('class').split('-')[2];
+                    $('.file-uploader .preview-' + num).attr('src', e.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
     });
     </script>
 </body>

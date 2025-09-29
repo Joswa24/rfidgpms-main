@@ -1,6 +1,48 @@
+<?php
+session_start();
+// Display success/error messages
+if (isset($_SESSION['success_message'])) {
+    echo '<div class="alert alert-success">' . $_SESSION['success_message'] . '</div>';
+    unset($_SESSION['success_message']);
+}
+if (isset($_SESSION['error_message'])) {
+    echo '<div class="alert alert-danger">' . $_SESSION['error_message'] . '</div>';
+    unset($_SESSION['error_message']);
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <?php include 'header.php'; ?>
+<?php include '../connection.php'; ?>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Department</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <style>
+        .bg-light {
+            background-color: #f8f9fa !important;
+        }
+        .card {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+        .table th {
+            background-color: #4e73df;
+            color: white;
+        }
+        .badge {
+            font-size: 0.85em;
+        }
+        .section-header {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+    </style>
+</head>
+
 <body>
     <div class="container-fluid position-relative bg-white d-flex p-0">
         <!-- Sidebar Start -->
@@ -13,55 +55,53 @@
 
             <div class="container-fluid pt-4 px-4">
                 <div class="col-sm-12 col-xl-12">
-                    <div class="col-sm-12 col-xl-12">
-                        <div class="bg-light rounded h-100 p-4">
-                            <div class="row">
-                                <div class="col-9">
-                                    <h6 class="mb-4">Manage Department</h6>
-                                </div>
-                                <div class="col-3">
-                                    <button type="button" class="btn btn-outline-warning m-2" data-bs-toggle="modal" data-bs-target="#departmentModal">Add Department</button>
-                                </div>
+                    <div class="bg-light rounded h-100 p-4">
+                        <div class="row">
+                            <div class="col-9">
+                                <h6 class="mb-4">Manage Department</h6>
                             </div>
-                            <hr></hr>
-                            <div class="table-responsive">
-                                <table class="table table-border" id="myDataTable">
-                                    <thead>
-                                        <tr>
-                                            <th scope="col">Department Name</th>
-                                            <th scope="col">Department Description</th>
-                                            <th scope="col">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php include '../connection.php'; ?>
-                                        <?php $results = mysqli_query($db, "SELECT * FROM department"); ?>
-                                        <?php while ($row = mysqli_fetch_array($results)) { ?>
-                                        <tr class="table-<?php echo $row['department_id'];?>">
-                                            <td><?php echo $row['department_name']; ?></td>
-                                            <td><?php echo $row['department_desc']; ?></td>
-                                            <td width="14%">
-                                                <center>
-                                                    <button department_name="<?php echo $row['department_name'];?>" 
-                                                            department_desc="<?php echo $row['department_desc'];?>" 
-                                                            data-id="<?php echo $row['department_id'];?>" 
-                                                            class="btn btn-outline-primary btn-sm btn-edit e_department_id">
-                                                        <i class="bi bi-plus-edit"></i> Edit 
-                                                    </button>
-                                                    <button id="deldpt" 
-                                                            department_name="<?php echo $row['department_name'];?>" 
-                                                            department_desc="<?php echo $row['department_desc'];?>"  
-                                                            data-id="<?php echo $row['department_id']; ?>" 
-                                                            class="btn btn-outline-danger btn-sm btn-del d_department_id">
-                                                        <i class="bi bi-plus-trash"></i> Delete 
-                                                    </button>
-                                                </center> 
-                                            </td>
-                                        </tr>
-                                        <?php } ?>
-                                    </tbody>
-                                </table>
+                            <div class="col-3">
+                                <button type="button" class="btn btn-outline-warning m-2" data-bs-toggle="modal" data-bs-target="#departmentModal">
+                                    <i class="fas fa-plus-circle"></i> Add Department
+                                </button>
                             </div>
+                        </div>
+                        <hr>
+                        <div class="table-responsive">
+                            <table class="table table-border" id="myDataTable">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Department Name</th>
+                                        <th scope="col">Department Description</th>
+                                        <th scope="col">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php $results = mysqli_query($db, "SELECT * FROM department"); ?>
+                                    <?php while ($row = mysqli_fetch_array($results)) { ?>
+                                    <tr class="table-<?php echo $row['department_id'];?>">
+                                        <td><?php echo $row['department_name']; ?></td>
+                                        <td><?php echo $row['department_desc']; ?></td>
+                                        <td width="14%">
+                                            <center>
+                                                <button department_name="<?php echo $row['department_name'];?>" 
+                                                        department_desc="<?php echo $row['department_desc'];?>" 
+                                                        data-id="<?php echo $row['department_id'];?>" 
+                                                        class="btn btn-outline-primary btn-sm btn-edit e_department_id">
+                                                    <i class="fas fa-edit"></i> Edit 
+                                                </button>
+                                                <button department_name="<?php echo $row['department_name'];?>" 
+                                                        department_desc="<?php echo $row['department_desc'];?>"  
+                                                        data-id="<?php echo $row['department_id']; ?>" 
+                                                        class="btn btn-outline-danger btn-sm btn-del d_department_id">
+                                                    <i class="fas fa-trash"></i> Delete 
+                                                </button>
+                                            </center> 
+                                        </td>
+                                    </tr>
+                                    <?php } ?>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -72,12 +112,14 @@
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title" id="exampleModalLabel"><i class="bi bi-plus-circle"></i> New Department</h5>
-                            <button type="button" onclick="resetForm()" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            <h5 class="modal-title" id="exampleModalLabel">
+                                <i class="fas fa-plus-circle"></i> New Department
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <form id="myForm">
+                        <div class="col-lg-11 mb-2 mt-1" id="mgs-dept" style="margin-left: 4%"></div>
+                        <form id="departmentForm">
                             <div class="modal-body">
-                                <div class="col-lg-12 mt-1" id="mgs-dept"></div>
                                 <div class="col-lg-12 mb-1">
                                     <div class="form-group">
                                         <label for="inputTime"><b>Department Name:</b></label>
@@ -94,8 +136,8 @@
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" onclick="resetForm()" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                                <button type="button" class="btn btn-outline-warning" id="btn-department">Save</button>
+                                <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-outline-warning" id="btn-department">Save</button>
                             </div>
                         </form>
                     </div>
@@ -107,7 +149,9 @@
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title"><i class="bi bi-pencil"></i> Edit Department</h5>
+                            <h5 class="modal-title">
+                                <i class="fas fa-edit"></i> Edit Department
+                            </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
@@ -141,10 +185,12 @@
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title"><i class="bi bi-trash"></i> Delete Department</h5>
+                            <h5 class="modal-title">
+                                <i class="fas fa-trash"></i> Delete Department
+                            </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <form method="POST">
+                        <form method="POST" id="delete-form">
                             <div class="modal-body">
                                 <div class="col-lg-12 mt-1" id="mgs-deldept"></div>
                                 <div class="col-lg-12 mb-1">
@@ -167,28 +213,22 @@
 
             <?php include 'footer.php'; ?>
         </div>
-
-        <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top"><i class="bi bi-arrow-up"></i></a>
     </div>
 
     <!-- JavaScript Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="lib/chart/chart.min.js"></script>
-    <script src="lib/easing/easing.min.js"></script>
-    <script src="lib/waypoints/waypoints.min.js"></script>
-    <script src="lib/owlcarousel/owl.carousel.min.js"></script>
-    <script src="lib/tempusdominus/js/moment.min.js"></script>
-    <script src="lib/tempusdominus/js/moment-timezone.min.js"></script>
-    <script src="lib/tempusdominus/js/tempusdominus-bootstrap-4.min.js"></script>
-    <script src="js/main.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-    <!-- ====================== -->
-    <!-- CRUD FUNCTIONALITY JS -->
-    <!-- ====================== -->
     <script>
     $(document).ready(function() {
         // Initialize DataTable
-        $('#myDataTable').DataTable({ order: [[0, 'desc']] });
+        var dataTable = $('#myDataTable').DataTable({
+            order: [[0, 'desc']],
+            stateSave: true
+        });
 
         // Helper function to validate inputs
         function validateInput(input, errorId, message) {
@@ -203,16 +243,18 @@
         }
 
         // Helper function to reset form
-        window.resetForm = function() {
+        function resetForm() {
             document.getElementById('deptname-error').innerHTML = '';
             document.getElementById('deptname-desc').innerHTML = '';
-            document.getElementById('myForm').reset();
+            document.getElementById('departmentForm').reset();
         }
 
         // ==============
         // CREATE (ADD)
         // ==============
-        $('#btn-department').click(function() {
+        $('#departmentForm').submit(function(e) {
+            e.preventDefault();
+            
             var inputField = document.getElementById('department_name');
             var inputField1 = document.getElementById('department_description');
 
@@ -226,8 +268,8 @@
             var dptdesc = $('#department_description').val();
             
             // Show loading state
-            $(this).html('<span class="spinner-border spinner-border-sm"></span>');
-            $(this).prop('disabled', true);
+            $('#btn-department').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
+            $('#btn-department').prop('disabled', true);
 
             $.ajax({
                 type: "POST",
@@ -235,6 +277,10 @@
                 data: { dptname: dptname, dptdesc: dptdesc },
                 dataType: 'json',
                 success: function(response) {
+                    // Reset button state
+                    $('#btn-department').html('Save');
+                    $('#btn-department').prop('disabled', false);
+                    
                     if (response.status === 'success') {
                         Swal.fire({
                             icon: 'success',
@@ -243,18 +289,27 @@
                             showConfirmButton: false,
                             timer: 1500
                         }).then(() => {
+                            $('#departmentModal').modal('hide');
                             location.reload();
                         });
                     } else {
-                        Swal.fire('Error!', response.message, 'error');
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: response.message
+                        });
                     }
-                    $('#btn-department').html('Save');
-                    $('#btn-department').prop('disabled', false);
                 },
                 error: function(xhr) {
-                    Swal.fire('Error!', 'An error occurred while processing your request', 'error');
+                    // Reset button state
                     $('#btn-department').html('Save');
                     $('#btn-department').prop('disabled', false);
+                    
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: 'An error occurred while processing your request'
+                    });
                 }
             });
         });
@@ -262,7 +317,7 @@
         // ==========
         // READ (EDIT)
         // ==========
-        $('.e_department_id').click(function() {
+        $(document).on('click', '.e_department_id', function() {
             var id = $(this).data('id');
             var name = $(this).attr('department_name');
             var desc = $(this).attr('department_desc');
@@ -292,7 +347,7 @@
             var dptdesc = $('#edit_departmentdescription').val();
             
             // Show loading state
-            $(this).html('<span class="spinner-border spinner-border-sm"></span>');
+            $(this).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
             $(this).prop('disabled', true);
 
             $.ajax({
@@ -301,6 +356,10 @@
                 data: { dptname: dptname, dptdesc: dptdesc },
                 dataType: 'json',
                 success: function(response) {
+                    // Reset button state
+                    $('#btn-editdepartment').html('Update');
+                    $('#btn-editdepartment').prop('disabled', false);
+                    
                     if (response.status === 'success') {
                         Swal.fire({
                             icon: 'success',
@@ -309,18 +368,27 @@
                             showConfirmButton: false,
                             timer: 1500
                         }).then(() => {
+                            $('#editdepartment-modal').modal('hide');
                             location.reload();
                         });
                     } else {
-                        Swal.fire('Error!', response.message, 'error');
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: response.message
+                        });
                     }
-                    $('#btn-editdepartment').html('Update');
-                    $('#btn-editdepartment').prop('disabled', false);
                 },
                 error: function(xhr) {
-                    Swal.fire('Error!', 'An error occurred while processing your request', 'error');
+                    // Reset button state
                     $('#btn-editdepartment').html('Update');
                     $('#btn-editdepartment').prop('disabled', false);
+                    
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: 'An error occurred while processing your request'
+                    });
                 }
             });
         });
@@ -328,56 +396,79 @@
         // ==========
         // DELETE
         // ==========
-        $('.d_department_id').click(function(e) {
-            e.preventDefault();
+        $(document).on('click', '.d_department_id', function() {
             var id = $(this).data('id');
             var name = $(this).attr('department_name');
             
-            Swal.fire({
-                title: 'Are you sure?',
-                text: `You are about to delete department: ${name}`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, delete it!'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Show loading state
-                    var $btn = $(this);
-                    $btn.html('<span class="spinner-border spinner-border-sm"></span>');
-                    $btn.prop('disabled', true);
+            // Store these for use in the AJAX call
+            currentDeleteDepartmentId = id;
+            currentDeleteDepartmentName = name;
+            
+            // Show confirmation dialog
+            $('#delete_departmentname').val(name);
+            $('#delete_departmentid').val(id);
+            $('#deldepartment-modal').modal('show');
+        });
+
+        // Handle the actual deletion when "Yes" is clicked in the modal
+        $(document).on('click', '#btn-deldepartment', function() {
+            var id = $('#delete_departmentid').val();
+            var name = $('#delete_departmentname').val();
+            
+            // Show loading indicator
+            $('#btn-deldepartment').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...');
+            $('#btn-deldepartment').prop('disabled', true);
+            
+            $.ajax({
+                type: 'POST',
+                url: 'del.php',
+                data: { type: 'department', id: id },
+                dataType: 'json',
+                success: function(response) {
+                    // Reset button state
+                    $('#btn-deldepartment').html('Yes');
+                    $('#btn-deldepartment').prop('disabled', false);
                     
-                    $.ajax({
-                        type: 'POST',
-                        url: 'del.php',
-                        data: { type: 'department', id: id },
-                        dataType: 'json',
-                        success: function(response) {
-                            if (response.status === 'success') {
-                                Swal.fire({
-                                    title: 'Deleted!',
-                                    text: response.message,
-                                    icon: 'success',
-                                    timer: 1500,
-                                    showConfirmButton: false
-                            }).then(() => {
-                                location.reload();
-                            });
-                            } else {
-                                Swal.fire('Error!', response.message, 'error');
-                                $btn.html('<i class="bi bi-plus-trash"></i> Delete');
-                                $btn.prop('disabled', false);
-                            }
-                        },
-                        error: function(xhr) {
-                            Swal.fire('Error!', 'An error occurred while processing your request', 'error');
-                            $btn.html('<i class="bi bi-plus-trash"></i> Delete');
-                            $btn.prop('disabled', false);
-                        }
+                    if (response.status === 'success') {
+                        // Close the modal
+                        $('#deldepartment-modal').modal('hide');
+                        
+                        // Remove the row from the table
+                        dataTable.row($('.table-' + id)).remove().draw();
+                        
+                        // Show success message
+                        Swal.fire({
+                            title: 'Success!',
+                            text: response.message,
+                            icon: 'success',
+                            timer: 3000,
+                            showConfirmButton: false
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Error!',
+                            text: response.message,
+                            icon: 'error'
+                        });
+                    }
+                },
+                error: function(xhr, status, error) {
+                    // Reset button state
+                    $('#btn-deldepartment').html('Yes');
+                    $('#btn-deldepartment').prop('disabled', false);
+                    
+                    Swal.fire({
+                        title: 'Error!',
+                        text: 'An error occurred: ' + error,
+                        icon: 'error'
                     });
                 }
             });
+        });
+
+        // Reset modal when closed
+        $('#departmentModal').on('hidden.bs.modal', function () {
+            resetForm();
         });
     });
     </script>
