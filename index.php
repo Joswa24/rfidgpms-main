@@ -505,41 +505,45 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Initial check
         $('#roomdpt').trigger('change');
 
-        // Form submission handler
-        $('#logform').on('submit', function(e) {
-            e.preventDefault();
-            
-            const idNumber = $('#id-input').val();
-            const password = $('#password').val();
-            const department = $('#roomdpt').val();
-            const selectedRoom = $('#location').val();
-            
-            // Validate ID format
-            if (!/^\d{4}-\d{4}$/.test(idNumber)) {
-                showAlert('Please enter a valid ID number (format: 0000-0000)');
-                idInput.focus();
-                return;
-            }
-            
-            if (!password) {
-                showAlert('Please enter your password');
-                $('#password').focus();
-                return;
-            }
-            
-            // For Main department + Gate location, proceed directly to gate access
-            if (department === 'Main' && selectedRoom === 'Gate') {
-                submitLoginForm();
-            } 
-            // If we have a selected subject, proceed
-            else if ($('#selected_subject').val()) {
-                submitLoginForm();
-            }
-            // Otherwise show subject selection
-            else {
-                showSubjectSelectionModal();
-            }
-        });
+        // Form submission handler - FIXED VERSION
+$('#logform').on('submit', function(e) {
+    e.preventDefault();
+    
+    const idNumber = $('#id-input').val();
+    const password = $('#password').val();
+    const department = $('#roomdpt').val();
+    const selectedRoom = $('#location').val();
+    
+    // Validate ID format
+    if (!/^\d{4}-\d{4}$/.test(idNumber)) {
+        showAlert('Please enter a valid ID number (format: 0000-0000)');
+        idInput.focus();
+        return;
+    }
+    
+    if (!password) {
+        showAlert('Please enter your password');
+        $('#password').focus();
+        return;
+    }
+    
+    // FOR GATE ACCESS (Security Personnel): Main department + Gate location
+    if (department === 'Main' && selectedRoom === 'Gate') {
+        // Clear any subject selection for gate access
+        $('#selected_subject').val('');
+        $('#selected_room').val('');
+        $('#selected_time').val('');
+        submitLoginForm();
+    } 
+    // FOR CLASSROOM ACCESS (Instructors): If we already have a selected subject, proceed
+    else if ($('#selected_subject').val()) {
+        submitLoginForm();
+    }
+    // FOR CLASSROOM ACCESS (Instructors): Otherwise show subject selection
+    else {
+        showSubjectSelectionModal();
+    }
+});
 
         // Show subject selection modal
         function showSubjectSelectionModal() {
@@ -561,70 +565,86 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
 
         // Load subjects for instructor
-        function loadInstructorSubjects(idNumber, selectedRoom) {
-            $.ajax({
-                url: 'get_instructor_subjects.php',
-                type: 'GET',
-                data: { 
-                    id_number: idNumber.replace(/-/g, ''),
-                    room_name: selectedRoom
-                },
-                dataType: 'json',
-                success: function(response) {
-                    try {
-                        const data = typeof response === 'string' ? JSON.parse(response) : response;
-                        
-                        if (data.status === 'success' && data.data && data.data.length > 0) {
-                            let html = '';
-                            data.data.forEach(schedule => {
-                                const now = new Date();
-                                const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
+        // Load subjects for instructor - DEBUG VERSION
+function loadInstructorSubjects(idNumber, selectedRoom) {
+    console.log("Loading subjects for:", {
+        id_number: idNumber.replace(/-/g, ''),
+        room_name: selectedRoom
+    });
+    
+    $('#subjectList').html('<tr><td colspan="5" class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>');
+    
+    $.ajax({
+        url: 'get_instructor_subjects.php',
+        type: 'GET',
+        data: { 
+            id_number: idNumber.replace(/-/g, ''),
+            room_name: selectedRoom
+        },
+        dataType: 'json',
+        success: function(response) {
+            console.log("AJAX Success Response:", response);
+            
+            try {
+                const data = typeof response === 'string' ? JSON.parse(response) : response;
+                console.log("Parsed Data:", data);
+                
+                if (data.status === 'success' && data.data && data.data.length > 0) {
+                    let html = '';
+                    data.data.forEach(schedule => {
+                        const now = new Date();
+                        const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
 
-                                // Parse subject start time into minutes
-                                let startMinutes = null;
-                                if (schedule.start_time) {
-                                    const [hour, minute, second] = schedule.start_time.split(':');
-                                    startMinutes = parseInt(hour, 10) * 60 + parseInt(minute, 10);
-                                }
-
-                                const isEnabled = startMinutes !== null && startMinutes >= currentTimeMinutes;
-
-                                const startTimeFormatted = schedule.start_time ? 
-                                    new Date(`1970-01-01T${schedule.start_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
-                                    'N/A';
-                                const endTimeFormatted = schedule.end_time ? 
-                                    new Date(`1970-01-01T${schedule.end_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
-                                    'N/A';
-
-                                html += `
-                                    <tr class="modal-subject-row ${!isEnabled ? 'table-secondary' : ''}">
-                                        <td>
-                                            <input type="checkbox" class="form-check-input subject-checkbox"
-                                                data-subject="${schedule.subject || ''}"
-                                                data-room="${schedule.room_name || ''}"
-                                                ${!isEnabled ? 'disabled' : ''}>
-                                        </td>
-                                        <td>${schedule.subject || 'N/A'}</td>
-                                        <td>${schedule.section || 'N/A'}</td>
-                                        <td>${schedule.day || 'N/A'}</td>
-                                        <td>${startTimeFormatted} - ${endTimeFormatted}</td>
-                                    </tr>`;
-                            });
-
-                            $('#subjectList').html(html);
-                        } else {
-                            $('#subjectList').html(`<tr><td colspan="5" class="text-center">No scheduled subjects found</td></tr>`);
+                        // Parse subject start time into minutes
+                        let startMinutes = null;
+                        if (schedule.start_time) {
+                            const [hour, minute, second] = schedule.start_time.split(':');
+                            startMinutes = parseInt(hour, 10) * 60 + parseInt(minute, 10);
                         }
-                    } catch (e) {
-                        console.error('Error parsing subjects:', e, response);
-                        $('#subjectList').html('<tr><td colspan="5" class="text-center text-danger">Error loading subjects</td></tr>');
-                    }
-                },
-                error: function(xhr) {
-                    $('#subjectList').html('<tr><td colspan="5" class="text-center text-danger">Error loading subjects</td></tr>');
+
+                        const isEnabled = startMinutes !== null && startMinutes >= currentTimeMinutes;
+
+                        const startTimeFormatted = schedule.start_time ? 
+                            new Date(`1970-01-01T${schedule.start_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
+                            'N/A';
+                        const endTimeFormatted = schedule.end_time ? 
+                            new Date(`1970-01-01T${schedule.end_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
+                            'N/A';
+
+                        html += `
+                            <tr class="modal-subject-row ${!isEnabled ? 'table-secondary' : ''}">
+                                <td>
+                                    <input type="checkbox" class="form-check-input subject-checkbox"
+                                        data-subject="${schedule.subject || ''}"
+                                        data-room="${schedule.room_name || ''}"
+                                        ${!isEnabled ? 'disabled' : ''}>
+                                </td>
+                                <td>${schedule.subject || 'N/A'}</td>
+                                <td>${schedule.section || 'N/A'}</td>
+                                <td>${schedule.day || 'N/A'}</td>
+                                <td>${startTimeFormatted} - ${endTimeFormatted}</td>
+                            </tr>`;
+                    });
+
+                    $('#subjectList').html(html);
+                } else {
+                    $('#subjectList').html(`<tr><td colspan="5" class="text-center">No scheduled subjects found for this room</td></tr>`);
                 }
+            } catch (e) {
+                console.error('Error parsing subjects:', e, response);
+                $('#subjectList').html('<tr><td colspan="5" class="text-center text-danger">Error parsing subjects data</td></tr>');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('AJAX Error:', {
+                status: status,
+                error: error,
+                responseText: xhr.responseText
             });
+            $('#subjectList').html('<tr><td colspan="5" class="text-center text-danger">Error loading subjects. Check console for details.</td></tr>');
         }
+    });
+}
 
         // Handle subject selection (instructors only)
         $(document).on('change', '.subject-checkbox', function() {
