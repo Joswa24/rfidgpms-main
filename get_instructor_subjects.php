@@ -117,7 +117,7 @@ try {
                             start_time,
                             end_time,
                             room_name
-                        FROM schedule 
+                        FROM room_schedules 
                         WHERE (instructor_id = ? OR instructor_id_number = ?)
                         AND room_name = ?
                         AND status = 'Active'
