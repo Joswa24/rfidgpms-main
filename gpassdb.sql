@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 29, 2025 at 07:45 AM
+-- Generation Time: Sep 30, 2025 at 10:53 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -279,14 +279,6 @@ CREATE TABLE `attendance_logs` (
   `instructor_id` varchar(9) NOT NULL,
   `status` varchar(20) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `attendance_logs`
---
-
-INSERT INTO `attendance_logs` (`id`, `student_id`, `id_number`, `time_in`, `time_out`, `department`, `location`, `instructor_id`, `status`) VALUES
-(319, 75, '2024-1570', '2025-09-19 13:41:58', NULL, 'BSIT', 'ComLab2', '', NULL),
-(321, 77, '2024-1697', '2025-09-22 09:40:11', '2025-09-22 09:40:11', 'BSIT', 'ComLab2', '', NULL);
 
 -- --------------------------------------------------------
 
@@ -645,6 +637,35 @@ CREATE TABLE `login_attempts` (
   `attempted_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `success` tinyint(1) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `lostcard`
+--
+
+CREATE TABLE `lostcard` (
+  `id` int(11) NOT NULL,
+  `personnel_id` int(11) NOT NULL,
+  `date_requested` datetime NOT NULL,
+  `status` int(1) NOT NULL,
+  `verification_photo` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `lost_found`
+--
+
+CREATE TABLE `lost_found` (
+  `id` int(11) NOT NULL,
+  `sender` varchar(255) NOT NULL,
+  `status` int(11) NOT NULL,
+  `department` varchar(255) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `date` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -1390,6 +1411,18 @@ ALTER TABLE `login_attempts`
   ADD KEY `idx_ip_time` (`ip_address`,`attempted_at`);
 
 --
+-- Indexes for table `lostcard`
+--
+ALTER TABLE `lostcard`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `lost_found`
+--
+ALTER TABLE `lost_found`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indexes for table `personell`
 --
 ALTER TABLE `personell`
@@ -1637,6 +1670,18 @@ ALTER TABLE `instructor_logs`
 -- AUTO_INCREMENT for table `login_attempts`
 --
 ALTER TABLE `login_attempts`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `lostcard`
+--
+ALTER TABLE `lostcard`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=103;
+
+--
+-- AUTO_INCREMENT for table `lost_found`
+--
+ALTER TABLE `lost_found`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
