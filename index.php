@@ -620,9 +620,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         $('#subjectList').html('<tr><td colspan="5" class="text-center text-danger">Error loading subjects</td></tr>');
                     }
                 },
-                error: function(xhr) {
-                    $('#subjectList').html('<tr><td colspan="5" class="text-center text-danger">Error loading subjects</td></tr>');
-                }
+                
             });
         }
 
