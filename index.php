@@ -577,99 +577,116 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
 
         // Load subjects for instructor with enhanced error handling
-        function loadInstructorSubjects(idNumber, selectedRoom) {
-            // Clean the ID number by removing hyphens
-            const cleanId = idNumber.replace(/-/g, '');
+        // Load subjects for instructor with enhanced error handling
+function loadInstructorSubjects(idNumber, selectedRoom) {
+    // Clean the ID number by removing hyphens
+    const cleanId = idNumber.replace(/-/g, '');
+    
+    console.log('Loading subjects for:', {
+        idNumber: idNumber,
+        cleanId: cleanId,
+        room: selectedRoom
+    });
+    
+    $('#subjectList').html(`
+        <tr>
+            <td colspan="5" class="text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading subjects...</span>
+                </div>
+                <div class="mt-2 text-muted">Loading subjects for ${selectedRoom}...</div>
+            </td>
+        </tr>
+    `);
+
+    $.ajax({
+        url: 'get_instructor_subjects.php',
+        type: 'GET',
+        data: { 
+            id_number: cleanId,
+            room_name: selectedRoom
+        },
+        dataType: 'json',
+        timeout: 10000,
+        success: function(response) {
+            console.log('Raw API Response:', response);
             
-            console.log('Loading subjects for:', {
-                idNumber: idNumber,
-                cleanId: cleanId,
-                room: selectedRoom
-            });
+            // Check if response is already parsed or needs parsing
+            let data = response;
+            if (typeof response === 'string') {
+                try {
+                    data = JSON.parse(response);
+                } catch (e) {
+                    console.error('Failed to parse JSON:', e);
+                    showSubjectError('Invalid server response format');
+                    return;
+                }
+            }
             
-            $.ajax({
-                url: 'get_instructor_subjects.php',
-                type: 'GET',
-                data: { 
-                    id_number: cleanId,
-                    room_name: selectedRoom
-                },
-                dataType: 'json',
-                timeout: 10000, // 10 second timeout
-                success: function(response) {
-                    console.log('API Response:', response);
-                    
-                    try {
-                        const data = typeof response === 'string' ? JSON.parse(response) : response;
-                        
-                        if (data.status === 'success' && data.data && data.data.length > 0) {
-                            displaySubjects(data.data, selectedRoom);
-                        } else {
-                            let errorMessage = 'No scheduled subjects found';
-                            if (data.message) {
-                                errorMessage = data.message;
-                            }
-                            $('#subjectList').html(`
-                                <tr>
-                                    <td colspan="5" class="text-center">
-                                        <div class="alert alert-warning mb-0">
-                                            <i class="fas fa-exclamation-triangle me-2"></i>
-                                            ${errorMessage}
-                                        </div>
-                                        ${data.debug ? `<small class="text-muted">Debug: ${JSON.stringify(data.debug)}</small>` : ''}
-                                    </td>
-                                </tr>
-                            `);
-                        }
-                    } catch (e) {
-                        console.error('Error parsing subjects:', e, response);
-                        $('#subjectList').html(`
-                            <tr>
-                                <td colspan="5" class="text-center text-danger">
-                                    <i class="fas fa-exclamation-circle me-2"></i>
-                                    Error parsing response. Please try again.
-                                    <br><small class="text-muted">${e.message}</small>
-                                </td>
-                            </tr>
-                        `);
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('AJAX Error Details:', {
-                        status: status,
-                        error: error,
-                        responseText: xhr.responseText,
-                        readyState: xhr.readyState,
-                        status: xhr.status
-                    });
-                    
-                    let errorMessage = 'Failed to load subjects. ';
-                    
-                    if (status === 'timeout') {
-                        errorMessage += 'Request timed out.';
-                    } else if (status === 'parsererror') {
-                        errorMessage += 'Invalid response from server.';
-                    } else if (xhr.status === 404) {
-                        errorMessage += 'Server file not found.';
-                    } else if (xhr.status === 500) {
-                        errorMessage += 'Server error occurred.';
-                    } else {
-                        errorMessage += 'Please check your connection and try again.';
-                    }
-                    
+            if (data.status === 'success' && data.data) {
+                if (data.data.length > 0) {
+                    displaySubjects(data.data, selectedRoom);
+                } else {
                     $('#subjectList').html(`
                         <tr>
-                            <td colspan="5" class="text-center text-danger">
-                                <i class="fas fa-exclamation-circle me-2"></i>
-                                ${errorMessage}
-                                ${xhr.status ? ` (Error ${xhr.status})` : ''}
-                                <br><small class="text-muted">Check browser console for details</small>
+                            <td colspan="5" class="text-center">
+                                <div class="alert alert-warning mb-0">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    No scheduled subjects found for ${selectedRoom}
+                                    ${data.debug ? `<br><small class="text-muted">Instructor: ${data.debug.instructor}</small>` : ''}
+                                </div>
                             </td>
                         </tr>
                     `);
                 }
+            } else {
+                showSubjectError(data.message || 'Unknown error occurred');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('AJAX Error:', {
+                status: status,
+                error: error,
+                responseText: xhr.responseText,
+                statusCode: xhr.status
             });
+            
+            let errorMessage = 'Failed to load subjects. ';
+            
+            if (status === 'timeout') {
+                errorMessage = 'Request timed out. Please try again.';
+            } else if (status === 'parsererror') {
+                // Try to extract error message from response text
+                try {
+                    const errorResponse = JSON.parse(xhr.responseText);
+                    errorMessage = errorResponse.message || 'Invalid server response';
+                } catch (e) {
+                    errorMessage = 'Invalid server response format. Please check the API.';
+                }
+            } else if (xhr.status === 404) {
+                errorMessage = 'Server file not found. Please check the URL.';
+            } else if (xhr.status === 500) {
+                errorMessage = 'Server error occurred. Please check server logs.';
+            } else {
+                errorMessage = 'Please check your connection and try again.';
+            }
+            
+            showSubjectError(errorMessage);
         }
+    });
+}
+
+function showSubjectError(message) {
+    $('#subjectList').html(`
+        <tr>
+            <td colspan="5" class="text-center text-danger">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                ${message}
+                <br><small class="text-muted">Check browser console for details</small>
+            </td>
+        </tr>
+    `);
+}
 
         // Display subjects in the modal table
         function displaySubjects(schedules, selectedRoom) {
