@@ -1,26 +1,15 @@
 <?php
-
+// Start output buffering with maximum level
 while (ob_get_level()) {
     ob_end_clean();
 }
 ob_start();
 
+// Add error reporting for debugging (remove in production)
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
 session_start();
-// Security headers
-header("X-Frame-Options: DENY");
-header("X-XSS-Protection: 1; mode=block");
-header("X-Content-Type-Options: nosniff");
-header("Strict-Transport-Security: max-age=31536000; includeSubDomains");
-
-// CSRF token generation
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-
-function sanitize_input($data) {
-    return htmlspecialchars(strip_tags(trim($data)), ENT_QUOTES, 'UTF-8');
-}
 include 'connection.php';
 
 
@@ -154,7 +143,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $availablePersonnel[] = " RFID:{$row['id_number']}, Name:{$row['first_name']} {$row['last_name']}";
             }
             
-            die("Unauthorized access. Security personnel not found with ID: $id_number " );
+            die("Unauthorized access. Security personnel not found with ID: $id_number (clean: $clean_id). Available: " . implode('; ', $availablePersonnel));
         }
 
         $securityGuard = $securityResult->fetch_assoc();
@@ -505,45 +494,41 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Initial check
         $('#roomdpt').trigger('change');
 
-        // Form submission handler - FIXED VERSION
-$('#logform').on('submit', function(e) {
-    e.preventDefault();
-    
-    const idNumber = $('#id-input').val();
-    const password = $('#password').val();
-    const department = $('#roomdpt').val();
-    const selectedRoom = $('#location').val();
-    
-    // Validate ID format
-    if (!/^\d{4}-\d{4}$/.test(idNumber)) {
-        showAlert('Please enter a valid ID number (format: 0000-0000)');
-        idInput.focus();
-        return;
-    }
-    
-    if (!password) {
-        showAlert('Please enter your password');
-        $('#password').focus();
-        return;
-    }
-    
-    // FOR GATE ACCESS (Security Personnel): Main department + Gate location
-    if (department === 'Main' && selectedRoom === 'Gate') {
-        // Clear any subject selection for gate access
-        $('#selected_subject').val('');
-        $('#selected_room').val('');
-        $('#selected_time').val('');
-        submitLoginForm();
-    } 
-    // FOR CLASSROOM ACCESS (Instructors): If we already have a selected subject, proceed
-    else if ($('#selected_subject').val()) {
-        submitLoginForm();
-    }
-    // FOR CLASSROOM ACCESS (Instructors): Otherwise show subject selection
-    else {
-        showSubjectSelectionModal();
-    }
-});
+        // Form submission handler
+        $('#logform').on('submit', function(e) {
+            e.preventDefault();
+            
+            const idNumber = $('#id-input').val();
+            const password = $('#password').val();
+            const department = $('#roomdpt').val();
+            const selectedRoom = $('#location').val();
+            
+            // Validate ID format
+            if (!/^\d{4}-\d{4}$/.test(idNumber)) {
+                showAlert('Please enter a valid ID number (format: 0000-0000)');
+                idInput.focus();
+                return;
+            }
+            
+            if (!password) {
+                showAlert('Please enter your password');
+                $('#password').focus();
+                return;
+            }
+            
+            // For Main department + Gate location, proceed directly to gate access
+            if (department === 'Main' && selectedRoom === 'Gate') {
+                submitLoginForm();
+            } 
+            // If we have a selected subject, proceed
+            else if ($('#selected_subject').val()) {
+                submitLoginForm();
+            }
+            // Otherwise show subject selection
+            else {
+                showSubjectSelectionModal();
+            }
+        });
 
         // Show subject selection modal
         function showSubjectSelectionModal() {
