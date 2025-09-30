@@ -615,12 +615,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         } else {
                             $('#subjectList').html(`<tr><td colspan="5" class="text-center">No scheduled subjects found</td></tr>`);
                         }
-                    } catch (e) {
+                    }
+                },
+ catch (e) {
                         console.error('Error parsing subjects:', e, response);
                         $('#subjectList').html('<tr><td colspan="5" class="text-center text-danger">Error loading subjects</td></tr>');
                     }
-                },
-                
             });
         }
 
