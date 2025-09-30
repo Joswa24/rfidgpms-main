@@ -855,19 +855,17 @@ if ($show_timeout_message) {
                   <h5>Your time-out has been recorded</h5>
                   <div class="timeout-display"><?php echo $timeout_time; ?></div>
                   <p><?php echo $archive_message; ?></p>
-                  <?php if (isset($_SESSION['classmates_save_result'])): ?>
+                  <?php if (isset($classmates_save_result)): ?>
                   <div class="alert alert-success mt-2">
                       <i class="fas fa-check-circle me-2"></i>
                       Classmates data saved to instructor panel<br>
                       <small>
-                          <?php 
-                          $result = $_SESSION['classmates_save_result']; 
-                          if ($result['saved'] > 0): ?>
-                              <strong><?php echo $result['saved']; ?></strong> new records
+                          <?php if ($classmates_save_result['saved'] > 0): ?>
+                              <strong><?php echo $classmates_save_result['saved']; ?></strong> new records
                           <?php endif; ?>
-                          <?php if ($result['saved'] > 0 && $result['updated'] > 0): ?> | <?php endif; ?>
-                          <?php if ($result['updated'] > 0): ?>
-                              <strong><?php echo $result['updated']; ?></strong> records updated
+                          <?php if ($classmates_save_result['saved'] > 0 && $classmates_save_result['updated'] > 0): ?> | <?php endif; ?>
+                          <?php if ($classmates_save_result['updated'] > 0): ?>
+                              <strong><?php echo $classmates_save_result['updated']; ?></strong> records updated
                           <?php endif; ?>
                       </small>
                   </div>
@@ -877,11 +875,9 @@ if ($show_timeout_message) {
                </div>`,
         confirmButtonText: 'OK',
         allowOutsideClick: false
-    }).then(() => {
-        // Clear the session variable after displaying
-        <?php unset($_SESSION['classmates_save_result']); ?>
     });
 <?php endif; ?>
+    });
 </script>
 </body>
 </html>
