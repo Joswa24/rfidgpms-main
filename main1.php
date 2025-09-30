@@ -416,32 +416,35 @@ mysqli_close($db);
 <img src="uploads/Head.png" style="width: 100%; height: 150px; margin-left: 10px; padding=10px; margin-top=20px;S">
 
 <!-- Confirmation Modal -->
+<!-- Confirmation Modal -->
 <div class="modal fade confirmation-modal" id="confirmationModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">Attendance Recorded</h5>
+                <h5 class="modal-title">
+                    <i class="fas fa-door-open me-2"></i>Gate Access Recorded
+                </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body text-center">
-                <!-- Student Photo -->
+                <!-- Person Photo -->
                 <div class="mb-3">
-                    <img id="modalStudentPhoto" 
-                         src="uploads/students/default.png" 
-                         alt="Student Photo"
-                         class="student-photo">
+                    <img id="modalPersonPhoto"
+                         src="uploads/students/default.png"
+                         alt="Person Photo"
+                         class="person-photo">
                 </div>
 
-                <h4 id="modalStudentName" class="mb-3">Student Name</h4>
+                <h4 id="modalPersonName" class="mb-3">Person Name</h4>
                 
-                <div class="student-info mb-3">
-                    <div class="mb-2"><strong>ID:</strong> <span id="modalStudentId">N/A</span></div>
-                    <div class="mb-2"><strong>Department:</strong> <span id="modalStudentDept">N/A</span></div>
-                    <div class="mb-2"><strong>Role:</strong> <span id="modalStudentRole">N/A</span></div>
+                <div class="person-info mb-3">
+                    <div class="mb-2"><strong>ID:</strong> <span id="modalPersonId">N/A</span></div>
+                    <div class="mb-2"><strong>Role:</strong> <span id="modalPersonRole">N/A</span></div>
+                    <div class="mb-2"><strong>Department:</strong> <span id="modalPersonDept">N/A</span></div>
                 </div>
                 
-                <div class="attendance-status mb-3" id="modalAttendanceStatus">
-                    <span id="modalTimeInOut">Attendance Recorded</span>
+                <div class="access-status mb-3" id="modalAccessStatus">
+                    <span id="modalAccessType">Access Recorded</span>
                 </div>
                 
                 <div class="time-display">
