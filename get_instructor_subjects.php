@@ -24,7 +24,7 @@ try {
     // Log the received values
     error_log("Received request - ID: $id_number, Room: $room_name");
 
-    // 1. First verify the instructor exists
+    // 1. First verify the instructor exists and get their fullname
     $stmt = $db->prepare("SELECT id, fullname FROM instructor WHERE REPLACE(id_number, '-', '') = ?");
     $stmt->bind_param("s", $id_number);
     $stmt->execute();
@@ -35,9 +35,11 @@ try {
         throw new Exception('Instructor not found. Please check your ID number.');
     }
 
-    error_log("Found instructor: " . $instructor['fullname']);
+    $instructor_fullname = $instructor['fullname'];
+    error_log("Found instructor: " . $instructor_fullname);
 
     // 2. Get schedules for this instructor in the selected room
+    // Try multiple possible column names for instructor reference
     $query = "
         SELECT 
             subject, 
@@ -47,7 +49,7 @@ try {
             end_time,
             room_name
         FROM room_schedules 
-        WHERE instructor = ?
+        WHERE (instructor = ? OR instructor_name = ? OR instructor_id = ?)
         AND room_name = ?
         ORDER BY 
             CASE day
@@ -62,9 +64,9 @@ try {
             start_time
     ";
 
-    error_log("Executing query: $query");
+    error_log("Executing query for instructor: $instructor_fullname in room: $room_name");
     $stmt = $db->prepare($query);
-    $stmt->bind_param("ss", $instructor['fullname'], $room_name);
+    $stmt->bind_param("ssss", $instructor_fullname, $instructor_fullname, $id_number, $room_name);
     $stmt->execute();
     $result = $stmt->get_result();
 
@@ -73,15 +75,52 @@ try {
         $schedules[] = $row;
     }
 
-    error_log("Found " . count($schedules) . " schedules");
+    error_log("Found " . count($schedules) . " schedules for instructor: $instructor_fullname");
+
+    // If no schedules found, try alternative queries
+    if (empty($schedules)) {
+        error_log("No schedules found with first query, trying alternatives...");
+        
+        // Alternative 1: Try with just instructor name
+        $query2 = "SELECT subject, section, day, start_time, end_time, room_name 
+                  FROM room_schedules 
+                  WHERE instructor = ? AND room_name = ?";
+        $stmt2 = $db->prepare($query2);
+        $stmt2->bind_param("ss", $instructor_fullname, $room_name);
+        $stmt2->execute();
+        $result2 = $stmt2->get_result();
+        
+        while ($row = $result2->fetch_assoc()) {
+            $schedules[] = $row;
+        }
+        
+        error_log("Alternative query 1 found: " . count($schedules) . " schedules");
+        
+        // Alternative 2: Try without room filter to see if instructor has any schedules
+        if (empty($schedules)) {
+            $query3 = "SELECT subject, section, day, start_time, end_time, room_name 
+                      FROM room_schedules 
+                      WHERE instructor = ?";
+            $stmt3 = $db->prepare($query3);
+            $stmt3->bind_param("s", $instructor_fullname);
+            $stmt3->execute();
+            $result3 = $stmt3->get_result();
+            
+            $all_schedules = [];
+            while ($row = $result3->fetch_assoc()) {
+                $all_schedules[] = $row;
+            }
+            error_log("Instructor has " . count($all_schedules) . " total schedules in all rooms");
+        }
+    }
 
     echo json_encode([
         'status' => 'success',
         'data' => $schedules,
         'debug' => [
-            'instructor' => $instructor['fullname'],
+            'instructor' => $instructor_fullname,
             'room' => $room_name,
-            'query' => $query
+            'total_schedules' => count($schedules)
         ]
     ]);
 
