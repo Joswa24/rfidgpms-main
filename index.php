@@ -550,70 +550,235 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
 
         // Load subjects for instructor
-        function loadInstructorSubjects(idNumber, selectedRoom) {
-            $.ajax({
-                url: 'get_instructor_subjects.php',
-                type: 'GET',
-                data: { 
-                    id_number: idNumber.replace(/-/g, ''),
-                    room_name: selectedRoom
-                },
-                dataType: 'json',
-                success: function(response) {
-                    try {
-                        const data = typeof response === 'string' ? JSON.parse(response) : response;
-                        
-                        if (data.status === 'success' && data.data && data.data.length > 0) {
-                            let html = '';
-                            data.data.forEach(schedule => {
-                                const now = new Date();
-                                const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
+        // Show subject selection modal
+function showSubjectSelectionModal() {
+    const idNumber = $('#id-input').val();
+    const selectedRoom = $('#location').val();
+    
+    if (!idNumber || !selectedRoom) {
+        showAlert('Please select a location first');
+        return;
+    }
+    
+    // Clear previous selections
+    $('#selected_subject').val('');
+    $('#selected_room').val('');
+    $('#selected_time').val('');
+    $('.subject-checkbox').prop('checked', false);
+    $('#confirmSubject').prop('disabled', true);
+    
+    $('#subjectList').html('<tr><td colspan="5" class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading subjects...</span></div></td></tr>');
+    
+    const subjectModal = new bootstrap.Modal(document.getElementById('subjectModal'));
+    subjectModal.show();
+    
+    $('#modalRoomName').text(selectedRoom);
+    loadInstructorSubjects(idNumber, selectedRoom);
+}
 
-                                // Parse subject start time into minutes
-                                let startMinutes = null;
-                                if (schedule.start_time) {
-                                    const [hour, minute, second] = schedule.start_time.split(':');
-                                    startMinutes = parseInt(hour, 10) * 60 + parseInt(minute, 10);
-                                }
-
-                                const isEnabled = startMinutes !== null && startMinutes >= currentTimeMinutes;
-
-                                const startTimeFormatted = schedule.start_time ? 
-                                    new Date(`1970-01-01T${schedule.start_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
-                                    'N/A';
-                                const endTimeFormatted = schedule.end_time ? 
-                                    new Date(`1970-01-01T${schedule.end_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
-                                    'N/A';
-
-                                html += `
-                                    <tr class="modal-subject-row ${!isEnabled ? 'table-secondary' : ''}">
-                                        <td>
-                                            <input type="checkbox" class="form-check-input subject-checkbox"
-                                                data-subject="${schedule.subject || ''}"
-                                                data-room="${schedule.room_name || ''}"
-                                                ${!isEnabled ? 'disabled' : ''}>
-                                        </td>
-                                        <td>${schedule.subject || 'N/A'}</td>
-                                        <td>${schedule.section || 'N/A'}</td>
-                                        <td>${schedule.day || 'N/A'}</td>
-                                        <td>${startTimeFormatted} - ${endTimeFormatted}</td>
-                                    </tr>`;
-                            });
-
-                            $('#subjectList').html(html);
-                        } else {
-                            $('#subjectList').html(`<tr><td colspan="5" class="text-center">No scheduled subjects found</td></tr>`);
-                        }
-                    } catch (e) {
-                        console.error('Error parsing subjects:', e, response);
-                        $('#subjectList').html('<tr><td colspan="5" class="text-center text-danger">Error loading subjects</td></tr>');
-                    }
-                },
-                error: function(xhr) {
-                    $('#subjectList').html('<tr><td colspan="5" class="text-center text-danger">Error loading subjects</td></tr>');
+// Load subjects for instructor with enhanced error handling
+function loadInstructorSubjects(idNumber, selectedRoom) {
+    // Clean the ID number by removing hyphens
+    const cleanId = idNumber.replace(/-/g, '');
+    
+    console.log('Loading subjects for:', {
+        idNumber: idNumber,
+        cleanId: cleanId,
+        room: selectedRoom
+    });
+    
+    $.ajax({
+        url: 'get_instructor_subjects.php',
+        type: 'GET',
+        data: { 
+            id_number: cleanId,
+            room_name: selectedRoom
+        },
+        dataType: 'json',
+        success: function(response) {
+            console.log('API Response:', response);
+            
+            try {
+                const data = typeof response === 'string' ? JSON.parse(response) : response;
+                
+                if (data.status === 'success' && data.data && data.data.length > 0) {
+                    displaySubjects(data.data);
+                } else {
+                    $('#subjectList').html(`
+                        <tr>
+                            <td colspan="5" class="text-center">
+                                <div class="alert alert-warning mb-0">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    No scheduled subjects found for ${selectedRoom}
+                                </div>
+                            </td>
+                        </tr>
+                    `);
                 }
-            });
+            } catch (e) {
+                console.error('Error parsing subjects:', e, response);
+                $('#subjectList').html(`
+                    <tr>
+                        <td colspan="5" class="text-center text-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            Error loading subjects. Please try again.
+                        </td>
+                    </tr>
+                `);
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('AJAX Error:', status, error, xhr.responseText);
+            $('#subjectList').html(`
+                <tr>
+                    <td colspan="5" class="text-center text-danger">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        Failed to load subjects. Please check your connection and try again.
+                        ${xhr.status ? ` (Error ${xhr.status})` : ''}
+                    </td>
+                </tr>
+            `);
         }
+    });
+}
+
+// Display subjects in the modal table
+function displaySubjects(schedules) {
+    let html = '';
+    const now = new Date();
+    const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' });
+    const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
+    
+    let hasAvailableSubjects = false;
+    
+    schedules.forEach(schedule => {
+        const isToday = schedule.day === currentDay;
+        
+        // Parse subject start time into minutes
+        let startMinutes = null;
+        let endMinutes = null;
+        
+        if (schedule.start_time) {
+            const [hour, minute, second] = schedule.start_time.split(':');
+            startMinutes = parseInt(hour, 10) * 60 + parseInt(minute, 10);
+        }
+        
+        if (schedule.end_time) {
+            const [hour, minute, second] = schedule.end_time.split(':');
+            endMinutes = parseInt(hour, 10) * 60 + parseInt(minute, 10);
+        }
+        
+        // Determine if subject is available for selection
+        // Available if it's today and current time is before or during the class
+        const isEnabled = isToday && startMinutes !== null && 
+                         (currentTimeMinutes <= endMinutes);
+        
+        const startTimeFormatted = schedule.start_time ? 
+            new Date(`1970-01-01T${schedule.start_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
+            'N/A';
+            
+        const endTimeFormatted = schedule.end_time ? 
+            new Date(`1970-01-01T${schedule.end_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
+            'N/A';
+        
+        // Determine row styling
+        let rowClass = '';
+        let statusBadge = '';
+        
+        if (!isToday) {
+            rowClass = 'table-secondary';
+            statusBadge = '<span class="badge bg-secondary ms-1">Not Today</span>';
+        } else if (!isEnabled) {
+            rowClass = 'table-warning';
+            statusBadge = '<span class="badge bg-warning ms-1">Class Ended</span>';
+        } else {
+            hasAvailableSubjects = true;
+            statusBadge = '<span class="badge bg-success ms-1">Available</span>';
+        }
+        
+        html += `
+            <tr class="modal-subject-row ${rowClass}">
+                <td>
+                    <input type="radio" class="form-check-input subject-radio" 
+                           name="selectedSubject"
+                           data-subject="${schedule.subject || ''}"
+                           data-room="${schedule.room_name || selectedRoom}"
+                           data-time="${startTimeFormatted} - ${endTimeFormatted}"
+                           ${!isEnabled ? 'disabled' : ''}>
+                </td>
+                <td>
+                    ${schedule.subject || 'N/A'}
+                    ${statusBadge}
+                </td>
+                <td>${schedule.section || 'N/A'}</td>
+                <td>${schedule.day || 'N/A'}</td>
+                <td>${startTimeFormatted} - ${endTimeFormatted}</td>
+            </tr>`;
+    });
+    
+    // Add header message about availability
+    if (!hasAvailableSubjects && schedules.length > 0) {
+        html = `
+            <tr>
+                <td colspan="5" class="text-center">
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        No available subjects at this time. Subjects are only available on their scheduled day.
+                    </div>
+                </td>
+            </tr>
+        ` + html;
+    }
+    
+    $('#subjectList').html(html);
+}
+
+// Handle subject selection with radio buttons (single selection)
+$(document).on('change', '.subject-radio', function() {
+    if ($(this).is(':checked') && !$(this).is(':disabled')) {
+        $('#selected_subject').val($(this).data('subject'));
+        $('#selected_room').val($(this).data('room'));
+        $('#selected_time').val($(this).data('time'));
+        $('#confirmSubject').prop('disabled', false);
+    }
+});
+
+// Confirm subject selection
+$('#confirmSubject').click(function() {
+    const subject = $('#selected_subject').val();
+    const room = $('#selected_room').val();
+    
+    if (!subject || !room) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'No Subject Selected',
+            text: 'Please select a subject first.'
+        });
+        return;
+    }
+    
+    // Close modal and submit form
+    $('#subjectModal').modal('hide');
+    submitLoginForm();
+});
+
+// Cancel subject selection - go back to login form
+$('#cancelSubject').click(function() {
+    $('#subjectModal').modal('hide');
+    // Clear any selections
+    $('#selected_subject').val('');
+    $('#selected_room').val('');
+    $('#selected_time').val('');
+    $('.subject-radio').prop('checked', false);
+});
+
+// Handle modal hidden event
+$('#subjectModal').on('hidden.bs.modal', function() {
+    // If no subject was selected, focus back on ID input
+    if (!$('#selected_subject').val()) {
+        $('#id-input').focus();
+    }
+});
 
         // Handle subject selection (instructors only)
         $(document).on('change', '.subject-checkbox', function() {
