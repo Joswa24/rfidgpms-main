@@ -5,6 +5,7 @@ $filterYear = $_SESSION['allowed_year'] ?? '';
 include 'connection.php';
 
 // Function to get classmates by year and section
+// Improved function to get classmates by year and section
 function getClassmatesByYearSection($db, $year, $section) {
     $classmates = array();
     
@@ -32,23 +33,29 @@ function getClassmatesByYearSection($db, $year, $section) {
     return $classmates;
 }
 
-// NEW FUNCTION: Save classmates data to instructor attendance records
+// Improved function to save classmates data
 function saveClassmatesToInstructorAttendance($db, $classmates, $instructor_id, $year, $section, $subject = null) {
     $today = date('Y-m-d');
+    $saved_count = 0;
+    $updated_count = 0;
     
     foreach ($classmates as $student) {
-        // Check if record already exists for today
+        // Check if record already exists for today with same instructor, student, and subject
         $check_query = "SELECT id FROM instructor_attendance_records 
                        WHERE instructor_id = ? 
                        AND student_id_number = ? 
                        AND date = ? 
                        AND year = ? 
-                       AND section = ?";
+                       AND section = ?
+                       AND subject = ?";
         
         $check_stmt = $db->prepare($check_query);
-        $check_stmt->bind_param("issss", $instructor_id, $student['id_number'], $today, $year, $section);
+        $subject_to_use = $subject ?? 'N/A';
+        $check_stmt->bind_param("isssss", $instructor_id, $student['id_number'], $today, $year, $section, $subject_to_use);
         $check_stmt->execute();
         $check_result = $check_stmt->get_result();
+        
+        $status = ($student['attendance_count'] > 0) ? 'Present' : 'Absent';
         
         if ($check_result->num_rows == 0) {
             // Insert new record
@@ -58,7 +65,6 @@ function saveClassmatesToInstructorAttendance($db, $classmates, $instructor_id, 
                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
             
             $insert_stmt = $db->prepare($insert_query);
-            $status = ($student['attendance_count'] > 0) ? 'Present' : 'Absent';
             
             $insert_stmt->bind_param(
                 "issssssss", 
@@ -70,10 +76,12 @@ function saveClassmatesToInstructorAttendance($db, $classmates, $instructor_id, 
                 $student['department_name'],
                 $status,
                 $today,
-                $subject
+                $subject_to_use
             );
             
-            $insert_stmt->execute();
+            if ($insert_stmt->execute()) {
+                $saved_count++;
+            }
             $insert_stmt->close();
         } else {
             // Update existing record
@@ -83,29 +91,32 @@ function saveClassmatesToInstructorAttendance($db, $classmates, $instructor_id, 
                            AND student_id_number = ? 
                            AND date = ? 
                            AND year = ? 
-                           AND section = ?";
+                           AND section = ?
+                           AND subject = ?";
             
             $update_stmt = $db->prepare($update_query);
-            $status = ($student['attendance_count'] > 0) ? 'Present' : 'Absent';
             
             $update_stmt->bind_param(
-                "sissss", 
+                "sisssss", 
                 $status,
                 $instructor_id, 
                 $student['id_number'],
                 $today,
                 $year,
-                $section
+                $section,
+                $subject_to_use
             );
             
-            $update_stmt->execute();
+            if ($update_stmt->execute()) {
+                $updated_count++;
+            }
             $update_stmt->close();
         }
         
         $check_stmt->close();
     }
     
-    return true;
+    return ['saved' => $saved_count, 'updated' => $updated_count];
 }
 
 // Function to display classmates table
@@ -567,13 +578,31 @@ if ($show_timeout_message) {
             </div>
 
             <?php if ($attendance_saved): ?>
-                <div class="archived-message">
-                    <h4>Attendance Records Archived</h4>
-                    <p><?php echo htmlspecialchars($archive_message); ?></p>
-                    <p>Your time-out was recorded at <strong><?php echo htmlspecialchars($timeout_time); ?></strong></p>
-                    <p class="text-success"><i class="fas fa-check-circle me-2"></i>Classmates data has been saved to your instructor panel.</p>
-                </div>
-            <?php else: ?>
+    <div class="archived-message">
+        <h4>Attendance Records Archived</h4>
+        <p><?php echo htmlspecialchars($archive_message); ?></p>
+        <p>Your time-out was recorded at <strong><?php echo htmlspecialchars($timeout_time); ?></strong></p>
+        
+        <?php if (isset($_SESSION['classmates_save_result'])): ?>
+            <?php $result = $_SESSION['classmates_save_result']; unset($_SESSION['classmates_save_result']); ?>
+            <div class="alert alert-success mt-3">
+                <i class="fas fa-check-circle me-2"></i>
+                Attendance has been successfully saved<br>
+                <small>
+                    <?php if ($result['saved'] > 0): ?>
+                        <strong><?php echo $result['saved']; ?></strong>Records saved
+                    <?php endif; ?>
+                    <?php if ($result['saved'] > 0 && $result['updated'] > 0): ?> | <?php endif; ?>
+                    <?php if ($result['updated'] > 0): ?>
+                        <strong><?php echo $result['updated']; ?></strong> Records updated
+                    <?php endif; ?>
+                </small>
+            </div>
+        <?php else: ?>
+            <p class="text-success"><i class="fas fa-check-circle me-2"></i>Attendance has been successfully saved</p>
+        <?php endif; ?>
+    </div>
+<?php else: ?>
                 <div class="instructor-header">
                     <div class="instructor-info">
                         <div class="instructor-details">
@@ -811,20 +840,36 @@ if ($show_timeout_message) {
         }
 
         <?php if ($show_timeout_message): ?>
-            // Show success message if attendance was saved
-            Swal.fire({
-                icon: 'success',
-                title: 'Attendance Saved',
-                html: `<div class="text-center">
-                          <h5>Your time-out has been recorded</h5>
-                          <div class="timeout-display"><?php echo $timeout_time; ?></div>
-                          <p><?php echo $archive_message; ?></p>
-                          <p class="text-success"><i class="fas fa-check-circle me-2"></i>Classmates data has been saved to your instructor panel.</p>
-                       </div>`,
-                confirmButtonText: 'OK',
-                allowOutsideClick: false
-            });
-        <?php endif; ?>
+    // Show success message if attendance was saved
+    Swal.fire({
+        icon: 'success',
+        title: 'Attendance Saved',
+        html: `<div class="text-center">
+                  <h5>Your time-out has been recorded</h5>
+                  <div class="timeout-display"><?php echo $timeout_time; ?></div>
+                  <p><?php echo $archive_message; ?></p>
+                  <?php if (isset($classmates_save_result)): ?>
+                  <div class="alert alert-success mt-2">
+                      <i class="fas fa-check-circle me-2"></i>
+                      Classmates data saved to instructor panel<br>
+                      <small>
+                          <?php if ($classmates_save_result['saved'] > 0): ?>
+                              <strong><?php echo $classmates_save_result['saved']; ?></strong> new records
+                          <?php endif; ?>
+                          <?php if ($classmates_save_result['saved'] > 0 && $classmates_save_result['updated'] > 0): ?> | <?php endif; ?>
+                          <?php if ($classmates_save_result['updated'] > 0): ?>
+                              <strong><?php echo $classmates_save_result['updated']; ?></strong> records updated
+                          <?php endif; ?>
+                      </small>
+                  </div>
+                  <?php else: ?>
+                  <p class="text-success"><i class="fas fa-check-circle me-2"></i>Classmates data saved to instructor panel.</p>
+                  <?php endif; ?>
+               </div>`,
+        confirmButtonText: 'OK',
+        allowOutsideClick: false
+    });
+<?php endif; ?>
     });
 </script>
 </body>
