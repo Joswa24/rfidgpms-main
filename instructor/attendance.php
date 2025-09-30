@@ -447,6 +447,16 @@ if ($filter_year && $filter_section) {
                         <?php endif; ?>
                     </div>
                 <?php endif; ?>
+                // In the statistics section, add this after the existing stats cards:
+<div class="col-md-12">
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        This data is automatically saved when you click "Save Today's Attendance" on the scanner page.
+        <?php if ($filter_date): ?>
+            Showing records for: <strong><?php echo date('F j, Y', strtotime($filter_date)); ?></strong>
+        <?php endif; ?>
+    </div>
+</div>
             </div>
         </div>
     </div>
