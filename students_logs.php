@@ -587,19 +587,19 @@ if ($show_timeout_message) {
             <?php $result = $_SESSION['classmates_save_result']; unset($_SESSION['classmates_save_result']); ?>
             <div class="alert alert-success mt-3">
                 <i class="fas fa-check-circle me-2"></i>
-                Attendance has been successfully saved<br>
+                Attendance has been successfully<br>
                 <small>
                     <?php if ($result['saved'] > 0): ?>
                         <strong><?php echo $result['saved']; ?></strong>Records saved
                     <?php endif; ?>
                     <?php if ($result['saved'] > 0 && $result['updated'] > 0): ?> | <?php endif; ?>
                     <?php if ($result['updated'] > 0): ?>
-                        <strong><?php echo $result['updated']; ?></strong> Records updated
+                        <strong><?php echo $result['updated']; ?></strong> records updated
                     <?php endif; ?>
                 </small>
             </div>
         <?php else: ?>
-            <p class="text-success"><i class="fas fa-check-circle me-2"></i>Attendance has been successfully saved</p>
+            <p class="text-success"><i class="fas fa-check-circle me-2"></i>Classmates data has been saved to your instructor panel.</p>
         <?php endif; ?>
     </div>
 <?php else: ?>
@@ -840,36 +840,20 @@ if ($show_timeout_message) {
         }
 
         <?php if ($show_timeout_message): ?>
-    // Show success message if attendance was saved
-    Swal.fire({
-        icon: 'success',
-        title: 'Attendance Saved',
-        html: `<div class="text-center">
-                  <h5>Your time-out has been recorded</h5>
-                  <div class="timeout-display"><?php echo $timeout_time; ?></div>
-                  <p><?php echo $archive_message; ?></p>
-                  <?php if (isset($classmates_save_result)): ?>
-                  <div class="alert alert-success mt-2">
-                      <i class="fas fa-check-circle me-2"></i>
-                      Classmates data saved to instructor panel<br>
-                      <small>
-                          <?php if ($classmates_save_result['saved'] > 0): ?>
-                              <strong><?php echo $classmates_save_result['saved']; ?></strong> new records
-                          <?php endif; ?>
-                          <?php if ($classmates_save_result['saved'] > 0 && $classmates_save_result['updated'] > 0): ?> | <?php endif; ?>
-                          <?php if ($classmates_save_result['updated'] > 0): ?>
-                              <strong><?php echo $classmates_save_result['updated']; ?></strong> records updated
-                          <?php endif; ?>
-                      </small>
-                  </div>
-                  <?php else: ?>
-                  <p class="text-success"><i class="fas fa-check-circle me-2"></i>Classmates data saved to instructor panel.</p>
-                  <?php endif; ?>
-               </div>`,
-        confirmButtonText: 'OK',
-        allowOutsideClick: false
-    });
-<?php endif; ?>
+            // Show success message if attendance was saved
+            Swal.fire({
+                icon: 'success',
+                title: 'Attendance Saved',
+                html: `<div class="text-center">
+                          <h5>Your time-out has been recorded</h5>
+                          <div class="timeout-display"><?php echo $timeout_time; ?></div>
+                          <p><?php echo $archive_message; ?></p>
+                          <p class="text-success"><i class="fas fa-check-circle me-2"></i>Classmates data has been saved to your instructor panel.</p>
+                       </div>`,
+                confirmButtonText: 'OK',
+                allowOutsideClick: false
+            });
+        <?php endif; ?>
     });
 </script>
 </body>
