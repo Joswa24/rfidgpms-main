@@ -404,6 +404,86 @@ mysqli_close($db);
             text-align: center;
             font-weight: bold;
         }
+        /* Confirmation Modal Styles */
+.confirmation-modal .modal-dialog {
+    max-width: 500px;
+}
+
+.confirmation-modal .modal-content {
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.confirmation-modal .modal-header {
+    background: linear-gradient(135deg, #084298, #0d6efd);
+    color: white;
+    border-bottom: none;
+    border-radius: 15px 15px 0 0;
+    padding: 1rem 1.5rem;
+}
+
+.confirmation-modal .modal-body {
+    padding: 2rem;
+    text-align: center;
+}
+
+.confirmation-modal .student-photo {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid #084298;
+    margin: 0 auto 1rem;
+}
+
+.confirmation-modal .student-info {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.confirmation-modal .attendance-status {
+    font-size: 1.3rem;
+    font-weight: bold;
+    padding: 0.8rem 1.5rem;
+    border-radius: 25px;
+    margin: 1rem 0;
+    display: inline-block;
+}
+
+.confirmation-modal .time-in {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border: 2px solid #0f5132;
+}
+
+.confirmation-modal .time-out {
+    background-color: #f8d7da;
+    color: #842029;
+    border: 2px solid #842029;
+}
+
+.confirmation-modal .modal-footer {
+    border-top: none;
+    padding: 1rem 1.5rem 1.5rem;
+    justify-content: center;
+}
+
+.confirmation-modal .btn-primary {
+    background: linear-gradient(135deg, #084298, #0d6efd);
+    border: none;
+    padding: 0.6rem 2rem;
+    border-radius: 25px;
+    font-weight: bold;
+}
+
+.confirmation-modal .btn-primary:hover {
+    background: linear-gradient(135deg, #06357a, #0b5ed7);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(8, 66, 152, 0.3);
+}
     </style>
 </head>
 
@@ -415,42 +495,42 @@ mysqli_close($db);
 
 <img src="uploads/Head.png" style="width: 100%; height: 150px; margin-left: 10px; padding=10px; margin-top=20px;S">
 <!-- Confirmation Modal -->
-<div class="modal fade confirmation-modal" id="confirmationModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+<!-- Confirmation Modal -->
+<div class="modal fade confirmation-modal" id="confirmationModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title">Attendance Recorded</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body text-center">
-
-                <!-- ✅ Student Photo -->
+                <!-- Student Photo -->
                 <div class="mb-3">
-                    <img id="modalStudentPhoto"
-                         src="uploads/students/default.png"
+                    <img id="modalStudentPhoto" 
+                         src="uploads/students/default.png" 
                          alt="Student Photo"
-                         style="width:150px;height:150px;object-fit:cover;border-radius:50%;border:3px solid #084298;">
+                         class="student-photo">
                 </div>
 
-                <h4 id="modalStudentName"></h4>
+                <h4 id="modalStudentName" class="mb-3">Student Name</h4>
                 
-                <div class="student-info">
-                    <div>ID: <span id="modalStudentId"></span></div>
-                    <div>Department: <span id="modalStudentDept"></span></div>
-                    <div>Role: <span id="modalStudentRole"></span></div>
+                <div class="student-info mb-3">
+                    <div class="mb-2"><strong>ID:</strong> <span id="modalStudentId">N/A</span></div>
+                    <div class="mb-2"><strong>Department:</strong> <span id="modalStudentDept">N/A</span></div>
+                    <div class="mb-2"><strong>Role:</strong> <span id="modalStudentRole">N/A</span></div>
                 </div>
                 
-                <div class="attendance-status" id="modalAttendanceStatus">
-                    <span id="modalTimeInOut"></span>
+                <div class="attendance-status mb-3" id="modalAttendanceStatus">
+                    <span id="modalTimeInOut">Attendance Recorded</span>
                 </div>
                 
                 <div class="time-display">
-                    <div id="modalTimeDisplay"></div>
-                    <div id="modalDateDisplay"></div>
+                    <div id="modalTimeDisplay" class="fw-bold"></div>
+                    <div id="modalDateDisplay" class="text-muted"></div>
                 </div>
             </div>
             <div class="modal-footer">
-                 <button type="button" class="btn btn-primary" style="background-color: #87abe0ff" onclick="window.location.href='main1.php'">OK</button>
+                <button type="button" class="btn btn-primary" onclick="closeModalAndContinue()">Continue Scanning</button>
             </div>
         </div>
     </div>
@@ -494,7 +574,7 @@ mysqli_close($db);
         
         <!-- Compact Clock Display -->
         <center>
-            <div id="clockdate" style="border: 1px solid #084298; background-color: #084298; height: 70px; margin-bottom: 10px;">
+            <div id="clockdate" style="border: 1px solid #08a4298; background-color: #084298; height: 70px; margin-bottom: 10px;">
                 <div class="clockdate-wrapper d-flex flex-column justify-content-center" style="height:100%;">
                     <div id="clock" style="font-weight: bold; color: #fff; font-size: 1.8rem; line-height: 1.2;"></div>
                     <div id="date" style="color: #fff; font-size: 0.8rem;"><span id="currentDate"></span></div>
@@ -563,195 +643,29 @@ mysqli_close($db);
 
 <script>
 // Global variables
+// Global variables
+let scanner = null;
 let barcodeBuffer = '';
 let lastScanTime = 0;
-const scanCooldown = 1000; // 1 second cooldown between scans
-let allowedSection = null;
-let allowedYear = null;
-let isFirstStudent = true;
+const scanCooldown = 1000;
 
 // Student photo mapping
 const studentPhotos = {
     "2024-0380": "uploads/students/68b703dcdff49_1232-1232.jpg",
-    "2024-1570": "uploads/students/68b703dcdff49_1232-1232.jpg",
+    "2024-1570": "uploads/students/c9c9ed00-ab5c-4c3e-b197-56559ab7ca61.jpg",
     "2024-0117": "uploads/students/68b703dcdff49_1232-1232.jpg",
-    "2024-1697": "uploads/students/68b703dcdff49_1232-1232.jpg",
-    // ✅ add more here...
+    "2024-1697": "uploads/students/68b75972d9975_5555-7777.jpg",
 };
 
-function setStudentPhoto(idNumber) {
-    let photoPath = studentPhotos[idNumber] || "uploads/students/default.png";
-    document.getElementById("modalStudentPhoto").src = photoPath + "?t=" + new Date().getTime();
-}
-
-// Scanner Initialization and Control Functions
-function initScanner() {
-    // Clear any existing scanner instance
-    if (scanner) {
-        scanner.clear();
-    }
-    
-    // Create new scanner instance with configuration
-    scanner = new Html5QrcodeScanner('largeReader', { 
-        qrbox: {
-            width: 300,
-            height: 300,
-        },
-        fps: 20,
-        rememberLastUsedCamera: true,
-        supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-        showTorchButtonIfSupported: true
-    });
-    
-    // Render the scanner with success and error callbacks
-    scanner.render(onScanSuccess, onScanError);
-}
-
-function stopScanner() {
-    if (scanner) {
-        scanner.clear().then(() => {
-            console.log("Scanner stopped successfully");
-        }).catch(err => {
-            console.error("Failed to stop scanner:", err);
-        });
-    }
-}
-
-
-function restartScanner() {
-    stopScanner();
-    initScanner();
-    document.querySelector('.scanner-overlay').style.display = 'flex';
-}
-
-// Scanner Event Handlers
-function onScanSuccess(decodedText) {
-    const now = Date.now();
-    
-    // Implement scan cooldown to prevent duplicate scans
-    if (now - lastScanTime < scanCooldown) {
-        console.log("Scan cooldown active - ignoring scan");
-        return;
-    }
-    
-    lastScanTime = now;
-    
-    
-    
-    // Hide scanner overlay during processing
-    document.querySelector('.scanner-overlay').style.display = 'none';
-    
-    // Process the scanned barcode
-    processBarcode(decodedText);
-}
-
-function onScanError(error) {
-    // Handle different types of scanner errors
-    if (error.includes('No MultiFormat Readers were able to detect the code')) {
-        console.log("No barcode detected - continuing scan");
-        return;
-    }
-    
-    console.error('Scanner error:', error);
-    
-    // Show error to user if it's not a benign error
-    if (!error.includes('NotFoundException') && !error.includes('No MultiFormat Readers')) {
-        showErrorMessage(`Scanner error: ${error}`);
-    }
-}
-
-// Camera Control Functions
-function getCameraDevices() {
-    return Html5Qrcode.getCameras().then(devices => {
-        if (devices && devices.length) {
-            return devices;
-        }
-        throw "No cameras found";
-    });
-}
-
-function switchCamera(deviceId) {
-    if (!scanner) return;
-    
-    stopScanner();
-    
-    // Reinitialize with new camera
-    scanner = new Html5QrcodeScanner('largeReader', { 
-        qrbox: { width: 300, height: 300 },
-        fps: 20,
-        deviceId: { exact: deviceId }
-    });
-    
-    scanner.render(onScanSuccess, onScanError);
-}
-
-// Scanner UI Helpers
-function showScannerOverlay() {
-    document.querySelector('.scanner-overlay').style.display = 'flex';
-}
-
-function hideScannerOverlay() {
-    document.querySelector('.scanner-overlay').style.display = 'none';
-}
-
-// Scanner State Management
-let scannerState = {
-    isScanning: false,
-    currentCamera: null,
-    torchEnabled: false
-};
-
-function toggleTorch() {
-    if (!scanner || !scanner.getState().scanning) return;
-    
-    scannerState.torchEnabled = !scannerState.torchEnabled;
-    
-    scanner.applyVideoConstraints({
-        advanced: [{ torch: scannerState.torchEnabled }]
-    }).then(() => {
-        console.log(`Torch ${scannerState.torchEnabled ? 'enabled' : 'disabled'}`);
-    }).catch(err => {
-        console.error("Failed to toggle torch:", err);
-    });
-}
-function setStudentPhoto(idNumber) {
-    let photoPath = "uploads/students/default.png"; // default fallback
-
-    if (idNumber === "2024-1697") {
-        photoPath = "uploads/students/68b6d200ec51d_1117-8547.png";
-    } else if (idNumber === "2024-1698") {
-        photoPath = "uploads/students/68b6d200ec51d_1117-8547.png";
-    } else if (idNumber === "2024-1699") {
-        photoPath = "uploads/students/03.jpg";
-    }
-    // ✅ add more as needed...
-
-    // Update modal photo with cache busting
-    document.getElementById("modalStudentPhoto").src = photoPath + "?t=" + new Date().getTime();
-}
-
-// Initialize scanner when page loads
+// Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    // First check for camera permissions
-    navigator.mediaDevices.getUserMedia({ video: true })
-        .then(() => {
-            // If permission granted, initialize scanner
-            initScanner();
-            
-            // Set up camera switching if multiple cameras available
-            getCameraDevices().then(devices => {
-                if (devices.length > 1) {
-                    // Add UI for camera switching if needed
-                    console.log("Multiple cameras available:", devices);
-                }
-            });
-        })
-        .catch(err => {
-            console.error("Scanner permission denied:", err);
-            showErrorMessage("Tap Your ID to the Scanner.");
-        });
-    
-    // Set up event listeners for manual controls
+    initScanner();
+    setupEventListeners();
+    startTime();
+});
+
+function setupEventListeners() {
+    // Manual input event listeners
     document.getElementById('manualIdInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             processManualInput();
@@ -760,27 +674,247 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.getElementById('manualSubmitBtn').addEventListener('click', processManualInput);
     
-    // Focus on manual input field by default
+    // Focus on manual input field
     document.getElementById('manualIdInput').focus();
-});
+}
 
-// Handle page visibility changes to conserve resources
-document.addEventListener('visibilitychange', function() {
-    if (document.hidden) {
-        // Page is hidden, stop scanner to conserve resources
-        stopScanner();
-    } else {
-        // Page is visible again, restart scanner
-        initScanner();
+// Scanner initialization
+function initScanner() {
+    // Clear existing scanner
+    if (scanner) {
+        scanner.clear().catch(console.error);
     }
-});
+    
+    // Initialize new scanner
+    scanner = new Html5QrcodeScanner('largeReader', { 
+        qrbox: { width: 250, height: 250 },
+        fps: 10,
+        supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
+    });
+    
+    scanner.render(onScanSuccess, onScanError);
+}
 
-// Clean up scanner when leaving page
-window.addEventListener('beforeunload', function() {
-    stopScanner();
-});
+function onScanSuccess(decodedText) {
+    const now = Date.now();
+    if (now - lastScanTime < scanCooldown) return;
+    
+    lastScanTime = now;
+    
+    // Show processing message
+    document.getElementById('result').innerHTML = `
+        <div class="alert alert-info">
+            <i class="fas fa-spinner fa-spin me-2"></i>
+            Processing: ${decodedText}
+        </div>
+    `;
+    
+    // Hide scanner overlay
+    document.querySelector('.scanner-overlay').style.display = 'none';
+    
+    // Process the barcode
+    processBarcode(decodedText);
+}
 
-// Time and Date Functions
+function onScanError(error) {
+    // Ignore common scanner errors
+    if (error.includes('NotFoundException') || error.includes('No MultiFormat Readers')) {
+        return;
+    }
+    console.error('Scanner error:', error);
+}
+
+// Process barcode data
+function processBarcode(barcode) {
+    console.log('Processing barcode:', barcode);
+    
+    $.ajax({
+        type: "POST",
+        url: "process_barcode.php",
+        data: { 
+            barcode: barcode,
+            current_department: "<?php echo $department; ?>",
+            current_location: "<?php echo $location; ?>",
+            is_first_student: <?php echo $_SESSION['is_first_student'] ? 'true' : 'false'; ?>
+        },
+        success: function(response) {
+            console.log('Server response:', response);
+            
+            try {
+                const data = typeof response === 'string' ? JSON.parse(response) : response;
+                
+                if (data.error) {
+                    showErrorMessage(data.error);
+                    return;
+                }
+                
+                // Show confirmation modal with the data
+                showConfirmationModal(data);
+                
+            } catch (e) {
+                console.error('Error parsing response:', e, response);
+                showErrorMessage('Invalid server response');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('AJAX error:', status, error);
+            showErrorMessage('Server error: ' + error);
+        }
+    });
+}
+
+// Show confirmation modal
+function showConfirmationModal(data) {
+    console.log('Showing confirmation modal with data:', data);
+    
+    // Get current time and date
+    const now = new Date();
+    const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const dateString = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    // Update modal content
+    document.getElementById('modalStudentName').textContent = data.full_name || 'Unknown Student';
+    document.getElementById('modalStudentId').textContent = data.id_number || 'N/A';
+    document.getElementById('modalStudentDept').textContent = "<?php echo $department; ?>" || 'N/A';
+    document.getElementById('modalStudentRole').textContent = data.role || 'Student';
+    document.getElementById('modalTimeInOut').textContent = data.time_in_out || 'Attendance Recorded';
+    document.getElementById('modalTimeDisplay').textContent = timeString;
+    document.getElementById('modalDateDisplay').textContent = dateString;
+
+    // Set student photo
+    const photoPath = studentPhotos[data.id_number] || "uploads/students/default.png";
+    document.getElementById("modalStudentPhoto").src = photoPath + "?t=" + new Date().getTime();
+
+    // Update status styling
+    const statusElement = document.getElementById('modalAttendanceStatus');
+    statusElement.className = 'attendance-status';
+    
+    if (data.alert_class === 'alert-success') {
+        statusElement.classList.add('time-in');
+        statusElement.innerHTML = `<i class="fas fa-sign-in-alt me-2"></i>${data.time_in_out || 'Time In Recorded'}`;
+    } else {
+        statusElement.classList.add('time-out');
+        statusElement.innerHTML = `<i class="fas fa-sign-out-alt me-2"></i>${data.time_in_out || 'Time Out Recorded'}`;
+    }
+
+    // Show the modal using Bootstrap
+    const modalElement = document.getElementById('confirmationModal');
+    const modal = new bootstrap.Modal(modalElement);
+    modal.show();
+    
+    // Add event listener for when modal is hidden
+    modalElement.addEventListener('hidden.bs.modal', function() {
+        restartScanner();
+    });
+}
+
+// Close modal and continue scanning
+function closeModalAndContinue() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('confirmationModal'));
+    modal.hide();
+}
+
+// Restart scanner after modal closes
+function restartScanner() {
+    // Clear result message
+    document.getElementById('result').innerHTML = '';
+    
+    // Show scanner overlay
+    document.querySelector('.scanner-overlay').style.display = 'flex';
+    
+    // Re-focus on manual input
+    document.getElementById('manualIdInput').focus();
+}
+
+// Manual input processing
+function processManualInput() {
+    const idNumber = document.getElementById('manualIdInput').value.trim();
+    
+    if (!idNumber) {
+        showErrorMessage("Please enter ID number");
+        return;
+    }
+    
+    // Show processing
+    document.getElementById('result').innerHTML = `
+        <div class="alert alert-info">
+            <i class="fas fa-spinner fa-spin me-2"></i>
+            Processing manual input: ${idNumber}
+        </div>
+    `;
+    
+    // Disable inputs during processing
+    document.getElementById('manualIdInput').disabled = true;
+    document.getElementById('manualSubmitBtn').disabled = true;
+    
+    // Process the ID
+    $.ajax({
+        type: "POST",
+        url: "process_barcode.php",
+        data: { 
+            barcode: idNumber,
+            current_department: "<?php echo $department; ?>",
+            current_location: "<?php echo $location; ?>",
+            is_first_student: <?php echo $_SESSION['is_first_student'] ? 'true' : 'false'; ?>
+        },
+        success: function(response) {
+            try {
+                const data = typeof response === 'string' ? JSON.parse(response) : response;
+
+                if (data.error) {
+                    showErrorMessage(data.error);
+                    return;
+                }
+
+                // Show confirmation modal
+                showConfirmationModal(data);
+
+            } catch (e) {
+                console.error("Error parsing response:", e, response);
+                showErrorMessage("Error processing response");
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error("AJAX error:", status, error);
+            showErrorMessage("Connection error: " + error);
+        },
+        complete: function() {
+            // Re-enable inputs
+            document.getElementById('manualIdInput').value = '';
+            document.getElementById('manualIdInput').disabled = false;
+            document.getElementById('manualSubmitBtn').disabled = false;
+            document.getElementById('manualIdInput').focus();
+        }
+    });
+}
+
+// Show error message
+function showErrorMessage(message) {
+    document.getElementById('result').innerHTML = `
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            ${message}
+        </div>
+    `;
+    playAlertSound();
+    
+    // Auto-clear error after 3 seconds
+    setTimeout(() => {
+        document.getElementById('result').innerHTML = '';
+        document.querySelector('.scanner-overlay').style.display = 'flex';
+    }, 3000);
+}
+
+// Play alert sound
+function playAlertSound() {
+    const audio = document.getElementById('myAudio');
+    if (audio) {
+        audio.currentTime = 0;
+        audio.play().catch(console.error);
+    }
+}
+
+// Time functions
 function startTime() {
     const today = new Date();
     let h = today.getHours();
@@ -788,9 +922,8 @@ function startTime() {
     let s = today.getSeconds();
     let period = h >= 12 ? 'PM' : 'AM';
     
-    // Convert to 12-hour format
     h = h % 12;
-    h = h ? h : 12; // the hour '0' should be '12'
+    h = h ? h : 12;
     
     m = checkTime(m);
     s = checkTime(s);
@@ -804,87 +937,8 @@ function startTime() {
 }
 
 function checkTime(i) {
-    if (i < 10) {i = "0" + i};  // add zero in front of numbers < 10
+    if (i < 10) { i = "0" + i };
     return i;
-}
-
-// Initialize scanner
-function initScanner() {
-    if (scanner) {
-        scanner.clear();
-    }
-    
-    scanner = new Html5QrcodeScanner('largeReader', { 
-        qrbox: {
-            width: 300,
-            height: 300,
-        },
-        fps: 20,
-    });
-    
-    scanner.render(onScanSuccess, onScanError);
-}
-
-// Scanner success callback
-function onScanSuccess(decodedText) {
-    const now = Date.now();
-    if (now - lastScanTime < scanCooldown) return;
-    
-    lastScanTime = now;
-    
-    document.getElementById('result').innerHTML = `
-        <span class="blink">Processing: ${decodedText}</span>
-    `;
-    
-    document.querySelector('.scanner-overlay').style.display = 'none';
-    processBarcode(decodedText);
-}
-
-// Scanner error callback
-function onScanError(error) {
-    // console.error('Scanner error:', error);
-}
-
-function processBarcode(barcode) {
-    $.ajax({
-        type: "POST",
-        url: "process_barcode.php",
-        data: { 
-            barcode: barcode,
-            current_department: "<?php echo $department; ?>",
-            current_location: "<?php echo $location; ?>",
-            is_first_student: <?php echo $_SESSION['is_first_student'] ? 'true' : 'false'; ?>,
-            allowed_section: "<?php echo $_SESSION['allowed_section'] ?? ''; ?>",
-            allowed_year: "<?php echo $_SESSION['allowed_year'] ?? ''; ?>"
-        },
-        success: function(response) {
-            const data = typeof response === 'string' ? JSON.parse(response) : response;
-
-            if (data.error) {
-                showErrorMessage(data.error);
-                return;
-            }
-
-            // If first student, set allowed section/year
-            if (<?php echo $_SESSION['is_first_student'] ? 'true' : 'false'; ?> && data.section && data.year_level) {
-                // Store in session via AJAX
-                $.post('set_session.php', {
-                    allowed_section: data.section,
-                    allowed_year: data.year_level,
-                    is_first_student: false
-                });
-                
-                // Update local variables
-                allowedSection = data.section;
-                allowedYear = data.year_level;
-                isFirstStudent = false;
-            }
-
-            // Show confirmation modal
-            showConfirmationModal(data);
-            
-        }
-    });
 }
 
 // Show preview modal in the scanner frame
