@@ -17,16 +17,16 @@ $filter_section = isset($_GET['section']) ? $_GET['section'] : null;
 $filter_subject = isset($_GET['subject']) ? $_GET['subject'] : null;
 $filter_date    = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d'); // Default to today
 
-$classmates = [];
+$attendance_data = [];
 $available_dates = [];
 $available_classes = [];
 
-// Get available dates for this instructor
-$dates_query = "SELECT DISTINCT date FROM instructor_attendance_records 
+// Get available dates for this instructor from archived_attendance_logs
+$dates_query = "SELECT DISTINCT DATE(time_in) as date FROM archived_attendance_logs 
                 WHERE instructor_id = ? 
-                ORDER BY date DESC";
+                ORDER BY time_in DESC";
 $dates_stmt = $db->prepare($dates_query);
-$dates_stmt->bind_param("i", $instructor_id);
+$dates_stmt->bind_param("s", $instructor_id); // Changed to "s" since instructor_id is varchar(9)
 $dates_stmt->execute();
 $dates_result = $dates_stmt->get_result();
 
@@ -35,48 +35,68 @@ while ($date_row = $dates_result->fetch_assoc()) {
 }
 $dates_stmt->close();
 
-// Get available classes for this instructor
-$classes_query = "SELECT DISTINCT year, section, subject FROM instructor_attendance_records 
+// Get available classes for this instructor from archived_attendance_logs
+$classes_query = "SELECT DISTINCT 
+                  SUBSTRING_INDEX(SUBSTRING_INDEX(department, '-', -1), ' ', 1) as year,
+                  SUBSTRING_INDEX(department, '-', 1) as section,
+                  location as subject
+                  FROM archived_attendance_logs 
                   WHERE instructor_id = ? 
                   ORDER BY year, section";
 $classes_stmt = $db->prepare($classes_query);
-$classes_stmt->bind_param("i", $instructor_id);
+$classes_stmt->bind_param("s", $instructor_id);
 $classes_stmt->execute();
 $classes_result = $classes_stmt->get_result();
 
 while ($class_row = $classes_result->fetch_assoc()) {
-    $available_classes[] = $class_row;
+    if (!empty($class_row['year']) && !empty($class_row['section'])) {
+        $available_classes[] = $class_row;
+    }
 }
 $classes_stmt->close();
 
 if ($filter_year && $filter_section) {
-    // Fetch attendance from saved records
+    // Fetch attendance from archived_attendance_logs
     $attendance_query = "
-        SELECT student_id_number, student_name, section, year, department, status, date, subject
-        FROM instructor_attendance_records 
-        WHERE instructor_id = ? 
-        AND year = ? 
-        AND section = ?
+        SELECT 
+            a.id,
+            a.student_id,
+            a.id_number,
+            a.time_in,
+            a.time_out,
+            a.department,
+            a.location as subject,
+            a.instructor_id,
+            a.status,
+            DATE(a.time_in) as date,
+            s.fullname as student_name,
+            SUBSTRING_INDEX(SUBSTRING_INDEX(a.department, '-', -1), ' ', 1) as year,
+            SUBSTRING_INDEX(a.department, '-', 1) as section
+        FROM archived_attendance_logs a
+        LEFT JOIN students s ON a.student_id = s.id
+        WHERE a.instructor_id = ? 
+        AND SUBSTRING_INDEX(SUBSTRING_INDEX(a.department, '-', -1), ' ', 1) = ?
+        AND SUBSTRING_INDEX(a.department, '-', 1) = ?
     ";
     
     $params = [$instructor_id, $filter_year, $filter_section];
-    $types = "iss";
+    $types = "sss";
     
     // Add date filter if specified
     if ($filter_date) {
-        $attendance_query .= " AND date = ?";
+        $attendance_query .= " AND DATE(a.time_in) = ?";
         $params[] = $filter_date;
         $types .= "s";
     }
     
     // Add subject filter if specified
     if ($filter_subject) {
-        $attendance_query .= " AND subject = ?";
+        $attendance_query .= " AND a.location = ?";
         $params[] = $filter_subject;
         $types .= "s";
     }
     
-    $attendance_query .= " ORDER BY student_name";
+    $attendance_query .= " ORDER BY s.fullname, a.time_in DESC";
     
     $stmt = $db->prepare($attendance_query);
     $stmt->bind_param($types, ...$params);
@@ -84,7 +104,7 @@ if ($filter_year && $filter_section) {
     $result = $stmt->get_result();
 
     while ($row = $result->fetch_assoc()) {
-        $classmates[] = $row;
+        $attendance_data[] = $row;
     }
     $stmt->close();
 }
@@ -345,19 +365,19 @@ if ($filter_year && $filter_section) {
             </div>
             <div class="card-body">
                 <?php if ($filter_year && $filter_section): ?>
-                    <?php if (!empty($classmates)): ?>
+                    <?php if (!empty($attendance_data)): ?>
                         <!-- Statistics -->
                         <?php
                         $present_count = 0;
                         $absent_count = 0;
-                        foreach ($classmates as $student) {
-                            if ($student['status'] == 'Present') {
+                        foreach ($attendance_data as $record) {
+                            if ($record['status'] == 'Present' || $record['status'] == 'present') {
                                 $present_count++;
                             } else {
                                 $absent_count++;
                             }
                         }
-                        $total_count = count($classmates);
+                        $total_count = count($attendance_data);
                         $attendance_rate = $total_count > 0 ? round(($present_count / $total_count) * 100, 1) : 0;
                         ?>
                         
@@ -380,7 +400,7 @@ if ($filter_year && $filter_section) {
                                 <div class="stats-card bg-info text-white">
                                     <i class="fas fa-users fa-2x mb-2"></i>
                                     <div class="stats-number"><?php echo $total_count; ?></div>
-                                    <div>Total Students</div>
+                                    <div>Total Records</div>
                                 </div>
                             </div>
                             <div class="col-md-3">
@@ -402,26 +422,34 @@ if ($filter_year && $filter_section) {
                                         <th>Section</th>
                                         <th>Year</th>
                                         <th>Department</th>
+                                        <th>Time In</th>
+                                        <th>Time Out</th>
                                         <th>Status</th>
-                                        <th>Date</th>
-                                        <th>Subject</th>
+                                        <th>Subject/Location</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php foreach ($classmates as $student): ?>
+                                    <?php foreach ($attendance_data as $record): ?>
                                         <tr>
-                                            <td><?php echo htmlspecialchars($student['student_id_number']); ?></td>
-                                            <td><?php echo htmlspecialchars($student['student_name']); ?></td>
-                                            <td><?php echo htmlspecialchars($student['section']); ?></td>
-                                            <td><?php echo htmlspecialchars($student['year']); ?></td>
-                                            <td><?php echo htmlspecialchars($student['department']); ?></td>
+                                            <td><?php echo htmlspecialchars($record['id_number']); ?></td>
+                                            <td><?php echo htmlspecialchars($record['student_name'] ?? 'N/A'); ?></td>
+                                            <td><?php echo htmlspecialchars($record['section']); ?></td>
+                                            <td><?php echo htmlspecialchars($record['year']); ?></td>
+                                            <td><?php echo htmlspecialchars($record['department']); ?></td>
+                                            <td><?php echo date('M j, Y g:i A', strtotime($record['time_in'])); ?></td>
                                             <td>
-                                                <span class="badge <?php echo $student['status'] == 'Present' ? 'bg-success' : 'bg-danger'; ?>">
-                                                    <?php echo htmlspecialchars($student['status']); ?>
+                                                <?php if ($record['time_out']): ?>
+                                                    <?php echo date('M j, Y g:i A', strtotime($record['time_out'])); ?>
+                                                <?php else: ?>
+                                                    <span class="text-muted">Not logged out</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <span class="badge <?php echo (strtolower($record['status']) == 'present') ? 'bg-success' : 'bg-danger'; ?>">
+                                                    <?php echo htmlspecialchars($record['status']); ?>
                                                 </span>
                                             </td>
-                                            <td><?php echo date('M j, Y', strtotime($student['date'])); ?></td>
-                                            <td><?php echo htmlspecialchars($student['subject'] ?? 'N/A'); ?></td>
+                                            <td><?php echo htmlspecialchars($record['subject']); ?></td>
                                         </tr>
                                     <?php endforeach; ?>
                                 </tbody>
@@ -442,19 +470,23 @@ if ($filter_year && $filter_section) {
                         <?php if (empty($available_classes)): ?>
                             <div class="alert alert-info mt-3">
                                 <i class="fas fa-info-circle me-2"></i>
-                                No attendance records found. Records will appear here after you save attendance from the scanner page.
+                                No attendance records found in the archive.
                             </div>
                         <?php endif; ?>
                     </div>
                 <?php endif; ?>
-<div class="col-md-12">
-    <div class="alert alert-info">
-        <i class="fas fa-info-circle me-2"></i>
-        <?php if ($filter_date): ?>
-            Showing records for: <strong><?php echo date('F j, Y', strtotime($filter_date)); ?></strong>
-        <?php endif; ?>
-    </div>
-</div>
+                
+                <div class="col-md-12">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <?php if ($filter_date): ?>
+                            Showing archived records for: <strong><?php echo date('F j, Y', strtotime($filter_date)); ?></strong>
+                        <?php else: ?>
+                            Showing all archived attendance records
+                        <?php endif; ?>
+                        | Instructor ID: <strong><?php echo htmlspecialchars($instructor_id); ?></strong>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
