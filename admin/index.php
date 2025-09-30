@@ -11,8 +11,8 @@ session_start();
 // header("Content-Security-Policy: default-src 'self'");
 
 // Initialize variables
-$maxAttempts = 5;
-$lockoutTime = 300;
+$maxAttempts = 3; // Changed from 5 to 3
+$lockoutTime = 30; // Changed from 300 to 30 seconds
 $error = '';
 
 // Initialize session variables
@@ -46,11 +46,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         // Check lockout
         if ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime) {
             $remainingTime = $lockoutTime - (time() - $_SESSION['lockout_time']);
-            $error = "Too many failed attempts. Please wait " . ceil($remainingTime / 60) . " minutes.";
+            $error = "Too many failed attempts. Please wait " . $remainingTime . " seconds before trying again.";
         } else {
             // Reset attempts if lockout expired
-            if ((time() - $_SESSION['lockout_time']) >= $lockoutTime) {
+            if ((time() - $_SESSION['lockout_time']) >= $lockoutTime && $_SESSION['login_attempts'] >= $maxAttempts) {
                 $_SESSION['login_attempts'] = 0;
+                $_SESSION['lockout_time'] = 0;
             }
 
             $username = trim($_POST['username']);
@@ -81,6 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                         if (password_verify($password, $user['password'])) {
                             // Successful login with hashed password
                             $_SESSION['login_attempts'] = 0;
+                            $_SESSION['lockout_time'] = 0;
                             $_SESSION['user_id'] = $user['id'];
                             $_SESSION['username'] = $user['username'];
                             $_SESSION['email'] = $user['email'];
@@ -92,6 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                         } elseif ($user['password'] === $password) {
                             // Successful login with plain text password
                             $_SESSION['login_attempts'] = 0;
+                            $_SESSION['lockout_time'] = 0;
                             $_SESSION['user_id'] = $user['id'];
                             $_SESSION['username'] = $user['username'];
                             $_SESSION['email'] = $user['email'];
@@ -111,25 +114,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                             exit();
                         } else {
                             $_SESSION['login_attempts']++;
-                            $error = "Invalid username or password. Attempts remaining: " . ($maxAttempts - $_SESSION['login_attempts']);
+                            $attemptsLeft = $maxAttempts - $_SESSION['login_attempts'];
+                            if ($attemptsLeft > 0) {
+                                $error = "Invalid username or password. Attempts remaining: " . $attemptsLeft;
+                            } else {
+                                $_SESSION['lockout_time'] = time();
+                                $error = "Too many failed attempts. Please wait 30 seconds before trying again.";
+                            }
                         }
                     } else {
                         $_SESSION['login_attempts']++;
-                        $error = "Invalid username or password. Attempts remaining: " . ($maxAttempts - $_SESSION['login_attempts']);
+                        $attemptsLeft = $maxAttempts - $_SESSION['login_attempts'];
+                        if ($attemptsLeft > 0) {
+                            $error = "Invalid username or password. Attempts remaining: " . $attemptsLeft;
+                        } else {
+                            $_SESSION['lockout_time'] = time();
+                            $error = "Too many failed attempts. Please wait 30 seconds before trying again.";
+                        }
                     }
                 } catch (Exception $e) {
                     error_log("Login error: " . $e->getMessage());
                     $error = "Database error. Please try again.";
                 }
             }
-            
-            // Check if account should be locked
-            if ($_SESSION['login_attempts'] >= $maxAttempts) {
-                $_SESSION['lockout_time'] = time();
-            }
         }
     }
 }
+
+// Check if user is currently locked out
+$isLockedOut = ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime);
+$remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lockout_time'])) : 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -149,6 +163,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             --accent-color: #4e73df;
             --light-bg: #f8f9fc;
             --dark-text: #5a5c69;
+            --warning-color: #f6c23e;
+            --danger-color: #e74a3b;
         }
         
         body {
@@ -297,13 +313,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             box-shadow: 0 4px 15px rgba(78, 115, 223, 0.3);
         }
         
-        .btn-login:hover {
+        .btn-login:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(78, 115, 223, 0.4);
         }
         
         .btn-login:active {
             transform: translateY(0);
+        }
+        
+        .btn-login:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
         
         .form-check-input:checked {
@@ -333,6 +356,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             color: #721c24;
         }
         
+        .alert-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border-left: 4px solid var(--warning-color);
+        }
+        
         .forgot-link {
             color: var(--accent-color);
             text-decoration: none;
@@ -353,9 +382,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         }
         
         .lockout-message {
-            display: none;
+            background-color: #f8f9fa;
+            border: 1px solid #e3e6f0;
+            border-radius: 8px;
+            padding: 15px;
             margin-top: 15px;
             text-align: center;
+            display: none;
+        }
+        
+        .lockout-message.show {
+            display: block;
+        }
+        
+        .countdown-timer {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--danger-color);
+            margin: 10px 0;
+        }
+        
+        .attempts-warning {
+            font-size: 0.9rem;
+            color: var(--warning-color);
+            font-weight: 600;
+            margin-top: 10px;
+        }
+        
+        .forgot-password-section {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #e3e6f0;
+        }
+        
+        .forgot-password-link {
+            display: inline-flex;
+            align-items: center;
+            color: var(--accent-color);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .forgot-password-link:hover {
+            color: var(--secondary-color);
+            text-decoration: underline;
+            transform: translateX(5px);
+        }
+        
+        .forgot-password-link i {
+            margin-right: 8px;
+            transition: transform 0.3s ease;
+        }
+        
+        .forgot-password-link:hover i {
+            transform: translateX(-3px);
         }
         
         @media (max-width: 576px) {
@@ -384,47 +466,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             
         </div>
         
-<div class="login-body">
-    <?php if (isset($error)): ?>
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="fas fa-exclamation-circle me-2"></i><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    <?php endif; ?>
+        <div class="login-body">
+            <?php if (isset($error)): ?>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-circle me-2"></i><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            <?php endif; ?>
 
-    <form method="POST" id="loginForm">
-        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-        <input type="hidden" name="login" value="1">
+            <!-- Lockout Warning -->
+            <div class="alert alert-warning <?php echo $isLockedOut ? '' : 'd-none'; ?>" id="lockoutAlert">
+                <i class="fas fa-clock me-2"></i>
+                <strong>Account Temporarily Locked</strong>
+                <div class="countdown-timer" id="countdown">
+                    <?php echo $remainingLockoutTime; ?> seconds
+                </div>
+                <div class="attempts-warning">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    Too many failed login attempts. Please wait until the timer expires.
+                </div>
+            </div>
 
-        <div class="form-group">
-            <label for="username" class="form-label"><i class="fas fa-user"></i>Username</label>
-            <div class="input-group">
-                <span class="input-group-text"><i class="fas fa-user"></i></span>
-                <input type="text" class="form-control" id="username" name="username" 
-                       placeholder="Enter your username" required autocomplete="off"
-                       value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : 'joshua'; ?>">
+            <form method="POST" id="loginForm">
+                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                <input type="hidden" name="login" value="1">
+
+                <div class="form-group">
+                    <label for="username" class="form-label"><i class="fas fa-user"></i>Username</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-user"></i></span>
+                        <input type="text" class="form-control" id="username" name="username" 
+                               placeholder="Enter your username" required autocomplete="off"
+                               value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : 'joshua'; ?>"
+                               <?php echo $isLockedOut ? 'disabled' : ''; ?>>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password" class="form-label"><i class="fas fa-lock"></i>Password</label>
+                    <div class="input-group password-field">
+                        <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                        <input type="password" class="form-control" id="password" name="password" 
+                               placeholder="Enter your password" required value="joshua@123"
+                               <?php echo $isLockedOut ? 'disabled' : ''; ?>>
+                        <span class="password-toggle" onclick="togglePassword()">
+                            <i class="fas fa-eye"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Attempts Counter -->
+                <div class="attempts-counter mb-3 text-center">
+                    <small class="text-muted">
+                        <i class="fas fa-shield-alt me-1"></i>
+                        Attempts: <span id="attemptsCount"><?php echo $_SESSION['login_attempts']; ?></span>/<?php echo $maxAttempts; ?>
+                    </small>
+                </div>
+
+                <button type="submit" class="btn btn-login mb-3" id="loginBtn" <?php echo $isLockedOut ? 'disabled' : ''; ?>>
+                    <i class="fas fa-sign-in-alt me-2"></i>
+                    <span id="loginText"><?php echo $isLockedOut ? 'Account Locked' : 'Sign In'; ?></span>
+                    <span id="loginSpinner" class="spinner-border spinner-border-sm d-none ms-2" role="status"></span>
+                </button>
+            </form>
+
+            <!-- Forgot Password Section -->
+            <div class="forgot-password-section">
+                <a href="forgot_password.php" class="forgot-password-link">
+                    <i class="fas fa-key"></i>
+                    Forgot Password?
+                </a>
             </div>
         </div>
-
-        <div class="form-group">
-            <label for="password" class="form-label"><i class="fas fa-lock"></i>Password</label>
-            <div class="input-group password-field">
-                <span class="input-group-text"><i class="fas fa-lock"></i></span>
-                <input type="password" class="form-control" id="password" name="password" 
-                       placeholder="Enter your password" required value="joshua@123">
-                <span class="password-toggle" onclick="togglePassword()">
-                    <i class="fas fa-eye"></i>
-                </span>
-            </div>
-        </div>
-
-        <button type="submit" class="btn btn-login mb-3" id="loginBtn">
-            <i class="fas fa-sign-in-alt me-2"></i>
-            <span id="loginText">Sign In</span>
-            <span id="loginSpinner" class="spinner-border spinner-border-sm d-none ms-2" role="status"></span>
-        </button>
-    </form>
-</div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -434,6 +547,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         function togglePassword() {
             const passwordField = document.getElementById("password");
             const eyeIcon = document.querySelector('.password-toggle i');
+            
+            if (passwordField.disabled) return;
             
             if (passwordField.type === "password") {
                 passwordField.type = "text";
@@ -446,24 +561,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             }
         }
 
-        // Alternative toggle function for checkbox
-        function togglePasswordVisibility() {
-            const passwordField = document.getElementById("password");
-            const eyeIcon = document.querySelector('.password-toggle i');
-            const checkbox = document.getElementById('showPasswordCheck');
-            
-            if (checkbox.checked) {
-                passwordField.type = "text";
-                eyeIcon.classList.remove('fa-eye');
-                eyeIcon.classList.add('fa-eye-slash');
-            } else {
-                passwordField.type = "password";
-                eyeIcon.classList.remove('fa-eye-slash');
-                eyeIcon.classList.add('fa-eye');
-            }
-        }
-
         document.getElementById('loginForm').addEventListener('submit', function(e) {
+            const isLockedOut = <?php echo $isLockedOut ? 'true' : 'false'; ?>;
+            
+            if (isLockedOut) {
+                e.preventDefault();
+                return;
+            }
+            
             // Show loading state
             const loginBtn = document.getElementById('loginBtn');
             const loginText = document.getElementById('loginText');
@@ -472,19 +577,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             loginText.textContent = 'Authenticating...';
             loginSpinner.classList.remove('d-none');
             loginBtn.disabled = true;
-            
-            // Form will submit normally via PHP
         });
 
         // Countdown timer for lockout
         function startCountdown(duration) {
-            const lockoutMessage = document.getElementById('lockout-message');
             const countdownElement = document.getElementById('countdown');
-            const form = document.getElementById('loginForm');
-            const inputs = form.querySelectorAll('input, button');
+            const loginForm = document.getElementById('loginForm');
+            const inputs = loginForm.querySelectorAll('input, button');
+            const lockoutAlert = document.getElementById('lockoutAlert');
+            const loginBtn = document.getElementById('loginBtn');
+            const loginText = document.getElementById('loginText');
             
-            lockoutMessage.style.display = 'block';
-            let timer = duration;
+            // Show lockout alert
+            lockoutAlert.classList.remove('d-none');
             
             // Disable form elements
             inputs.forEach(input => {
@@ -493,20 +598,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                 }
             });
             
+            loginBtn.disabled = true;
+            loginText.textContent = 'Account Locked';
+            
+            let timer = duration;
+            
             const interval = setInterval(() => {
-                const minutes = Math.floor(timer / 60);
-                let seconds = timer % 60;
-                
-                seconds = seconds < 10 ? '0' + seconds : seconds;
-                countdownElement.textContent = `${minutes}:${seconds}`;
+                countdownElement.textContent = timer + ' seconds';
                 
                 if (--timer < 0) {
                     clearInterval(interval);
-                    lockoutMessage.style.display = 'none';
+                    lockoutAlert.classList.add('d-none');
                     
                     // Enable form elements
                     inputs.forEach(input => {
-                        input.disabled = false;
+                        if (input.type !== 'hidden') {
+                            input.disabled = false;
+                        }
+                    });
+                    
+                    loginBtn.disabled = false;
+                    loginText.textContent = 'Sign In';
+                    
+                    // Reset attempts counter display
+                    document.getElementById('attemptsCount').textContent = '0';
+                    
+                    // Show success message
+                    Swal.fire({
+                        title: 'Ready to Try Again',
+                        text: 'You can now attempt to login again.',
+                        icon: 'success',
+                        timer: 3000,
+                        showConfirmButton: false
                     });
                 }
             }, 1000);
@@ -533,15 +656,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         };
 
         // Initialize lockout if needed
-        <?php if (isset($_SESSION['login_attempts']) && $_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime): ?>
-            const remainingTime = <?php echo $lockoutTime - (time() - $_SESSION['lockout_time']); ?>;
+        <?php if ($isLockedOut): ?>
+            const remainingTime = <?php echo $remainingLockoutTime; ?>;
             startCountdown(remainingTime);
         <?php endif; ?>
 
-        // Auto-focus on username field
+        // Auto-focus on username field if not locked out
         document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('username').focus();
+            const isLockedOut = <?php echo $isLockedOut ? 'true' : 'false'; ?>;
+            if (!isLockedOut) {
+                document.getElementById('username').focus();
+            }
         });
+
+        // Forgot password link confirmation
+        document.querySelector('.forgot-password-link').addEventListener('click', function(e) {
+            e.preventDefault();
+            const href = this.href;
+            
+            Swal.fire({
+                title: 'Forgot Password?',
+                text: 'You will be redirected to the password recovery page.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#4e73df',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Continue',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = href;
+                }
+            });
+        });
+
+        // Show warning when reaching last attempt
+        <?php if ($_SESSION['login_attempts'] == $maxAttempts - 1 && !$isLockedOut): ?>
+        document.addEventListener('DOMContentLoaded', function() {
+            Swal.fire({
+                title: 'Warning: Last Attempt',
+                text: 'This is your last login attempt. After this, your account will be locked for 30 seconds.',
+                icon: 'warning',
+                confirmButtonColor: '#f6c23e',
+                confirmButtonText: 'I Understand'
+            });
+        });
+        <?php endif; ?>
     </script>
 </body>
 </html>
