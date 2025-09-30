@@ -609,7 +609,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                         <td>${schedule.day || 'N/A'}</td>
                                         <td>${startTimeFormatted} - ${endTimeFormatted}</td>
                                     </tr>`;
-                            });
+                            
 
                             $('#subjectList').html(html);
                         } else {
