@@ -505,41 +505,45 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Initial check
         $('#roomdpt').trigger('change');
 
-        // Form submission handler
-        $('#logform').on('submit', function(e) {
-            e.preventDefault();
-            
-            const idNumber = $('#id-input').val();
-            const password = $('#password').val();
-            const department = $('#roomdpt').val();
-            const selectedRoom = $('#location').val();
-            
-            // Validate ID format
-            if (!/^\d{4}-\d{4}$/.test(idNumber)) {
-                showAlert('Please enter a valid ID number (format: 0000-0000)');
-                idInput.focus();
-                return;
-            }
-            
-            if (!password) {
-                showAlert('Please enter your password');
-                $('#password').focus();
-                return;
-            }
-            
-            // For Main department + Gate location, proceed directly to gate access
-            if (department === 'Main' && selectedRoom === 'Gate') {
-                submitLoginForm();
-            } 
-            // If we have a selected subject, proceed
-            else if ($('#selected_subject').val()) {
-                submitLoginForm();
-            }
-            // Otherwise show subject selection
-            else {
-                showSubjectSelectionModal();
-            }
-        });
+        // Form submission handler - FIXED VERSION
+$('#logform').on('submit', function(e) {
+    e.preventDefault();
+    
+    const idNumber = $('#id-input').val();
+    const password = $('#password').val();
+    const department = $('#roomdpt').val();
+    const selectedRoom = $('#location').val();
+    
+    // Validate ID format
+    if (!/^\d{4}-\d{4}$/.test(idNumber)) {
+        showAlert('Please enter a valid ID number (format: 0000-0000)');
+        idInput.focus();
+        return;
+    }
+    
+    if (!password) {
+        showAlert('Please enter your password');
+        $('#password').focus();
+        return;
+    }
+    
+    // FOR GATE ACCESS (Security Personnel): Main department + Gate location
+    if (department === 'Main' && selectedRoom === 'Gate') {
+        // Clear any subject selection for gate access
+        $('#selected_subject').val('');
+        $('#selected_room').val('');
+        $('#selected_time').val('');
+        submitLoginForm();
+    } 
+    // FOR CLASSROOM ACCESS (Instructors): If we already have a selected subject, proceed
+    else if ($('#selected_subject').val()) {
+        submitLoginForm();
+    }
+    // FOR CLASSROOM ACCESS (Instructors): Otherwise show subject selection
+    else {
+        showSubjectSelectionModal();
+    }
+});
 
         // Show subject selection modal
         function showSubjectSelectionModal() {
@@ -596,23 +600,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                     new Date(`1970-01-01T${schedule.end_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
                                     'N/A';
 
-                                                            html += `
-                                <tr class="modal-subject-row ${!isEnabled ? 'table-secondary' : ''}">
-                                    <td>
-                                        <input type="checkbox" class="form-check-input subject-checkbox"
-                                            data-subject="${schedule.subject || ''}"
-                                            data-room="${schedule.room_name || ''}"
-                                            ${!isEnabled ? 'disabled' : ''}>
-                                    </td>
-                                    <td>${schedule.subject || 'N/A'}</td>
-                                    <td>${schedule.section || 'N/A'}</td>
-                                    <td>${schedule.day || 'N/A'}</td>
-                                    <td>${startTimeFormatted} - ${endTimeFormatted}</td>
-                                </tr>`;
-                            
+                                html += `
+                                    <tr class="modal-subject-row ${!isEnabled ? 'table-secondary' : ''}">
+                                        <td>
+                                            <input type="checkbox" class="form-check-input subject-checkbox"
+                                                data-subject="${schedule.subject || ''}"
+                                                data-room="${schedule.room_name || ''}"
+                                                ${!isEnabled ? 'disabled' : ''}>
+                                        </td>
+                                        <td>${schedule.subject || 'N/A'}</td>
+                                        <td>${schedule.section || 'N/A'}</td>
+                                        <td>${schedule.day || 'N/A'}</td>
+                                        <td>${startTimeFormatted} - ${endTimeFormatted}</td>
+                                    </tr>`;
+                            });
 
-
-                            $('#subjectList').html(html);)
+                            $('#subjectList').html(html);
                         } else {
                             $('#subjectList').html(`<tr><td colspan="5" class="text-center">No scheduled subjects found</td></tr>`);
                         }
@@ -625,7 +628,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $('#subjectList').html('<tr><td colspan="5" class="text-center text-danger">Error loading subjects</td></tr>');
                 }
             });
-        }
         }
 
         // Handle subject selection (instructors only)
