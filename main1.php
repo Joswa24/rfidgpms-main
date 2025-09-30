@@ -414,7 +414,7 @@ mysqli_close($db);
 <div id="message"></div>
 
 <img src="uploads/Head.png" style="width: 100%; height: 150px; margin-left: 10px; padding=10px; margin-top=20px;S">
-<!-- Confirmation Modal -->
+
 <!-- Confirmation Modal -->
 <div class="modal fade confirmation-modal" id="confirmationModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
@@ -683,9 +683,8 @@ function processBarcode(barcode) {
         url: "process_barcode.php",
         data: { 
             barcode: barcode,
-            current_department: "<?php echo $department; ?>",
-            current_location: "<?php echo $location; ?>",
-            is_first_student: <?php echo $_SESSION['is_first_student'] ? 'true' : 'false'; ?>
+            department: "<?php echo $department; ?>",
+            location: "<?php echo $location; ?>"
         },
         success: function(response) {
             console.log('Server response:', response);
@@ -698,7 +697,10 @@ function processBarcode(barcode) {
                     return;
                 }
                 
-                // Show confirmation modal with the data
+                // Update UI first
+                updateGateUI(data);
+                
+                // Then show confirmation modal
                 showConfirmationModal(data);
                 
             } catch (e) {
@@ -713,7 +715,53 @@ function processBarcode(barcode) {
     });
 }
 
-// CONFIRMATION MODAL FUNCTION - FIXED VERSION
+// Update gate UI
+function updateGateUI(data) {
+    const alertElement = document.getElementById('alert');
+    if (!alertElement) return;
+    
+    // Reset classes
+    alertElement.classList.remove('alert-primary', 'alert-success', 'alert-warning', 'alert-danger', 'alert-info');
+    
+    // Set appropriate alert class based on response
+    if (data.time_in_out === 'Time In Recorded' || data.time_in_out === 'TIME IN') {
+        alertElement.classList.add('alert-success');
+        document.getElementById('in_out').innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>ENTRY GRANTED - TIME IN RECORDED';
+    } else if (data.time_in_out === 'Time Out Recorded' || data.time_in_out === 'TIME OUT') {
+        alertElement.classList.add('alert-warning');
+        document.getElementById('in_out').innerHTML = '<i class="fas fa-sign-out-alt me-2"></i>EXIT RECORDED - TIME OUT RECORDED';
+    } else if (data.error) {
+        alertElement.classList.add('alert-danger');
+        document.getElementById('in_out').innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i>${data.error}`;
+    } else {
+        alertElement.classList.add('alert-primary');
+        document.getElementById('in_out').innerHTML = '<i class="fas fa-id-card me-2"></i>Scan Your ID Card for Gate Access';
+    }
+    
+    // Update photo
+    updatePhoto(data);
+}
+
+function updatePhoto(data) {
+    const photoElement = document.getElementById('pic');
+    if (!photoElement) return;
+    
+    let photoPath = "uploads/students/default.png";
+    
+    if (data.photo) {
+        if (data.photo.startsWith('data:image')) {
+            photoPath = data.photo;
+        } else {
+            photoPath = data.photo;
+        }
+    } else if (personPhotos[data.id_number]) {
+        photoPath = personPhotos[data.id_number];
+    }
+    
+    photoElement.src = photoPath + "?t=" + new Date().getTime();
+}
+
+// CORRECTED: Show confirmation modal - FIXED VERSION
 function showConfirmationModal(data) {
     console.log('Showing confirmation modal with data:', data);
     
@@ -732,54 +780,91 @@ function showConfirmationModal(data) {
     });
 
     // Update modal content with safe fallbacks
-    setElementText('modalStudentName', data.full_name || 'Unknown Student');
-    setElementText('modalStudentId', data.id_number || 'N/A');
-    setElementText('modalStudentDept', "<?php echo $department; ?>" || 'N/A');
-    setElementText('modalStudentRole', data.role || 'Student');
-    setElementText('modalTimeInOut', data.time_in_out || 'Attendance Recorded');
+    setElementText('modalPersonName', data.full_name || 'Unknown Person');
+    setElementText('modalPersonId', data.id_number || 'N/A');
+    setElementText('modalPersonRole', data.role || 'Visitor');
+    setElementText('modalPersonDept', data.department || 'N/A');
     setElementText('modalTimeDisplay', timeString);
     setElementText('modalDateDisplay', dateString);
 
-    // Set student photo with cache busting
-    const photoPath = studentPhotos[data.id_number] || "uploads/students/default.png";
-    const modalPhoto = document.getElementById("modalStudentPhoto");
-    if (modalPhoto) {
-        modalPhoto.src = photoPath + "?t=" + new Date().getTime();
-    }
+    // Set person photo with cache busting
+    updateModalPhoto(data);
 
-    // Update attendance status styling
-    updateAttendanceStatus(data);
+    // Update access status
+    updateModalAccessStatus(data);
 
     // Show the modal using Bootstrap
     showBootstrapModal();
+    
+    // Speak confirmation message
+    speakConfirmationMessage(data);
 }
 
 function setElementText(elementId, text) {
     const element = document.getElementById(elementId);
     if (element) {
         element.textContent = text;
+    } else {
+        console.error('Element not found:', elementId);
     }
 }
 
-function updateAttendanceStatus(data) {
-    const statusElement = document.getElementById('modalAttendanceStatus');
-    if (!statusElement) return;
+function updateModalPhoto(data) {
+    const modalPhoto = document.getElementById("modalPersonPhoto");
+    if (!modalPhoto) {
+        console.error('Modal photo element not found');
+        return;
+    }
+    
+    let photoPath = "uploads/students/default.png";
+    
+    if (data.photo) {
+        if (data.photo.startsWith('data:image')) {
+            photoPath = data.photo;
+        } else {
+            photoPath = data.photo;
+        }
+    } else if (personPhotos[data.id_number]) {
+        photoPath = personPhotos[data.id_number];
+    }
+    
+    modalPhoto.src = photoPath + "?t=" + new Date().getTime();
+}
+
+function updateModalAccessStatus(data) {
+    const statusElement = document.getElementById('modalAccessStatus');
+    if (!statusElement) {
+        console.error('Modal access status element not found');
+        return;
+    }
     
     // Reset classes
-    statusElement.className = 'attendance-status';
+    statusElement.className = 'access-status';
     
-    // Add appropriate styling based on alert class
-    if (data.alert_class === 'alert-success') {
+    // Add appropriate styling based on response
+    if (data.time_in_out === 'Time In Recorded' || data.time_in_out === 'TIME IN') {
         statusElement.classList.add('time-in');
         statusElement.innerHTML = `
             <i class="fas fa-sign-in-alt me-2"></i>
-            ${data.time_in_out || 'Time In Recorded'}
+            TIME IN RECORDED
         `;
-    } else {
+    } else if (data.time_in_out === 'Time Out Recorded' || data.time_in_out === 'TIME OUT') {
         statusElement.classList.add('time-out');
         statusElement.innerHTML = `
             <i class="fas fa-sign-out-alt me-2"></i>
-            ${data.time_in_out || 'Time Out Recorded'}
+            TIME OUT RECORDED
+        `;
+    } else if (data.error) {
+        statusElement.classList.add('access-denied');
+        statusElement.innerHTML = `
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            ${data.error}
+        `;
+    } else {
+        statusElement.classList.add('access-denied');
+        statusElement.innerHTML = `
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            ACCESS DENIED
         `;
     }
 }
@@ -788,12 +873,14 @@ function showBootstrapModal() {
     const modalElement = document.getElementById('confirmationModal');
     if (!modalElement) {
         console.error('Confirmation modal element not found');
+        showErrorMessage('Modal element not found');
         return;
     }
     
     // Check if Bootstrap is available
     if (typeof bootstrap === 'undefined' || !bootstrap.Modal) {
         console.error('Bootstrap not loaded');
+        showErrorMessage('Bootstrap not loaded');
         return;
     }
     
@@ -801,15 +888,24 @@ function showBootstrapModal() {
         const modal = new bootstrap.Modal(modalElement);
         modal.show();
         
-        // Add event listener for when modal is hidden
-        modalElement.addEventListener('hidden.bs.modal', function() {
-            restartScanner();
-        });
-        
         console.log('Modal shown successfully');
     } catch (error) {
         console.error('Error showing modal:', error);
+        showErrorMessage('Error showing confirmation: ' + error.message);
     }
+}
+
+function closeModalAndContinue() {
+    const modalElement = document.getElementById('confirmationModal');
+    if (!modalElement) return;
+    
+    const modal = bootstrap.Modal.getInstance(modalElement);
+    if (modal) {
+        modal.hide();
+    }
+    
+    // Restart scanner after modal closes
+    restartScanner();
 }
 
 function restartScanner() {
@@ -824,6 +920,22 @@ function restartScanner() {
     if (manualInput) {
         manualInput.focus();
     }
+}
+
+function speakConfirmationMessage(data) {
+    let message = '';
+    
+    if (data.time_in_out === 'Time In Recorded' || data.time_in_out === 'TIME IN') {
+        message = `Welcome ${data.full_name || ''}. Time in recorded.`;
+    } else if (data.time_in_out === 'Time Out Recorded' || data.time_in_out === 'TIME OUT') {
+        message = `Goodbye ${data.full_name || ''}. Time out recorded.`;
+    } else if (data.error) {
+        message = data.error;
+    } else {
+        message = "Access recorded";
+    }
+    
+    speakMessage(message);
 }
 
 // Manual Input Processing
@@ -843,47 +955,16 @@ function processManualInput() {
     setManualInputsDisabled(true);
     
     // Process the ID
-    $.ajax({
-        type: "POST",
-        url: "process_barcode.php",
-        data: { 
-            barcode: idNumber,
-            current_department: "<?php echo $department; ?>",
-            current_location: "<?php echo $location; ?>",
-            is_first_student: <?php echo $_SESSION['is_first_student'] ? 'true' : 'false'; ?>
-        },
-        success: function(response) {
-            try {
-                const data = typeof response === 'string' ? JSON.parse(response) : response;
-
-                if (data.error) {
-                    showErrorMessage(data.error);
-                    return;
-                }
-
-                // Show confirmation modal
-                showConfirmationModal(data);
-
-            } catch (e) {
-                console.error("Error parsing response:", e, response);
-                showErrorMessage("Error processing response");
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error("AJAX error:", status, error);
-            showErrorMessage("Connection error: " + error);
-        },
-        complete: function() {
-            // Re-enable inputs
-            setManualInputsDisabled(false);
-            
-            // Clear input field
-            if (manualInput) {
-                manualInput.value = '';
-                manualInput.focus();
-            }
+    processBarcode(idNumber);
+    
+    // Re-enable inputs after a delay
+    setTimeout(() => {
+        setManualInputsDisabled(false);
+        if (manualInput) {
+            manualInput.value = '';
+            manualInput.focus();
         }
-    });
+    }, 2000);
 }
 
 function setManualInputsDisabled(disabled) {
@@ -900,10 +981,11 @@ function updateResultMessage(message, type = 'info') {
     if (!resultElement) return;
     
     const alertClass = type === 'error' ? 'alert-danger' : 'alert-info';
+    const iconClass = type === 'error' ? 'fa-exclamation-triangle' : 'fa-spinner fa-spin';
     
     resultElement.innerHTML = `
         <div class="alert ${alertClass} d-flex align-items-center">
-            <i class="fas ${type === 'error' ? 'fa-exclamation-triangle' : 'fa-spinner fa-spin'} me-2"></i>
+            <i class="fas ${iconClass} me-2"></i>
             <div>${message}</div>
         </div>
     `;
@@ -919,6 +1001,7 @@ function clearResultMessage() {
 function showErrorMessage(message) {
     updateResultMessage(message, 'error');
     playAlertSound();
+    speakMessage(message);
     
     // Auto-clear error after 3 seconds and restart scanner
     setTimeout(() => {
@@ -937,6 +1020,26 @@ function playAlertSound() {
     }
 }
 
+function speakMessage(message) {
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        
+        const speech = new SpeechSynthesisUtterance();
+        speech.text = message;
+        speech.volume = 1;
+        speech.rate = 1;
+        speech.pitch = 1.1;
+        
+        const voices = window.speechSynthesis.getVoices();
+        if (voices.length > 0) {
+            const voice = voices.find(v => v.lang.includes('en')) || voices[0];
+            speech.voice = voice;
+        }
+        
+        window.speechSynthesis.speak(speech);
+    }
+}
+
 // Time and Date Functions
 function startTime() {
     const today = new Date();
@@ -947,7 +1050,7 @@ function startTime() {
     
     // Convert to 12-hour format
     h = h % 12;
-    h = h ? h : 12; // the hour '0' should be '12'
+    h = h ? h : 12;
     
     m = formatTimeUnit(m);
     s = formatTimeUnit(s);
