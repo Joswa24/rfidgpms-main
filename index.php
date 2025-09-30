@@ -596,22 +596,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                     new Date(`1970-01-01T${schedule.end_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
                                     'N/A';
 
-                                html += `
-                                    <tr class="modal-subject-row ${!isEnabled ? 'table-secondary' : ''}">
-                                        <td>
-                                            <input type="checkbox" class="form-check-input subject-checkbox"
-                                                data-subject="${schedule.subject || ''}"
-                                                data-room="${schedule.room_name || ''}"
-                                                ${!isEnabled ? 'disabled' : ''}>
-                                        </td>
-                                        <td>${schedule.subject || 'N/A'}</td>
-                                        <td>${schedule.section || 'N/A'}</td>
-                                        <td>${schedule.day || 'N/A'}</td>
-                                        <td>${startTimeFormatted} - ${endTimeFormatted}</td>
-                                    </tr>`;
+                                                            html += `
+                                <tr class="modal-subject-row ${!isEnabled ? 'table-secondary' : ''}">
+                                    <td>
+                                        <input type="checkbox" class="form-check-input subject-checkbox"
+                                            data-subject="${schedule.subject || ''}"
+                                            data-room="${schedule.room_name || ''}"
+                                            ${!isEnabled ? 'disabled' : ''}>
+                                    </td>
+                                    <td>${schedule.subject || 'N/A'}</td>
+                                    <td>${schedule.section || 'N/A'}</td>
+                                    <td>${schedule.day || 'N/A'}</td>
+                                    <td>${startTimeFormatted} - ${endTimeFormatted}</td>
+                                </tr>`;
                             
 
-                            $('#subjectList').html(html);
+
+                            $('#subjectList').html(html);)
                         } else {
                             $('#subjectList').html(`<tr><td colspan="5" class="text-center">No scheduled subjects found</td></tr>`);
                         }
@@ -624,6 +625,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $('#subjectList').html('<tr><td colspan="5" class="text-center text-danger">Error loading subjects</td></tr>');
                 }
             });
+        }
         }
 
         // Handle subject selection (instructors only)
