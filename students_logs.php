@@ -4,6 +4,22 @@ $filterSection = $_SESSION['allowed_section'] ?? '';
 $filterYear = $_SESSION['allowed_year'] ?? '';
 include 'connection.php';
 
+// Quick table structure verification
+function verifyTableStructures($db) {
+    $tables = ['attendance_logs', 'archived_attendance_logs', 'instructor_logs', 'archived_instructor_logs'];
+    
+    foreach ($tables as $table) {
+        $result = $db->query("SHOW CREATE TABLE $table");
+        if ($result) {
+            $row = $result->fetch_assoc();
+            error_log("Table structure for $table: " . substr($row['Create Table'], 0, 200));
+        }
+    }
+}
+
+// Call this function to debug
+verifyTableStructures($db);
+
 // Function to get classmates by year and section
 function getClassmatesByYearSection($db, $year, $section) {
     $classmates = array();
@@ -254,7 +270,7 @@ if (isset($_SESSION['access']['instructor']['id'])) {
     }
 }
 
-// Handle Save Attendance action - MODIFIED TO INCLUDE CLASSMATES SAVING
+// Handle Save Attendance action - FIXED ARCHIVING PROCESS
 if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
     $instructor_id = $_SESSION['access']['instructor']['id'];
     $currentDate = date('Y-m-d');
@@ -308,45 +324,101 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
             throw new Exception("Error executing student update: " . $update_students->error);
         }
 
-        // 3. Archive student logs
+        // DEBUG: Check current data before archiving
+        error_log("=== DEBUG: Checking data before archiving ===");
+        
+        // Check student records that will be archived
+        $student_check = $db->query("SELECT COUNT(*) as total, 
+                                    SUM(CASE WHEN instructor_id IS NULL THEN 1 ELSE 0 END) as missing_instructor 
+                                    FROM attendance_logs 
+                                    WHERE DATE(time_in) = CURDATE()");
+        if ($student_check) {
+            $student_stats = $student_check->fetch_assoc();
+            error_log("Student records to archive: " . $student_stats['total'] . ", Missing instructor_id: " . $student_stats['missing_instructor']);
+        }
+
+        // Check instructor records that will be archived
+        $instructor_check = $db->query("SELECT COUNT(*) as total, instructor_id 
+                                       FROM instructor_logs 
+                                       WHERE DATE(time_in) = CURDATE()");
+        if ($instructor_check) {
+            $instructor_stats = $instructor_check->fetch_assoc();
+            error_log("Instructor records to archive: " . $instructor_stats['total'] . ", Instructor ID: " . $instructor_stats['instructor_id']);
+        }
+
+        // 3. Archive student logs - ENSURING INSTRUCTOR_ID IS PRESERVED
         $db->query("CREATE TABLE IF NOT EXISTS archived_attendance_logs LIKE attendance_logs");
         
-        $student_columns = $db->query("SELECT GROUP_CONCAT(COLUMN_NAME ORDER BY ORDINAL_POSITION) 
-                                     FROM INFORMATION_SCHEMA.COLUMNS 
-                                     WHERE TABLE_NAME = 'attendance_logs' 
-                                     AND TABLE_SCHEMA = DATABASE()")->fetch_row()[0];
+        // Verify table structures match
+        $check_tables = $db->query("
+            SELECT 
+                (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'attendance_logs') as source_cols,
+                (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'archived_attendance_logs') as archive_cols
+        ");
+        if ($check_tables) {
+            $table_stats = $check_tables->fetch_assoc();
+            error_log("Table columns - Source: " . $table_stats['source_cols'] . ", Archive: " . $table_stats['archive_cols']);
+            
+            // If column counts don't match, drop and recreate archive table
+            if ($table_stats['source_cols'] != $table_stats['archive_cols']) {
+                error_log("Table structures don't match - recreating archive table");
+                $db->query("DROP TABLE IF EXISTS archived_attendance_logs");
+                $db->query("CREATE TABLE archived_attendance_logs LIKE attendance_logs");
+            }
+        }
+
+        // Archive with explicit verification
+        $archive_result = $db->query("INSERT INTO archived_attendance_logs 
+                                    SELECT * FROM attendance_logs 
+                                    WHERE DATE(time_in) = CURDATE()");
         
-        if (!$db->query("INSERT INTO archived_attendance_logs ($student_columns) 
-                       SELECT $student_columns FROM attendance_logs 
-                       WHERE DATE(time_in) = CURDATE()")) {
+        if (!$archive_result) {
+            error_log("Archive error: " . $db->error);
             throw new Exception("Error archiving student data: " . $db->error);
+        }
+        
+        $archived_count = $db->affected_rows;
+        error_log("Successfully archived " . $archived_count . " student records");
+
+        // Verify archived data has instructor_id
+        $verify_archive = $db->query("SELECT COUNT(*) as total, 
+                                     SUM(CASE WHEN instructor_id IS NULL THEN 1 ELSE 0 END) as missing_instructor 
+                                     FROM archived_attendance_logs 
+                                     WHERE DATE(time_in) = CURDATE()");
+        if ($verify_archive) {
+            $verify_stats = $verify_archive->fetch_assoc();
+            error_log("Archived verification - Total: " . $verify_stats['total'] . ", Missing instructor_id: " . $verify_stats['missing_instructor']);
         }
 
         // 4. Archive instructor logs
         $db->query("CREATE TABLE IF NOT EXISTS archived_instructor_logs LIKE instructor_logs");
         
-        $instructor_columns = $db->query("SELECT GROUP_CONCAT(COLUMN_NAME ORDER BY ORDINAL_POSITION) 
-                                        FROM INFORMATION_SCHEMA.COLUMNS 
-                                        WHERE TABLE_NAME = 'instructor_logs' 
-                                        AND TABLE_SCHEMA = DATABASE()")->fetch_row()[0];
+        $instructor_archive_result = $db->query("INSERT INTO archived_instructor_logs 
+                                               SELECT * FROM instructor_logs 
+                                               WHERE DATE(time_in) = CURDATE()");
         
-        if (!$db->query("INSERT INTO archived_instructor_logs ($instructor_columns) 
-                       SELECT $instructor_columns FROM instructor_logs 
-                       WHERE DATE(time_in) = CURDATE()")) {
+        if (!$instructor_archive_result) {
             throw new Exception("Error archiving instructor data: " . $db->error);
         }
+        
+        $instructor_archived_count = $db->affected_rows;
+        error_log("Successfully archived " . $instructor_archived_count . " instructor records");
 
-        // 5. Clear current logs
-        if (!$db->query("DELETE FROM attendance_logs WHERE DATE(time_in) = CURDATE()")) {
+        // 5. Clear current logs ONLY after successful archiving and verification
+        $delete_students = $db->query("DELETE FROM attendance_logs WHERE DATE(time_in) = CURDATE()");
+        if (!$delete_students) {
             throw new Exception("Error clearing student data: " . $db->error);
         }
-
-        if (!$db->query("DELETE FROM instructor_logs WHERE DATE(time_in) = CURDATE()")) {
+        
+        $delete_instructors = $db->query("DELETE FROM instructor_logs WHERE DATE(time_in) = CURDATE()");
+        if (!$delete_instructors) {
             throw new Exception("Error clearing instructor data: " . $db->error);
         }
 
+        error_log("Successfully cleared original records");
+
         // 6. Get the exact time-out time
-        $time_query = "SELECT time_out FROM instructor_logs 
+        $time_query = "SELECT time_out FROM archived_instructor_logs 
                       WHERE instructor_id = ? 
                       AND DATE(time_in) = ? 
                       ORDER BY time_out DESC LIMIT 1";
@@ -363,6 +435,8 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
         $exact_time_out = $time_row['time_out'] ?? date('Y-m-d H:i:s');
 
         $db->commit();
+
+        error_log("=== ARCHIVE PROCESS COMPLETED SUCCESSFULLY ===");
 
         // Return success response
         if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
