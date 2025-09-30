@@ -266,7 +266,6 @@ if (isset($_SESSION['access']['instructor']['id'])) {
 }
 
 // Handle Save Attendance action - MODIFIED TO INCLUDE CLASSMATES SAVING
-// Handle Save Attendance action - CORRECTED VERSION
 if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
     $instructor_id = $_SESSION['access']['instructor']['id'];
     $currentDate = date('Y-m-d');
@@ -285,12 +284,11 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
     try {
         $db->begin_transaction();
 
-        // ENHANCED: Save classmates data before archiving
-        $classmates_save_result = ['saved' => 0, 'updated' => 0];
+        // NEW: Save classmates data before archiving
         if ($first_student_section && $first_student_year) {
             $classmates = getClassmatesByYearSection($db, $first_student_year, $first_student_section);
             $subject = $_SESSION['access']['subject']['name'] ?? null;
-            $classmates_save_result = saveClassmatesToInstructorAttendance($db, $classmates, $instructor_id, $first_student_year, $first_student_section, $subject);
+            saveClassmatesToInstructorAttendance($db, $classmates, $instructor_id, $first_student_year, $first_student_section, $subject);
         }
 
         // 1. Record time-out for instructor
@@ -377,17 +375,12 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
 
         $db->commit();
 
-        // Store the classmates save result in session
-        $_SESSION['classmates_save_result'] = $classmates_save_result;
-
         // Return success response
         if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
             echo json_encode([
                 'success' => true,
                 'timeout_time' => date('h:i A', strtotime($exact_time_out)),
-                'message' => 'Attendance saved and archived successfully',
-                'classmates_saved' => $classmates_save_result['saved'],
-                'classmates_updated' => $classmates_save_result['updated']
+                'message' => 'Attendance saved and archived successfully'
             ]);
             exit();
         }
