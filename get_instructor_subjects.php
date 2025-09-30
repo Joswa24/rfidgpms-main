@@ -54,7 +54,7 @@ try {
                 s.start_time,
                 s.end_time,
                 s.room_name
-            FROM schedule s 
+            FROM room_schedules s 
             WHERE s.instructor_id = ? 
             AND s.room_name = ?
             AND s.day = ?
@@ -90,7 +90,7 @@ try {
                         start_time,
                         end_time,
                         room_name
-                    FROM schedule 
+                    FROM room_schedules 
                     WHERE instructor_id_number = ? 
                     AND room_name = ?
                     AND day = ?
