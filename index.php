@@ -1,26 +1,15 @@
 <?php
-
+// Start output buffering with maximum level
 while (ob_get_level()) {
     ob_end_clean();
 }
 ob_start();
 
+// Add error reporting for debugging (remove in production)
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
 session_start();
-// Security headers
-header("X-Frame-Options: DENY");
-header("X-XSS-Protection: 1; mode=block");
-header("X-Content-Type-Options: nosniff");
-header("Strict-Transport-Security: max-age=31536000; includeSubDomains");
-
-// CSRF token generation
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-
-function sanitize_input($data) {
-    return htmlspecialchars(strip_tags(trim($data)), ENT_QUOTES, 'UTF-8');
-}
 include 'connection.php';
 
 
@@ -154,7 +143,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $availablePersonnel[] = " RFID:{$row['id_number']}, Name:{$row['first_name']} {$row['last_name']}";
             }
             
-            die("Unauthorized access. Security personnel not found with ID: $id_number " );
+            die("Unauthorized access. Security personnel not found with ID: $id_number (clean: $clean_id). Available: " . implode('; ', $availablePersonnel));
         }
 
         $securityGuard = $securityResult->fetch_assoc();
