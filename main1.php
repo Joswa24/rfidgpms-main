@@ -416,7 +416,6 @@ mysqli_close($db);
 <img src="uploads/Head.png" style="width: 100%; height: 150px; margin-left: 10px; padding=10px; margin-top=20px;S">
 
 <!-- Confirmation Modal -->
-<!-- Confirmation Modal -->
 <div class="modal fade confirmation-modal" id="confirmationModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -630,7 +629,7 @@ function initializeScanner() {
         })
         .catch(err => {
             console.error("Camera permission denied:", err);
-            showErrorMessage("Camera access required for scanning. Please allow camera permissions.");
+            showErrorMessage("Tap Your ID Card to the Scanner or Use Manual Input");
         });
 }
 
