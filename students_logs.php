@@ -5,7 +5,6 @@ $filterYear = $_SESSION['allowed_year'] ?? '';
 include 'connection.php';
 
 // Function to get classmates by year and section
-// Improved function to get classmates by year and section
 function getClassmatesByYearSection($db, $year, $section) {
     $classmates = array();
     
@@ -33,29 +32,23 @@ function getClassmatesByYearSection($db, $year, $section) {
     return $classmates;
 }
 
-// Improved function to save classmates data
+// NEW FUNCTION: Save classmates data to instructor attendance records
 function saveClassmatesToInstructorAttendance($db, $classmates, $instructor_id, $year, $section, $subject = null) {
     $today = date('Y-m-d');
-    $saved_count = 0;
-    $updated_count = 0;
     
     foreach ($classmates as $student) {
-        // Check if record already exists for today with same instructor, student, and subject
+        // Check if record already exists for today
         $check_query = "SELECT id FROM instructor_attendance_records 
                        WHERE instructor_id = ? 
                        AND student_id_number = ? 
                        AND date = ? 
                        AND year = ? 
-                       AND section = ?
-                       AND subject = ?";
+                       AND section = ?";
         
         $check_stmt = $db->prepare($check_query);
-        $subject_to_use = $subject ?? 'N/A';
-        $check_stmt->bind_param("isssss", $instructor_id, $student['id_number'], $today, $year, $section, $subject_to_use);
+        $check_stmt->bind_param("issss", $instructor_id, $student['id_number'], $today, $year, $section);
         $check_stmt->execute();
         $check_result = $check_stmt->get_result();
-        
-        $status = ($student['attendance_count'] > 0) ? 'Present' : 'Absent';
         
         if ($check_result->num_rows == 0) {
             // Insert new record
@@ -65,6 +58,7 @@ function saveClassmatesToInstructorAttendance($db, $classmates, $instructor_id, 
                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
             
             $insert_stmt = $db->prepare($insert_query);
+            $status = ($student['attendance_count'] > 0) ? 'Present' : 'Absent';
             
             $insert_stmt->bind_param(
                 "issssssss", 
@@ -76,12 +70,10 @@ function saveClassmatesToInstructorAttendance($db, $classmates, $instructor_id, 
                 $student['department_name'],
                 $status,
                 $today,
-                $subject_to_use
+                $subject
             );
             
-            if ($insert_stmt->execute()) {
-                $saved_count++;
-            }
+            $insert_stmt->execute();
             $insert_stmt->close();
         } else {
             // Update existing record
@@ -91,32 +83,29 @@ function saveClassmatesToInstructorAttendance($db, $classmates, $instructor_id, 
                            AND student_id_number = ? 
                            AND date = ? 
                            AND year = ? 
-                           AND section = ?
-                           AND subject = ?";
+                           AND section = ?";
             
             $update_stmt = $db->prepare($update_query);
+            $status = ($student['attendance_count'] > 0) ? 'Present' : 'Absent';
             
             $update_stmt->bind_param(
-                "sisssss", 
+                "sissss", 
                 $status,
                 $instructor_id, 
                 $student['id_number'],
                 $today,
                 $year,
-                $section,
-                $subject_to_use
+                $section
             );
             
-            if ($update_stmt->execute()) {
-                $updated_count++;
-            }
+            $update_stmt->execute();
             $update_stmt->close();
         }
         
         $check_stmt->close();
     }
     
-    return ['saved' => $saved_count, 'updated' => $updated_count];
+    return true;
 }
 
 // Function to display classmates table
@@ -578,31 +567,13 @@ if ($show_timeout_message) {
             </div>
 
             <?php if ($attendance_saved): ?>
-    <div class="archived-message">
-        <h4>Attendance Records Archived</h4>
-        <p><?php echo htmlspecialchars($archive_message); ?></p>
-        <p>Your time-out was recorded at <strong><?php echo htmlspecialchars($timeout_time); ?></strong></p>
-        
-        <?php if (isset($_SESSION['classmates_save_result'])): ?>
-            <?php $result = $_SESSION['classmates_save_result']; unset($_SESSION['classmates_save_result']); ?>
-            <div class="alert alert-success mt-3">
-                <i class="fas fa-check-circle me-2"></i>
-                Attendance has been successfully<br>
-                <small>
-                    <?php if ($result['saved'] > 0): ?>
-                        <strong><?php echo $result['saved']; ?></strong>Records saved
-                    <?php endif; ?>
-                    <?php if ($result['saved'] > 0 && $result['updated'] > 0): ?> | <?php endif; ?>
-                    <?php if ($result['updated'] > 0): ?>
-                        <strong><?php echo $result['updated']; ?></strong> records updated
-                    <?php endif; ?>
-                </small>
-            </div>
-        <?php else: ?>
-            <p class="text-success"><i class="fas fa-check-circle me-2"></i>Classmates data has been saved to your instructor panel.</p>
-        <?php endif; ?>
-    </div>
-<?php else: ?>
+                <div class="archived-message">
+                    <h4>Attendance Records Archived</h4>
+                    <p><?php echo htmlspecialchars($archive_message); ?></p>
+                    <p>Your time-out was recorded at <strong><?php echo htmlspecialchars($timeout_time); ?></strong></p>
+                    <p class="text-success"><i class="fas fa-check-circle me-2"></i>Classmates data has been saved to your instructor panel.</p>
+                </div>
+            <?php else: ?>
                 <div class="instructor-header">
                     <div class="instructor-info">
                         <div class="instructor-details">
