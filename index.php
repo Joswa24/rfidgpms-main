@@ -578,11 +578,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         // Load subjects for instructor with enhanced error handling
         // Load subjects for instructor with enhanced error handling
+// Load subjects for instructor with enhanced error handling
 function loadInstructorSubjects(idNumber, selectedRoom) {
     // Clean the ID number by removing hyphens
     const cleanId = idNumber.replace(/-/g, '');
     
-    console.log('Loading subjects for:', {
+    console.log('🔍 Loading subjects for:', {
         idNumber: idNumber,
         cleanId: cleanId,
         room: selectedRoom
@@ -606,72 +607,96 @@ function loadInstructorSubjects(idNumber, selectedRoom) {
             id_number: cleanId,
             room_name: selectedRoom
         },
-        dataType: 'json',
-        timeout: 10000,
-        success: function(response) {
-            console.log('Raw API Response:', response);
+        dataType: 'text', // Change to text to see raw response first
+        timeout: 15000,
+        success: function(rawResponse) {
+            console.log('📨 Raw API Response:', rawResponse);
             
-            // Check if response is already parsed or needs parsing
-            let data = response;
-            if (typeof response === 'string') {
-                try {
-                    data = JSON.parse(response);
-                } catch (e) {
-                    console.error('Failed to parse JSON:', e);
-                    showSubjectError('Invalid server response format');
-                    return;
-                }
+            let data;
+            try {
+                data = JSON.parse(rawResponse);
+                console.log('✅ Parsed JSON:', data);
+            } catch (e) {
+                console.error('❌ JSON Parse Error:', e);
+                console.error('Raw response that failed to parse:', rawResponse);
+                
+                $('#subjectList').html(`
+                    <tr>
+                        <td colspan="5" class="text-center text-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            Server returned invalid JSON format
+                            <br><small class="text-muted">Check browser console for details</small>
+                            <br><small class="text-muted">Response: ${rawResponse.substring(0, 100)}...</small>
+                        </td>
+                    </tr>
+                `);
+                return;
             }
             
-            if (data.status === 'success' && data.data) {
-                if (data.data.length > 0) {
+            // Now handle the parsed JSON
+            if (data.status === 'success') {
+                if (data.data && data.data.length > 0) {
                     displaySubjects(data.data, selectedRoom);
                 } else {
                     $('#subjectList').html(`
                         <tr>
                             <td colspan="5" class="text-center">
                                 <div class="alert alert-warning mb-0">
-                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    <i class="fas fa-info-circle me-2"></i>
                                     No scheduled subjects found for ${selectedRoom}
-                                    ${data.debug ? `<br><small class="text-muted">Instructor: ${data.debug.instructor}</small>` : ''}
+                                    ${data.debug_info ? `<br><small>Instructor: ${data.debug_info.instructor_name}</small>` : ''}
                                 </div>
                             </td>
                         </tr>
                     `);
                 }
             } else {
-                showSubjectError(data.message || 'Unknown error occurred');
+                $('#subjectList').html(`
+                    <tr>
+                        <td colspan="5" class="text-center text-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            ${data.message || 'Unknown error occurred'}
+                            ${data.debug ? `<br><small class="text-muted">Debug: ${JSON.stringify(data.debug)}</small>` : ''}
+                        </td>
+                    </tr>
+                `);
             }
         },
         error: function(xhr, status, error) {
-            console.error('AJAX Error:', {
+            console.error('🚨 AJAX Error:', {
                 status: status,
                 error: error,
                 responseText: xhr.responseText,
-                statusCode: xhr.status
+                statusCode: xhr.status,
+                readyState: xhr.readyState
             });
             
             let errorMessage = 'Failed to load subjects. ';
             
             if (status === 'timeout') {
-                errorMessage = 'Request timed out. Please try again.';
+                errorMessage = 'Request timed out after 15 seconds.';
             } else if (status === 'parsererror') {
-                // Try to extract error message from response text
-                try {
-                    const errorResponse = JSON.parse(xhr.responseText);
-                    errorMessage = errorResponse.message || 'Invalid server response';
-                } catch (e) {
-                    errorMessage = 'Invalid server response format. Please check the API.';
-                }
+                errorMessage = 'Server returned invalid data format.';
             } else if (xhr.status === 404) {
-                errorMessage = 'Server file not found. Please check the URL.';
+                errorMessage = 'API endpoint not found.';
             } else if (xhr.status === 500) {
-                errorMessage = 'Server error occurred. Please check server logs.';
+                errorMessage = 'Server internal error.';
+            } else if (xhr.status === 0) {
+                errorMessage = 'Cannot connect to server. Check if server is running.';
             } else {
-                errorMessage = 'Please check your connection and try again.';
+                errorMessage = `Network error: ${error}`;
             }
             
-            showSubjectError(errorMessage);
+            $('#subjectList').html(`
+                <tr>
+                    <td colspan="5" class="text-center text-danger">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        ${errorMessage}
+                        <br><small class="text-muted">Status: ${xhr.status} - ${status}</small>
+                        <br><small class="text-muted">Check browser console for details</small>
+                    </td>
+                </tr>
+            `);
         }
     });
 }

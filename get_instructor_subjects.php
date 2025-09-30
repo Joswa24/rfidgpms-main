@@ -1,68 +1,73 @@
 <?php
-// Enhanced error reporting for get_instructor_subjects.php
+// get_instructor_subjects.php - COMPLETELY REWRITTEN
+
+// Turn on all error reporting
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// Log the request
-error_log("GET request received: " . print_r($_GET, true));
+// Set content type first
+header('Content-Type: application/json; charset=utf-8');
 
-include 'connection.php';
-
-header('Content-Type: application/json');
+// Prevent any output that might break JSON
+ob_start();
 
 try {
-    // Get and validate parameters
+    // Include connection
+    require_once 'connection.php';
+    
+    // Get parameters
     $id_number = isset($_GET['id_number']) ? trim($_GET['id_number']) : '';
     $room_name = isset($_GET['room_name']) ? trim($_GET['room_name']) : '';
-
+    
+    // Validate
     if (empty($id_number)) {
         throw new Exception('ID number is required');
     }
-
     if (empty($room_name)) {
         throw new Exception('Room name is required');
     }
-
-    // Log the received values
-    error_log("Received request - ID: $id_number, Room: $room_name");
-
-    // Test database connection
-    if (!$db) {
-        throw new Exception('Database connection failed: ' . $db->connect_error);
+    
+    // Log for debugging
+    error_log("API Call - ID: $id_number, Room: $room_name");
+    
+    // Check database connection
+    if (!$db || $db->connect_error) {
+        throw new Exception('Database connection failed: ' . ($db->connect_error ?? 'Unknown error'));
     }
-
-    // 1. First verify the instructor exists
-    $stmt = $db->prepare("SELECT id, fullname FROM instructor WHERE REPLACE(id_number, '-', '') = ?");
+    
+    // 1. Find instructor by ID number (with or without hyphens)
+    $instructor_query = "SELECT id, fullname, id_number FROM instructor WHERE REPLACE(id_number, '-', '') = ?";
+    $stmt = $db->prepare($instructor_query);
+    
     if (!$stmt) {
-        throw new Exception('Prepare failed: ' . $db->error);
+        throw new Exception('Failed to prepare instructor query: ' . $db->error);
     }
     
     $stmt->bind_param("s", $id_number);
+    
     if (!$stmt->execute()) {
-        throw new Exception('Execute failed: ' . $stmt->error);
+        throw new Exception('Failed to execute instructor query: ' . $stmt->error);
     }
     
-    $instructorResult = $stmt->get_result();
-    $instructor = $instructorResult->fetch_assoc();
-
+    $instructor_result = $stmt->get_result();
+    $instructor = $instructor_result->fetch_assoc();
+    
     if (!$instructor) {
-        error_log("Instructor not found for ID: $id_number");
+        // Try with original ID format in case there's a match
+        $stmt2 = $db->prepare("SELECT id, fullname, id_number FROM instructor WHERE id_number LIKE ? LIMIT 1");
+        $search_id = '%' . $id_number . '%';
+        $stmt2->bind_param("s", $search_id);
+        $stmt2->execute();
+        $instructor = $stmt2->get_result()->fetch_assoc();
         
-        // Debug: Check what instructors exist
-        $debugStmt = $db->prepare("SELECT id_number, fullname FROM instructor WHERE id_number LIKE ? LIMIT 5");
-        $searchId = '%' . $id_number . '%';
-        $debugStmt->bind_param("s", $searchId);
-        $debugStmt->execute();
-        $similarInstructors = $debugStmt->get_result()->fetch_all(MYSQLI_ASSOC);
-        
-        throw new Exception('Instructor not found. Please check your ID number. Similar IDs: ' . json_encode($similarInstructors));
+        if (!$instructor) {
+            throw new Exception("No instructor found with ID: $id_number");
+        }
     }
-
-    error_log("Found instructor: " . $instructor['fullname']);
-
-    // 2. Get schedules for this instructor in the selected room
-    $query = "
+    
+    // 2. Get schedules for this instructor in the specified room
+    $schedule_query = "
         SELECT 
             subject, 
             section, 
@@ -71,67 +76,68 @@ try {
             end_time,
             room_name
         FROM room_schedules 
-        WHERE instructor = ?
+        WHERE instructor = ? 
         AND room_name = ?
         ORDER BY 
-            CASE day
-                WHEN 'Monday' THEN 1
-                WHEN 'Tuesday' THEN 2
-                WHEN 'Wednesday' THEN 3
-                WHEN 'Thursday' THEN 4
-                WHEN 'Friday' THEN 5
-                WHEN 'Saturday' THEN 6
-                WHEN 'Sunday' THEN 7
-            END,
+            FIELD(day, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'),
             start_time
     ";
-
-    error_log("Executing query: $query");
-    $stmt = $db->prepare($query);
+    
+    $stmt = $db->prepare($schedule_query);
     if (!$stmt) {
-        throw new Exception('Prepare failed: ' . $db->error);
+        throw new Exception('Failed to prepare schedule query: ' . $db->error);
     }
     
     $stmt->bind_param("ss", $instructor['fullname'], $room_name);
+    
     if (!$stmt->execute()) {
-        throw new Exception('Execute failed: ' . $stmt->error);
+        throw new Exception('Failed to execute schedule query: ' . $stmt->error);
     }
     
-    $result = $stmt->get_result();
-
+    $schedule_result = $stmt->get_result();
     $schedules = [];
-    while ($row = $result->fetch_assoc()) {
+    
+    while ($row = $schedule_result->fetch_assoc()) {
         $schedules[] = $row;
     }
-
-    error_log("Found " . count($schedules) . " schedules");
-
-    // Return successful response
+    
+    // Clear any output buffers
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    
+    // Return success response
     echo json_encode([
         'status' => 'success',
         'data' => $schedules,
-        'debug' => [
-            'instructor' => $instructor['fullname'],
-            'room' => $room_name,
-            'received_id' => $id_number,
-            'schedule_count' => count($schedules)
+        'debug_info' => [
+            'instructor_name' => $instructor['fullname'],
+            'instructor_id' => $instructor['id_number'],
+            'room_requested' => $room_name,
+            'schedules_found' => count($schedules)
         ]
     ], JSON_PRETTY_PRINT);
-
-} catch (Exception $e) {
-    error_log("Error in get_instructor_subjects.php: " . $e->getMessage());
     
-    // Ensure we return valid JSON even on error
-    $errorResponse = [
+} catch (Exception $e) {
+    // Clear any output buffers
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    
+    // Return error response
+    http_response_code(500);
+    echo json_encode([
         'status' => 'error',
         'message' => $e->getMessage(),
         'debug' => [
-            'received_id' => $id_number ?? null,
-            'received_room' => $room_name ?? null
+            'received_id' => $id_number ?? 'not set',
+            'received_room' => $room_name ?? 'not set'
         ]
-    ];
-    
-    http_response_code(500);
-    echo json_encode($errorResponse, JSON_PRETTY_PRINT);
+    ], JSON_PRETTY_PRINT);
+} finally {
+    // Ensure no extra output
+    if (ob_get_level()) {
+        ob_end_clean();
+    }
 }
 ?>
