@@ -20,21 +20,6 @@ $filter_date    = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d'); // Defau
 $classmates = [];
 $available_dates = [];
 $available_classes = [];
-$instructor_info = [];
-
-// Get instructor information
-$instructor_query = "SELECT i.id_number, i.fullname, i.email, i.department 
-                     FROM instructors i 
-                     WHERE i.id = ?";
-$instructor_stmt = $db->prepare($instructor_query);
-$instructor_stmt->bind_param("i", $instructor_id);
-$instructor_stmt->execute();
-$instructor_result = $instructor_stmt->get_result();
-
-if ($instructor_result->num_rows > 0) {
-    $instructor_info = $instructor_result->fetch_assoc();
-}
-$instructor_stmt->close();
 
 // Get available dates for this instructor
 $dates_query = "SELECT DISTINCT date FROM instructor_attendance_records 
@@ -50,13 +35,10 @@ while ($date_row = $dates_result->fetch_assoc()) {
 }
 $dates_stmt->close();
 
-// Get available classes for this instructor with instructor details
-$classes_query = "SELECT DISTINCT iar.year, iar.section, iar.subject, 
-                         i.fullname as instructor_name, i.id_number as instructor_id_number
-                  FROM instructor_attendance_records iar
-                  LEFT JOIN instructors i ON iar.instructor_id = i.id
-                  WHERE iar.instructor_id = ? 
-                  ORDER BY iar.year, iar.section";
+// Get available classes for this instructor
+$classes_query = "SELECT DISTINCT year, section, subject FROM instructor_attendance_records 
+                  WHERE instructor_id = ? 
+                  ORDER BY year, section";
 $classes_stmt = $db->prepare($classes_query);
 $classes_stmt->bind_param("i", $instructor_id);
 $classes_stmt->execute();
@@ -68,17 +50,13 @@ while ($class_row = $classes_result->fetch_assoc()) {
 $classes_stmt->close();
 
 if ($filter_year && $filter_section) {
-    // Fetch attendance from saved records WITH instructor information
+    // Fetch attendance from saved records
     $attendance_query = "
-        SELECT iar.student_id_number, iar.student_name, iar.section, iar.year, 
-               iar.department, iar.status, iar.date, iar.subject,
-               i.fullname as instructor_name, i.id_number as instructor_id_number,
-               i.department as instructor_department
-        FROM instructor_attendance_records iar
-        LEFT JOIN instructors i ON iar.instructor_id = i.id
-        WHERE iar.instructor_id = ? 
-        AND iar.year = ? 
-        AND iar.section = ?
+        SELECT student_id_number, student_name, section, year, department, status, date, subject
+        FROM instructor_attendance_records 
+        WHERE instructor_id = ? 
+        AND year = ? 
+        AND section = ?
     ";
     
     $params = [$instructor_id, $filter_year, $filter_section];
@@ -86,19 +64,19 @@ if ($filter_year && $filter_section) {
     
     // Add date filter if specified
     if ($filter_date) {
-        $attendance_query .= " AND iar.date = ?";
+        $attendance_query .= " AND date = ?";
         $params[] = $filter_date;
         $types .= "s";
     }
     
     // Add subject filter if specified
     if ($filter_subject) {
-        $attendance_query .= " AND iar.subject = ?";
+        $attendance_query .= " AND subject = ?";
         $params[] = $filter_subject;
         $types .= "s";
     }
     
-    $attendance_query .= " ORDER BY iar.student_name";
+    $attendance_query .= " ORDER BY student_name";
     
     $stmt = $db->prepare($attendance_query);
     $stmt->bind_param($types, ...$params);
@@ -209,23 +187,6 @@ if ($filter_year && $filter_section) {
             border-radius: 15px;
             font-size: 0.9rem;
         }
-        .instructor-info-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        .instructor-detail {
-            margin-bottom: 8px;
-        }
-        .instructor-detail-label {
-            font-weight: 600;
-            opacity: 0.9;
-        }
-        .instructor-detail-value {
-            font-size: 1.1rem;
-        }
         @media (max-width: 768px) {
             .sidebar {
                 width: 100%;
@@ -304,38 +265,6 @@ if ($filter_year && $filter_section) {
 
     <!-- Main Content -->
     <div class="main-content">
-        <!-- Instructor Information Card -->
-        <?php if (!empty($instructor_info)): ?>
-        <div class="instructor-info-card">
-            <div class="row">
-                <div class="col-md-8">
-                    <h4><i class="fas fa-chalkboard-teacher me-2"></i>Instructor Information</h4>
-                    <div class="row mt-3">
-                        <div class="col-md-6 instructor-detail">
-                            <div class="instructor-detail-label">Full Name</div>
-                            <div class="instructor-detail-value"><?php echo htmlspecialchars($instructor_info['fullname']); ?></div>
-                        </div>
-                        <div class="col-md-6 instructor-detail">
-                            <div class="instructor-detail-label">ID Number</div>
-                            <div class="instructor-detail-value"><?php echo htmlspecialchars($instructor_info['id_number']); ?></div>
-                        </div>
-                        <div class="col-md-6 instructor-detail">
-                            <div class="instructor-detail-label">Department</div>
-                            <div class="instructor-detail-value"><?php echo htmlspecialchars($instructor_info['department']); ?></div>
-                        </div>
-                        <div class="col-md-6 instructor-detail">
-                            <div class="instructor-detail-label">Email</div>
-                            <div class="instructor-detail-value"><?php echo htmlspecialchars($instructor_info['email']); ?></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4 text-center">
-                    <i class="fas fa-user-tie fa-5x opacity-75"></i>
-                </div>
-            </div>
-        </div>
-        <?php endif; ?>
-
         <!-- Filter Section -->
         <div class="filter-section">
             <h5><i class="fas fa-filter me-2"></i>Filter Attendance Records</h5>
@@ -417,20 +346,6 @@ if ($filter_year && $filter_section) {
             <div class="card-body">
                 <?php if ($filter_year && $filter_section): ?>
                     <?php if (!empty($classmates)): ?>
-                        <!-- Instructor Details for this Class -->
-                        <?php if (!empty($classmates[0]['instructor_name'])): ?>
-                        <div class="alert alert-info mb-4">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <strong>Instructor:</strong> <?php echo htmlspecialchars($classmates[0]['instructor_name']); ?>
-                                </div>
-                                <div class="col-md-6">
-                                    <strong>Instructor ID:</strong> <?php echo htmlspecialchars($classmates[0]['instructor_id_number']); ?>
-                                </div>
-                            </div>
-                        </div>
-                        <?php endif; ?>
-
                         <!-- Statistics -->
                         <?php
                         $present_count = 0;
@@ -490,7 +405,6 @@ if ($filter_year && $filter_section) {
                                         <th>Status</th>
                                         <th>Date</th>
                                         <th>Subject</th>
-                                        <th>Instructor</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -508,12 +422,6 @@ if ($filter_year && $filter_section) {
                                             </td>
                                             <td><?php echo date('M j, Y', strtotime($student['date'])); ?></td>
                                             <td><?php echo htmlspecialchars($student['subject'] ?? 'N/A'); ?></td>
-                                            <td>
-                                                <small>
-                                                    <?php echo htmlspecialchars($student['instructor_name'] ?? 'N/A'); ?><br>
-                                                    <span class="text-muted">ID: <?php echo htmlspecialchars($student['instructor_id_number'] ?? 'N/A'); ?></span>
-                                                </small>
-                                            </td>
                                         </tr>
                                     <?php endforeach; ?>
                                 </tbody>
@@ -539,6 +447,14 @@ if ($filter_year && $filter_section) {
                         <?php endif; ?>
                     </div>
                 <?php endif; ?>
+<div class="col-md-12">
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        <?php if ($filter_date): ?>
+            Showing records for: <strong><?php echo date('F j, Y', strtotime($filter_date)); ?></strong>
+        <?php endif; ?>
+    </div>
+</div>
             </div>
         </div>
     </div>
