@@ -158,9 +158,8 @@ case 'add_visitor':
         } else {
             jsonResponse('error', 'Failed to delete visitor card: ' . $db->error);
         }
-    }
-switch ($_GET['action']) {
-   case 'add':
+    
+break;
 case 'add_personnel':
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         jsonResponse('error', 'Invalid request method');
