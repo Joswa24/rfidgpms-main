@@ -129,18 +129,6 @@ if ($isDepartmentAjax) {
                 jsonResponse('error', 'Invalid department ID');
             }
 
-            // Check dependencies
-            $checkPersonnel = $db->prepare("SELECT COUNT(*) FROM personell WHERE department = (SELECT department_name FROM department WHERE department_id = ?)");
-            $checkPersonnel->bind_param("i", $department_id);
-            $checkPersonnel->execute();
-            $checkPersonnel->bind_result($personnelCount);
-            $checkPersonnel->fetch();
-            $checkPersonnel->close();
-
-            if ($personnelCount > 0) {
-                jsonResponse('error', 'Cannot delete department with assigned personnel');
-            }
-
             $checkRooms = $db->prepare("SELECT COUNT(*) FROM rooms WHERE department = (SELECT department_name FROM department WHERE department_id = ?)");
             $checkRooms->bind_param("i", $department_id);
             $checkRooms->execute();
