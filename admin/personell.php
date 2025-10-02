@@ -320,6 +320,7 @@ function cleanID($id) {
                                                     <label name="upload-label" class="upload-img-btn">
                                                         <input type="file" id="photo" name="photo" class="upload-field-1" style="display:none;" accept="image/*" title="Upload Foto.."/>
                                                         <input type="hidden" id="capturedImage" name="capturedImage" class="capturedImage">
+                                                        <input type="hidden" class="edit-id" name="id" value="">
                                                         <img class="preview-1 edit-photo" src="" style="width: 140px!important;height: 130px!important;position: absolute;border: 1px solid gray;top: 25%" title="Upload Photo.." />
                                                     </label>
                                                 </div>
@@ -471,265 +472,252 @@ function cleanID($id) {
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-    <script>
-    $(document).ready(function() {
-        // Initialize DataTable
-        var dataTable = $('#myDataTable').DataTable({
-            order: [[8, 'desc']],
-            stateSave: true
-        });
-
-        // Function to update category dropdown based on role selection
-        function updateCategory() {
-            var role = document.getElementById('role').value;
-            var categorySelect = document.getElementById('category');
-            
-            // Clear the existing options
-            categorySelect.innerHTML = '';
-
-            if (role === 'Student') {
-                // If the role is 'Student', show 'Student' only in category
-                var option = document.createElement('option');
-                option.value = 'Student';
-                option.text = 'Student';
-                categorySelect.appendChild(option);
-            } else {
-                // If the role is not 'Student', show 'Regular' and 'Contractual'
-                var option1 = document.createElement('option');
-                option1.value = 'Regular';
-                option1.text = 'Regular';
-                categorySelect.appendChild(option1);
-
-                var option2 = document.createElement('option');
-                option2.value = 'Contractual';
-                option2.text = 'Contractual';
-                categorySelect.appendChild(option2);
-            }
-        }
-
-        // Initialize category dropdown on page load
-        updateCategory();
-
-        // Format ID number input to "0000-0000" pattern
-        function formatIDNumber(input) {
-            // Remove any non-digit characters
-            let value = input.value.replace(/\D/g, '');
-            
-            // Add hyphen after 4 digits
-            if (value.length > 4) {
-                value = value.substring(0, 4) + '-' + value.substring(4, 8);
-            }
-            
-            // Update the input value
-            input.value = value;
-        }
-
-        // Add event listeners for ID number formatting
-        $('#id_number, #id_number1').on('input', function() {
-            formatIDNumber(this);
-        });
-
-        // Handle form submission for adding personnel
-        $('#personellForm').submit(function(e) {
-            e.preventDefault();
-            
-            // Validate required fields
-            const requiredFields = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department'];
-            let isValid = true;
-            
-            requiredFields.forEach(field => {
-                const fieldValue = $('#' + field).val();
-                if (!fieldValue || fieldValue.trim() === '') {
-                    isValid = false;
-                    $('.' + field + '-error').text('This field is required').css('color', 'red');
-                } else {
-                    $('.' + field + '-error').text('');
-                }
+            <script>
+        $(document).ready(function() {
+            // Initialize DataTable
+            var dataTable = $('#myDataTable').DataTable({
+                order: [[8, 'desc']],
+                stateSave: true
             });
-            
-            // Validate ID number format (0000-0000)
-            const idNumber = $('#id_number').val();
-            const idPattern = /^\d{4}-\d{4}$/;
-            if (!idPattern.test(idNumber)) {
-                isValid = false;
-                $('.idno-error').text('ID Number must be in format: 0000-0000').css('color', 'red');
-            } else {
-                $('.idno-error').text('');
-            }
-            
-            // Validate date of birth (minimum age 18)
-            const dob = new Date($('#date_of_birth').val());
-            const today = new Date();
-            const minAgeDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
-            
-            if (dob > minAgeDate) {
-                isValid = false;
-                $('.dob-error').text('Personnel must be at least 18 years old').css('color', 'red');
-            } else {
-                $('.dob-error').text('');
-            }
-            
-            if (!isValid) {
-                Swal.fire({
-                    title: 'Error!',
-                    text: 'Please fill all required fields correctly',
-                    icon: 'error'
-                });
-                return;
+
+            // Function to update category dropdown based on role selection
+            function updateCategory() {
+                var role = document.getElementById('role').value;
+                var categorySelect = document.getElementById('category');
+                
+                // Clear the existing options
+                categorySelect.innerHTML = '';
+
+                if (role === 'Student') {
+                    // If the role is 'Student', show 'Student' only in category
+                    var option = document.createElement('option');
+                    option.value = 'Student';
+                    option.text = 'Student';
+                    categorySelect.appendChild(option);
+                } else {
+                    // If the role is not 'Student', show 'Regular' and 'Contractual'
+                    var option1 = document.createElement('option');
+                    option1.value = 'Regular';
+                    option1.text = 'Regular';
+                    categorySelect.appendChild(option1);
+
+                    var option2 = document.createElement('option');
+                    option2.value = 'Contractual';
+                    option2.text = 'Contractual';
+                    categorySelect.appendChild(option2);
+                }
             }
 
-            // Remove hyphen from ID number before submitting
-            var cleanIdNumber = idNumber.replace(/-/g, '');
-    
-            var formData = new FormData(this);
-            formData.set('id_number', cleanIdNumber); // Use the clean ID without hyphen
-            
-            // Show loading indicator
-            $('#btn-emp').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
-            $('#btn-emp').prop('disabled', true);
-            
-            $.ajax({
-                url: 'transac.php?action=add_personnel',
-                type: 'POST',
-                data: formData,
-                contentType: false,
-                processData: false,
-                dataType: 'json',
-                success: function(response) {
-                    // Reset button state
-                    $('#btn-emp').html('Save');
-                    $('#btn-emp').prop('disabled', false);
-                    
-                    if (response.status === 'success') {
-                        Swal.fire({
-                            title: 'Success!',
-                            text: response.message,
-                            icon: 'success'
-                        }).then(() => {
-                            // Close modal and refresh page to show new record
-                            $('#employeeModal').modal('hide');
-                            location.reload();
-                        });
+            // Initialize category dropdown on page load
+            updateCategory();
+
+            // Format ID number input to "0000-0000" pattern
+            function formatIDNumber(input) {
+                // Remove any non-digit characters
+                let value = input.value.replace(/\D/g, '');
+                
+                // Add hyphen after 4 digits
+                if (value.length > 4) {
+                    value = value.substring(0, 4) + '-' + value.substring(4, 8);
+                }
+                
+                // Update the input value
+                input.value = value;
+            }
+
+            // Add event listeners for ID number formatting
+            $('#id_number, #id_number1').on('input', function() {
+                formatIDNumber(this);
+            });
+
+            // ========================
+            // CREATE PERSONNEL
+            // ========================
+            $('#personellForm').submit(function(e) {
+                e.preventDefault();
+                
+                // Validate required fields
+                const requiredFields = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department'];
+                let isValid = true;
+                
+                requiredFields.forEach(field => {
+                    const fieldValue = $('#' + field).val();
+                    if (!fieldValue || fieldValue.trim() === '') {
+                        isValid = false;
+                        $('.' + field + '-error').text('This field is required').css('color', 'red');
                     } else {
+                        $('.' + field + '-error').text('');
+                    }
+                });
+                
+                // Validate ID number format (0000-0000)
+                const idNumber = $('#id_number').val();
+                const idPattern = /^\d{4}-\d{4}$/;
+                if (!idPattern.test(idNumber)) {
+                    isValid = false;
+                    $('.idno-error').text('ID Number must be in format: 0000-0000').css('color', 'red');
+                } else {
+                    $('.idno-error').text('');
+                }
+                
+                // Validate date of birth (minimum age 18)
+                const dob = new Date($('#date_of_birth').val());
+                const today = new Date();
+                const minAgeDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
+                
+                if (dob > minAgeDate) {
+                    isValid = false;
+                    $('.dob-error').text('Personnel must be at least 18 years old').css('color', 'red');
+                } else {
+                    $('.dob-error').text('');
+                }
+                
+                if (!isValid) {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: 'Please fill all required fields correctly',
+                        icon: 'error'
+                    });
+                    return;
+                }
+
+                // Remove hyphen from ID number before submitting
+                var cleanIdNumber = idNumber.replace(/-/g, '');
+            
+                var formData = new FormData(this);
+                formData.set('id_number', cleanIdNumber); // Use the clean ID without hyphen
+                
+                // Show loading indicator
+                $('#btn-emp').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
+                $('#btn-emp').prop('disabled', true);
+                
+                $.ajax({
+                    url: 'transac.php?action=add_personnel',
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    dataType: 'json',
+                    success: function(response) {
+                        // Reset button state
+                        $('#btn-emp').html('Save');
+                        $('#btn-emp').prop('disabled', false);
+                        
+                        if (response.status === 'success') {
+                            Swal.fire({
+                                title: 'Success!',
+                                text: response.message,
+                                icon: 'success'
+                            }).then(() => {
+                                // Close modal and refresh page to show new record
+                                $('#employeeModal').modal('hide');
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Error!',
+                                text: response.message,
+                                icon: 'error'
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        // Reset button state
+                        $('#btn-emp').html('Save');
+                        $('#btn-emp').prop('disabled', false);
+                        
+                        console.log('XHR Response:', xhr.responseText);
+                        console.log('Status:', status);
+                        console.log('Error:', error);
+                        
+                        let errorMessage = 'An error occurred while processing your request';
+                        try {
+                            const errorResponse = JSON.parse(xhr.responseText);
+                            if (errorResponse.message) {
+                                errorMessage = errorResponse.message;
+                            }
+                        } catch (e) {
+                            // If not JSON, use default message
+                        }
+                        
                         Swal.fire({
                             title: 'Error!',
-                            text: response.message,
+                            text: errorMessage,
                             icon: 'error'
                         });
                     }
-                },
-                error: function(xhr, status, error) {
-                    // Reset button state
-                    $('#btn-emp').html('Save');
-                    $('#btn-emp').prop('disabled', false);
+                });
+            });
+
+            // ID number duplicate check on blur
+            $('#id_number').on('blur', function() {
+                const idNumber = $(this).val();
+                const idPattern = /^\d{4}-\d{4}$/;
+                
+                if (idPattern.test(idNumber)) {
+                    // Remove hyphen for database check
+                    const cleanIdNumber = idNumber.replace(/-/g, '');
                     
-                    console.log('XHR Response:', xhr.responseText);
-                    console.log('Status:', status);
-                    console.log('Error:', error);
-                    
-                    let errorMessage = 'An error occurred while processing your request';
-                    try {
-                        const errorResponse = JSON.parse(xhr.responseText);
-                        if (errorResponse.message) {
-                            errorMessage = errorResponse.message;
+                    $.ajax({
+                        url: 'check_rfid.php',
+                        method: 'POST',
+                        data: { id_number: cleanIdNumber },
+                        success: function(response) {
+                            const res = JSON.parse(response);
+                            if (res.exists) {
+                                Swal.fire({
+                                    icon: 'warning',
+                                    title: 'Duplicate ID Number',
+                                    text: 'This ID number already exists in the system.',
+                                }).then(() => {
+                                    $('#id_number').val('').focus();
+                                });
+                            }
                         }
-                    } catch (e) {
-                        // If not JSON, use default message
-                    }
-                    
-                    Swal.fire({
-                        title: 'Error!',
-                        text: errorMessage,
-                        icon: 'error'
                     });
                 }
             });
-        });
 
-        // ID number duplicate check on blur
-        $('#id_number').on('blur', function() {
-            const idNumber = $(this).val();
-            const idPattern = /^\d{4}-\d{4}$/;
-            
-            if (idPattern.test(idNumber)) {
-                // Remove hyphen for database check
-                const cleanIdNumber = idNumber.replace(/-/g, '');
+            // ========================
+            // UPDATE PERSONNEL
+            // ========================
+            // Handle edit button click
+            $(document).on('click', '.btn-edit', function() {
+                var $id = $(this).data('id');
+                var $row = $(this).closest('tr');
                 
-                $.ajax({
-                    url: 'check_rfid.php',
-                    method: 'POST',
-                    data: { id_number: cleanIdNumber },
-                    success: function(response) {
-                        const res = JSON.parse(response);
-                        if (res.exists) {
-                            Swal.fire({
-                                icon: 'warning',
-                                title: 'Duplicate ID Number',
-                                text: 'This ID number already exists in the system.',
-                            }).then(() => {
-                                $('#id_number').val('').focus();
-                            });
-                        }
-                    }
-                });
-            }
-        });
+                // Retrieve data from the selected row
+                var $getphoto = $row.find('.photo').attr('src');
+                var $getid = $row.find('.id').text(); // Get formatted ID
+                var $getrole = $row.find('.role').val();
+                var $getcateg = $row.find('.categ').val();
+                var $getfname = $row.find('.first_name').val();
+                var $getlname = $row.find('.last_name').val();
+                var $getdob = $row.find('.date_of_birth').val();
+                var $getdepartment = $row.find('.department').val();
+                var $getstatus = $row.find('.status').val();
 
-        // Handle edit button click
-        $(document).on('click', '.btn-edit', function() {
-            var $id = $(this).data('id');
-            
-            // Retrieve data from the selected row
-            var $getphoto = $('.table-' + $id + ' .photo').attr('src');
-            var $getrfid = $('.table-' + $id + ' .rfid_raw').val(); // Get raw RFID without formatting
-            var $getrole = $('.table-' + $id + ' .role').val();
-            var $getcateg = $('.table-' + $id + ' .categ').val();
-            var $getfname = $('.table-' + $id + ' .first_name').val();
-            var $getlname = $('.table-' + $id + ' .last_name').val();
-            var $getmname = $('.table-' + $id + ' .middle_name').val();
-            var $getdob = $('.table-' + $id + ' .date_of_birth').val();
-            var $getpob = $('.table-' + $id + ' .place_of_birth').val();
-            var $getsex = $('.table-' + $id + ' .sex').val();
-            var $getcivil = $('.table-' + $id + ' .civil_status').val();
-            var $getcnumber = $('.table-' + $id + ' .contact_number').val();
-            var $getemail = $('.table-' + $id + ' .email_address').val();
-            var $getdepartment = $('.table-' + $id + ' .department').val();
-            var $getstatus = $('.table-' + $id + ' .status').val();
+                // Update the modal fields with data
+                $('.edit-photo').attr('src', $getphoto);
+                $('#id_number1').val($getid); // Set formatted ID
+                $('.edit-id').val($id);
+                $('#erole').val($getrole);
+                $('#ecategory').val($getcateg);
+                $('.edit-fname').val($getfname);
+                $('.edit-lname').val($getlname);
+                $('.capturedImage').val($getphoto.replace('uploads/', ''));
+                $('.edit-dob').val($getdob);
+                $('#e_department').val($getdepartment);
+                $('#status').val($getstatus);
 
-            // Format the RFID for display in the edit form
-            var formattedRfid = $getrfid;
-            if (formattedRfid.length === 8 && /^\d+$/.test(formattedRfid)) {
-                formattedRfid = formattedRfid.substring(0, 4) + '-' + formattedRfid.substring(4, 8);
-            }
+                // Update category dropdown based on role
+                updateCategory1($getrole);
 
-            // Update the modal fields with data
-            $('.edit-photo').attr('src', $getphoto);
-            $('.edit-rfid').val(formattedRfid); // Use formatted RFID
-            $('.edit-id').val($id);
-            $('#erole').val($getrole);
-            $('#ecategory').val($getcateg);
-            $('.edit-fname').val($getfname);
-            $('.edit-lname').val($getlname);
-            $('.capturedImage').val($getphoto);
-            $('.edit-mname').val($getmname);
-            $('.edit-dob').val($getdob);
-            $('.edit-pob').val($getpob);
-            $('.edit-sex').val($getsex);
-            $('.edit-cnumber').val($getcnumber);
-            $('.edit-status').val($getcivil);
-            $('.edit-email').val($getemail);
-            $('#e_department').val($getdepartment);
-            $('#status').val($getstatus);
+                // Show the modal
+                $('#editemployeeModal').modal('show');
+            });
 
-            // Update category dropdown based on role
-            updateCategory1($getrole);
-
-            // Show the modal
-            $('#editemployeeModal').modal('show');
-        });
-
-        // Handle edit form submission
-        
+            // Handle edit form submission
             $('#editPersonellForm').submit(function(e) {
                 e.preventDefault();
                 
@@ -823,16 +811,13 @@ function cleanID($id) {
                 });
             });
 
-        
-
-                // Handle delete button click
+            // ========================
+            // DELETE PERSONNEL
+            // ========================
+            // Handle delete button click
             $(document).on('click', '.btn-del', function() {
                 var userId = $(this).data('id');
                 var userName = $(this).attr('user_name');
-                
-                // Store these for use in the AJAX call
-                currentDeleteUserId = userId;
-                currentDeleteUserName = userName;
                 
                 // Show confirmation dialog
                 $('#delete_departmentname').val(userName);
@@ -840,7 +825,6 @@ function cleanID($id) {
                 $('#delemployee-modal').modal('show');
             });
 
-            
             // Handle the actual deletion when "Yes" is clicked in the modal
             $(document).on('click', '#btn-delemp', function() {
                 var userId = $('#delete_employeeid').val();
@@ -867,7 +851,7 @@ function cleanID($id) {
                             $('#delemployee-modal').modal('hide');
                             
                             // Remove the row from the table
-                            dataTable.row($('.table-' + userId)).remove().draw();
+                            dataTable.row($('.table-' + userId).closest('tr')).remove().draw();
                             
                             // Show success message
                             Swal.fire({
@@ -912,75 +896,75 @@ function cleanID($id) {
                     }
                 });
             });
-        // Reset modal when closed
-        $('#employeeModal').on('hidden.bs.modal', function () {
-            document.getElementById('role').value = 'Student';
-            updateCategory();
-            $(this).find('form')[0].reset();
-            $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
+
+            // Reset modal when closed
+            $('#employeeModal').on('hidden.bs.modal', function () {
+                document.getElementById('role').value = 'Student';
+                updateCategory();
+                $(this).find('form')[0].reset();
+                $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
+            });
+
+            // Image preview functionality
+            $("[class^=upload-field-]").change(function () {
+                readURL(this);
+            });
+
+            function readURL(input) {
+                if (input.files && input.files[0]) {
+                    const file = input.files[0];
+                    const validFormats = ['image/jpeg', 'image/png'];
+                    const maxSize = 2 * 1024 * 1024; // 2MB
+
+                    // Validate file format
+                    if (!validFormats.includes(file.type)) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Invalid Format',
+                            text: 'Only JPG and PNG formats are allowed.',
+                        });
+                        input.value = ''; // Reset the input
+                        return;
+                    }
+
+                    // Validate file size
+                    if (file.size > maxSize) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'File Too Large',
+                            text: 'Maximum file size is 2MB.',
+                        });
+                        input.value = ''; // Reset the input
+                        return;
+                    }
+
+                    // Preview the image
+                    var reader = new FileReader();
+                    reader.onload = function (e) {
+                        var num = $(input).attr('class').split('-')[2];
+                        $('.file-uploader .preview-' + num).attr('src', e.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
         });
 
-        // Image preview functionality
-        $("[class^=upload-field-]").change(function () {
-            readURL(this);
-        });
+        // Function to update category dropdown for edit modal
+        function updateCategory1(role) {
+            const categoryDropdown = document.getElementById('ecategory');
+            // Clear existing options
+            categoryDropdown.innerHTML = '';
 
-        function readURL(input) {
-            if (input.files && input.files[0]) {
-                const file = input.files[0];
-                const validFormats = ['image/jpeg', 'image/png'];
-                const maxSize = 2 * 1024 * 1024; // 2MB
-
-                // Validate file format
-                if (!validFormats.includes(file.type)) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Invalid Format',
-                        text: 'Only JPG and PNG formats are allowed.',
-                    });
-                    input.value = ''; // Reset the input
-                    return;
-                }
-
-                // Validate file size
-                if (file.size > maxSize) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'File Too Large',
-                        text: 'Maximum file size is 2MB.',
-                    });
-                    input.value = ''; // Reset the input
-                    return;
-                }
-
-                // Preview the image
-                var reader = new FileReader();
-                reader.onload = function (e) {
-                    var num = $(input).attr('class').split('-')[2];
-                    $('.file-uploader .preview-' + num).attr('src', e.target.result);
-                };
-                reader.readAsDataURL(file);
+            if (role === 'Student') {
+                const studentOption = new Option('Student', 'Student');
+                categoryDropdown.add(studentOption);
+            } else {
+                const regularOption = new Option('Regular', 'Regular');
+                const contractualOption = new Option('Contractual', 'Contractual');
+                categoryDropdown.add(regularOption);
+                categoryDropdown.add(contractualOption);
             }
         }
-    });
-
-    // Function to update category dropdown for edit modal
-    function updateCategory1(role) {
-        const categoryDropdown = document.getElementById('ecategory');
-        // Clear existing options
-        categoryDropdown.innerHTML = '';
-
-        if (role === 'Student') {
-            const studentOption = new Option('Student', 'Student');
-            categoryDropdown.add(studentOption);
-        } else {
-            const regularOption = new Option('Regular', 'Regular');
-            const contractualOption = new Option('Contractual', 'Contractual');
-            categoryDropdown.add(regularOption);
-            categoryDropdown.add(contractualOption);
-        }
-    }
-
-    </script>
+        </script>
 </body>
 </html>

@@ -579,20 +579,18 @@ if ($isAjaxRequest) {
                             jsonResponse('error', 'Failed to upload image');
                         }
                     }
+                    // Insert personnel record
+                        $query = "INSERT INTO personell (
+                            category, id_number, last_name, first_name, 
+                            date_of_birth, role, department, status, photo, date_added
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
 
-                    // Generate unique ID and insert record
-                    $id = uniqid();
-                    $query = "INSERT INTO personell (
-                        id, category, id_number, last_name, first_name, 
-                        date_of_birth, role, department, status, photo, date_added
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
-
-                    $stmt = $db->prepare($query);
-                    $stmt->bind_param(
-                        "ssssssssss", 
-                        $id, $category, $id_number, $last_name, $first_name,
-                        $date_of_birth, $role, $department, $status, $photo
-                    );
+                        $stmt = $db->prepare($query);
+                        $stmt->bind_param(
+                            "sssssssss", 
+                            $category, $id_number, $last_name, $first_name,
+                            $date_of_birth, $role, $department, $status, $photo
+                        );
 
                     if ($stmt->execute()) {
                         jsonResponse('success', 'Personnel added successfully', ['id' => $id]);
