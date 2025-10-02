@@ -23,7 +23,11 @@ function sanitizeInput($db, $input) {
 }
 
 // Check if this is an AJAX request for specific operations
-$validAjaxActions = ['add_department', 'update_department', 'delete_department', 'add_room', 'update_room', 'delete_room'];
+$validAjaxActions = [
+    'add_department', 'update_department', 'delete_department', 
+    'add_room', 'update_room', 'delete_room',
+    'add_role', 'update_role', 'delete_role'
+];
 $isAjaxRequest = isset($_GET['action']) && in_array($_GET['action'], $validAjaxActions);
 
 if ($isAjaxRequest) {
@@ -328,6 +332,165 @@ if ($isAjaxRequest) {
                 jsonResponse('error', 'Failed to delete room: ' . $stmt->error);
             }
             break;
+           
+            // ========================
+            // ROLE CRUD OPERATIONS
+            // ========================
+            case 'add_role':
+                if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                    jsonResponse('error', 'Invalid request method');
+                }
+
+                // Validate required field
+                if (!isset($_POST['role']) || empty(trim($_POST['role']))) {
+                    jsonResponse('error', 'Role name is required');
+                }
+
+                // Sanitize input
+                $role = sanitizeInput($db, trim($_POST['role']));
+
+                // Validate length
+                if (strlen($role) > 100) {
+                    jsonResponse('error', 'Role name must be less than 100 characters');
+                }
+
+                // Check if role exists (case-insensitive)
+                $check = $db->prepare("SELECT id FROM role WHERE LOWER(role) = LOWER(?)");
+                if (!$check) {
+                    jsonResponse('error', 'Database error: ' . $db->error);
+                }
+                
+                $check->bind_param("s", $role);
+                if (!$check->execute()) {
+                    jsonResponse('error', 'Database error: ' . $check->error);
+                }
+                
+                $check->store_result();
+                
+                if ($check->num_rows > 0) {
+                    $check->close();
+                    jsonResponse('error', 'Role already exists');
+                }
+                $check->close();
+
+                // Insert role with prepared statement
+                $stmt = $db->prepare("INSERT INTO role (role) VALUES (?)");
+                if (!$stmt) {
+                    jsonResponse('error', 'Database error: ' . $db->error);
+                }
+                
+                $stmt->bind_param("s", $role);
+                
+                if ($stmt->execute()) {
+                    jsonResponse('success', 'Role added successfully', [
+                        'id' => $stmt->insert_id,
+                        'role' => $role
+                    ]);
+                } else {
+                    jsonResponse('error', 'Failed to add role: ' . $stmt->error);
+                }
+                break;
+
+            case 'update_role':
+                if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                    jsonResponse('error', 'Invalid request method');
+                }
+
+                // Validate required fields
+                if (!isset($_POST['id']) || empty($_POST['id'])) {
+                    jsonResponse('error', 'Role ID is required');
+                }
+                if (!isset($_POST['role']) || empty(trim($_POST['role']))) {
+                    jsonResponse('error', 'Role name is required');
+                }
+
+                // Sanitize inputs
+                $id = intval($_POST['id']);
+                $role = sanitizeInput($db, trim($_POST['role']));
+
+                // Validate ID
+                if ($id <= 0) {
+                    jsonResponse('error', 'Invalid role ID');
+                }
+
+                // Validate length
+                if (strlen($role) > 100) {
+                    jsonResponse('error', 'Role name must be less than 100 characters');
+                }
+
+                // Check if role exists (excluding current one)
+                $check = $db->prepare("SELECT id FROM role WHERE LOWER(role) = LOWER(?) AND id != ?");
+                $check->bind_param("si", $role, $id);
+                $check->execute();
+                $check->store_result();
+                
+                if ($check->num_rows > 0) {
+                    jsonResponse('error', 'Role name already exists');
+                }
+                $check->close();
+
+                // Update role
+                $stmt = $db->prepare("UPDATE role SET role = ? WHERE id = ?");
+                $stmt->bind_param("si", $role, $id);
+
+                if ($stmt->execute()) {
+                    jsonResponse('success', 'Role updated successfully');
+                } else {
+                    jsonResponse('error', 'Failed to update role: ' . $db->error);
+                }
+                break;
+
+            case 'delete_role':
+                if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                    jsonResponse('error', 'Invalid request method');
+                }
+
+                // Validate required field
+                if (!isset($_POST['id']) || empty($_POST['id'])) {
+                    jsonResponse('error', 'Role ID is required');
+                }
+
+                // Sanitize input
+                $id = intval($_POST['id']);
+
+                if ($id <= 0) {
+                    jsonResponse('error', 'Invalid role ID');
+                }
+
+                // Check if role is assigned to personnel
+                $checkPersonnel = $db->prepare("SELECT COUNT(*) FROM personell WHERE role = (SELECT role FROM role WHERE id = ?)");
+                $checkPersonnel->bind_param("i", $id);
+                $checkPersonnel->execute();
+                $checkPersonnel->bind_result($personnelCount);
+                $checkPersonnel->fetch();
+                $checkPersonnel->close();
+
+                if ($personnelCount > 0) {
+                    jsonResponse('error', 'Cannot delete role assigned to personnel');
+                }
+
+                // Check if role is assigned to rooms
+                $checkRooms = $db->prepare("SELECT COUNT(*) FROM rooms WHERE authorized_personnel = (SELECT role FROM role WHERE id = ?)");
+                $checkRooms->bind_param("i", $id);
+                $checkRooms->execute();
+                $checkRooms->bind_result($roomCount);
+                $checkRooms->fetch();
+                $checkRooms->close();
+
+                if ($roomCount > 0) {
+                    jsonResponse('error', 'Cannot delete role assigned to rooms');
+                }
+
+                // Proceed with deletion
+                $stmt = $db->prepare("DELETE FROM role WHERE id = ?");
+                $stmt->bind_param("i", $id);
+                
+                if ($stmt->execute()) {
+                    jsonResponse('success', 'Role deleted successfully');
+                } else {
+                    jsonResponse('error', 'Failed to delete role: ' . $stmt->error);
+                }
+                break;
 
         default:
             jsonResponse('error', 'Invalid action');

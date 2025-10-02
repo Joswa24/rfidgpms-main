@@ -183,237 +183,308 @@ include '../connection.php';
 
     <script>
     $(document).ready(function() {
-        // Initialize DataTable
-        var dataTable = $('#myDataTable').DataTable({
-            order: [[0, 'desc']],
-            stateSave: true
-        });
+    // Initialize DataTable
+    var dataTable = $('#myDataTable').DataTable({
+        order: [[0, 'desc']],
+        stateSave: true
+    });
 
-        // Reset form function
-        function resetForm() {
-            $('.error-message').text('');
-            $('#roleForm')[0].reset();
+    // Reset form function
+    function resetForm() {
+        $('.error-message').text('');
+        $('#roleForm')[0].reset();
+    }
+
+    // Validation function
+    function validateRole(role) {
+        let isValid = true;
+        const errors = {};
+
+        if (!role) { 
+            errors.role = 'Role name is required';
+            isValid = false; 
+        } else if (role.length > 100) {
+            errors.role = 'Role name must be less than 100 characters';
+            isValid = false;
         }
 
-        // ==============
-        // CREATE (ADD ROLE)
-        // ==============
-        $('#roleForm').submit(function(e) {
-            e.preventDefault();
-            
-            $('.error-message').text('');
-            const role = $('#role').val().trim();
-            let isValid = true;
+        return { isValid, errors };
+    }
 
-            // Validation
-            if (!role) { 
-                $('#role-error').text('Role name is required'); 
-                isValid = false; 
-            }
-            
-            if (!isValid) return;
+    // Display validation errors
+    function displayErrors(errors, prefix = '') {
+        $('.error-message').text('');
+        Object.keys(errors).forEach(key => {
+            $(`#${prefix}${key}-error`).text(errors[key]);
+        });
+    }
 
-            // Show loading state
-            $('#btn-role').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
-            $('#btn-role').prop('disabled', true);
+    // ==============
+    // CREATE (ADD ROLE)
+    // ==============
+    $('#roleForm').submit(function(e) {
+        e.preventDefault();
+        
+        const role = $('#role').val().trim();
 
-            $.ajax({
-                type: "POST",
-                url: "transac.php?action=add_role",
-                data: { role: role },
-                dataType: 'json',
-                success: function(response) {
-                    // Reset button state
-                    $('#btn-role').html('Save');
-                    $('#btn-role').prop('disabled', false);
-                    
-                    if (response.status === 'success') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success!',
-                            text: response.message,
-                            showConfirmButton: true
-                        }).then(() => {
-                            $('#roleModal').modal('hide');
-                            location.reload();
-                        });
-                    } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error!',
-                            text: response.message
-                        });
-                    }
-                },
-                error: function(xhr, status, error) {
-                    // Reset button state
-                    $('#btn-role').html('Save');
-                    $('#btn-role').prop('disabled', false);
-                    
+        // Validation
+        const validation = validateRole(role);
+        if (!validation.isValid) {
+            displayErrors(validation.errors);
+            return;
+        }
+
+        // Show loading state
+        $('#btn-role').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
+        $('#btn-role').prop('disabled', true);
+
+        $.ajax({
+            type: "POST",
+            url: "transac.php?action=add_role",
+            data: { role: role },
+            dataType: 'json',
+            success: function(response) {
+                // Reset button state
+                $('#btn-role').html('Save');
+                $('#btn-role').prop('disabled', false);
+                
+                if (response.status === 'success') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: response.message,
+                        showConfirmButton: false,
+                        timer: 1500
+                    }).then(() => {
+                        $('#roleModal').modal('hide');
+                        location.reload();
+                    });
+                } else {
                     Swal.fire({
                         icon: 'error',
                         title: 'Error!',
-                        text: 'An error occurred: ' + error
+                        text: response.message
                     });
                 }
-            });
-        });
-
-        // ==========
-        // READ (EDIT ROLE)
-        // ==========
-        $(document).on('click', '.e_role_id', function() {
-            const id = $(this).data('id');
-            const role = $(this).attr('role');
-
-            // Populate edit form
-            $('#edit_roleid').val(id);
-            $('#erole').val(role);
-            
-            // Show modal
-            $('#editRoleModal').modal('show');
-        });
-
-        // ==========
-        // UPDATE ROLE
-        // ==========
-        $('#editRoleForm').submit(function(e) {
-            e.preventDefault();
-            
-            const id = $('#edit_roleid').val();
-            const role = $('#erole').val().trim();
-
-            // Validation
-            let isValid = true;
-            if (!role) { 
-                $('#erole-error').text('Role name is required'); 
-                isValid = false; 
-            } else { 
-                $('#erole-error').text(''); 
-            }
-            
-            if (!isValid) return;
-
-            // Show loading state
-            $('#btn-editrole').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
-            $('#btn-editrole').prop('disabled', true);
-
-            $.ajax({
-                type: "POST",
-                url: "edit1.php?edit=role&id=" + id,
-                data: { role: role },
-                dataType: 'json',
-                success: function(response) {
-                    // Reset button state
-                    $('#btn-editrole').html('Update');
-                    $('#btn-editrole').prop('disabled', false);
-                    
-                    if (response.status === 'success') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success!',
-                            text: response.message,
-                            showConfirmButton: true
-                        }).then(() => {
-                            $('#editRoleModal').modal('hide');
-                            location.reload();
-                        });
-                    } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error!',
-                            text: response.message
-                        });
+            },
+            error: function(xhr, status, error) {
+                // Reset button state
+                $('#btn-role').html('Save');
+                $('#btn-role').prop('disabled', false);
+                
+                console.log('XHR Response:', xhr.responseText);
+                console.log('Status:', status);
+                console.log('Error:', error);
+                
+                // Try to parse error response
+                let errorMessage = 'An error occurred while processing your request';
+                try {
+                    const errorResponse = JSON.parse(xhr.responseText);
+                    if (errorResponse.message) {
+                        errorMessage = errorResponse.message;
                     }
-                },
-                error: function(xhr) {
-                    // Reset button state
-                    $('#btn-editrole').html('Update');
-                    $('#btn-editrole').prop('disabled', false);
-                    
+                } catch (e) {
+                    // If not JSON, use default message
+                }
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: errorMessage
+                });
+            }
+        });
+    });
+
+    // ==========
+    // READ (EDIT ROLE)
+    // ==========
+    $(document).on('click', '.e_role_id', function() {
+        const id = $(this).data('id');
+        const role = $(this).attr('role');
+
+        // Populate edit form
+        $('#edit_roleid').val(id);
+        $('#erole').val(role);
+        
+        // Clear previous errors
+        $('.error-message').text('');
+        
+        // Show modal
+        $('#editRoleModal').modal('show');
+    });
+
+    // ==========
+    // UPDATE ROLE
+    // ==========
+    $('#editRoleForm').submit(function(e) {
+        e.preventDefault();
+        
+        const id = $('#edit_roleid').val();
+        const role = $('#erole').val().trim();
+
+        // Validation
+        const validation = validateRole(role);
+        if (!validation.isValid) {
+            displayErrors(validation.errors, 'e');
+            return;
+        }
+
+        // Show loading state
+        $('#btn-editrole').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
+        $('#btn-editrole').prop('disabled', true);
+
+        $.ajax({
+            type: "POST",
+            url: "transac.php?action=update_role",
+            data: { 
+                id: id,
+                role: role
+            },
+            dataType: 'json',
+            success: function(response) {
+                // Reset button state
+                $('#btn-editrole').html('Update');
+                $('#btn-editrole').prop('disabled', false);
+                
+                if (response.status === 'success') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: response.message,
+                        showConfirmButton: false,
+                        timer: 1500
+                    }).then(() => {
+                        $('#editRoleModal').modal('hide');
+                        location.reload();
+                    });
+                } else {
                     Swal.fire({
                         icon: 'error',
                         title: 'Error!',
-                        text: 'An error occurred while processing your request'
+                        text: response.message
                     });
                 }
-            });
+            },
+            error: function(xhr, status, error) {
+                // Reset button state
+                $('#btn-editrole').html('Update');
+                $('#btn-editrole').prop('disabled', false);
+                
+                console.log('XHR Response:', xhr.responseText);
+                console.log('Status:', status);
+                console.log('Error:', error);
+                
+                // Try to parse error response
+                let errorMessage = 'An error occurred while processing your request';
+                try {
+                    const errorResponse = JSON.parse(xhr.responseText);
+                    if (errorResponse.message) {
+                        errorMessage = errorResponse.message;
+                    }
+                } catch (e) {
+                    // If not JSON, use default message
+                }
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: errorMessage
+                });
+            }
         });
+    });
 
-        // ==========
-        // DELETE ROLE
-        // ==========
-        $(document).on('click', '.d_role_id', function() {
-            const $button = $(this);
-            const id = $button.data('id');
-            const roleName = $button.attr('role');
-            
-            Swal.fire({
-                title: 'Delete Role?',
-                text: `Are you sure you want to delete "${roleName}"?`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Yes, delete it!',
-                cancelButtonText: 'Cancel'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Show loading state
-                    $button.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
-                    $button.prop('disabled', true);
-                    
-                    $.ajax({
-                        type: 'POST',
-                        url: 'del.php',
-                        data: { type: 'role', id: id },
-                        dataType: 'json',
-                        success: function(response) {
-                            if (response.status === 'success') {
-                                // Remove row from DataTable
-                                dataTable.row($button.closest('tr')).remove().draw();
-                                
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: 'Deleted!',
-                                    text: response.message,
-                                    showConfirmButton: false,
-                                    timer: 1500
-                                });
-                            } else {
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Error!',
-                                    text: response.message || 'Failed to delete role'
-                                });
-                            }
-                        },
-                        error: function(xhr) {
+    // ==========
+    // DELETE ROLE
+    // ==========
+    $(document).on('click', '.d_role_id', function() {
+        const $button = $(this);
+        const id = $button.data('id');
+        const roleName = $button.attr('role');
+        
+        Swal.fire({
+            title: 'Delete Role?',
+            text: `Are you sure you want to delete "${roleName}"?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!',
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Show loading state
+                $button.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
+                $button.prop('disabled', true);
+                
+                $.ajax({
+                    type: 'POST',
+                    url: 'transac.php?action=delete_role',
+                    data: { 
+                        id: id
+                    },
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.status === 'success') {
+                            // Remove row from DataTable
+                            dataTable.row($button.closest('tr')).remove().draw();
+                            
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Deleted!',
+                                text: response.message,
+                                showConfirmButton: false,
+                                timer: 1500
+                            });
+                        } else {
                             Swal.fire({
                                 icon: 'error',
                                 title: 'Error!',
-                                text: 'An error occurred while deleting the role'
+                                text: response.message || 'Failed to delete role'
                             });
-                        },
-                        complete: function() {
-                            // Restore button state
-                            $button.html('<i class="fas fa-trash"></i> Delete');
-                            $button.prop('disabled', false);
                         }
-                    });
-                }
-            });
-        });
-
-        // Reset modal when closed
-        $('#roleModal').on('hidden.bs.modal', function() {
-            resetForm();
-        });
-        
-        $('#editRoleModal').on('hidden.bs.modal', function() {
-            $('.error-message').text('');
+                    },
+                    error: function(xhr, status, error) {
+                        console.log('XHR Response:', xhr.responseText);
+                        console.log('Status:', status);
+                        console.log('Error:', error);
+                        
+                        let errorMessage = 'An error occurred while deleting the role';
+                        try {
+                            const errorResponse = JSON.parse(xhr.responseText);
+                            if (errorResponse.message) {
+                                errorMessage = errorResponse.message;
+                            }
+                        } catch (e) {
+                            // If not JSON, use default message
+                        }
+                        
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: errorMessage
+                        });
+                    },
+                    complete: function() {
+                        // Restore button state
+                        $button.html('<i class="fas fa-trash"></i> Delete');
+                        $button.prop('disabled', false);
+                    }
+                });
+            }
         });
     });
+
+    // Reset modal when closed
+    $('#roleModal').on('hidden.bs.modal', function() {
+        resetForm();
+    });
+    
+    $('#editRoleModal').on('hidden.bs.modal', function() {
+        $('.error-message').text('');
+    });
+});
     </script>
 </body>
 </html>
