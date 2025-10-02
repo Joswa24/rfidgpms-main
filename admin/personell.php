@@ -580,7 +580,7 @@ function cleanID($id) {
 
             // Remove hyphen from ID number before submitting
             var cleanIdNumber = idNumber.replace(/-/g, '');
-            
+    
             var formData = new FormData(this);
             formData.set('id_number', cleanIdNumber); // Use the clean ID without hyphen
             
@@ -623,9 +623,23 @@ function cleanID($id) {
                     $('#btn-emp').html('Save');
                     $('#btn-emp').prop('disabled', false);
                     
+                    console.log('XHR Response:', xhr.responseText);
+                    console.log('Status:', status);
+                    console.log('Error:', error);
+                    
+                    let errorMessage = 'An error occurred while processing your request';
+                    try {
+                        const errorResponse = JSON.parse(xhr.responseText);
+                        if (errorResponse.message) {
+                            errorMessage = errorResponse.message;
+                        }
+                    } catch (e) {
+                        // If not JSON, use default message
+                    }
+                    
                     Swal.fire({
                         title: 'Error!',
-                        text: 'An error occurred: ' + error,
+                        text: errorMessage,
                         icon: 'error'
                     });
                 }
@@ -715,173 +729,189 @@ function cleanID($id) {
         });
 
         // Handle edit form submission
-        $('#editPersonellForm').submit(function(e) {
-            e.preventDefault();
-            
-            var userId = $('.edit-id').val();
-            
-            if (!userId) {
-                Swal.fire({
-                    title: 'Error!',
-                    text: 'No user selected. Please select a user first.',
-                    icon: 'error'
-                });
-                return;
-            }
-
-            // Remove hyphen from ID number before submitting
-            var idNumber = $('#id_number1').val();
-            var cleanIdNumber = idNumber.replace(/-/g, '');
-            
-           
-            
-            // Validate ID number format (8 digits)
-            if (!/^\d{8}$/.test(cleanIdNumber)) {
-                Swal.fire({
-                    title: 'Error!',
-                    text: 'ID Number must be 8 digits (format: 0000-0000)',
-                    icon: 'error'
-                });
-                return;
-            }
-
-            var formData = new FormData(this);
-            formData.set('id_number', cleanIdNumber); // Use the clean ID without hyphen
-            formData.append('id', userId);
-
-            // Show loading indicator
-            $('#btn-editemp').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
-            $('#btn-editemp').prop('disabled', true);
-            
-            $.ajax({
-                url: 'edit1.php?edit=personell&id=' + userId,
-                type: 'POST',
-                data: formData,
-                contentType: false,
-                processData: false,
-                dataType: 'json',
-                success: function(response) {
-                    // Reset button state
-                    $('#btn-editemp').html('Update');
-                    $('#btn-editemp').prop('disabled', false);
-                    
-                    if (response.status === 'success') {
-                        Swal.fire({
-                            title: 'Success!',
-                            text: response.message,
-                            icon: 'success'
-                        }).then(() => {
-                            location.reload();
-                        });
-                    } else {
-                        Swal.fire({
-                            title: 'Error!',
-                            text: response.message,
-                            icon: 'error'
-                        });
-                    }
-                },
-                error: function(xhr) {
-                    // Reset button state
-                    $('#btn-editemp').html('Update');
-                    $('#btn-editemp').prop('disabled', false);
-                    
-                    try {
-                        // Try to parse the error response as JSON
-                        var errorResponse = JSON.parse(xhr.responseText);
-                        Swal.fire({
-                            title: 'Error!',
-                            text: errorResponse.message || 'An error occurred',
-                            icon: 'error'
-                        });
-                    } catch (e) {
-                        // If not JSON, show raw response
-                        Swal.fire({
-                            title: 'Error!',
-                            text: 'An error occurred: ' + xhr.responseText,
-                            icon: 'error'
-                        });
-                    }
+        
+            $('#editPersonellForm').submit(function(e) {
+                e.preventDefault();
+                
+                var userId = $('.edit-id').val();
+                
+                if (!userId) {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: 'No user selected. Please select a user first.',
+                        icon: 'error'
+                    });
+                    return;
                 }
+
+                // Remove hyphen from ID number before submitting
+                var idNumber = $('#id_number1').val();
+                var cleanIdNumber = idNumber.replace(/-/g, '');
+                
+                // Validate ID number format (8 digits)
+                if (!/^\d{8}$/.test(cleanIdNumber)) {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: 'ID Number must be 8 digits (format: 0000-0000)',
+                        icon: 'error'
+                    });
+                    return;
+                }
+
+                var formData = new FormData(this);
+                formData.set('id_number', cleanIdNumber); // Use the clean ID without hyphen
+                formData.append('id', userId);
+
+                // Show loading indicator
+                $('#btn-editemp').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
+                $('#btn-editemp').prop('disabled', true);
+                
+                $.ajax({
+                    url: 'transac.php?action=update_personnel',
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    dataType: 'json',
+                    success: function(response) {
+                        // Reset button state
+                        $('#btn-editemp').html('Update');
+                        $('#btn-editemp').prop('disabled', false);
+                        
+                        if (response.status === 'success') {
+                            Swal.fire({
+                                title: 'Success!',
+                                text: response.message,
+                                icon: 'success'
+                            }).then(() => {
+                                $('#editemployeeModal').modal('hide');
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Error!',
+                                text: response.message,
+                                icon: 'error'
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        // Reset button state
+                        $('#btn-editemp').html('Update');
+                        $('#btn-editemp').prop('disabled', false);
+                        
+                        console.log('XHR Response:', xhr.responseText);
+                        console.log('Status:', status);
+                        console.log('Error:', error);
+                        
+                        let errorMessage = 'An error occurred while updating personnel';
+                        try {
+                            const errorResponse = JSON.parse(xhr.responseText);
+                            if (errorResponse.message) {
+                                errorMessage = errorResponse.message;
+                            }
+                        } catch (e) {
+                            // If not JSON, use default message
+                        }
+                        
+                        Swal.fire({
+                            title: 'Error!',
+                            text: errorMessage,
+                            icon: 'error'
+                        });
+                    }
+                });
             });
-        });
 
         
 
-       // Handle delete button click
-$(document).on('click', '.btn-del', function() {
-    var userId = $(this).data('id');
-    var userName = $(this).attr('user_name');
-    
-    // Store these for use in the AJAX call
-    currentDeleteUserId = userId;
-    currentDeleteUserName = userName;
-    
-    // Show confirmation dialog
-    $('#delete_departmentname').val(userName);
-    $('#delete_employeeid').val(userId);
-    $('#delemployee-modal').modal('show');
-});
-
-// Handle the actual deletion when "Yes" is clicked in the modal
-$(document).on('click', '#btn-delemp', function() {
-    var userId = $('#delete_employeeid').val();
-    var userName = $('#delete_departmentname').val();
-    
-    // Show loading indicator
-    $('#btn-delemp').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...');
-    $('#btn-delemp').prop('disabled', true);
-    
-    $.ajax({
-        url: 'del.php',
-        type: 'POST',
-        data: { 
-            type: 'personell',
-            id: userId 
-        },
-        dataType: 'json',
-        success: function(response) {
-            // Reset button state
-            $('#btn-delemp').html('Yes');
-            $('#btn-delemp').prop('disabled', false);
-            
-            if (response.status === 'success') {
-                // Close the modal
-                $('#delemployee-modal').modal('hide');
+                // Handle delete button click
+            $(document).on('click', '.btn-del', function() {
+                var userId = $(this).data('id');
+                var userName = $(this).attr('user_name');
                 
-                // Remove the row from the table
-                dataTable.row($('.table-' + userId)).remove().draw();
+                // Store these for use in the AJAX call
+                currentDeleteUserId = userId;
+                currentDeleteUserName = userName;
                 
-                // Show success message
-                Swal.fire({
-                    title: 'Success!',
-                    text: response.message,
-                    icon: 'success',
-                    timer: 3000,
-                    showConfirmButton: false
-                });
-            } else {
-                Swal.fire({
-                    title: 'Error!',
-                    text: response.message,
-                    icon: 'error'
-                });
-            }
-        },
-        error: function(xhr, status, error) {
-            // Reset button state
-            $('#btn-delemp').html('Yes');
-            $('#btn-delemp').prop('disabled', false);
-            
-            Swal.fire({
-                title: 'Error!',
-                text: 'An error occurred: ' + error,
-                icon: 'error'
+                // Show confirmation dialog
+                $('#delete_departmentname').val(userName);
+                $('#delete_employeeid').val(userId);
+                $('#delemployee-modal').modal('show');
             });
-        }
-    });
-});
 
+            
+            // Handle the actual deletion when "Yes" is clicked in the modal
+            $(document).on('click', '#btn-delemp', function() {
+                var userId = $('#delete_employeeid').val();
+                var userName = $('#delete_departmentname').val();
+                
+                // Show loading indicator
+                $('#btn-delemp').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...');
+                $('#btn-delemp').prop('disabled', true);
+                
+                $.ajax({
+                    url: 'transac.php?action=delete_personnel',
+                    type: 'POST',
+                    data: { 
+                        id: userId 
+                    },
+                    dataType: 'json',
+                    success: function(response) {
+                        // Reset button state
+                        $('#btn-delemp').html('Yes');
+                        $('#btn-delemp').prop('disabled', false);
+                        
+                        if (response.status === 'success') {
+                            // Close the modal
+                            $('#delemployee-modal').modal('hide');
+                            
+                            // Remove the row from the table
+                            dataTable.row($('.table-' + userId)).remove().draw();
+                            
+                            // Show success message
+                            Swal.fire({
+                                title: 'Success!',
+                                text: response.message,
+                                icon: 'success',
+                                timer: 3000,
+                                showConfirmButton: false
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Error!',
+                                text: response.message,
+                                icon: 'error'
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        // Reset button state
+                        $('#btn-delemp').html('Yes');
+                        $('#btn-delemp').prop('disabled', false);
+                        
+                        console.log('XHR Response:', xhr.responseText);
+                        console.log('Status:', status);
+                        console.log('Error:', error);
+                        
+                        let errorMessage = 'An error occurred while deleting personnel';
+                        try {
+                            const errorResponse = JSON.parse(xhr.responseText);
+                            if (errorResponse.message) {
+                                errorMessage = errorResponse.message;
+                            }
+                        } catch (e) {
+                            // If not JSON, use default message
+                        }
+                        
+                        Swal.fire({
+                            title: 'Error!',
+                            text: errorMessage,
+                            icon: 'error'
+                        });
+                    }
+                });
+            });
         // Reset modal when closed
         $('#employeeModal').on('hidden.bs.modal', function () {
             document.getElementById('role').value = 'Student';

@@ -26,7 +26,8 @@ function sanitizeInput($db, $input) {
 $validAjaxActions = [
     'add_department', 'update_department', 'delete_department', 
     'add_room', 'update_room', 'delete_room',
-    'add_role', 'update_role', 'delete_role'
+    'add_role', 'update_role', 'delete_role',
+    'add_personnel', 'update_personnel', 'delete_personnel'
 ];
 $isAjaxRequest = isset($_GET['action']) && in_array($_GET['action'], $validAjaxActions);
 
@@ -507,6 +508,265 @@ if ($isAjaxRequest) {
                     jsonResponse('error', 'Database error: ' . $e->getMessage());
                 }
                 break;
+                 // ========================
+                // PERSONNEL CRUD OPERATIONS
+                // ========================
+                case 'add_personnel':
+                    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                        jsonResponse('error', 'Invalid request method');
+                    }
+
+                    // Validate required fields
+                    $required = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department'];
+                    foreach ($required as $field) {
+                        if (empty($_POST[$field])) {
+                            jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
+                        }
+                    }
+
+                    // Sanitize inputs
+                    $last_name = sanitizeInput($db, $_POST['last_name']);
+                    $first_name = sanitizeInput($db, $_POST['first_name']);
+                    $date_of_birth = sanitizeInput($db, $_POST['date_of_birth']);
+                    $id_number = sanitizeInput($db, $_POST['id_number']);
+                    $role = sanitizeInput($db, $_POST['role']);
+                    $category = sanitizeInput($db, $_POST['category']);
+                    $department = sanitizeInput($db, $_POST['department']);
+                    $status = 'Active';
+
+                    // Validate ID Number format (8 digits)
+                    if (!preg_match('/^\d{8}$/', $id_number)) {
+                        jsonResponse('error', 'ID Number must be exactly 8 digits');
+                    }
+
+                    // Check if ID Number exists
+                    $check_id = $db->prepare("SELECT id FROM personell WHERE id_number = ?");
+                    $check_id->bind_param("s", $id_number);
+                    $check_id->execute();
+                    $check_id->store_result();
+                    
+                    if ($check_id->num_rows > 0) {
+                        jsonResponse('error', 'ID Number already exists');
+                    }
+                    $check_id->close();
+
+                    // Handle file upload
+                    $photo = 'default.png';
+                    if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+                        $allowed_types = ['image/jpeg', 'image/png'];
+                        $file_info = finfo_open(FILEINFO_MIME_TYPE);
+                        $mime_type = finfo_file($file_info, $_FILES['photo']['tmp_name']);
+                        finfo_close($file_info);
+
+                        if (!in_array($mime_type, $allowed_types)) {
+                            jsonResponse('error', 'Only JPG and PNG images are allowed');
+                        }
+
+                        if ($_FILES['photo']['size'] > 2 * 1024 * 1024) {
+                            jsonResponse('error', 'Maximum file size is 2MB');
+                        }
+
+                        $ext = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
+                        $photo = uniqid() . '.' . $ext;
+                        $target_dir = "uploads/";
+                        
+                        if (!file_exists($target_dir)) {
+                            mkdir($target_dir, 0755, true);
+                        }
+
+                        $target_file = $target_dir . $photo;
+                        if (!move_uploaded_file($_FILES['photo']['tmp_name'], $target_file)) {
+                            jsonResponse('error', 'Failed to upload image');
+                        }
+                    }
+
+                    // Generate unique ID and insert record
+                    $id = uniqid();
+                    $query = "INSERT INTO personell (
+                        id, category, id_number, last_name, first_name, 
+                        date_of_birth, role, department, status, photo, date_added
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+
+                    $stmt = $db->prepare($query);
+                    $stmt->bind_param(
+                        "ssssssssss", 
+                        $id, $category, $id_number, $last_name, $first_name,
+                        $date_of_birth, $role, $department, $status, $photo
+                    );
+
+                    if ($stmt->execute()) {
+                        jsonResponse('success', 'Personnel added successfully', ['id' => $id]);
+                    } else {
+                        jsonResponse('error', 'Database error: ' . $db->error);
+                    }
+                    break;
+
+                case 'update_personnel':
+                    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                        jsonResponse('error', 'Invalid request method');
+                    }
+
+                    // Validate required fields
+                    if (empty($_POST['id'])) {
+                        jsonResponse('error', 'Personnel ID is required');
+                    }
+
+                    $required = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department', 'status'];
+                    foreach ($required as $field) {
+                        if (empty($_POST[$field])) {
+                            jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
+                        }
+                    }
+
+                    // Sanitize inputs
+                    $id = sanitizeInput($db, $_POST['id']);
+                    $last_name = sanitizeInput($db, $_POST['last_name']);
+                    $first_name = sanitizeInput($db, $_POST['first_name']);
+                    $date_of_birth = sanitizeInput($db, $_POST['date_of_birth']);
+                    $id_number = sanitizeInput($db, $_POST['id_number']);
+                    $role = sanitizeInput($db, $_POST['role']);
+                    $category = sanitizeInput($db, $_POST['category']);
+                    $department = sanitizeInput($db, $_POST['department']);
+                    $status = sanitizeInput($db, $_POST['status']);
+
+                    // Validate ID Number format (8 digits)
+                    if (!preg_match('/^\d{8}$/', $id_number)) {
+                        jsonResponse('error', 'ID Number must be exactly 8 digits');
+                    }
+
+                    // Check if ID Number exists for other personnel
+                    $check_id = $db->prepare("SELECT id FROM personell WHERE id_number = ? AND id != ?");
+                    $check_id->bind_param("ss", $id_number, $id);
+                    $check_id->execute();
+                    $check_id->store_result();
+                    
+                    if ($check_id->num_rows > 0) {
+                        jsonResponse('error', 'ID Number already assigned to another personnel');
+                    }
+                    $check_id->close();
+
+                    // Handle file upload
+                    $photo = '';
+                    if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+                        $allowed_types = ['image/jpeg', 'image/png'];
+                        $file_info = finfo_open(FILEINFO_MIME_TYPE);
+                        $mime_type = finfo_file($file_info, $_FILES['photo']['tmp_name']);
+                        finfo_close($file_info);
+
+                        if (!in_array($mime_type, $allowed_types)) {
+                            jsonResponse('error', 'Only JPG and PNG images are allowed');
+                        }
+
+                        if ($_FILES['photo']['size'] > 2 * 1024 * 1024) {
+                            jsonResponse('error', 'Maximum file size is 2MB');
+                        }
+
+                        $ext = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
+                        $photo = uniqid() . '.' . $ext;
+                        $target_dir = "uploads/";
+                        
+                        if (!file_exists($target_dir)) {
+                            mkdir($target_dir, 0755, true);
+                        }
+
+                        $target_file = $target_dir . $photo;
+                        if (!move_uploaded_file($_FILES['photo']['tmp_name'], $target_file)) {
+                            jsonResponse('error', 'Failed to upload image');
+                        }
+                    } else {
+                        // Keep existing photo if no new upload
+                        $photo = sanitizeInput($db, $_POST['capturedImage']);
+                    }
+
+                    // Update personnel record
+                    if (!empty($photo)) {
+                        $query = "UPDATE personell SET 
+                            last_name = ?, first_name = ?, date_of_birth = ?, id_number = ?,
+                            role = ?, category = ?, department = ?, status = ?, photo = ?
+                            WHERE id = ?";
+                        $stmt = $db->prepare($query);
+                        $stmt->bind_param(
+                            "ssssssssss", 
+                            $last_name, $first_name, $date_of_birth, $id_number,
+                            $role, $category, $department, $status, $photo, $id
+                        );
+                    } else {
+                        $query = "UPDATE personell SET 
+                            last_name = ?, first_name = ?, date_of_birth = ?, id_number = ?,
+                            role = ?, category = ?, department = ?, status = ?
+                            WHERE id = ?";
+                        $stmt = $db->prepare($query);
+                        $stmt->bind_param(
+                            "sssssssss", 
+                            $last_name, $first_name, $date_of_birth, $id_number,
+                            $role, $category, $department, $status, $id
+                        );
+                    }
+
+                    if ($stmt->execute()) {
+                        // If status changed, update lostcard table if needed
+                        if ($status == 'Blocked') {
+                            $status_value = 1;
+                            $query1 = "UPDATE lostcard SET status = ? WHERE personnel_id = ?";
+                            $stmt1 = $db->prepare($query1);
+                            $stmt1->bind_param("is", $status_value, $id);
+                            $stmt1->execute();
+                            $stmt1->close();
+                        }
+                        
+                        jsonResponse('success', 'Personnel updated successfully');
+                    } else {
+                        jsonResponse('error', 'Failed to update personnel: ' . $db->error);
+                    }
+                    break;
+
+                case 'delete_personnel':
+                    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                        jsonResponse('error', 'Invalid request method');
+                    }
+
+                    // Validate required field
+                    if (empty($_POST['id'])) {
+                        jsonResponse('error', 'Personnel ID is required');
+                    }
+
+                    // Sanitize input
+                    $id = sanitizeInput($db, $_POST['id']);
+
+                    // Check for lost cards
+                    $checkLostCards = $db->prepare("SELECT COUNT(*) FROM lostcard WHERE personnel_id = ?");
+                    $checkLostCards->bind_param("s", $id);
+                    $checkLostCards->execute();
+                    $checkLostCards->bind_result($lostCardCount);
+                    $checkLostCards->fetch();
+                    $checkLostCards->close();
+
+                    if ($lostCardCount > 0) {
+                        jsonResponse('error', 'Cannot delete personnel with associated lost card records');
+                    }
+
+                    // Check for access logs
+                    $checkLogs = $db->prepare("SELECT COUNT(*) FROM personell_logs WHERE personnel_id = ?");
+                    $checkLogs->bind_param("s", $id);
+                    $checkLogs->execute();
+                    $checkLogs->bind_result($logCount);
+                    $checkLogs->fetch();
+                    $checkLogs->close();
+
+                    if ($logCount > 0) {
+                        jsonResponse('error', 'Cannot delete personnel with associated access logs');
+                    }
+
+                    // Delete personnel
+                    $stmt = $db->prepare("DELETE FROM personell WHERE id = ?");
+                    $stmt->bind_param("s", $id);
+                    
+                    if ($stmt->execute()) {
+                        jsonResponse('success', 'Personnel deleted successfully');
+                    } else {
+                        jsonResponse('error', 'Failed to delete personnel: ' . $stmt->error);
+                    }
+                    break;
 
         default:
             jsonResponse('error', 'Invalid action');
