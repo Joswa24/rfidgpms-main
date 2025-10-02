@@ -704,12 +704,12 @@ function cleanID($id) {
             // ========================
             // Handle edit button click
             $(document).on('click', '.btn-edit', function() {
-                var $id = $(this).data('id');
+                var $id = $(this).data('id_number');
                 var $row = $(this).closest('tr');
                 
                 // Retrieve data from the selected row
                 var $getphoto = $row.find('.photo').attr('src');
-                var $getid = $row.find('.id').text(); // Get formatted ID
+                var $getid = $row.find('.id_number').text(); // Get formatted ID
                 var $getrole = $row.find('.role').val();
                 var $getcateg = $row.find('.categ').val();
                 var $getfname = $row.find('.first_name').val();
