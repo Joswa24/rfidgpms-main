@@ -721,7 +721,7 @@ function cleanID($id) {
                 // Update the modal fields with data
                 $('.edit-photo').attr('src', $getphoto);
                 $('#id_number1').val($getid); // Set formatted ID
-                $('.edit-id').val($id);
+                $('.edit-id').val($getid);
                 $('#erole').val($getrole);
                 $('#ecategory').val($getcateg);
                 $('.edit-fname').val($getfname);
