@@ -457,38 +457,54 @@ if ($isAjaxRequest) {
                     jsonResponse('error', 'Invalid role ID');
                 }
 
-                // Check if role is assigned to personnel
-                $checkPersonnel = $db->prepare("SELECT COUNT(*) FROM personell WHERE role = (SELECT role FROM role WHERE id = ?)");
-                $checkPersonnel->bind_param("i", $id);
-                $checkPersonnel->execute();
-                $checkPersonnel->bind_result($personnelCount);
-                $checkPersonnel->fetch();
-                $checkPersonnel->close();
+                try {
+                    // First, get the role name for checking dependencies
+                    $getRole = $db->prepare("SELECT role FROM role WHERE id = ?");
+                    $getRole->bind_param("i", $id);
+                    $getRole->execute();
+                    $getRole->bind_result($roleName);
+                    $getRole->fetch();
+                    $getRole->close();
 
-                if ($personnelCount > 0) {
-                    jsonResponse('error', 'Cannot delete role assigned to personnel');
-                }
+                    if (empty($roleName)) {
+                        jsonResponse('error', 'Role not found');
+                    }
 
-                // Check if role is assigned to rooms
-                $checkRooms = $db->prepare("SELECT COUNT(*) FROM rooms WHERE authorized_personnel = (SELECT role FROM role WHERE id = ?)");
-                $checkRooms->bind_param("i", $id);
-                $checkRooms->execute();
-                $checkRooms->bind_result($roomCount);
-                $checkRooms->fetch();
-                $checkRooms->close();
+                    // Check if role is assigned to personnel
+                    $checkPersonnel = $db->prepare("SELECT COUNT(*) FROM personell WHERE role = ?");
+                    $checkPersonnel->bind_param("s", $roleName);
+                    $checkPersonnel->execute();
+                    $checkPersonnel->bind_result($personnelCount);
+                    $checkPersonnel->fetch();
+                    $checkPersonnel->close();
 
-                if ($roomCount > 0) {
-                    jsonResponse('error', 'Cannot delete role assigned to rooms');
-                }
+                    if ($personnelCount > 0) {
+                        jsonResponse('error', 'Cannot delete role assigned to personnel. There are ' . $personnelCount . ' personnel with this role.');
+                    }
 
-                // Proceed with deletion
-                $stmt = $db->prepare("DELETE FROM role WHERE id = ?");
-                $stmt->bind_param("i", $id);
-                
-                if ($stmt->execute()) {
-                    jsonResponse('success', 'Role deleted successfully');
-                } else {
-                    jsonResponse('error', 'Failed to delete role: ' . $stmt->error);
+                    // Check if role is assigned to rooms
+                    $checkRooms = $db->prepare("SELECT COUNT(*) FROM rooms WHERE authorized_personnel = ?");
+                    $checkRooms->bind_param("s", $roleName);
+                    $checkRooms->execute();
+                    $checkRooms->bind_result($roomCount);
+                    $checkRooms->fetch();
+                    $checkRooms->close();
+
+                    if ($roomCount > 0) {
+                        jsonResponse('error', 'Cannot delete role assigned to rooms. There are ' . $roomCount . ' rooms with this role.');
+                    }
+
+                    // Proceed with deletion
+                    $stmt = $db->prepare("DELETE FROM role WHERE id = ?");
+                    $stmt->bind_param("i", $id);
+                    
+                    if ($stmt->execute()) {
+                        jsonResponse('success', 'Role deleted successfully');
+                    } else {
+                        jsonResponse('error', 'Failed to delete role: ' . $stmt->error);
+                    }
+                } catch (Exception $e) {
+                    jsonResponse('error', 'Database error: ' . $e->getMessage());
                 }
                 break;
 

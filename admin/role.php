@@ -398,83 +398,92 @@ include '../connection.php';
     // ==========
     // DELETE ROLE
     // ==========
-    $(document).on('click', '.d_role_id', function() {
-        const $button = $(this);
-        const id = $button.data('id');
-        const roleName = $button.attr('role');
-        
-        Swal.fire({
-            title: 'Delete Role?',
-            text: `Are you sure you want to delete "${roleName}"?`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Yes, delete it!',
-            cancelButtonText: 'Cancel'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Show loading state
-                $button.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
-                $button.prop('disabled', true);
-                
-                $.ajax({
-                    type: 'POST',
-                    url: "transac.php?action=delete_role",
-                    data: { 
-                        id: id
-                    },
-                    dataType: 'json',
-                    success: function(response) {
-                        if (response.status === 'success') {
-                            // Remove row from DataTable
-                            dataTable.row($button.closest('tr')).remove().draw();
-                            
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Deleted!',
-                                text: response.message,
-                                showConfirmButton: false,
-                                timer: 1500
-                            });
-                        } else {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error!',
-                                text: response.message || 'Failed to delete role'
-                            });
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        console.log('XHR Response:', xhr.responseText);
-                        console.log('Status:', status);
-                        console.log('Error:', error);
-                        
-                        let errorMessage = 'An error occurred while deleting the role';
-                        try {
-                            const errorResponse = JSON.parse(xhr.responseText);
-                            if (errorResponse.message) {
-                                errorMessage = errorResponse.message;
-                            }
-                        } catch (e) {
-                            // If not JSON, use default message
-                        }
+    // ==========
+// DELETE ROLE
+// ==========
+$(document).on('click', '.d_role_id', function() {
+    const $button = $(this);
+    const id = $button.data('id');
+    const roleName = $button.attr('role');
+    
+    Swal.fire({
+        title: 'Delete Role?',
+        text: `Are you sure you want to delete "${roleName}"?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete it!',
+        cancelButtonText: 'Cancel'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Show loading state
+            $button.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
+            $button.prop('disabled', true);
+            
+            $.ajax({
+                type: 'POST',
+                url: 'transac.php?action=delete_role',
+                data: { 
+                    id: id
+                },
+                dataType: 'json',
+                success: function(response) {
+                    if (response.status === 'success') {
+                        // Remove row from DataTable
+                        dataTable.row($button.closest('tr')).remove().draw();
                         
                         Swal.fire({
-                            icon: 'error',
-                            title: 'Error!',
-                            text: errorMessage
+                            icon: 'success',
+                            title: 'Deleted!',
+                            text: response.message,
+                            showConfirmButton: false,
+                            timer: 1500
                         });
-                    },
-                    complete: function() {
-                        // Restore button state
-                        $button.html('<i class="fas fa-trash"></i> Delete');
-                        $button.prop('disabled', false);
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Cannot Delete Role',
+                            text: response.message || 'Failed to delete role',
+                            confirmButtonText: 'OK'
+                        });
                     }
-                });
-            }
-        });
+                },
+                error: function(xhr, status, error) {
+                    console.log('XHR Response:', xhr.responseText);
+                    console.log('Status:', status);
+                    console.log('Error:', error);
+                    
+                    let errorMessage = 'An error occurred while deleting the role';
+                    try {
+                        const errorResponse = JSON.parse(xhr.responseText);
+                        if (errorResponse.message) {
+                            errorMessage = errorResponse.message;
+                        }
+                    } catch (e) {
+                        // If not JSON, show the raw response
+                        errorMessage = xhr.responseText || errorMessage;
+                    }
+                    
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        html: `<div style="text-align: left;">
+                               <strong>Error Details:</strong><br>
+                               <small>${errorMessage}</small>
+                               </div>`,
+                        confirmButtonText: 'OK'
+                    });
+                },
+                complete: function() {
+                    // Restore button state
+                    $button.html('<i class="fas fa-trash"></i> Delete');
+                    $button.prop('disabled', false);
+                }
+            });
+        }
     });
+});
 
     // Reset modal when closed
     $('#roleModal').on('hidden.bs.modal', function() {
