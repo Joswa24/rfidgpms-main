@@ -613,7 +613,7 @@ function cleanID($id) {
                 $('#btn-emp').prop('disabled', true);
                 
                 $.ajax({
-                    url: 'transac.php?action=add_personnel',
+                    url: "transac.php?action=add_personnel",
                     type: 'POST',
                     data: formData,
                     contentType: false,
@@ -766,7 +766,7 @@ function cleanID($id) {
                 $('#btn-editemp').prop('disabled', true);
                 
                 $.ajax({
-                    url: 'transac.php?action=update_personnel',
+                    url: "transac.php?action=update_personnel",
                     type: 'POST',
                     data: formData,
                     contentType: false,
@@ -843,7 +843,7 @@ function cleanID($id) {
                 $('#btn-delemp').prop('disabled', true);
                 
                 $.ajax({
-                    url: 'transac.php?action=delete_personnel',
+                    url: "transac.php?action=delete_personnel",
                     type: 'POST',
                     data: { 
                         id: userId 
