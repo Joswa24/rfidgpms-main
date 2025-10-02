@@ -551,7 +551,7 @@ function cleanID($id) {
                 formatIDNumber(this);
             });
 
-            // ========================
+             // ========================
             // CREATE PERSONNEL
             // ========================
             $('#personellForm').submit(function(e) {
@@ -613,7 +613,7 @@ function cleanID($id) {
                 $('#btn-emp').prop('disabled', true);
                 
                 $.ajax({
-                    url: "transac.php?action=add_personnel",
+                    url: 'transac.php?action=add_personnel',
                     type: 'POST',
                     data: formData,
                     contentType: false,
@@ -647,12 +647,23 @@ function cleanID($id) {
                         $('#btn-emp').html('Save');
                         $('#btn-emp').prop('disabled', false);
                         
-                        console.log('Full XHR Response:', xhr.responseText);
+                        console.log('XHR Response:', xhr.responseText);
+                        console.log('Status:', status);
+                        console.log('Error:', error);
                         
-                        // Show the raw response from server
+                        let errorMessage = 'An error occurred while processing your request';
+                        try {
+                            const errorResponse = JSON.parse(xhr.responseText);
+                            if (errorResponse.message) {
+                                errorMessage = errorResponse.message;
+                            }
+                        } catch (e) {
+                            // If not JSON, use default message
+                        }
+                        
                         Swal.fire({
-                            title: 'Server Error!',
-                            html: 'Response: <pre>' + xhr.responseText + '</pre>',
+                            title: 'Error!',
+                            text: errorMessage,
                             icon: 'error'
                         });
                     }
