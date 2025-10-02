@@ -341,7 +341,7 @@ function cleanID($id) {
                                                     <label name="upload-label" class="upload-img-btn">
                                                         <input type="file" id="photo" name="photo" class="upload-field-1" style="display:none;" accept="image/*" title="Upload Foto.."/>
                                                         <input type="hidden" id="capturedImage" name="capturedImage" class="capturedImage">
-                                                        <input type="hidden" class="edit-id" name="id" value="">
+                                                        <input type="hidden" class="edit-id" name="id_number" value="">
                                                         <img class="preview-1 edit-photo" src="" style="width: 140px!important;height: 130px!important;position: absolute;border: 1px solid gray;top: 25%" title="Upload Photo.." />
                                                     </label>
                                                 </div>
@@ -721,7 +721,7 @@ function cleanID($id) {
                 // Update the modal fields with data
                 $('.edit-photo').attr('src', $getphoto);
                 $('#id_number1').val($getid); // Set formatted ID
-                $('.edit-id').val($id);
+                $('.edit-id').val($id_number);
                 $('#erole').val($getrole);
                 $('#ecategory').val($getcateg);
                 $('.edit-fname').val($getfname);
