@@ -613,7 +613,7 @@ function cleanID($id) {
                 $('#btn-emp').prop('disabled', true);
                 
                 $.ajax({
-                    url: 'transac.php?action=add_personnel',
+                    url: "transac.php?action=add_personnel",
                     type: 'POST',
                     data: formData,
                     contentType: false,
