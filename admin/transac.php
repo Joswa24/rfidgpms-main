@@ -278,50 +278,50 @@ case 'add_personnel':
     break;
 
    case 'add_department':
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        jsonResponse('error', 'Invalid request method');
-    }
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            jsonResponse('error', 'Invalid request method');
+        }
 
-    // Validate required fields
-    if (!isset($_POST['dptname']) || empty(trim($_POST['dptname']))) {
-        jsonResponse('error', 'Department name is required');
-    }
+        // Validate required fields
+        if (!isset($_POST['dptname']) || empty(trim($_POST['dptname']))) {
+            jsonResponse('error', 'Department name is required');
+        }
 
-    // Sanitize inputs
-    $department_name = sanitizeInput($db, trim($_POST['dptname']));
-    $department_desc = isset($_POST['dptdesc']) ? sanitizeInput($db, trim($_POST['dptdesc'])) : '';
+        // Sanitize inputs
+        $department_name = sanitizeInput($db, trim($_POST['dptname']));
+        $department_desc = isset($_POST['dptdesc']) ? sanitizeInput($db, trim($_POST['dptdesc'])) : '';
 
-    // Validate lengths
-    if (strlen($department_name) > 100) {
-        jsonResponse('error', 'Department name must be less than 100 characters');
-    }
+        // Validate lengths
+        if (strlen($department_name) > 100) {
+            jsonResponse('error', 'Department name must be less than 100 characters');
+        }
 
-    if (strlen($department_desc) > 255) {
-        jsonResponse('error', 'Description must be less than 255 characters');
-    }
+        if (strlen($department_desc) > 255) {
+            jsonResponse('error', 'Description must be less than 255 characters');
+        }
 
-    // Check if department exists
-    $check = $db->prepare("SELECT COUNT(*) FROM department WHERE department_name = ?");
-    $check->bind_param("s", $department_name);
-    $check->execute();
-    $check->bind_result($count);
-    $check->fetch();
-    $check->close();
+        // Check if department exists
+        $check = $db->prepare("SELECT COUNT(*) FROM department WHERE department_name = ?");
+        $check->bind_param("s", $department_name);
+        $check->execute();
+        $check->bind_result($count);
+        $check->fetch();
+        $check->close();
 
-    if ($count > 0) {
-        jsonResponse('error', 'Department already exists');
-    }
+        if ($count > 0) {
+            jsonResponse('error', 'Department already exists');
+        }
 
-    // Insert new department
-    $stmt = $db->prepare("INSERT INTO department (department_name, department_desc) VALUES (?, ?)");
-    $stmt->bind_param("ss", $department_name, $department_desc);
+        // Insert new department
+        $stmt = $db->prepare("INSERT INTO department (department_name, department_desc) VALUES (?, ?)");
+        $stmt->bind_param("ss", $department_name, $department_desc);
 
-    if ($stmt->execute()) {
-        jsonResponse('success', 'Department added successfully');
-    } else {
-        jsonResponse('error', 'Failed to add department: ' . $db->error);
-    }
-    break;
+        if ($stmt->execute()) {
+            jsonResponse('success', 'Department added successfully');
+        } else {
+            jsonResponse('error', 'Failed to add department: ' . $db->error);
+        }
+        break;
 
     case 'add_visitor':
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
