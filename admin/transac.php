@@ -152,6 +152,8 @@ if ($isDepartmentAjax) {
             break;
             // Add these cases to your existing transac.php switch statement
 
+// Add these cases to your existing transac.php switch statement
+
 case 'add_room':
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         jsonResponse('error', 'Invalid request method');
