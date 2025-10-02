@@ -127,30 +127,29 @@ function cleanID($id) {
                                     <?php $results = mysqli_query($db, "SELECT * FROM personell WHERE deleted = 0 ORDER BY date_added DESC"); ?>
                                     <?php while ($row = mysqli_fetch_array($results)) { ?>
                                     <tr class="table-<?php echo $row['id'];?>">
-                                        <!-- Store all data in hidden inputs with clear names -->
-                                        <input type="hidden" class="personnel-data" data-field="id_number" value="<?php echo $row['id_number']; ?>" />
-                                        <input type="hidden" class="personnel-data" data-field="db_id" value="<?php echo $row['id']; ?>" />
-                                        <input type="hidden" class="personnel-data" data-field="role" value="<?php echo $row['role']; ?>" />
-                                        <input type="hidden" class="personnel-data" data-field="last_name" value="<?php echo $row['last_name']; ?>" />
-                                        <input type="hidden" class="personnel-data" data-field="first_name" value="<?php echo $row['first_name']; ?>" />
-                                        <input type="hidden" class="personnel-data" data-field="middle_name" value="<?php echo $row['middle_name']; ?>" />
-                                        <input type="hidden" class="personnel-data" data-field="date_of_birth" value="<?php echo $row['date_of_birth']; ?>" />
-                                        <input type="hidden" class="personnel-data" data-field="place_of_birth" value="<?php echo $row['place_of_birth']; ?>" />
-                                        <input type="hidden" class="personnel-data" data-field="sex" value="<?php echo $row['sex']; ?>" />
-                                        <input type="hidden" class="personnel-data" data-field="civil_status" value="<?php echo $row['civil_status']; ?>" />
-                                        <input type="hidden" class="personnel-data" data-field="contact_number" value="<?php echo $row['contact_number']; ?>" />
-                                        <input type="hidden" class="personnel-data" data-field="category" value="<?php echo $row['category']; ?>" />
-                                        <input type="hidden" class="personnel-data" data-field="email_address" value="<?php echo $row['email_address']; ?>" />
-                                        <input type="hidden" class="personnel-data" data-field="status" value="<?php echo $row['status']; ?>" />
-                                        <input type="hidden" class="personnel-data" data-field="department" value="<?php echo $row['department']; ?>" />
-                                        
+                                        <input class="id_number" type="hidden" value="<?php echo $row['id_no']; ?>" />
+                                        <input class="id_raw" type="hidden" value="<?php echo $row['id_number']; ?>" />
+                                        <input class="role" type="hidden" value="<?php echo $row['role']; ?>" />
+                                        <input class="last_name" type="hidden" value="<?php echo $row['last_name']; ?>" />
+                                        <input class="first_name" type="hidden" value="<?php echo $row['first_name']; ?>" />
+                                        <input class="middle_name" type="hidden" value="<?php echo $row['middle_name']; ?>" />
+                                        <input class="date_of_birth" type="hidden" value="<?php echo $row['date_of_birth']; ?>" />
+                                        <input class="place_of_birth" type="hidden" value="<?php echo $row['place_of_birth']; ?>" />
+                                        <input class="sex" type="hidden" value="<?php echo $row['sex']; ?>" />
+                                        <input class="civil_status" type="hidden" value="<?php echo $row['civil_status']; ?>" />
+                                        <input class="contact_number" type="hidden" value="<?php echo $row['contact_number']; ?>" />
+                                        <input class="categ" type="hidden" value="<?php echo $row['category']; ?>" />
+                                        <input class="email_address" type="hidden" value="<?php echo $row['email_address']; ?>" />
+                                        <input class="status" type="hidden" value="<?php echo $row['status']; ?>" />
+                                        <input class="department" type="hidden" value="<?php echo $row['department']; ?>" />
+                                
                                         <td>
-                                            <center>
-                                                <img class="photo" src="uploads/<?php echo $row['photo']; ?>" width="50px" height="50px">
-                                            </center>
+                                        <center>
+                                        <img class="photo" src="uploads/<?php echo $row['photo']; ?>" width="50px" height="50px">
+                                        </center>
                                         </td>
-                                        <td class="display-id"><?php echo formatID($row['id_number']); ?></td>
-                                        <td><?php echo $row['first_name'] . ' ' . $row['last_name']; ?></td>
+                                        <td class="id"><?php echo formatID($row['id_number']); ?></td>
+                                        <td><?php echo $row['first_name'] .' '.$row['last_name']; ?></td>
                                         <td><?php echo $row['role']; ?></td>
                                         <td><?php echo $row['category']; ?></td>
                                         <td><?php echo $row['department']; ?></td>
@@ -163,19 +162,17 @@ function cleanID($id) {
                                         </td>
                                         <td width="14%">
                                             <center>
-                                                <button address="<?php echo $row['complete_address']; ?>" 
-                                                        data-id="<?php echo $row['id']; ?>" 
-                                                        class="btn btn-outline-primary btn-sm btn-edit">
+                                                <button address="<?php echo $row['complete_address']; ?>" data-id="<?php echo $row['id'];?>" class="btn btn-outline-primary btn-sm btn-edit e_user_id">
                                                     <i class="fas fa-edit"></i> Edit 
                                                 </button>
                                                 <button user_name="<?php echo $row['first_name'] . ' ' . $row['last_name']; ?>" 
                                                         data-id="<?php echo $row['id']; ?>" 
-                                                        class="btn btn-outline-danger btn-sm btn-del">
+                                                        class="btn btn-outline-danger btn-sm btn-del d_user_id">
                                                     <i class="fas fa-trash"></i> Delete
                                                 </button>
                                             </center>
                                         </td>
-                                        <td style="display:none;"><?php echo $row['date_added']; ?></td>
+                                        <td style="display:none;" class="hidden-date"><?php echo $row['date_added']; ?></td>
                                     </tr>
                                     <?php } ?>
                                 </tbody>
@@ -222,11 +219,15 @@ function cleanID($id) {
                                                     <label>ROLE:</label>
                                                     <select required class="form-control dept_ID" name="role" id="role" autocomplete="off" onchange="updateCategory()">
                                                         <?php
-                                                            $sql = "SELECT * FROM role WHERE role != 'Student' AND role != 'Instructor'"; // Exclude Student
+                                                            $sql = "SELECT * FROM role WHERE role != 'Instructor'";
                                                             $result = $db->query($sql);
                                                             while ($row = $result->fetch_assoc()) {
                                                                 $role = $row['role'];
-                                                                echo "<option value='$role'>$role</option>";
+                                                                if ($role === 'Student') {
+                                                                    echo "<option value='$role' selected>$role</option>";
+                                                                } else {
+                                                                    echo "<option value='$role'>$role</option>";
+                                                                }
                                                             }
                                                         ?>
                                                     </select>
@@ -340,7 +341,7 @@ function cleanID($id) {
                                                     <label name="upload-label" class="upload-img-btn">
                                                         <input type="file" id="photo" name="photo" class="upload-field-1" style="display:none;" accept="image/*" title="Upload Foto.."/>
                                                         <input type="hidden" id="capturedImage" name="capturedImage" class="capturedImage">
-                                                        <input class="id_raw" type="hidden" value="<?php echo $row['id_number']; ?>" />
+                                                        <input type="hidden" class="edit-id" name="id" value="">
                                                         <img class="preview-1 edit-photo" src="" style="width: 140px!important;height: 130px!important;position: absolute;border: 1px solid gray;top: 25%" title="Upload Photo.." />
                                                     </label>
                                                 </div>
@@ -493,520 +494,496 @@ function cleanID($id) {
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
             <script>
-                    $(document).ready(function() {
-                        // Initialize DataTable
-                        var dataTable = $('#myDataTable').DataTable({
-                            order: [[8, 'desc']],
-                            stateSave: true
-                        });
+        $(document).ready(function() {
+            // Initialize DataTable
+            var dataTable = $('#myDataTable').DataTable({
+                order: [[8, 'desc']],
+                stateSave: true
+            });
 
-                        // Function to update category dropdown based on role selection
-                        function updateCategory() {
-                            var role = document.getElementById('role').value;
-                            var categorySelect = document.getElementById('category');
-                            
-                            // Clear the existing options
-                            categorySelect.innerHTML = '';
+            // Function to update category dropdown based on role selection
+            function updateCategory() {
+                var role = document.getElementById('role').value;
+                var categorySelect = document.getElementById('category');
+                
+                // Clear the existing options
+                categorySelect.innerHTML = '';
 
-                            // Only show 'Regular' and 'Contractual' categories
-                            var option1 = document.createElement('option');
-                            option1.value = 'Regular';
-                            option1.text = 'Regular';
-                            categorySelect.appendChild(option1);
+                if (role === 'Student') {
+                    // If the role is 'Student', show 'Student' only in category
+                    var option = document.createElement('option');
+                    option.value = 'Student';
+                    option.text = 'Student';
+                    categorySelect.appendChild(option);
+                } else {
+                    // If the role is not 'Student', show 'Regular' and 'Contractual'
+                    var option1 = document.createElement('option');
+                    option1.value = 'Regular';
+                    option1.text = 'Regular';
+                    categorySelect.appendChild(option1);
 
-                            var option2 = document.createElement('option');
-                            option2.value = 'Contractual';
-                            option2.text = 'Contractual';
-                            categorySelect.appendChild(option2);
-                        }
+                    var option2 = document.createElement('option');
+                    option2.value = 'Contractual';
+                    option2.text = 'Contractual';
+                    categorySelect.appendChild(option2);
+                }
+            }
 
-                        // Initialize category dropdown on page load
-                        updateCategory();
+            // Initialize category dropdown on page load
+            updateCategory();
 
-                        // Format ID number input to "0000-0000" pattern
-                        function formatIDNumber(input) {
-                            // Remove any non-digit characters
-                            let value = input.value.replace(/\D/g, '');
-                            
-                            // Add hyphen after 4 digits
-                            if (value.length > 4) {
-                                value = value.substring(0, 4) + '-' + value.substring(4, 8);
-                            }
-                            
-                            // Update the input value
-                            input.value = value;
-                        }
+            // Format ID number input to "0000-0000" pattern
+            function formatIDNumber(input) {
+                // Remove any non-digit characters
+                let value = input.value.replace(/\D/g, '');
+                
+                // Add hyphen after 4 digits
+                if (value.length > 4) {
+                    value = value.substring(0, 4) + '-' + value.substring(4, 8);
+                }
+                
+                // Update the input value
+                input.value = value;
+            }
 
-                        // Helper function to format ID for display
-                        function formatID(id) {
-                            if (!id) return '';
-                            // Remove any existing hyphens
-                            var cleanId = id.toString().replace(/-/g, '');
-                            if (cleanId.length === 8 && /^\d+$/.test(cleanId)) {
-                                return cleanId.substring(0, 4) + '-' + cleanId.substring(4, 8);
-                            }
-                            return id;
-                        }
+            // Add event listeners for ID number formatting
+            $('#id_number, #id_number1').on('input', function() {
+                formatIDNumber(this);
+            });
 
-                        // Add event listeners for ID number formatting
-                        $('#id_number, #id_number1').on('input', function() {
-                            formatIDNumber(this);
-                        });
+             // ========================
+            // CREATE PERSONNEL
+            // ========================
+            $('#personellForm').submit(function(e) {
+                e.preventDefault();
+                
+                // Validate required fields
+                const requiredFields = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department'];
+                let isValid = true;
+                
+                requiredFields.forEach(field => {
+                    const fieldValue = $('#' + field).val();
+                    if (!fieldValue || fieldValue.trim() === '') {
+                        isValid = false;
+                        $('.' + field + '-error').text('This field is required').css('color', 'red');
+                    } else {
+                        $('.' + field + '-error').text('');
+                    }
+                });
+                
+                // Validate ID number format (0000-0000)
+                const idNumber = $('#id_number').val();
+                const idPattern = /^\d{4}-\d{4}$/;
+                if (!idPattern.test(idNumber)) {
+                    isValid = false;
+                    $('.idno-error').text('ID Number must be in format: 0000-0000').css('color', 'red');
+                } else {
+                    $('.idno-error').text('');
+                }
+                
+                // Validate date of birth (minimum age 18)
+                const dob = new Date($('#date_of_birth').val());
+                const today = new Date();
+                const minAgeDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
+                
+                if (dob > minAgeDate) {
+                    isValid = false;
+                    $('.dob-error').text('Personnel must be at least 18 years old').css('color', 'red');
+                } else {
+                    $('.dob-error').text('');
+                }
+                
+                if (!isValid) {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: 'Please fill all required fields correctly',
+                        icon: 'error'
+                    });
+                    return;
+                }
 
-                        // ========================
-                        // CREATE PERSONNEL
-                        // ========================
-                        $('#personellForm').submit(function(e) {
-                            e.preventDefault();
-                            
-                            // Validate required fields
-                            const requiredFields = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department'];
-                            let isValid = true;
-                            
-                            requiredFields.forEach(field => {
-                                const fieldValue = $('#' + field).val();
-                                if (!fieldValue || fieldValue.trim() === '') {
-                                    isValid = false;
-                                    $('.' + field + '-error').text('This field is required').css('color', 'red');
-                                } else {
-                                    $('.' + field + '-error').text('');
-                                }
-                            });
-                            
-                            // Validate ID number format (0000-0000)
-                            const idNumber = $('#id_number').val();
-                            const idPattern = /^\d{4}-\d{4}$/;
-                            if (!idPattern.test(idNumber)) {
-                                isValid = false;
-                                $('.idno-error').text('ID Number must be in format: 0000-0000').css('color', 'red');
-                            } else {
-                                $('.idno-error').text('');
-                            }
-                            
-                            // Validate date of birth (minimum age 18)
-                            const dob = new Date($('#date_of_birth').val());
-                            const today = new Date();
-                            const minAgeDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
-                            
-                            if (dob > minAgeDate) {
-                                isValid = false;
-                                $('.dob-error').text('Personnel must be at least 18 years old').css('color', 'red');
-                            } else {
-                                $('.dob-error').text('');
-                            }
-                            
-                            if (!isValid) {
-                                Swal.fire({
-                                    title: 'Error!',
-                                    text: 'Please fill all required fields correctly',
-                                    icon: 'error'
-                                });
-                                return;
-                            }
-
-                            // Remove hyphen from ID number before submitting
-                            var cleanIdNumber = idNumber.replace(/-/g, '');
+                // Remove hyphen from ID number before submitting
+                var cleanIdNumber = idNumber.replace(/-/g, '');
+            
+                var formData = new FormData(this);
+                formData.set('id_number', cleanIdNumber); // Use the clean ID without hyphen
+                
+                // Show loading indicator
+                $('#btn-emp').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
+                $('#btn-emp').prop('disabled', true);
+                
+                $.ajax({
+                    url: "transac.php?action=add_personnel",
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    dataType: 'json',
+                    success: function(response) {
+                        // Reset button state
+                        $('#btn-emp').html('Save');
+                        $('#btn-emp').prop('disabled', false);
                         
-                            var formData = new FormData(this);
-                            formData.set('id_number', cleanIdNumber); // Use the clean ID without hyphen
-                            
-                            // Debug: Log form data
-                            console.log('FormData contents for ADD:');
-                            for (var pair of formData.entries()) {
-                                console.log(pair[0] + ': ' + pair[1]);
-                            }
-
-                            // Show loading indicator
-                            $('#btn-emp').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
-                            $('#btn-emp').prop('disabled', true);
-                            
-                            $.ajax({
-                                url: "transac.php?action=add_personnel",
-                                type: 'POST',
-                                data: formData,
-                                contentType: false,
-                                processData: false,
-                                dataType: 'json',
-                                success: function(response) {
-                                    // Reset button state
-                                    $('#btn-emp').html('Save');
-                                    $('#btn-emp').prop('disabled', false);
-                                    
-                                    console.log('ADD Response:', response);
-                                    
-                                    if (response.status === 'success') {
-                                        Swal.fire({
-                                            title: 'Success!',
-                                            text: response.message,
-                                            icon: 'success'
-                                        }).then(() => {
-                                            // Close modal and refresh page to show new record
-                                            $('#employeeModal').modal('hide');
-                                            location.reload();
-                                        });
-                                    } else {
-                                        Swal.fire({
-                                            title: 'Error!',
-                                            text: response.message,
-                                            icon: 'error'
-                                        });
-                                    }
-                                },
-                                error: function(xhr, status, error) {
-                                    // Reset button state
-                                    $('#btn-emp').html('Save');
-                                    $('#btn-emp').prop('disabled', false);
-                                    
-                                    console.log('XHR Response:', xhr.responseText);
-                                    console.log('Status:', status);
-                                    console.log('Error:', error);
-                                    
-                                    let errorMessage = 'An error occurred while processing your request';
-                                    try {
-                                        const errorResponse = JSON.parse(xhr.responseText);
-                                        if (errorResponse.message) {
-                                            errorMessage = errorResponse.message;
-                                        }
-                                    } catch (e) {
-                                        // If not JSON, use default message
-                                        errorMessage = 'Server response: ' + xhr.responseText;
-                                    }
-                                    
-                                    Swal.fire({
-                                        title: 'Error!',
-                                        text: errorMessage,
-                                        icon: 'error'
-                                    });
-                                }
+                        if (response.status === 'success') {
+                            Swal.fire({
+                                title: 'Success!',
+                                text: response.message,
+                                icon: 'success'
+                            }).then(() => {
+                                // Close modal and refresh page to show new record
+                                $('#employeeModal').modal('hide');
+                                location.reload();
                             });
-                        });
-
-                        // ID number duplicate check on blur
-                        $('#id_number').on('blur', function() {
-                            const idNumber = $(this).val();
-                            const idPattern = /^\d{4}-\d{4}$/;
-                            
-                            if (idPattern.test(idNumber)) {
-                                // Remove hyphen for database check
-                                const cleanIdNumber = idNumber.replace(/-/g, '');
-                                
-                                $.ajax({
-                                    url: 'check_rfid.php',
-                                    method: 'POST',
-                                    data: { id_number: cleanIdNumber },
-                                    success: function(response) {
-                                        const res = JSON.parse(response);
-                                        if (res.exists) {
-                                            Swal.fire({
-                                                icon: 'warning',
-                                                title: 'Duplicate ID Number',
-                                                text: 'This ID number already exists in the system.',
-                                            }).then(() => {
-                                                $('#id_number').val('').focus();
-                                            });
-                                        }
-                                    }
-                                });
-                            }
-                        });
-
-                        // ========================
-                        // UPDATE PERSONNEL - FIXED VERSION
-                        // ========================
-                        // Handle edit button click - FIXED: Get correct ID number
-                        $(document).on('click', '.btn-edit', function() {
-                            var $id = $(this).data('id');
-                            var $row = $(this).closest('tr');
-                            
-                            // Retrieve data from the selected row - FIXED: Get raw ID number from hidden input
-                            var $getphoto = $row.find('.photo').attr('src');
-                            var $getid = $row.find('.id_raw').val(); // Get raw ID number from hidden input
-                            var $getrole = $row.find('.role').val();
-                            var $getcateg = $row.find('.categ').val();
-                            var $getfname = $row.find('.first_name').val();
-                            var $getlname = $row.find('.last_name').val();
-                            var $getdob = $row.find('.date_of_birth').val();
-                            var $getdepartment = $row.find('.department').val();
-                            var $getstatus = $row.find('.status').val();
-
-                            console.log('Raw ID from hidden input:', $getid); // Debug log
-
-                            // Format the ID for display
-                            var formattedId = formatID($getid);
-
-                            // Update the modal fields with data
-                            $('.edit-photo').attr('src', $getphoto);
-                            $('#id_number1').val(formattedId); // Set formatted ID
-                            $('.edit-id').val($id);
-                            $('#erole').val($getrole);
-                            $('#ecategory').val($getcateg);
-                            $('.edit-fname').val($getfname);
-                            $('.edit-lname').val($getlname);
-                            $('.capturedImage').val($getphoto.replace('uploads/', ''));
-                            $('.edit-dob').val($getdob);
-                            $('#e_department').val($getdepartment);
-                            $('#status').val($getstatus);
-
-                            // Update category dropdown based on role
-                            updateCategory1($getrole);
-
-                            // Show the modal
-                            $('#editemployeeModal').modal('show');
-                        });
-
+                        } else {
+                            Swal.fire({
+                                title: 'Error!',
+                                text: response.message,
+                                icon: 'error'
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        // Reset button state
+                        $('#btn-emp').html('Save');
+                        $('#btn-emp').prop('disabled', false);
                         
-                        // Handle edit form submission
-                        $('#editPersonellForm').submit(function(e) {
-                            e.preventDefault();
-                            
-                            var userId = $('.edit-id').val();
-                            
-                            if (!userId) {
+                        console.log('XHR Response:', xhr.responseText);
+                        console.log('Status:', status);
+                        console.log('Error:', error);
+                        
+                        let errorMessage = 'An error occurred while processing your request';
+                        try {
+                            const errorResponse = JSON.parse(xhr.responseText);
+                            if (errorResponse.message) {
+                                errorMessage = errorResponse.message;
+                            }
+                        } catch (e) {
+                            // If not JSON, use default message
+                        }
+                        
+                        Swal.fire({
+                            title: 'Error!',
+                            text: errorMessage,
+                            icon: 'error'
+                        });
+                    }
+                });
+            });
+
+            // ID number duplicate check on blur
+            $('#id_number').on('blur', function() {
+                const idNumber = $(this).val();
+                const idPattern = /^\d{4}-\d{4}$/;
+                
+                if (idPattern.test(idNumber)) {
+                    // Remove hyphen for database check
+                    const cleanIdNumber = idNumber.replace(/-/g, '');
+                    
+                    $.ajax({
+                        url: 'check_rfid.php',
+                        method: 'POST',
+                        data: { id_number: cleanIdNumber },
+                        success: function(response) {
+                            const res = JSON.parse(response);
+                            if (res.exists) {
                                 Swal.fire({
-                                    title: 'Error!',
-                                    text: 'No user selected. Please select a user first.',
-                                    icon: 'error'
+                                    icon: 'warning',
+                                    title: 'Duplicate ID Number',
+                                    text: 'This ID number already exists in the system.',
+                                }).then(() => {
+                                    $('#id_number').val('').focus();
                                 });
-                                return;
-                            }
-
-                            // Remove hyphen from ID number before submitting
-                            var idNumber = $('#id_number1').val();
-                            var cleanIdNumber = idNumber.replace(/-/g, '');
-                            
-                            // Validate ID number format (8 digits)
-                            if (!/^\d{8}$/.test(cleanIdNumber)) {
-                                Swal.fire({
-                                    title: 'Error!',
-                                    text: 'ID Number must be 8 digits (format: 0000-0000)',
-                                    icon: 'error'
-                                });
-                                return;
-                            }
-
-                            var formData = new FormData(this);
-                            formData.set('id_number', cleanIdNumber); // Use the clean ID without hyphen
-                            formData.append('id', userId);
-
-                            // Debug: Log form data
-                            console.log('FormData contents for UPDATE:');
-                            for (var pair of formData.entries()) {
-                                console.log(pair[0] + ': ' + pair[1]);
-                            }
-
-                            // Show loading indicator
-                            $('#btn-editemp').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
-                            $('#btn-editemp').prop('disabled', true);
-                            
-                            $.ajax({
-                                url: "transac.php?action=update_personnel",
-                                type: 'POST',
-                                data: formData,
-                                contentType: false,
-                                processData: false,
-                                dataType: 'json',
-                                success: function(response) {
-                                    // Reset button state
-                                    $('#btn-editemp').html('Update');
-                                    $('#btn-editemp').prop('disabled', false);
-                                    
-                                    console.log('UPDATE Response:', response);
-                                    
-                                    try {
-                                        const data = typeof response === 'string' ? JSON.parse(response) : response;
-                                        
-                                        if (data.status === 'success') {
-                                            Swal.fire({
-                                                title: 'Success!',
-                                                text: data.message,
-                                                icon: 'success'
-                                            }).then(() => {
-                                                $('#editemployeeModal').modal('hide');
-                                                location.reload();
-                                            });
-                                        } else {
-                                            Swal.fire({
-                                                title: 'Error!',
-                                                text: data.message,
-                                                icon: 'error'
-                                            });
-                                        }
-                                    } catch (e) {
-                                        Swal.fire({
-                                            title: 'Error!',
-                                            text: 'Invalid response from server',
-                                            icon: 'error'
-                                        });
-                                    }
-                                },
-                                error: function(xhr, status, error) {
-                                    // Reset button state
-                                    $('#btn-editemp').html('Update');
-                                    $('#btn-editemp').prop('disabled', false);
-                                    
-                                    console.log('XHR Response:', xhr.responseText);
-                                    
-                                    Swal.fire({
-                                        title: 'Error!',
-                                        text: 'An error occurred while updating personnel: ' + error,
-                                        icon: 'error'
-                                    });
-                                }
-                            });
-                        });
-
-                        // ========================
-                        // DELETE PERSONNEL
-                        // ========================
-                        // Handle delete button click
-                        $(document).on('click', '.btn-del', function() {
-                            var userId = $(this).data('id');
-                            var userName = $(this).attr('user_name');
-                            
-                            // Show confirmation dialog
-                            $('#delete_departmentname').val(userName);
-                            $('#delete_employeeid').val(userId);
-                            $('#delemployee-modal').modal('show');
-                        });
-
-                        // Handle the actual deletion when "Yes" is clicked in the modal
-                        $(document).on('click', '#btn-delemp', function() {
-                            var userId = $('#delete_employeeid').val();
-                            var userName = $('#delete_departmentname').val();
-                            
-                            // Show loading indicator
-                            $('#btn-delemp').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...');
-                            $('#btn-delemp').prop('disabled', true);
-                            
-                            $.ajax({
-                                url: "transac.php?action=delete_personnel",
-                                type: 'POST',
-                                data: { 
-                                    id: userId 
-                                },
-                                dataType: 'json',
-                                success: function(response) {
-                                    // Reset button state
-                                    $('#btn-delemp').html('Yes');
-                                    $('#btn-delemp').prop('disabled', false);
-                                    
-                                    if (response.status === 'success') {
-                                        // Close the modal
-                                        $('#delemployee-modal').modal('hide');
-                                        
-                                        // Remove the row from the table
-                                        dataTable.row($('.table-' + userId).closest('tr')).remove().draw();
-                                        
-                                        // Show success message
-                                        Swal.fire({
-                                            title: 'Success!',
-                                            text: response.message,
-                                            icon: 'success',
-                                            timer: 3000,
-                                            showConfirmButton: false
-                                        });
-                                    } else {
-                                        Swal.fire({
-                                            title: 'Error!',
-                                            text: response.message,
-                                            icon: 'error'
-                                        });
-                                    }
-                                },
-                                error: function(xhr, status, error) {
-                                    // Reset button state
-                                    $('#btn-delemp').html('Yes');
-                                    $('#btn-delemp').prop('disabled', false);
-                                    
-                                    console.log('XHR Response:', xhr.responseText);
-                                    console.log('Status:', status);
-                                    console.log('Error:', error);
-                                    
-                                    let errorMessage = 'An error occurred while deleting personnel';
-                                    try {
-                                        const errorResponse = JSON.parse(xhr.responseText);
-                                        if (errorResponse.message) {
-                                            errorMessage = errorResponse.message;
-                                        }
-                                    } catch (e) {
-                                        // If not JSON, use default message
-                                    }
-                                    
-                                    Swal.fire({
-                                        title: 'Error!',
-                                        text: errorMessage,
-                                        icon: 'error'
-                                    });
-                                }
-                            });
-                        });
-
-                        // Reset modal when closed
-                        $('#employeeModal').on('hidden.bs.modal', function () {
-                            // Set default role to first available option (not Student)
-                            var firstRole = $('#role option:first').val();
-                            document.getElementById('role').value = firstRole;
-                            updateCategory();
-                            $(this).find('form')[0].reset();
-                            $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
-                        });
-
-                        // Image preview functionality
-                        $("[class^=upload-field-]").change(function () {
-                            readURL(this);
-                        });
-
-                        function readURL(input) {
-                            if (input.files && input.files[0]) {
-                                const file = input.files[0];
-                                const validFormats = ['image/jpeg', 'image/png'];
-                                const maxSize = 2 * 1024 * 1024; // 2MB
-
-                                // Validate file format
-                                if (!validFormats.includes(file.type)) {
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: 'Invalid Format',
-                                        text: 'Only JPG and PNG formats are allowed.',
-                                    });
-                                    input.value = ''; // Reset the input
-                                    return;
-                                }
-
-                                // Validate file size
-                                if (file.size > maxSize) {
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: 'File Too Large',
-                                        text: 'Maximum file size is 2MB.',
-                                    });
-                                    input.value = ''; // Reset the input
-                                    return;
-                                }
-
-                                // Preview the image
-                                var reader = new FileReader();
-                                reader.onload = function (e) {
-                                    var num = $(input).attr('class').split('-')[2];
-                                    $('.file-uploader .preview-' + num).attr('src', e.target.result);
-                                };
-                                reader.readAsDataURL(file);
                             }
                         }
                     });
+                }
+            });
 
-                    // Function to update category dropdown for edit modal
-                    function updateCategory1(role) {
-                        const categoryDropdown = document.getElementById('ecategory');
-                        // Clear existing options
-                        categoryDropdown.innerHTML = '';
+            // ========================
+            // UPDATE PERSONNEL
+            // ========================
+            // Handle edit button click
+            $(document).on('click', '.btn-edit', function() {
+                var $id = $(this).data('id');
+                var $row = $(this).closest('tr');
+                
+                // Retrieve data from the selected row
+                var $getphoto = $row.find('.photo').attr('src');
+                var $getid = $row.find('.id').text(); // Get formatted ID
+                var $getrole = $row.find('.role').val();
+                var $getcateg = $row.find('.categ').val();
+                var $getfname = $row.find('.first_name').val();
+                var $getlname = $row.find('.last_name').val();
+                var $getdob = $row.find('.date_of_birth').val();
+                var $getdepartment = $row.find('.department').val();
+                var $getstatus = $row.find('.status').val();
 
-                        // Only show 'Regular' and 'Contractual' categories
-                        const regularOption = new Option('Regular', 'Regular');
-                        const contractualOption = new Option('Contractual', 'Contractual');
-                        categoryDropdown.add(regularOption);
-                        categoryDropdown.add(contractualOption);
+                // Update the modal fields with data
+                $('.edit-photo').attr('src', $getphoto);
+                $('#id_number1').val($getid); // Set formatted ID
+                $('.edit-id').val($id);
+                $('#erole').val($getrole);
+                $('#ecategory').val($getcateg);
+                $('.edit-fname').val($getfname);
+                $('.edit-lname').val($getlname);
+                $('.capturedImage').val($getphoto.replace('uploads/', ''));
+                $('.edit-dob').val($getdob);
+                $('#e_department').val($getdepartment);
+                $('#status').val($getstatus);
+
+                // Update category dropdown based on role
+                updateCategory1($getrole);
+
+                // Show the modal
+                $('#editemployeeModal').modal('show');
+            });
+
+            
+            // Handle edit form submission
+            $('#editPersonellForm').submit(function(e) {
+                e.preventDefault();
+                
+                var userId = $('.edit-id').val();
+                
+                if (!userId) {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: 'No user selected. Please select a user first.',
+                        icon: 'error'
+                    });
+                    return;
+                }
+
+                // Remove hyphen from ID number before submitting
+                var idNumber = $('#id_number1').val();
+                var cleanIdNumber = idNumber.replace(/-/g, '');
+                
+                // Validate ID number format (8 digits)
+                if (!/^\d{8}$/.test(cleanIdNumber)) {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: 'ID Number must be 8 digits (format: 0000-0000)',
+                        icon: 'error'
+                    });
+                    return;
+                }
+
+                var formData = new FormData(this);
+                formData.set('id_number', cleanIdNumber); // Use the clean ID without hyphen
+                formData.append('id', userId);
+
+                // Show loading indicator
+                $('#btn-editemp').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
+                $('#btn-editemp').prop('disabled', true);
+                
+                $.ajax({
+                    url: "transac.php?action=update_personnel",
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function(response) {
+                        // Reset button state
+                        $('#btn-editemp').html('Update');
+                        $('#btn-editemp').prop('disabled', false);
+                        
+                        try {
+                            const data = typeof response === 'string' ? JSON.parse(response) : response;
+                            
+                            if (data.status === 'success') {
+                                Swal.fire({
+                                    title: 'Success!',
+                                    text: data.message,
+                                    icon: 'success'
+                                }).then(() => {
+                                    $('#editemployeeModal').modal('hide');
+                                    location.reload();
+                                });
+                            } else {
+                                Swal.fire({
+                                    title: 'Error!',
+                                    text: data.message,
+                                    icon: 'error'
+                                });
+                            }
+                        } catch (e) {
+                            Swal.fire({
+                                title: 'Error!',
+                                text: 'Invalid response from server',
+                                icon: 'error'
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        // Reset button state
+                        $('#btn-editemp').html('Update');
+                        $('#btn-editemp').prop('disabled', false);
+                        
+                        console.log('XHR Response:', xhr.responseText);
+                        
+                        Swal.fire({
+                            title: 'Error!',
+                            text: 'An error occurred while updating personnel: ' + error,
+                            icon: 'error'
+                        });
                     }
-            </script>
+                });
+            });
+
+            // ========================
+            // DELETE PERSONNEL
+            // ========================
+            // Handle delete button click
+            $(document).on('click', '.btn-del', function() {
+                var userId = $(this).data('id');
+                var userName = $(this).attr('user_name');
+                
+                // Show confirmation dialog
+                $('#delete_departmentname').val(userName);
+                $('#delete_employeeid').val(userId);
+                $('#delemployee-modal').modal('show');
+            });
+
+            // Handle the actual deletion when "Yes" is clicked in the modal
+            $(document).on('click', '#btn-delemp', function() {
+                var userId = $('#delete_employeeid').val();
+                var userName = $('#delete_departmentname').val();
+                
+                // Show loading indicator
+                $('#btn-delemp').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...');
+                $('#btn-delemp').prop('disabled', true);
+                
+                $.ajax({
+                    url: "transac.php?action=delete_personnel",
+                    type: 'POST',
+                    data: { 
+                        id: userId 
+                    },
+                    dataType: 'json',
+                    success: function(response) {
+                        // Reset button state
+                        $('#btn-delemp').html('Yes');
+                        $('#btn-delemp').prop('disabled', false);
+                        
+                        if (response.status === 'success') {
+                            // Close the modal
+                            $('#delemployee-modal').modal('hide');
+                            
+                            // Remove the row from the table
+                            dataTable.row($('.table-' + userId).closest('tr')).remove().draw();
+                            
+                            // Show success message
+                            Swal.fire({
+                                title: 'Success!',
+                                text: response.message,
+                                icon: 'success',
+                                timer: 3000,
+                                showConfirmButton: false
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Error!',
+                                text: response.message,
+                                icon: 'error'
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        // Reset button state
+                        $('#btn-delemp').html('Yes');
+                        $('#btn-delemp').prop('disabled', false);
+                        
+                        console.log('XHR Response:', xhr.responseText);
+                        console.log('Status:', status);
+                        console.log('Error:', error);
+                        
+                        let errorMessage = 'An error occurred while deleting personnel';
+                        try {
+                            const errorResponse = JSON.parse(xhr.responseText);
+                            if (errorResponse.message) {
+                                errorMessage = errorResponse.message;
+                            }
+                        } catch (e) {
+                            // If not JSON, use default message
+                        }
+                        
+                        Swal.fire({
+                            title: 'Error!',
+                            text: errorMessage,
+                            icon: 'error'
+                        });
+                    }
+                });
+            });
+
+            // Reset modal when closed
+            $('#employeeModal').on('hidden.bs.modal', function () {
+                document.getElementById('role').value = 'Student';
+                updateCategory();
+                $(this).find('form')[0].reset();
+                $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
+            });
+
+            // Image preview functionality
+            $("[class^=upload-field-]").change(function () {
+                readURL(this);
+            });
+
+            function readURL(input) {
+                if (input.files && input.files[0]) {
+                    const file = input.files[0];
+                    const validFormats = ['image/jpeg', 'image/png'];
+                    const maxSize = 2 * 1024 * 1024; // 2MB
+
+                    // Validate file format
+                    if (!validFormats.includes(file.type)) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Invalid Format',
+                            text: 'Only JPG and PNG formats are allowed.',
+                        });
+                        input.value = ''; // Reset the input
+                        return;
+                    }
+
+                    // Validate file size
+                    if (file.size > maxSize) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'File Too Large',
+                            text: 'Maximum file size is 2MB.',
+                        });
+                        input.value = ''; // Reset the input
+                        return;
+                    }
+
+                    // Preview the image
+                    var reader = new FileReader();
+                    reader.onload = function (e) {
+                        var num = $(input).attr('class').split('-')[2];
+                        $('.file-uploader .preview-' + num).attr('src', e.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+        });
+
+        // Function to update category dropdown for edit modal
+        function updateCategory1(role) {
+            const categoryDropdown = document.getElementById('ecategory');
+            // Clear existing options
+            categoryDropdown.innerHTML = '';
+
+            if (role === 'Student') {
+                const studentOption = new Option('Student', 'Student');
+                categoryDropdown.add(studentOption);
+            } else {
+                const regularOption = new Option('Regular', 'Regular');
+                const contractualOption = new Option('Contractual', 'Contractual');
+                categoryDropdown.add(regularOption);
+                categoryDropdown.add(contractualOption);
+            }
+        }
+        </script>
 </body>
 </html>
