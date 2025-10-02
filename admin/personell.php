@@ -710,6 +710,7 @@ function cleanID($id) {
                 // Retrieve data from the selected row
                 var $getphoto = $row.find('.photo').attr('src');
                 var $getid = $row.find('.id_number').val(); // Get formatted ID
+                var $id = $row.find('.id_number').val();
                 var $getrole = $row.find('.role').val();
                 var $getcateg = $row.find('.categ').val();
                 var $getfname = $row.find('.first_name').val();
