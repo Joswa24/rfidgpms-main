@@ -1,5 +1,26 @@
 <?php
+// ADD THIS AT THE VERY TOP OF transac.php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+
+include('../connection.php');
+date_default_timezone_set('Asia/Manila');
 session_start();
+
+// Function to send JSON response
+function jsonResponse($status, $message, $data = []) {
+    // Clear any previous output
+    if (ob_get_length()) ob_clean();
+    
+    header('Content-Type: application/json');
+    echo json_encode([
+        'status' => $status,
+        'message' => $message,
+        'data' => $data
+    ]);
+    exit;
+}
 // Display success/error messages
 if (isset($_SESSION['success_message'])) {
     echo '<div class="alert alert-success">' . $_SESSION['success_message'] . '</div>';
