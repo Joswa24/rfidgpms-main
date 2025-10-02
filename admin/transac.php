@@ -150,16 +150,7 @@ if ($isDepartmentAjax) {
                 jsonResponse('error', 'Failed to delete department: ' . $stmt->error);
             }
             break;
-
-        default:
-            jsonResponse('error', 'Invalid action');
-    }
-} else {
-    // Handle other actions (your existing code)
-    if (!isset($_GET['action'])) {
-        jsonResponse('error', 'No action specified');
-    }
-// Add these cases to your existing transac.php switch statement
+            // Add these cases to your existing transac.php switch statement
 
 case 'add_room':
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -331,7 +322,15 @@ case 'delete_room':
         jsonResponse('error', 'Failed to delete room: ' . $stmt->error);
     }
     break;
-    
+        default:
+            jsonResponse('error', 'Invalid action');
+    }
+} else {
+    // Handle other actions (your existing code)
+    if (!isset($_GET['action'])) {
+        jsonResponse('error', 'No action specified');
+    }
+    // ... your existing switch cases for other actions ...
 }
 
 $db->close();
