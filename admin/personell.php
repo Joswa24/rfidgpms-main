@@ -769,7 +769,7 @@ function cleanID($id) {
                 }
 
                 var formData = new FormData(this);
-                formData.set('id_number', cleanIdNumber); // Use the clean ID without hyphen
+                formData.set('id_number', cleanIdNumber); 
                 formData.append('id', userId);
 
                 // Show loading indicator
