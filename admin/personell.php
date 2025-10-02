@@ -341,7 +341,7 @@ function cleanID($id) {
                                                     <label name="upload-label" class="upload-img-btn">
                                                         <input type="file" id="photo" name="photo" class="upload-field-1" style="display:none;" accept="image/*" title="Upload Foto.."/>
                                                         <input type="hidden" id="capturedImage" name="capturedImage" class="capturedImage">
-                                                        <input type="hidden" class="edit-id" name="id" value="">
+                                                        <input class="id_raw" type="hidden" value="<?php echo $row['id_number']; ?>" />
                                                         <img class="preview-1 edit-photo" src="" style="width: 140px!important;height: 130px!important;position: absolute;border: 1px solid gray;top: 25%" title="Upload Photo.." />
                                                     </label>
                                                 </div>
