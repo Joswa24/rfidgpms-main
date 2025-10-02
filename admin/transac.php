@@ -516,7 +516,7 @@ if ($isAjaxRequest) {
                         jsonResponse('error', 'Invalid request method');
                     }
 
-                    // Validate required fields
+                    // Validate required fields based on your table structure
                     $required = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department'];
                     foreach ($required as $field) {
                         if (empty($_POST[$field])) {
@@ -527,12 +527,24 @@ if ($isAjaxRequest) {
                     // Sanitize inputs
                     $last_name = sanitizeInput($db, $_POST['last_name']);
                     $first_name = sanitizeInput($db, $_POST['first_name']);
+                    $middle_name = ''; // Optional field
                     $date_of_birth = sanitizeInput($db, $_POST['date_of_birth']);
                     $id_number = sanitizeInput($db, $_POST['id_number']);
                     $role = sanitizeInput($db, $_POST['role']);
                     $category = sanitizeInput($db, $_POST['category']);
                     $department = sanitizeInput($db, $_POST['department']);
+                    
+                    // Set default values for required fields that are not in your form
+                    $id_no = ''; // Empty as per your existing data
+                    $sex = ''; // Empty as per your existing data
+                    $civil_status = ''; // Empty as per your existing data
+                    $contact_number = NULL; // NULL as per your existing data
+                    $email_address = NULL; // NULL as per your existing data
+                    $section = ''; // Empty as per your existing data
                     $status = 'Active';
+                    $complete_address = ''; // Empty as per your existing data
+                    $place_of_birth = ''; // Empty as per your existing data
+                    $deleted = 0;
 
                     // Validate ID Number format (8 digits)
                     if (!preg_match('/^\d{8}$/', $id_number)) {
@@ -582,9 +594,11 @@ if ($isAjaxRequest) {
 
                     // Insert record - CORRECTED for your actual table structure
                     $query = "INSERT INTO personell (
-                        id_number, last_name, first_name, date_of_birth, 
-                        role, category, department, status, photo, date_added
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                        id_no, id_number, last_name, first_name, middle_name, 
+                        date_of_birth, role, sex, civil_status, contact_number, 
+                        email_address, department, section, status, complete_address, 
+                        photo, place_of_birth, category, deleted
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
                     $stmt = $db->prepare($query);
                     if (!$stmt) {
@@ -592,9 +606,11 @@ if ($isAjaxRequest) {
                     }
 
                     $stmt->bind_param(
-                        "sssssssss", 
-                        $id_number, $last_name, $first_name, $date_of_birth,
-                        $role, $category, $department, $status, $photo
+                        "ssssssssssssssssssi", 
+                        $id_no, $id_number, $last_name, $first_name, $middle_name,
+                        $date_of_birth, $role, $sex, $civil_status, $contact_number,
+                        $email_address, $department, $section, $status, $complete_address,
+                        $photo, $place_of_birth, $category, $deleted
                     );
 
                     if ($stmt->execute()) {
@@ -622,14 +638,15 @@ if ($isAjaxRequest) {
                     }
 
                     // Sanitize inputs
-                    $id = intval($_POST['id']); // Use intval since your id is INT
+                    $id = intval($_POST['id']);
                     $last_name = sanitizeInput($db, $_POST['last_name']);
                     $first_name = sanitizeInput($db, $_POST['first_name']);
+                    $middle_name = ''; // Optional field
                     $date_of_birth = sanitizeInput($db, $_POST['date_of_birth']);
                     $id_number = sanitizeInput($db, $_POST['id_number']);
                     $role = sanitizeInput($db, $_POST['role']);
                     $category = sanitizeInput($db, $_POST['category']);
-                    $department = sanitizeInput($db, $_POST['e_department']); // Note: using e_department from form
+                    $department = sanitizeInput($db, $_POST['e_department']);
                     $status = sanitizeInput($db, $_POST['status']);
 
                     // Validate ID Number format (8 digits)
@@ -684,25 +701,29 @@ if ($isAjaxRequest) {
                     // Update personnel record
                     if (!empty($photo)) {
                         $query = "UPDATE personell SET 
-                            last_name = ?, first_name = ?, date_of_birth = ?, id_number = ?,
-                            role = ?, category = ?, department = ?, status = ?, photo = ?
+                            id_number = ?, last_name = ?, first_name = ?, middle_name = ?, 
+                            date_of_birth = ?, role = ?, department = ?, status = ?, 
+                            category = ?, photo = ?
+                            WHERE id = ?";
+                        $stmt = $db->prepare($query);
+                        $stmt->bind_param(
+                            "ssssssssssi", 
+                            $id_number, $last_name, $first_name, $middle_name,
+                            $date_of_birth, $role, $department, $status,
+                            $category, $photo, $id
+                        );
+                    } else {
+                        $query = "UPDATE personell SET 
+                            id_number = ?, last_name = ?, first_name = ?, middle_name = ?, 
+                            date_of_birth = ?, role = ?, department = ?, status = ?, 
+                            category = ?
                             WHERE id = ?";
                         $stmt = $db->prepare($query);
                         $stmt->bind_param(
                             "sssssssssi", 
-                            $last_name, $first_name, $date_of_birth, $id_number,
-                            $role, $category, $department, $status, $photo, $id
-                        );
-                    } else {
-                        $query = "UPDATE personell SET 
-                            last_name = ?, first_name = ?, date_of_birth = ?, id_number = ?,
-                            role = ?, category = ?, department = ?, status = ?
-                            WHERE id = ?";
-                        $stmt = $db->prepare($query);
-                        $stmt->bind_param(
-                            "ssssssssi", 
-                            $last_name, $first_name, $date_of_birth, $id_number,
-                            $role, $category, $department, $status, $id
+                            $id_number, $last_name, $first_name, $middle_name,
+                            $date_of_birth, $role, $department, $status,
+                            $category, $id
                         );
                     }
 
@@ -726,20 +747,8 @@ if ($isAjaxRequest) {
                     // Sanitize input
                     $id = intval($_POST['id']);
 
-                    // Check for dependencies
-                    $checkLostCards = $db->prepare("SELECT COUNT(*) FROM lostcard WHERE personnel_id = ?");
-                    $checkLostCards->bind_param("i", $id);
-                    $checkLostCards->execute();
-                    $checkLostCards->bind_result($lostCardCount);
-                    $checkLostCards->fetch();
-                    $checkLostCards->close();
-
-                    if ($lostCardCount > 0) {
-                        jsonResponse('error', 'Cannot delete personnel with associated lost card records');
-                    }
-
-                    // Delete personnel
-                    $stmt = $db->prepare("DELETE FROM personell WHERE id = ?");
+                    // Use soft delete instead of hard delete to maintain data integrity
+                    $stmt = $db->prepare("UPDATE personell SET deleted = 1 WHERE id = ?");
                     $stmt->bind_param("i", $id);
                     
                     if ($stmt->execute()) {
