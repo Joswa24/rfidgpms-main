@@ -511,105 +511,114 @@ if ($isAjaxRequest) {
                  // ========================
                 // PERSONNEL CRUD OPERATIONS
                 // ========================
-                
-// ========================
-// PERSONNEL CRUD OPERATIONS - SIMPLIFIED VERSION
-// ========================
-case 'add_personnel':
-    error_log("=== ADD PERSONNEL START ===");
-    
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        jsonResponse('error', 'Invalid request method');
-    }
+                case 'add_personnel':
+                    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                        jsonResponse('error', 'Invalid request method');
+                    }
 
-    // Basic validation
-    if (empty($_POST['last_name']) || empty($_POST['first_name']) || empty($_POST['id_number'])) {
-        jsonResponse('error', 'Required fields are missing');
-    }
+                    // Validate required fields based on your table structure
+                    $required = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department'];
+                    foreach ($required as $field) {
+                        if (empty($_POST[$field])) {
+                            jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
+                        }
+                    }
 
-    // Get form data
-    $last_name = trim($_POST['last_name']);
-    $first_name = trim($_POST['first_name']);
-    $id_number = str_replace('-', '', trim($_POST['id_number'])); // Remove hyphens
-    $date_of_birth = $_POST['date_of_birth'];
-    $role = $_POST['role'];
-    $category = $_POST['category'];
-    $department = $_POST['department'];
+                    // Sanitize inputs
+                    $last_name = sanitizeInput($db, $_POST['last_name']);
+                    $first_name = sanitizeInput($db, $_POST['first_name']);
+                    $middle_name = ''; // Optional field
+                    $date_of_birth = sanitizeInput($db, $_POST['date_of_birth']);
+                    $id_number = sanitizeInput($db, $_POST['id_number']);
+                    $role = sanitizeInput($db, $_POST['role']);
+                    $category = sanitizeInput($db, $_POST['category']);
+                    $department = sanitizeInput($db, $_POST['department']);
+                    
+                    // Set default values for required fields that are not in your form
+                    $id_no = ''; // Empty as per your existing data
+                    $sex = ''; // Empty as per your existing data
+                    $civil_status = ''; // Empty as per your existing data
+                    $contact_number = NULL; // NULL as per your existing data
+                    $email_address = NULL; // NULL as per your existing data
+                    $section = ''; // Empty as per your existing data
+                    $status = 'Active';
+                    $complete_address = ''; // Empty as per your existing data
+                    $place_of_birth = ''; // Empty as per your existing data
+                    $deleted = 0;
 
-    // Validate ID number
-    if (!preg_match('/^\d{8}$/', $id_number)) {
-        jsonResponse('error', 'ID Number must be exactly 8 digits');
-    }
+                    // Validate ID Number format (8 digits)
+                    if (!preg_match('/^\d{8}$/', $id_number)) {
+                        jsonResponse('error', 'ID Number must be exactly 8 digits');
+                    }
 
-    // Check for duplicate ID
-    $check = $db->prepare("SELECT id FROM personell WHERE id_number = ?");
-    $check->bind_param("s", $id_number);
-    $check->execute();
-    $check->store_result();
-    
-    if ($check->num_rows > 0) {
-        jsonResponse('error', 'ID Number already exists');
-    }
-    $check->close();
+                    // Check if ID Number exists
+                    $check_id = $db->prepare("SELECT id FROM personell WHERE id_number = ?");
+                    $check_id->bind_param("s", $id_number);
+                    $check_id->execute();
+                    $check_id->store_result();
+                    
+                    if ($check_id->num_rows > 0) {
+                        jsonResponse('error', 'ID Number already exists');
+                    }
+                    $check_id->close();
 
-    // Handle file upload
-    $photo = 'default.png';
-    if (isset($_FILES['photo']) && $_FILES['photo']['error'] === 0) {
-        $allowed_types = ['image/jpeg', 'image/png'];
-        $file_type = $_FILES['photo']['type'];
-        
-        if (in_array($file_type, $allowed_types)) {
-            $ext = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
-            $photo = uniqid() . '.' . $ext;
-            $target_dir = "uploads/";
-            
-            // Create directory if it doesn't exist
-            if (!is_dir($target_dir)) {
-                mkdir($target_dir, 0755, true);
-            }
-            
-            $target_file = $target_dir . $photo;
-            if (move_uploaded_file($_FILES['photo']['tmp_name'], $target_file)) {
-                error_log("File uploaded: $photo");
-            } else {
-                $photo = 'default.png'; // Use default if upload fails
-            }
-        }
-    }
+                    // Handle file upload
+                    $photo = 'default.png';
+                    if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+                        $allowed_types = ['image/jpeg', 'image/png'];
+                        $file_info = finfo_open(FILEINFO_MIME_TYPE);
+                        $mime_type = finfo_file($file_info, $_FILES['photo']['tmp_name']);
+                        finfo_close($file_info);
 
-    // Insert into database - using your exact table structure
-    $query = "INSERT INTO personell (
-        id_no, id_number, last_name, first_name, date_of_birth, 
-        role, sex, civil_status, department, status, 
-        photo, category, deleted
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                        if (!in_array($mime_type, $allowed_types)) {
+                            jsonResponse('error', 'Only JPG and PNG images are allowed');
+                        }
 
-    $stmt = $db->prepare($query);
-    if (!$stmt) {
-        jsonResponse('error', 'Database prepare failed: ' . $db->error);
-    }
+                        if ($_FILES['photo']['size'] > 2 * 1024 * 1024) {
+                            jsonResponse('error', 'Maximum file size is 2MB');
+                        }
 
-    // Set default values for required fields
-    $id_no = '';
-    $sex = '';
-    $civil_status = '';
-    $status = 'Active';
-    $deleted = 0;
+                        $ext = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
+                        $photo = uniqid() . '.' . $ext;
+                        $target_dir = "uploads/";
+                        
+                        if (!file_exists($target_dir)) {
+                            mkdir($target_dir, 0755, true);
+                        }
 
-    $stmt->bind_param(
-        "ssssssssssssi", 
-        $id_no, $id_number, $last_name, $first_name, $date_of_birth,
-        $role, $sex, $civil_status, $department, $status,
-        $photo, $category, $deleted
-    );
+                        $target_file = $target_dir . $photo;
+                        if (!move_uploaded_file($_FILES['photo']['tmp_name'], $target_file)) {
+                            jsonResponse('error', 'Failed to upload image');
+                        }
+                    }
 
-    if ($stmt->execute()) {
-        error_log("Personnel added successfully: $first_name $last_name");
-        jsonResponse('success', 'Personnel added successfully');
-    } else {
-        jsonResponse('error', 'Database insert failed: ' . $stmt->error);
-    }
-    break;
+                    // Insert record - CORRECTED for your actual table structure
+                    $query = "INSERT INTO personell (
+                        id_no, id_number, last_name, first_name, middle_name, 
+                        date_of_birth, role, sex, civil_status, contact_number, 
+                        email_address, department, section, status, complete_address, 
+                        photo, place_of_birth, category, deleted
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+                    $stmt = $db->prepare($query);
+                    if (!$stmt) {
+                        jsonResponse('error', 'Prepare failed: ' . $db->error);
+                    }
+
+                    $stmt->bind_param(
+                        "ssssssssssssssssssi", 
+                        $id_no, $id_number, $last_name, $first_name, $middle_name,
+                        $date_of_birth, $role, $sex, $civil_status, $contact_number,
+                        $email_address, $department, $section, $status, $complete_address,
+                        $photo, $place_of_birth, $category, $deleted
+                    );
+
+                    if ($stmt->execute()) {
+                        jsonResponse('success', 'Personnel added successfully');
+                    } else {
+                        jsonResponse('error', 'Database error: ' . $stmt->error);
+                    }
+                    break;
 
                 case 'update_personnel':
                     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
