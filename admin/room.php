@@ -584,7 +584,7 @@ if (isset($_SESSION['error_message'])) {
                 
                 $.ajax({
                     type: 'POST',
-                    url: 'transac.php?action=delete_room',
+                    url: "transac.php?action=delete_room",
                     data: { id: id },
                     dataType: 'json',
                     success: function(response) {
