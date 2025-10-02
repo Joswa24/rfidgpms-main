@@ -159,8 +159,179 @@ if ($isDepartmentAjax) {
     if (!isset($_GET['action'])) {
         jsonResponse('error', 'No action specified');
     }
+// Add these cases to your existing transac.php switch statement
 
-    // ... your existing switch cases for other actions ...
+case 'add_room':
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        jsonResponse('error', 'Invalid request method');
+    }
+
+    // Validate required fields
+    $required = ['roomdpt', 'roomrole', 'roomname', 'roomdesc', 'roompass'];
+    foreach ($required as $field) {
+        if (empty($_POST[$field])) {
+            jsonResponse('error', "Missing required field: " . str_replace('room', '', $field));
+        }
+    }
+
+    // Sanitize inputs
+    $department = sanitizeInput($db, $_POST['roomdpt']);
+    $role = sanitizeInput($db, $_POST['roomrole']);
+    $room = sanitizeInput($db, $_POST['roomname']);
+    $descr = sanitizeInput($db, $_POST['roomdesc']);
+    $password = sanitizeInput($db, $_POST['roompass']);
+
+    // Validate lengths
+    if (strlen($room) > 100) {
+        jsonResponse('error', 'Room name must be less than 100 characters');
+    }
+
+    if (strlen($descr) > 255) {
+        jsonResponse('error', 'Description must be less than 255 characters');
+    }
+
+    if (strlen($password) < 6) {
+        jsonResponse('error', 'Password must be at least 6 characters');
+    }
+
+    // Check if room exists in department
+    $check = $db->prepare("SELECT id FROM rooms WHERE room = ? AND department = ?");
+    $check->bind_param("ss", $room, $department);
+    $check->execute();
+    $check->store_result();
+
+    if ($check->num_rows > 0) {
+        jsonResponse('error', 'Room already exists in this department');
+    }
+    $check->close();
+
+    // Insert room
+    $stmt = $db->prepare("INSERT INTO rooms (room, authorized_personnel, department, password, descr) VALUES (?, ?, ?, ?, ?)");
+    $stmt->bind_param("sssss", $room, $role, $department, $password, $descr);
+
+    if ($stmt->execute()) {
+        jsonResponse('success', 'Room added successfully');
+    } else {
+        jsonResponse('error', 'Failed to add room: ' . $db->error);
+    }
+    break;
+
+case 'update_room':
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        jsonResponse('error', 'Invalid request method');
+    }
+
+    // Validate required fields
+    if (empty($_POST['id'])) {
+        jsonResponse('error', 'Room ID is required');
+    }
+
+    $required = ['roomdpt', 'roomrole', 'roomname', 'roomdesc', 'roompass'];
+    foreach ($required as $field) {
+        if (empty($_POST[$field])) {
+            jsonResponse('error', "Missing required field: " . str_replace('room', '', $field));
+        }
+    }
+
+    // Sanitize inputs
+    $id = intval($_POST['id']);
+    $department = sanitizeInput($db, $_POST['roomdpt']);
+    $role = sanitizeInput($db, $_POST['roomrole']);
+    $room = sanitizeInput($db, $_POST['roomname']);
+    $descr = sanitizeInput($db, $_POST['roomdesc']);
+    $password = sanitizeInput($db, $_POST['roompass']);
+
+    // Validate ID
+    if ($id <= 0) {
+        jsonResponse('error', 'Invalid room ID');
+    }
+
+    // Validate lengths
+    if (strlen($room) > 100) {
+        jsonResponse('error', 'Room name must be less than 100 characters');
+    }
+
+    if (strlen($descr) > 255) {
+        jsonResponse('error', 'Description must be less than 255 characters');
+    }
+
+    if (strlen($password) < 6) {
+        jsonResponse('error', 'Password must be at least 6 characters');
+    }
+
+    // Check if room exists in department (excluding current room)
+    $check = $db->prepare("SELECT id FROM rooms WHERE room = ? AND department = ? AND id != ?");
+    $check->bind_param("ssi", $room, $department, $id);
+    $check->execute();
+    $check->store_result();
+
+    if ($check->num_rows > 0) {
+        jsonResponse('error', 'Room already exists in this department');
+    }
+    $check->close();
+
+    // Update room
+    $stmt = $db->prepare("UPDATE rooms SET room = ?, authorized_personnel = ?, department = ?, password = ?, descr = ? WHERE id = ?");
+    $stmt->bind_param("sssssi", $room, $role, $department, $password, $descr, $id);
+
+    if ($stmt->execute()) {
+        jsonResponse('success', 'Room updated successfully');
+    } else {
+        jsonResponse('error', 'Failed to update room: ' . $db->error);
+    }
+    break;
+
+case 'delete_room':
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        jsonResponse('error', 'Invalid request method');
+    }
+
+    // Validate required field
+    if (empty($_POST['id'])) {
+        jsonResponse('error', 'Room ID is required');
+    }
+
+    // Sanitize input
+    $id = intval($_POST['id']);
+
+    if ($id <= 0) {
+        jsonResponse('error', 'Invalid room ID');
+    }
+
+    // Check if room exists first
+    $checkRoom = $db->prepare("SELECT id FROM rooms WHERE id = ?");
+    $checkRoom->bind_param("i", $id);
+    $checkRoom->execute();
+    $checkRoom->store_result();
+    
+    if ($checkRoom->num_rows === 0) {
+        jsonResponse('error', 'Room not found');
+    }
+    $checkRoom->close();
+
+    // Check for room dependencies (scheduled classes)
+    $checkSchedules = $db->prepare("SELECT COUNT(*) FROM room_schedules WHERE room_name COLLATE utf8mb4_unicode_ci = (SELECT room COLLATE utf8mb4_unicode_ci FROM rooms WHERE id = ?)");
+    $checkSchedules->bind_param("i", $id);
+    $checkSchedules->execute();
+    $checkSchedules->bind_result($scheduleCount);
+    $checkSchedules->fetch();
+    $checkSchedules->close();
+
+    if ($scheduleCount > 0) {
+        jsonResponse('error', 'Cannot delete room with scheduled classes');
+    }
+
+    // Delete room
+    $stmt = $db->prepare("DELETE FROM rooms WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    
+    if ($stmt->execute()) {
+        jsonResponse('success', 'Room deleted successfully');
+    } else {
+        jsonResponse('error', 'Failed to delete room: ' . $stmt->error);
+    }
+    break;
+    
 }
 
 $db->close();
