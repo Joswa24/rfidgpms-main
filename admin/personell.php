@@ -707,36 +707,44 @@ function cleanID($id) {
                 var $id = $(this).data('id');
                 var $row = $(this).closest('tr');
                 
-                // Retrieve data from the selected row
-                var $getphoto = $row.find('.photo').attr('src');
-                var $getid = $row.find('.id').text(); // Get formatted ID
-                var $getrole = $row.find('.role').val();
-                var $getcateg = $row.find('.categ').val();
-                var $getfname = $row.find('.first_name').val();
-                var $getlname = $row.find('.last_name').val();
-                var $getdob = $row.find('.date_of_birth').val();
-                var $getdepartment = $row.find('.department').val();
-                var $getstatus = $row.find('.status').val();
+                // Handle edit button click
+$(document).on('click', '.btn-edit', function() {
+    var $id = $(this).data('id');
+    var $row = $(this).closest('tr');
+    
+        // Retrieve data from the selected row - FIXED: use id_raw instead of id
+        var $getphoto = $row.find('.photo').attr('src');
+        var $getid = $row.find('.id_raw').val(); // Get the raw ID number from hidden input
+        var $getrole = $row.find('.role').val();
+        var $getcateg = $row.find('.categ').val();
+        var $getfname = $row.find('.first_name').val();
+        var $getlname = $row.find('.last_name').val();
+        var $getdob = $row.find('.date_of_birth').val();
+        var $getdepartment = $row.find('.department').val();
+        var $getstatus = $row.find('.status').val();
 
-                // Update the modal fields with data
-                $('.edit-photo').attr('src', $getphoto);
-                $('#id_number1').val($getid); // Set formatted ID
-                $('.edit-id').val($id);
-                $('#erole').val($getrole);
-                $('#ecategory').val($getcateg);
-                $('.edit-fname').val($getfname);
-                $('.edit-lname').val($getlname);
-                $('.capturedImage').val($getphoto.replace('uploads/', ''));
-                $('.edit-dob').val($getdob);
-                $('#e_department').val($getdepartment);
-                $('#status').val($getstatus);
+        // Format the ID for display (add hyphen)
+        var formattedId = $getid.replace(/(\d{4})(\d{4})/, '$1-$2');
 
-                // Update category dropdown based on role
-                updateCategory1($getrole);
+        // Update the modal fields with data
+        $('.edit-photo').attr('src', $getphoto);
+        $('#id_number1').val(formattedId); // Set formatted ID
+        $('.edit-id').val($id);
+        $('#erole').val($getrole);
+        $('#ecategory').val($getcateg);
+        $('.edit-fname').val($getfname);
+        $('.edit-lname').val($getlname);
+        $('.capturedImage').val($getphoto.replace('uploads/', ''));
+        $('.edit-dob').val($getdob);
+        $('#e_department').val($getdepartment);
+        $('#status').val($getstatus);
 
-                // Show the modal
-                $('#editemployeeModal').modal('show');
-            });
+        // Update category dropdown based on role
+        updateCategory1($getrole);
+
+        // Show the modal
+        $('#editemployeeModal').modal('show');
+    });
 
             
             // Handle edit form submission
