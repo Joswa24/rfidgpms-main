@@ -579,23 +579,28 @@ if ($isAjaxRequest) {
                             jsonResponse('error', 'Failed to upload image');
                         }
                     }
-                    // Insert personnel record
-                        $query = "INSERT INTO personell (
-                            category, id_number, last_name, first_name, 
-                            date_of_birth, role, department, status, photo, date_added
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
 
-                        $stmt = $db->prepare($query);
-                        $stmt->bind_param(
-                            "sssssssss", 
-                            $category, $id_number, $last_name, $first_name,
-                            $date_of_birth, $role, $department, $status, $photo
-                        );
+                    // Insert record - CORRECTED for your actual table structure
+                    $query = "INSERT INTO personell (
+                        id_number, last_name, first_name, date_of_birth, 
+                        role, category, department, status, photo, date_added
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+
+                    $stmt = $db->prepare($query);
+                    if (!$stmt) {
+                        jsonResponse('error', 'Prepare failed: ' . $db->error);
+                    }
+
+                    $stmt->bind_param(
+                        "sssssssss", 
+                        $id_number, $last_name, $first_name, $date_of_birth,
+                        $role, $category, $department, $status, $photo
+                    );
 
                     if ($stmt->execute()) {
-                        jsonResponse('success', 'Personnel added successfully', ['id' => $id]);
+                        jsonResponse('success', 'Personnel added successfully');
                     } else {
-                        jsonResponse('error', 'Database error: ' . $db->error);
+                        jsonResponse('error', 'Database error: ' . $stmt->error);
                     }
                     break;
 
@@ -609,7 +614,7 @@ if ($isAjaxRequest) {
                         jsonResponse('error', 'Personnel ID is required');
                     }
 
-                    $required = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department', 'status'];
+                    $required = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'e_department', 'status'];
                     foreach ($required as $field) {
                         if (empty($_POST[$field])) {
                             jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
@@ -617,14 +622,14 @@ if ($isAjaxRequest) {
                     }
 
                     // Sanitize inputs
-                    $id = sanitizeInput($db, $_POST['id']);
+                    $id = intval($_POST['id']); // Use intval since your id is INT
                     $last_name = sanitizeInput($db, $_POST['last_name']);
                     $first_name = sanitizeInput($db, $_POST['first_name']);
                     $date_of_birth = sanitizeInput($db, $_POST['date_of_birth']);
                     $id_number = sanitizeInput($db, $_POST['id_number']);
                     $role = sanitizeInput($db, $_POST['role']);
                     $category = sanitizeInput($db, $_POST['category']);
-                    $department = sanitizeInput($db, $_POST['department']);
+                    $department = sanitizeInput($db, $_POST['e_department']); // Note: using e_department from form
                     $status = sanitizeInput($db, $_POST['status']);
 
                     // Validate ID Number format (8 digits)
@@ -634,7 +639,7 @@ if ($isAjaxRequest) {
 
                     // Check if ID Number exists for other personnel
                     $check_id = $db->prepare("SELECT id FROM personell WHERE id_number = ? AND id != ?");
-                    $check_id->bind_param("ss", $id_number, $id);
+                    $check_id->bind_param("si", $id_number, $id);
                     $check_id->execute();
                     $check_id->store_result();
                     
@@ -684,7 +689,7 @@ if ($isAjaxRequest) {
                             WHERE id = ?";
                         $stmt = $db->prepare($query);
                         $stmt->bind_param(
-                            "ssssssssss", 
+                            "sssssssssi", 
                             $last_name, $first_name, $date_of_birth, $id_number,
                             $role, $category, $department, $status, $photo, $id
                         );
@@ -695,26 +700,16 @@ if ($isAjaxRequest) {
                             WHERE id = ?";
                         $stmt = $db->prepare($query);
                         $stmt->bind_param(
-                            "sssssssss", 
+                            "ssssssssi", 
                             $last_name, $first_name, $date_of_birth, $id_number,
                             $role, $category, $department, $status, $id
                         );
                     }
 
                     if ($stmt->execute()) {
-                        // If status changed, update lostcard table if needed
-                        if ($status == 'Blocked') {
-                            $status_value = 1;
-                            $query1 = "UPDATE lostcard SET status = ? WHERE personnel_id = ?";
-                            $stmt1 = $db->prepare($query1);
-                            $stmt1->bind_param("is", $status_value, $id);
-                            $stmt1->execute();
-                            $stmt1->close();
-                        }
-                        
                         jsonResponse('success', 'Personnel updated successfully');
                     } else {
-                        jsonResponse('error', 'Failed to update personnel: ' . $db->error);
+                        jsonResponse('error', 'Failed to update personnel: ' . $stmt->error);
                     }
                     break;
 
@@ -729,11 +724,11 @@ if ($isAjaxRequest) {
                     }
 
                     // Sanitize input
-                    $id = sanitizeInput($db, $_POST['id']);
+                    $id = intval($_POST['id']);
 
-                    // Check for lost cards
+                    // Check for dependencies
                     $checkLostCards = $db->prepare("SELECT COUNT(*) FROM lostcard WHERE personnel_id = ?");
-                    $checkLostCards->bind_param("s", $id);
+                    $checkLostCards->bind_param("i", $id);
                     $checkLostCards->execute();
                     $checkLostCards->bind_result($lostCardCount);
                     $checkLostCards->fetch();
@@ -743,21 +738,9 @@ if ($isAjaxRequest) {
                         jsonResponse('error', 'Cannot delete personnel with associated lost card records');
                     }
 
-                    // Check for access logs
-                    $checkLogs = $db->prepare("SELECT COUNT(*) FROM personell_logs WHERE personnel_id = ?");
-                    $checkLogs->bind_param("s", $id);
-                    $checkLogs->execute();
-                    $checkLogs->bind_result($logCount);
-                    $checkLogs->fetch();
-                    $checkLogs->close();
-
-                    if ($logCount > 0) {
-                        jsonResponse('error', 'Cannot delete personnel with associated access logs');
-                    }
-
                     // Delete personnel
                     $stmt = $db->prepare("DELETE FROM personell WHERE id = ?");
-                    $stmt->bind_param("s", $id);
+                    $stmt->bind_param("i", $id);
                     
                     if ($stmt->execute()) {
                         jsonResponse('success', 'Personnel deleted successfully');

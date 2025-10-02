@@ -717,6 +717,7 @@ function cleanID($id) {
                 $('#editemployeeModal').modal('show');
             });
 
+            
             // Handle edit form submission
             $('#editPersonellForm').submit(function(e) {
                 e.preventDefault();
@@ -760,25 +761,34 @@ function cleanID($id) {
                     data: formData,
                     contentType: false,
                     processData: false,
-                    dataType: 'json',
                     success: function(response) {
                         // Reset button state
                         $('#btn-editemp').html('Update');
                         $('#btn-editemp').prop('disabled', false);
                         
-                        if (response.status === 'success') {
-                            Swal.fire({
-                                title: 'Success!',
-                                text: response.message,
-                                icon: 'success'
-                            }).then(() => {
-                                $('#editemployeeModal').modal('hide');
-                                location.reload();
-                            });
-                        } else {
+                        try {
+                            const data = typeof response === 'string' ? JSON.parse(response) : response;
+                            
+                            if (data.status === 'success') {
+                                Swal.fire({
+                                    title: 'Success!',
+                                    text: data.message,
+                                    icon: 'success'
+                                }).then(() => {
+                                    $('#editemployeeModal').modal('hide');
+                                    location.reload();
+                                });
+                            } else {
+                                Swal.fire({
+                                    title: 'Error!',
+                                    text: data.message,
+                                    icon: 'error'
+                                });
+                            }
+                        } catch (e) {
                             Swal.fire({
                                 title: 'Error!',
-                                text: response.message,
+                                text: 'Invalid response from server',
                                 icon: 'error'
                             });
                         }
@@ -789,22 +799,10 @@ function cleanID($id) {
                         $('#btn-editemp').prop('disabled', false);
                         
                         console.log('XHR Response:', xhr.responseText);
-                        console.log('Status:', status);
-                        console.log('Error:', error);
-                        
-                        let errorMessage = 'An error occurred while updating personnel';
-                        try {
-                            const errorResponse = JSON.parse(xhr.responseText);
-                            if (errorResponse.message) {
-                                errorMessage = errorResponse.message;
-                            }
-                        } catch (e) {
-                            // If not JSON, use default message
-                        }
                         
                         Swal.fire({
                             title: 'Error!',
-                            text: errorMessage,
+                            text: 'An error occurred while updating personnel: ' + error,
                             icon: 'error'
                         });
                     }
