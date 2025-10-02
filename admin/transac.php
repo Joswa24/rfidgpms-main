@@ -777,53 +777,6 @@ if ($isAjaxRequest) {
         jsonResponse('error', 'No action specified');
     }
 
-    switch ($_GET['action']) {
-        // ... your existing cases for other actions (add_visitor, add_personnel, etc.) ...
-        
-        case 'add_visitor':
-            // ... your existing add_visitor code ...
-            break;
-            
-        case 'add_personnel':
-            // ... your existing add_personnel code ...
-            break;
-            
-        case 'add_subject':
-            // ... your existing add_subject code ...
-            break;
-            
-        case 'add_role':
-            // ... your existing add_role code ...
-            break;
-            
-        case 'add_instructor':
-            // ... your existing add_instructor code ...
-            break;
-            
-        case 'add_student':
-            // ... your existing add_student code ...
-            break;
-            
-        case 'add_lost_card':
-            // ... your existing add_lost_card code ...
-            break;
-            
-        case 'update_visitor':
-            // ... your existing update_visitor code ...
-            break;
-            
-        case 'delete_visitor':
-            // ... your existing delete_visitor code ...
-            break;
-            
-        case 'get_schedule':
-            // ... your existing get_schedule code ...
-            break;
-
-        default:
-            jsonResponse('error', 'Invalid action');
-            break;
-    }
 }
 
 $db->close();
