@@ -420,7 +420,7 @@ include '../connection.php';
                 
                 $.ajax({
                     type: 'POST',
-                    url: 'transac.php?action=delete_role',
+                    url: "transac.php?action=delete_role",
                     data: { 
                         id: id
                     },
