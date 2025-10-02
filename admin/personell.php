@@ -127,7 +127,7 @@ function cleanID($id) {
                                     <?php $results = mysqli_query($db, "SELECT * FROM personell WHERE deleted = 0 ORDER BY date_added DESC"); ?>
                                     <?php while ($row = mysqli_fetch_array($results)) { ?>
                                     <tr class="table-<?php echo $row['id'];?>">
-                                        <input class="id_number" type="hidden" value="<?php echo $row['id_no']; ?>" />
+                                        <input class="id_number" type="hidden" value="<?php echo $row['id_number']; ?>" />
                                         <input class="id_raw" type="hidden" value="<?php echo $row['id_number']; ?>" />
                                         <input class="role" type="hidden" value="<?php echo $row['role']; ?>" />
                                         <input class="last_name" type="hidden" value="<?php echo $row['last_name']; ?>" />
