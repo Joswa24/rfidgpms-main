@@ -1,5 +1,5 @@
 <?php
-// ADD THIS AT THE VERY TOP OF transac.php
+
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
@@ -647,23 +647,12 @@ function cleanID($id) {
                         $('#btn-emp').html('Save');
                         $('#btn-emp').prop('disabled', false);
                         
-                        console.log('XHR Response:', xhr.responseText);
-                        console.log('Status:', status);
-                        console.log('Error:', error);
+                        console.log('Full XHR Response:', xhr.responseText);
                         
-                        let errorMessage = 'An error occurred while processing your request';
-                        try {
-                            const errorResponse = JSON.parse(xhr.responseText);
-                            if (errorResponse.message) {
-                                errorMessage = errorResponse.message;
-                            }
-                        } catch (e) {
-                            // If not JSON, use default message
-                        }
-                        
+                        // Show the raw response from server
                         Swal.fire({
-                            title: 'Error!',
-                            text: errorMessage,
+                            title: 'Server Error!',
+                            html: 'Response: <pre>' + xhr.responseText + '</pre>',
                             icon: 'error'
                         });
                     }
