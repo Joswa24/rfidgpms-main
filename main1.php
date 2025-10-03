@@ -569,13 +569,101 @@ let scanner = null;
 let lastScanTime = 0;
 const scanCooldown = 1000;
 
-// Student photo mapping
+// CORRECTED: Student photo mapping with proper paths
 const studentPhotos = {
     "2024-0380": "uploads/students/68b703dcdff49_1232-1232.jpg",
-    "2024-1570": "uploads/students/c9c9ed00-ab5c-4c3e-b197-56559ab7ca61.jpg",
+    "2024-1570": "uploads/students/c9c9ed00-ab5c-4c3e-b197-56559ab7ca61.jpg", 
     "2024-0117": "uploads/students/68b703dcdff49_1232-1232.jpg",
     "2024-1697": "uploads/students/68b75972d9975_5555-7777.jpg"
 };
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    initializeScanner();
+    setupEventListeners();
+    startTime();
+});
+
+// CORRECTED: Update photo function
+function updatePhoto(data) {
+    const photoElement = document.getElementById('pic');
+    if (!photoElement) return;
+    
+    let photoPath = "uploads/students/default.png";
+    
+    if (data.photo) {
+        // If photo path is provided in response, use it directly
+        photoPath = data.photo;
+    } else if (studentPhotos[data.id_number]) {
+        // Fallback to predefined photos
+        photoPath = studentPhotos[data.id_number];
+    }
+    
+    // Add cache busting and ensure correct path
+    photoElement.src = photoPath + "?t=" + new Date().getTime();
+}
+
+// CORRECTED: Show confirmation modal - FIXED VERSION
+function showConfirmationModal(data) {
+    console.log('Showing confirmation modal with data:', data);
+    
+    // Get current time and date
+    const now = new Date();
+    const timeString = now.toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit' 
+    });
+    const dateString = now.toLocaleDateString([], { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    });
+
+    // Update modal content with safe fallbacks
+    setElementText('modalPersonName', data.full_name || 'Unknown Person');
+    setElementText('modalPersonId', data.id_number || 'N/A');
+    setElementText('modalPersonRole', data.role || 'Visitor');
+    setElementText('modalPersonDept', data.department || 'N/A');
+    setElementText('modalTimeDisplay', timeString);
+    setElementText('modalDateDisplay', dateString);
+
+    // CORRECTED: Set person photo
+    updateModalPhoto(data);
+
+    // Update access status
+    updateModalAccessStatus(data);
+
+    // Show the modal using Bootstrap
+    showBootstrapModal();
+    
+    // Speak confirmation message
+    speakConfirmationMessage(data);
+}
+
+// CORRECTED: Update modal photo function
+function updateModalPhoto(data) {
+    const modalPhoto = document.getElementById("modalPersonPhoto");
+    if (!modalPhoto) {
+        console.error('Modal photo element not found');
+        return;
+    }
+    
+    let photoPath = "uploads/students/default.png";
+    
+    if (data.photo) {
+        // Use the photo path from the server response
+        photoPath = data.photo;
+    } else if (studentPhotos[data.id_number]) {
+        // Fallback to predefined photos
+        photoPath = studentPhotos[data.id_number];
+    }
+    
+    // Add cache busting to prevent cached images
+    modalPhoto.src = photoPath + "?t=" + new Date().getTime();
+    console.log('Setting modal photo to:', modalPhoto.src);
+}
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
