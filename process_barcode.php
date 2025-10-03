@@ -115,7 +115,6 @@ $response = [
     'alert_class' => 'alert-primary',
     'voice' => ''
 ];
-];
 
 // Check if there's an existing log for today
 if ($existing_log) {

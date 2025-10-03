@@ -404,6 +404,38 @@ mysqli_close($db);
             text-align: center;
             font-weight: bold;
         }
+        .person-photo {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #084298;
+    margin: 0 auto;
+}
+
+.access-status .time-in {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-weight: bold;
+}
+
+.access-status .time-out {
+    background-color: #f8d7da;
+    color: #842029;
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-weight: bold;
+}
+
+.access-status .access-denied {
+    background-color: #f8d7da;
+    color: #842029;
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-weight: bold;
+}
     </style>
 </head>
 
@@ -431,7 +463,8 @@ mysqli_close($db);
                     <img id="modalPersonPhoto"
                          src="uploads/students/default.png"
                          alt="Person Photo"
-                         class="person-photo">
+                         class="person-photo"
+                         style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 3px solid #084298;">
                 </div>
 
                 <h4 id="modalPersonName" class="mb-3">Person Name</h4>
@@ -443,11 +476,11 @@ mysqli_close($db);
                 </div>
                 
                 <div class="access-status mb-3" id="modalAccessStatus">
-                    <span id="modalAccessType">Access Recorded</span>
+                    <span id="modalAccessType" class="badge bg-success">Access Recorded</span>
                 </div>
                 
                 <div class="time-display">
-                    <div id="modalTimeDisplay" class="fw-bold"></div>
+                    <div id="modalTimeDisplay" class="fw-bold fs-5"></div>
                     <div id="modalDateDisplay" class="text-muted"></div>
                 </div>
             </div>
