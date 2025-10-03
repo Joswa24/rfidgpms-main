@@ -253,8 +253,8 @@ $logsResult = getTodaysLogs($db);
                                     <th scope="col">Full Name</th>
                                     <th scope="col">Role</th>
                                     <th scope="col">Location</th>
-                                    <th scope="col">Time In</th>
-                                    <th scope="col">Time Out</th>
+                                    <th scope="col">Entrance</th>
+                                    <th scope="col">Exit</th>
                                 </tr>
                             </thead>
                             <tbody>
