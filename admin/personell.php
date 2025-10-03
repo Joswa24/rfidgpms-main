@@ -217,7 +217,7 @@ function cleanID($id) {
                                             <div class="col-lg-4 col-md-6 col-sm-12">
                                                 <div class="form-group">
                                                     <label>ROLE:</label>
-                                                    <select required class="form-control dept_ID" name="role" id="role" autocomplete="off" onchange="updateCategory1()">
+                                                    <select required class="form-control dept_ID" name="role" id="role" autocomplete="off" onchange="updateCategory()">
                                                         <?php
                                                             $sql = "SELECT * FROM role WHERE role != 'Instructor'";
                                                             $result = $db->query($sql);
