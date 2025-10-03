@@ -700,136 +700,141 @@ function cleanID($id) {
             });
 
             // ========================
-            // UPDATE PERSONNEL
-            // ========================
-            // Handle edit button click
-            $(document).on('click', '.btn-edit', function() {
-                var $id = $(this).data('id_number');
-                var $row = $(this).closest('tr');
-                
-                // Retrieve data from the selected row
-                var $getphoto = $row.find('.photo').attr('src');
-                var $getid = $row.find('.id_number').val(); // Get formatted ID
-                var $id = $row.find('.id_number').val();
-                var $getrole = $row.find('.role').val();
-                var $getcateg = $row.find('.categ').val();
-                var $getfname = $row.find('.first_name').val();
-                var $getlname = $row.find('.last_name').val();
-                var $getdob = $row.find('.date_of_birth').val();
-                var $getdepartment = $row.find('.department').val();
-                var $getstatus = $row.find('.status').val();
+// UPDATE PERSONNEL - FIXED VERSION
+// ========================
+// Handle edit button click - FIXED
+$(document).on('click', '.btn-edit', function() {
+    var userId = $(this).data('id'); // Get database ID from button
+    var $row = $(this).closest('tr');
+    
+    // Retrieve data from the selected row - FIXED
+    var $getphoto = $row.find('.photo').attr('src');
+    var $getid = $row.find('.id_raw').val(); // Get raw ID number from hidden input
+    var $getrole = $row.find('.role').val();
+    var $getcateg = $row.find('.categ').val();
+    var $getfname = $row.find('.first_name').val();
+    var $getlname = $row.find('.last_name').val();
+    var $getdob = $row.find('.date_of_birth').val();
+    var $getdepartment = $row.find('.department').val();
+    var $getstatus = $row.find('.status').val();
 
-                // Update the modal fields with data
-                $('.edit-photo').attr('src', $getphoto);
-                $('#id_number1').val($getid); // Set formatted ID
-                $('.edit-id').val($id);
-                $('#erole').val($getrole);
-                $('#ecategory').val($getcateg);
-                $('.edit-fname').val($getfname);
-                $('.edit-lname').val($getlname);
-                $('.capturedImage').val($getphoto.replace('uploads/', ''));
-                $('.edit-dob').val($getdob);
-                $('#e_department').val($getdepartment);
-                $('#status').val($getstatus);
+    console.log('Database ID:', userId);
+    console.log('Raw ID Number:', $getid);
 
-                // Update category dropdown based on role
-                updateCategory1($getrole);
+    // Format the ID for display (0000-0000)
+    var formattedId = $getid.replace(/(\d{4})(\d{4})/, '$1-$2');
 
-                // Show the modal
-                $('#editemployeeModal').modal('show');
-            });
+    // Update the modal fields with data
+    $('.edit-photo').attr('src', $getphoto);
+    $('#id_number1').val(formattedId); // Set formatted ID
+    $('.edit-id').val(userId); // Set database ID
+    $('#erole').val($getrole);
+    $('#ecategory').val($getcateg);
+    $('.edit-fname').val($getfname);
+    $('.edit-lname').val($getlname);
+    $('.capturedImage').val($getphoto.replace('uploads/', ''));
+    $('.edit-dob').val($getdob);
+    $('#e_department').val($getdepartment);
+    $('#status').val($getstatus);
 
+    // Update category dropdown based on role
+    updateCategory1($getrole);
+
+    // Show the modal
+    $('#editemployeeModal').modal('show');
+});
+
+// Handle edit form submission
+$('#editPersonellForm').submit(function(e) {
+    e.preventDefault();
+    
+    var userId = $('.edit-id').val();
+    
+    if (!userId) {
+        Swal.fire({
+            title: 'Error!',
+            text: 'No user selected. Please select a user first.',
+            icon: 'error'
+        });
+        return;
+    }
+
+    // Remove hyphen from ID number before submitting
+    var idNumber = $('#id_number1').val();
+    var cleanIdNumber = idNumber.replace(/-/g, '');
+    
+    // Validate ID number format (8 digits)
+    if (!/^\d{8}$/.test(cleanIdNumber)) {
+        Swal.fire({
+            title: 'Error!',
+            text: 'ID Number must be 8 digits (format: 0000-0000)',
+            icon: 'error'
+        });
+        return;
+    }
+
+    var formData = new FormData(this);
+    formData.set('id_number', cleanIdNumber); // Use the clean ID without hyphen
+    formData.append('id', userId);
+
+    // Show loading indicator
+    $('#btn-editemp').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
+    $('#btn-editemp').prop('disabled', true);
+    
+    $.ajax({
+        url: "transac.php?action=update_personnel",
+        type: 'POST',
+        data: formData,
+        contentType: false,
+        processData: false,
+        dataType: 'json',
+        success: function(response) {
+            // Reset button state
+            $('#btn-editemp').html('Update');
+            $('#btn-editemp').prop('disabled', false);
             
-            // Handle edit form submission
-            $('#editPersonellForm').submit(function(e) {
-                e.preventDefault();
+            try {
+                const data = typeof response === 'string' ? JSON.parse(response) : response;
                 
-                var userId = $('.edit-id').val();
-                
-                if (!userId) {
+                if (data.status === 'success') {
+                    Swal.fire({
+                        title: 'Success!',
+                        text: data.message,
+                        icon: 'success'
+                    }).then(() => {
+                        $('#editemployeeModal').modal('hide');
+                        location.reload();
+                    });
+                } else {
                     Swal.fire({
                         title: 'Error!',
-                        text: 'No user selected. Please select a user first.',
+                        text: data.message,
                         icon: 'error'
                     });
-                    return;
                 }
-
-                // Remove hyphen from ID number before submitting
-                var idNumber = $('#id_number1').val();
-                var cleanIdNumber = idNumber.replace(/-/g, '');
-                
-                // Validate ID number format (8 digits)
-                if (!/^\d{8}$/.test(cleanIdNumber)) {
-                    Swal.fire({
-                        title: 'Error!',
-                        text: 'ID Number must be 8 digits (format: 0000-0000)',
-                        icon: 'error'
-                    });
-                    return;
-                }
-
-                var formData = new FormData(this);
-                formData.set('id_number', cleanIdNumber); // Use the clean ID without hyphen
-                formData.append('id', userId);
-
-                // Show loading indicator
-                $('#btn-editemp').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
-                $('#btn-editemp').prop('disabled', true);
-                
-                $.ajax({
-                    url: "transac.php?action=update_personnel",
-                    type: 'POST',
-                    data: formData,
-                    contentType: false,
-                    processData: false,
-                    success: function(response) {
-                        // Reset button state
-                        $('#btn-editemp').html('Update');
-                        $('#btn-editemp').prop('disabled', false);
-                        
-                        try {
-                            const data = typeof response === 'string' ? JSON.parse(response) : response;
-                            
-                            if (data.status === 'success') {
-                                Swal.fire({
-                                    title: 'Success!',
-                                    text: data.message,
-                                    icon: 'success'
-                                }).then(() => {
-                                    $('#editemployeeModal').modal('hide');
-                                    location.reload();
-                                });
-                            } else {
-                                Swal.fire({
-                                    title: 'Error!',
-                                    text: data.message,
-                                    icon: 'error'
-                                });
-                            }
-                        } catch (e) {
-                            Swal.fire({
-                                title: 'Error!',
-                                text: 'Invalid response from server',
-                                icon: 'error'
-                            });
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        // Reset button state
-                        $('#btn-editemp').html('Update');
-                        $('#btn-editemp').prop('disabled', false);
-                        
-                        console.log('XHR Response:', xhr.responseText);
-                        
-                        Swal.fire({
-                            title: 'Error!',
-                            text: 'An error occurred while updating personnel: ' + error,
-                            icon: 'error'
-                        });
-                    }
+            } catch (e) {
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'Invalid response from server',
+                    icon: 'error'
                 });
+            }
+        },
+        error: function(xhr, status, error) {
+            // Reset button state
+            $('#btn-editemp').html('Update');
+            $('#btn-editemp').prop('disabled', false);
+            
+            console.log('XHR Response:', xhr.responseText);
+            
+            Swal.fire({
+                title: 'Error!',
+                text: 'An error occurred while updating personnel: ' + error,
+                icon: 'error'
             });
+        }
+    });
+});
 
             // ========================
             // DELETE PERSONNEL
