@@ -63,14 +63,15 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
 
         // Check if this is an AJAX request for specific operations
         $validAjaxActions = [
-                        'add_department', 'update_department', 'delete_department', 
-                        'add_room', 'update_room', 'delete_room',
-                        'add_role', 'update_role', 'delete_role',
-                        'add_personnel', 'update_personnel', 'delete_personnel',
-                        'add_student', 'update_student', 'delete_student',
-                        'add_instructor', 'update_instructor', 'delete_instructor',
-                        'add_subject', 'update_subject', 'delete_subject'  
-                            ];
+    'add_department', 'update_department', 'delete_department', 
+    'add_room', 'update_room', 'delete_room',
+    'add_role', 'update_role', 'delete_role',
+    'add_personnel', 'update_personnel', 'delete_personnel',
+    'add_student', 'update_student', 'delete_student',
+    'add_instructor', 'update_instructor', 'delete_instructor',
+    'add_subject', 'update_subject', 'delete_subject',
+    'add_schedule', 'update_schedule', 'delete_schedule'  
+            ];
         $isAjaxRequest = isset($_GET['action']) && in_array($_GET['action'], $validAjaxActions);
 
     if ($isAjaxRequest) {
@@ -1385,6 +1386,202 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
                         jsonResponse('error', 'Failed to delete subject: ' . $stmt->error);
                     }
                     break;
+                    // ========================
+                    // ROOM SCHEDULE CRUD OPERATIONS
+                    // ========================
+                    case 'add_schedule':
+                        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                            jsonResponse('error', 'Invalid request method');
+                        }
+
+                        // Validate required fields
+                        $required = ['department', 'room_name', 'year_level', 'subject', 'section', 'day', 'instructor', 'start_time', 'end_time'];
+                        foreach ($required as $field) {
+                            if (empty($_POST[$field])) {
+                                jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
+                            }
+                        }
+
+                        // Sanitize inputs
+                        $department = sanitizeInput($db, trim($_POST['department']));
+                        $room_name = sanitizeInput($db, trim($_POST['room_name']));
+                        $year_level = sanitizeInput($db, $_POST['year_level']);
+                        $subject = sanitizeInput($db, trim($_POST['subject']));
+                        $section = sanitizeInput($db, trim($_POST['section']));
+                        $day = sanitizeInput($db, $_POST['day']);
+                        $instructor = sanitizeInput($db, trim($_POST['instructor']));
+                        $start_time = sanitizeInput($db, $_POST['start_time']);
+                        $end_time = sanitizeInput($db, $_POST['end_time']);
+
+                        // Validate time logic
+                        if ($start_time >= $end_time) {
+                            jsonResponse('error', 'End time must be after start time');
+                        }
+
+                        // Check for schedule conflicts (same room, same day, overlapping time)
+                        $check_conflict = $db->prepare("SELECT id FROM room_schedules 
+                            WHERE room_name = ? AND day = ? 
+                            AND ((start_time <= ? AND end_time > ?) OR (start_time < ? AND end_time >= ?))");
+                        $check_conflict->bind_param("ssssss", $room_name, $day, $start_time, $start_time, $end_time, $end_time);
+                        $check_conflict->execute();
+                        $check_conflict->store_result();
+                        
+                        if ($check_conflict->num_rows > 0) {
+                            jsonResponse('error', 'Schedule conflict: Room is already booked during this time slot');
+                        }
+                        $check_conflict->close();
+
+                        // Check if instructor has schedule conflict
+                        $check_instructor_conflict = $db->prepare("SELECT id FROM room_schedules 
+                            WHERE instructor = ? AND day = ? 
+                            AND ((start_time <= ? AND end_time > ?) OR (start_time < ? AND end_time >= ?))");
+                        $check_instructor_conflict->bind_param("ssssss", $instructor, $day, $start_time, $start_time, $end_time, $end_time);
+                        $check_instructor_conflict->execute();
+                        $check_instructor_conflict->store_result();
+                        
+                        if ($check_instructor_conflict->num_rows > 0) {
+                            jsonResponse('error', 'Schedule conflict: Instructor already has a class during this time slot');
+                        }
+                        $check_instructor_conflict->close();
+
+                        // Insert schedule record
+                        $query = "INSERT INTO room_schedules (department, room_name, year_level, subject, section, day, instructor, start_time, end_time, date_added) 
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                        
+                        $stmt = $db->prepare($query);
+                        if (!$stmt) {
+                            jsonResponse('error', 'Database error: ' . $db->error);
+                        }
+
+                        $stmt->bind_param("sssssssss", $department, $room_name, $year_level, $subject, $section, $day, $instructor, $start_time, $end_time);
+
+                        if ($stmt->execute()) {
+                            jsonResponse('success', 'Room schedule added successfully', [
+                                'id' => $stmt->insert_id
+                            ]);
+                        } else {
+                            jsonResponse('error', 'Failed to add room schedule: ' . $stmt->error);
+                        }
+                        break;
+
+                    case 'update_schedule':
+                        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                            jsonResponse('error', 'Invalid request method');
+                        }
+
+                        // Validate required fields
+                        if (empty($_POST['id'])) {
+                            jsonResponse('error', 'Schedule ID is required');
+                        }
+
+                        $required = ['department', 'room_name', 'year_level', 'subject', 'section', 'day', 'instructor', 'start_time', 'end_time'];
+                        foreach ($required as $field) {
+                            if (empty($_POST[$field])) {
+                                jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
+                            }
+                        }
+
+                        // Sanitize inputs
+                        $id = intval($_POST['id']);
+                        $department = sanitizeInput($db, trim($_POST['department']));
+                        $room_name = sanitizeInput($db, trim($_POST['room_name']));
+                        $year_level = sanitizeInput($db, $_POST['year_level']);
+                        $subject = sanitizeInput($db, trim($_POST['subject']));
+                        $section = sanitizeInput($db, trim($_POST['section']));
+                        $day = sanitizeInput($db, $_POST['day']);
+                        $instructor = sanitizeInput($db, trim($_POST['instructor']));
+                        $start_time = sanitizeInput($db, $_POST['start_time']);
+                        $end_time = sanitizeInput($db, $_POST['end_time']);
+
+                        // Validate ID
+                        if ($id <= 0) {
+                            jsonResponse('error', 'Invalid schedule ID');
+                        }
+
+                        // Validate time logic
+                        if ($start_time >= $end_time) {
+                            jsonResponse('error', 'End time must be after start time');
+                        }
+
+                        // Check for schedule conflicts (excluding current schedule)
+                        $check_conflict = $db->prepare("SELECT id FROM room_schedules 
+                            WHERE room_name = ? AND day = ? AND id != ?
+                            AND ((start_time <= ? AND end_time > ?) OR (start_time < ? AND end_time >= ?))");
+                        $check_conflict->bind_param("ssisssss", $room_name, $day, $id, $start_time, $start_time, $end_time, $end_time);
+                        $check_conflict->execute();
+                        $check_conflict->store_result();
+                        
+                        if ($check_conflict->num_rows > 0) {
+                            jsonResponse('error', 'Schedule conflict: Room is already booked during this time slot');
+                        }
+                        $check_conflict->close();
+
+                        // Check if instructor has schedule conflict (excluding current schedule)
+                        $check_instructor_conflict = $db->prepare("SELECT id FROM room_schedules 
+                            WHERE instructor = ? AND day = ? AND id != ?
+                            AND ((start_time <= ? AND end_time > ?) OR (start_time < ? AND end_time >= ?))");
+                        $check_instructor_conflict->bind_param("ssisssss", $instructor, $day, $id, $start_time, $start_time, $end_time, $end_time);
+                        $check_instructor_conflict->execute();
+                        $check_instructor_conflict->store_result();
+                        
+                        if ($check_instructor_conflict->num_rows > 0) {
+                            jsonResponse('error', 'Schedule conflict: Instructor already has a class during this time slot');
+                        }
+                        $check_instructor_conflict->close();
+
+                        // Update schedule record
+                        $query = "UPDATE room_schedules SET 
+                            department = ?, room_name = ?, year_level = ?, subject = ?, section = ?, 
+                            day = ?, instructor = ?, start_time = ?, end_time = ?
+                            WHERE id = ?";
+                        $stmt = $db->prepare($query);
+                        $stmt->bind_param("sssssssssi", $department, $room_name, $year_level, $subject, $section, $day, $instructor, $start_time, $end_time, $id);
+
+                        if ($stmt->execute()) {
+                            jsonResponse('success', 'Room schedule updated successfully');
+                        } else {
+                            jsonResponse('error', 'Failed to update room schedule: ' . $stmt->error);
+                        }
+                        break;
+
+                    case 'delete_schedule':
+                        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                            jsonResponse('error', 'Invalid request method');
+                        }
+
+                        // Validate required field
+                        if (empty($_POST['id'])) {
+                            jsonResponse('error', 'Schedule ID is required');
+                        }
+
+                        // Sanitize input
+                        $id = intval($_POST['id']);
+
+                        if ($id <= 0) {
+                            jsonResponse('error', 'Invalid schedule ID');
+                        }
+
+                        // Check if schedule exists
+                        $checkSchedule = $db->prepare("SELECT id FROM room_schedules WHERE id = ?");
+                        $checkSchedule->bind_param("i", $id);
+                        $checkSchedule->execute();
+                        $checkSchedule->store_result();
+                        
+                        if ($checkSchedule->num_rows === 0) {
+                            jsonResponse('error', 'Schedule not found');
+                        }
+                        $checkSchedule->close();
+
+                        // Delete schedule
+                        $stmt = $db->prepare("DELETE FROM room_schedules WHERE id = ?");
+                        $stmt->bind_param("i", $id);
+                        
+                        if ($stmt->execute()) {
+                            jsonResponse('success', 'Room schedule deleted successfully');
+                        } else {
+                            jsonResponse('error', 'Failed to delete room schedule: ' . $stmt->error);
+                        }
+                        break;
 
         default:
             jsonResponse('error', 'Invalid action');

@@ -554,355 +554,436 @@ $schedules = $db->query("SELECT * FROM room_schedules ORDER BY room_name, day, s
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
-    $(document).ready(function() {
-        // Initialize DataTable
-        var dataTable = $('#myDataTable').DataTable({
-            order: [[9, 'desc']],
-            stateSave: true
-        });
+        $(document).ready(function() {
+            // Initialize DataTable
+            var dataTable = $('#myDataTable').DataTable({
+                order: [[9, 'desc']],
+                stateSave: true
+            });
 
-        // Reset form function
-        function resetForm() {
-            $('.error-message').text('');
-            $('#scheduleForm')[0].reset();
-        }
+            // Reset form function
+            function resetForm() {
+                $('.error-message').text('');
+                $('#scheduleForm')[0].reset();
+            }
 
-        // ==============
-        // CREATE (ADD SCHEDULE)
-        // ==============
-        $('#scheduleForm').submit(function(e) {
-            e.preventDefault();
-            
-            $('.error-message').text('');
-            const department = $('select[name="department"]').val();
-            const room_name = $('select[name="room_name"]').val();
-            const year_level = $('select[name="year_level"]').val();
-            const subject = $('#subject').val();
-            const section = $('input[name="section"]').val().trim();
-            const day = $('select[name="day"]').val();
-            const instructor = $('#instructor').val();
-            const start_time = $('input[name="start_time"]').val();
-            const end_time = $('input[name="end_time"]').val();
-            
-            let isValid = true;
-
-            // Validation
-            if (!department) { 
-                $('#department-error').text('Department is required'); 
-                isValid = false; 
-            }
-            if (!room_name) { 
-                $('#room_name-error').text('Room name is required'); 
-                isValid = false; 
-            }
-            if (!year_level) { 
-                $('#year_level-error').text('Year level is required'); 
-                isValid = false; 
-            }
-            if (!subject) { 
-                $('#subject-error').text('Subject is required'); 
-                isValid = false; 
-            }
-            if (!section) { 
-                $('#section-error').text('Section is required'); 
-                isValid = false; 
-            }
-            if (!day) { 
-                $('#day-error').text('Day is required'); 
-                isValid = false; 
-            }
-            if (!instructor) { 
-                $('#instructor-error').text('Instructor is required'); 
-                isValid = false; 
-            }
-            if (!start_time) { 
-                $('#start_time-error').text('Start time is required'); 
-                isValid = false; 
-            }
-            if (!end_time) { 
-                $('#end_time-error').text('End time is required'); 
-                isValid = false; 
-            }
-            if (start_time && end_time && start_time >= end_time) {
-                $('#start_time-error, #end_time-error').text('End time must be after start time'); 
-                isValid = false; 
-            }
-            
-            if (!isValid) return;
-
-            // Show loading state
-            $('#btn-schedule').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
-            $('#btn-schedule').prop('disabled', true);
-
-            var formData = new FormData(this);
-
-            $.ajax({
-                type: "POST",
-                url: "transac.php?action=add_schedule",
-                data: formData,
-                contentType: false,
-                processData: false,
-                dataType: 'json',
-                success: function(response) {
-                    // Reset button state
-                    $('#btn-schedule').html('Save');
-                    $('#btn-schedule').prop('disabled', false);
-                    
-                    if (response.status === 'success') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success!',
-                            text: response.message,
-                            showConfirmButton: true
-                        }).then(() => {
-                            $('#scheduleModal').modal('hide');
-                            location.reload();
-                        });
-                    } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error!',
-                            text: response.message
-                        });
-                    }
-                },
-                error: function(xhr, status, error) {
-                    // Reset button state
-                    $('#btn-schedule').html('Save');
-                    $('#btn-schedule').prop('disabled', false);
-                    
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error!',
-                        text: 'An error occurred: ' + error
-                    });
+            // Room selection handler to auto-fill department
+            $('select[name="room_name"]').change(function() {
+                var selectedOption = $(this).find('option:selected');
+                var department = selectedOption.data('department');
+                if (department) {
+                    $('select[name="department"]').val(department);
                 }
             });
-        });
 
-        // ==========
-        // READ (EDIT SCHEDULE)
-        // ==========
-        $(document).on('click', '.e_schedule_id', function() {
-            const id = $(this).data('id');
-            
-            // Retrieve data from the selected row
-            const $getdepartment = $('.table-' + id + ' .department').val();
-            const $getroomname = $('.table-' + id + ' .room_name').val();
-            const $getyearlevel = $('.table-' + id + ' .year_level').val();
-            const $getsubject = $('.table-' + id + ' .subject').val();
-            const $getsection = $('.table-' + id + ' .section').val();
-            const $getday = $('.table-' + id + ' .day').val();
-            const $getinstructor = $('.table-' + id + ' .instructor').val();
-            const $getstarttime = $('.table-' + id + ' .start_time').val();
-            const $getendtime = $('.table-' + id + ' .end_time').val();
-
-            // Populate edit form
-            $('#edit_scheduleid').val(id);
-            $('#edepartment').val($getdepartment);
-            $('#eroom_name').val($getroomname);
-            $('#eyear_level').val($getyearlevel);
-            $('#esubject').val($getsubject);
-            $('#esection').val($getsection);
-            $('#eday').val($getday);
-            $('#einstructor').val($getinstructor);
-            $('#estart_time').val($getstarttime);
-            $('#eend_time').val($getendtime);
-            
-            // Show modal
-            $('#editscheduleModal').modal('show');
-        });
-
-        // ==========
-        // UPDATE SCHEDULE
-        // ==========
-        $('#editScheduleForm').submit(function(e) {
-            e.preventDefault();
-            
-            const id = $('#edit_scheduleid').val();
-            const department = $('#edepartment').val();
-            const room_name = $('#eroom_name').val();
-            const year_level = $('#eyear_level').val();
-            const subject = $('#esubject').val();
-            const section = $('#esection').val().trim();
-            const day = $('#eday').val();
-            const instructor = $('#einstructor').val();
-            const start_time = $('#estart_time').val();
-            const end_time = $('#eend_time').val();
-
-            // Validation
-            let isValid = true;
-            if (!department) { 
-                $('#edepartment-error').text('Department is required'); 
-                isValid = false; 
-            } else { 
-                $('#edepartment-error').text(''); 
-            }
-            if (!room_name) { 
-                $('#eroom_name-error').text('Room name is required'); 
-                isValid = false; 
-            } else { 
-                $('#eroom_name-error').text(''); 
-            }
-            if (!year_level) { 
-                $('#eyear_level-error').text('Year level is required'); 
-                isValid = false; 
-            } else { 
-                $('#eyear_level-error').text(''); 
-            }
-            if (!subject) { 
-                $('#esubject-error').text('Subject is required'); 
-                isValid = false; 
-            } else { 
-                $('#esubject-error').text(''); 
-            }
-            if (!section) { 
-                $('#esection-error').text('Section is required'); 
-                isValid = false; 
-            } else { 
-                $('#esection-error').text(''); 
-            }
-            if (!day) { 
-                $('#eday-error').text('Day is required'); 
-                isValid = false; 
-            } else { 
-                $('#eday-error').text(''); 
-            }
-            if (!instructor) { 
-                $('#einstructor-error').text('Instructor is required'); 
-                isValid = false; 
-            } else { 
-                $('#einstructor-error').text(''); 
-            }
-            if (!start_time) { 
-                $('#estart_time-error').text('Start time is required'); 
-                isValid = false; 
-            } else { 
-                $('#estart_time-error').text(''); 
-            }
-            if (!end_time) { 
-                $('#eend_time-error').text('End time is required'); 
-                isValid = false; 
-            } else { 
-                $('#eend_time-error').text(''); 
-            }
-            if (start_time && end_time && start_time >= end_time) {
-                $('#estart_time-error, #eend_time-error').text('End time must be after start time'); 
-                isValid = false; 
-            } else {
-                $('#estart_time-error, #eend_time-error').text(''); 
-            }
-            
-            if (!isValid) return;
-
-            // Show loading state
-            $('#btn-editschedule').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
-            $('#btn-editschedule').prop('disabled', true);
-
-            var formData = new FormData(this);
-            formData.append('id', id);
-
-            $.ajax({
-                type: "POST",
-                url: "edit1.php?edit=schedule&id=" + id,
-                data: formData,
-                contentType: false,
-                processData: false,
-                dataType: 'json',
-                success: function(response) {
-                    // Reset button state
-                    $('#btn-editschedule').html('Update');
-                    $('#btn-editschedule').prop('disabled', false);
-                    
-                    if (response.status === 'success') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success!',
-                    text: response.message,
-                    showConfirmButton: false,
-                    timer: 1500
-                }).then(() => {
-                    $('#editScheduleModal').modal('hide');
-                    location.reload();
-                });
-            } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error!',
-                    text: response.message || 'Update failed'
-                });
-            }
-        },
-        error: function(xhr) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error!',
-                text: 'An error occurred while processing your request: ' + 
-                      (xhr.responseJSON?.message || xhr.statusText)
-            });
-        },
-        complete: function() {
-            $btn.html('Update');
-            $btn.prop('disabled', false);
-        }
-    });
-});
-    // ==========
-    // DELETE
-    // ==========
-    $(document).on('click', '.btn-delete', function() {
-        var id = $(this).data('id');
-        var $btn = $(this);
-        
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "You won't be able to revert this!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Yes, delete it!'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Show loading state
-                $btn.html('<span class="spinner-border spinner-border-sm"></span>');
-                $btn.prop('disabled', true);
+            // ==========
+            // READ (EDIT SCHEDULE) - FIXED
+            // ==========
+            $(document).on('click', '.e_schedule_id', function() {
+                const id = $(this).data('id');
                 
+                // Retrieve data from the selected row
+                const $row = $(this).closest('tr');
+                const $getdepartment = $row.find('.department').val();
+                const $getroomname = $row.find('.room_name').val();
+                const $getyearlevel = $row.find('.year_level').val();
+                const $getsubject = $row.find('.subject').val();
+                const $getsection = $row.find('.section').val();
+                const $getday = $row.find('.day').val();
+                const $getinstructor = $row.find('.instructor').val();
+                const $getstarttime = $row.find('.start_time').val();
+                const $getendtime = $row.find('.end_time').val();
+
+                console.log('Editing schedule:', id, $getroomname, $getsubject);
+
+                // Populate edit form
+                $('#edit_scheduleid').val(id);
+                $('#edepartment').val($getdepartment);
+                $('#eroom_name').val($getroomname);
+                $('#eyear_level').val($getyearlevel);
+                $('#esubject').val($getsubject);
+                $('#esection').val($getsection);
+                $('#eday').val($getday);
+                $('#einstructor').val($getinstructor);
+                $('#estart_time').val($getstarttime);
+                $('#eend_time').val($getendtime);
+                
+                // Clear any previous error messages
+                $('.error-message').text('');
+                
+                // Show modal
+                $('#editscheduleModal').modal('show');
+            });
+
+            // ==============
+            // CREATE (ADD SCHEDULE) - FIXED to use regular form data
+            // ==============
+            $('#scheduleForm').submit(function(e) {
+                e.preventDefault();
+                
+                $('.error-message').text('');
+                const department = $('select[name="department"]').val();
+                const room_name = $('select[name="room_name"]').val();
+                const year_level = $('select[name="year_level"]').val();
+                const subject = $('#subject').val();
+                const section = $('input[name="section"]').val().trim();
+                const day = $('select[name="day"]').val();
+                const instructor = $('#instructor').val();
+                const start_time = $('input[name="start_time"]').val();
+                const end_time = $('input[name="end_time"]').val();
+                
+                let isValid = true;
+
+                // Validation
+                if (!department) { 
+                    $('#department-error').text('Department is required'); 
+                    isValid = false; 
+                }
+                if (!room_name) { 
+                    $('#room_name-error').text('Room name is required'); 
+                    isValid = false; 
+                }
+                if (!year_level) { 
+                    $('#year_level-error').text('Year level is required'); 
+                    isValid = false; 
+                }
+                if (!subject) { 
+                    $('#subject-error').text('Subject is required'); 
+                    isValid = false; 
+                }
+                if (!section) { 
+                    $('#section-error').text('Section is required'); 
+                    isValid = false; 
+                }
+                if (!day) { 
+                    $('#day-error').text('Day is required'); 
+                    isValid = false; 
+                }
+                if (!instructor) { 
+                    $('#instructor-error').text('Instructor is required'); 
+                    isValid = false; 
+                }
+                if (!start_time) { 
+                    $('#start_time-error').text('Start time is required'); 
+                    isValid = false; 
+                }
+                if (!end_time) { 
+                    $('#end_time-error').text('End time is required'); 
+                    isValid = false; 
+                }
+                if (start_time && end_time && start_time >= end_time) {
+                    $('#start_time-error, #end_time-error').text('End time must be after start time'); 
+                    isValid = false; 
+                }
+                
+                if (!isValid) return;
+
+                // Show loading state
+                $('#btn-schedule').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
+                $('#btn-schedule').prop('disabled', true);
+
+                // Use regular form data instead of FormData
+                var formData = {
+                    department: department,
+                    room_name: room_name,
+                    year_level: year_level,
+                    subject: subject,
+                    section: section,
+                    day: day,
+                    instructor: instructor,
+                    start_time: start_time,
+                    end_time: end_time
+                };
+
+                console.log('Sending data for ADD:', formData);
+
                 $.ajax({
-                    type: 'POST',
-                    url: 'del.php',
-                    data: {
-                        type: 'schedule',
-                        id: id
-                    },
+                    type: "POST",
+                    url: "transac.php?action=add_schedule",
+                    data: formData,
                     dataType: 'json',
                     success: function(response) {
+                        // Reset button state
+                        $('#btn-schedule').html('Save');
+                        $('#btn-schedule').prop('disabled', false);
+                        
                         if (response.status === 'success') {
                             Swal.fire({
-                                title: 'Deleted!',
-                                text: response.message,
                                 icon: 'success',
-                                timer: 1500,
-                                showConfirmButton: false
+                                title: 'Success!',
+                                text: response.message,
+                                showConfirmButton: true
                             }).then(() => {
+                                $('#scheduleModal').modal('hide');
                                 location.reload();
                             });
                         } else {
-                            Swal.fire('Error!', response.message, 'error');
-                            $btn.html('Delete');
-                            $btn.prop('disabled', false);
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error!',
+                                text: response.message
+                            });
                         }
                     },
-                    error: function(xhr) {
-                        Swal.fire('Error!', 'An error occurred while processing your request', 'error');
-                        $btn.html('Delete');
-                        $btn.prop('disabled', false);
+                    error: function(xhr, status, error) {
+                        // Reset button state
+                        $('#btn-schedule').html('Save');
+                        $('#btn-schedule').prop('disabled', false);
+                        
+                        console.error('AJAX Error Details:');
+                        console.error('Status:', status);
+                        console.error('Error:', error);
+                        console.error('Response:', xhr.responseText);
+                        
+                        let errorMessage = 'An error occurred';
+                        try {
+                            const errorResponse = JSON.parse(xhr.responseText);
+                            errorMessage = errorResponse.message || errorMessage;
+                        } catch (e) {
+                            errorMessage = xhr.responseText || error;
+                        }
+                        
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: errorMessage
+                        });
                     }
                 });
-            }
+            });
+
+            // ==========
+            // UPDATE SCHEDULE - FIXED to use regular form data
+            // ==========
+            $('#editScheduleForm').submit(function(e) {
+                e.preventDefault();
+                
+                const id = $('#edit_scheduleid').val();
+                const department = $('#edepartment').val();
+                const room_name = $('#eroom_name').val();
+                const year_level = $('#eyear_level').val();
+                const subject = $('#esubject').val();
+                const section = $('#esection').val().trim();
+                const day = $('#eday').val();
+                const instructor = $('#einstructor').val();
+                const start_time = $('#estart_time').val();
+                const end_time = $('#eend_time').val();
+
+                // Validation
+                let isValid = true;
+                if (!department) { 
+                    $('#edepartment-error').text('Department is required'); 
+                    isValid = false; 
+                } else { 
+                    $('#edepartment-error').text(''); 
+                }
+                if (!room_name) { 
+                    $('#eroom_name-error').text('Room name is required'); 
+                    isValid = false; 
+                } else { 
+                    $('#eroom_name-error').text(''); 
+                }
+                if (!year_level) { 
+                    $('#eyear_level-error').text('Year level is required'); 
+                    isValid = false; 
+                } else { 
+                    $('#eyear_level-error').text(''); 
+                }
+                if (!subject) { 
+                    $('#esubject-error').text('Subject is required'); 
+                    isValid = false; 
+                } else { 
+                    $('#esubject-error').text(''); 
+                }
+                if (!section) { 
+                    $('#esection-error').text('Section is required'); 
+                    isValid = false; 
+                } else { 
+                    $('#esection-error').text(''); 
+                }
+                if (!day) { 
+                    $('#eday-error').text('Day is required'); 
+                    isValid = false; 
+                } else { 
+                    $('#eday-error').text(''); 
+                }
+                if (!instructor) { 
+                    $('#einstructor-error').text('Instructor is required'); 
+                    isValid = false; 
+                } else { 
+                    $('#einstructor-error').text(''); 
+                }
+                if (!start_time) { 
+                    $('#estart_time-error').text('Start time is required'); 
+                    isValid = false; 
+                } else { 
+                    $('#estart_time-error').text(''); 
+                }
+                if (!end_time) { 
+                    $('#eend_time-error').text('End time is required'); 
+                    isValid = false; 
+                } else { 
+                    $('#eend_time-error').text(''); 
+                }
+                if (start_time && end_time && start_time >= end_time) {
+                    $('#estart_time-error, #eend_time-error').text('End time must be after start time'); 
+                    isValid = false; 
+                } else {
+                    $('#estart_time-error, #eend_time-error').text(''); 
+                }
+                
+                if (!isValid) return;
+
+                // Show loading state
+                $('#btn-editschedule').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
+                $('#btn-editschedule').prop('disabled', true);
+
+                // Use regular form data instead of FormData
+                var formData = {
+                    id: id,
+                    department: department,
+                    room_name: room_name,
+                    year_level: year_level,
+                    subject: subject,
+                    section: section,
+                    day: day,
+                    instructor: instructor,
+                    start_time: start_time,
+                    end_time: end_time
+                };
+
+                console.log('Sending data for UPDATE:', formData);
+
+                $.ajax({
+                    type: "POST",
+                    url: "transac.php?action=update_schedule",
+                    data: formData,
+                    dataType: 'json',
+                    success: function(response) {
+                        // Reset button state
+                        $('#btn-editschedule').html('Update');
+                        $('#btn-editschedule').prop('disabled', false);
+                        
+                        if (response.status === 'success') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Success!',
+                                text: response.message,
+                                showConfirmButton: true
+                            }).then(() => {
+                                $('#editscheduleModal').modal('hide');
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Error!',
+                                text: response.message,
+                                icon: 'error'
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        // Reset button state
+                        $('#btn-editschedule').html('Update');
+                        $('#btn-editschedule').prop('disabled', false);
+                        
+                        console.error('AJAX Update Error Details:');
+                        console.error('Status:', status);
+                        console.error('Error:', error);
+                        console.error('Response:', xhr.responseText);
+                        
+                        try {
+                            var errorResponse = JSON.parse(xhr.responseText);
+                            Swal.fire({
+                                title: 'Error!',
+                                text: errorResponse.message || 'An error occurred',
+                                icon: 'error'
+                            });
+                        } catch (e) {
+                            Swal.fire({
+                                title: 'Error!',
+                                text: 'An error occurred: ' + (xhr.responseText || error),
+                                icon: 'error'
+                            });
+                        }
+                    }
+                });
+            });
+
+            // Handle delete button click
+            $(document).on('click', '.d_schedule_id', function() {
+                var scheduleId = $(this).data('id');
+                var scheduleName = $(this).attr('schedule_name');
+                
+                Swal.fire({
+                    title: 'Are you sure?',
+                    text: "You are about to delete schedule: " + scheduleName,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Yes, delete it!',
+                    cancelButtonText: 'Cancel'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Show loading
+                        Swal.fire({
+                            title: 'Deleting...',
+                            text: 'Please wait',
+                            allowOutsideClick: false,
+                            didOpen: () => {
+                                Swal.showLoading();
+                            }
+                        });
+
+                        $.ajax({
+                            url: 'transac.php?action=delete_schedule',
+                            type: 'POST',
+                            data: { 
+                                id: scheduleId 
+                            },
+                            dataType: 'json',
+                            success: function(response) {
+                                if (response.status === 'success') {
+                                    Swal.fire({
+                                        title: 'Deleted!',
+                                        text: response.message,
+                                        icon: 'success',
+                                        timer: 2000,
+                                        showConfirmButton: false
+                                    }).then(() => {
+                                        location.reload();
+                                    });
+                                } else {
+                                    Swal.fire({
+                                        title: 'Error!',
+                                        text: response.message,
+                                        icon: 'error'
+                                    });
+                                }
+                            },
+                            error: function(xhr, status, error) {
+                                Swal.fire({
+                                    title: 'Error!',
+                                    text: 'An error occurred: ' + error,
+                                    icon: 'error'
+                                });
+                            }
+                        });
+                    }
+                });
+            });
+
+            // Reset modal when closed
+            $('#scheduleModal').on('hidden.bs.modal', function () {
+                $(this).find('form')[0].reset();
+                $('.error-message').text('');
+            });
+
+            $('#editscheduleModal').on('hidden.bs.modal', function () {
+                $('.error-message').text('');
+            });
         });
-    });
-});
-</script>
+        </script>
 </body>
 </html>
