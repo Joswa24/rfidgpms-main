@@ -560,7 +560,7 @@ if (isset($_SESSION['error_message'])) {
     });
 
     // ==========
-    // DELETE ROOM
+    // DELETE 
     // ==========
     $(document).on('click', '.d_room_id', function() {
         const $button = $(this);
