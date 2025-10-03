@@ -512,97 +512,101 @@ if ($isAjaxRequest) {
                 // PERSONNEL CRUD OPERATIONS
                 // ========================
                 case 'add_personnel':
-                    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                        jsonResponse('error', 'Invalid request method');
-                    }
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        jsonResponse('error', 'Invalid request method');
+    }
 
-                    // Validate required fields
-                    $required = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department'];
-                    foreach ($required as $field) {
-                        if (empty($_POST[$field])) {
-                            jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
-                        }
-                    }
+    // Validate required fields
+    $required = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department'];
+    foreach ($required as $field) {
+        if (empty($_POST[$field])) {
+            jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
+        }
+    }
 
-                    // Sanitize inputs
-                    $last_name = sanitizeInput($db, $_POST['last_name']);
-                    $first_name = sanitizeInput($db, $_POST['first_name']);
-                    $date_of_birth = sanitizeInput($db, $_POST['date_of_birth']);
-                    $id_number = sanitizeInput($db, $_POST['id_number']);
-                    $role = sanitizeInput($db, $_POST['role']);
-                    $category = sanitizeInput($db, $_POST['category']);
-                    $department = sanitizeInput($db, $_POST['department']);
-                    $status = 'Active';
+    // Sanitize inputs
+    $last_name = sanitizeInput($db, $_POST['last_name']);
+    $first_name = sanitizeInput($db, $_POST['first_name']);
+    $date_of_birth = sanitizeInput($db, $_POST['date_of_birth']);
+    $id_number = sanitizeInput($db, $_POST['id_number']); // This should be the 8-digit ID
+    $role = sanitizeInput($db, $_POST['role']);
+    $category = sanitizeInput($db, $_POST['category']);
+    $department = sanitizeInput($db, $_POST['department']);
+    $status = 'Active';
 
-                    // Validate ID Number format (8 digits)
-                    if (!preg_match('/^\d{8}$/', $id_number)) {
-                        jsonResponse('error', 'ID Number must be exactly 8 digits');
-                    }
+    // Debug: Log the received ID number
+    error_log("Received ID Number: " . $id_number);
+    error_log("ID Number length: " . strlen($id_number));
 
-                    // Check if ID Number exists
-                    $check_id = $db->prepare("SELECT id FROM personell WHERE id_number = ?");
-                    $check_id->bind_param("s", $id_number);
-                    $check_id->execute();
-                    $check_id->store_result();
-                    
-                    if ($check_id->num_rows > 0) {
-                        jsonResponse('error', 'ID Number already exists');
-                    }
-                    $check_id->close();
+    // Validate ID Number format (should be 8 digits from JavaScript)
+    if (!preg_match('/^\d{8}$/', $id_number)) {
+        jsonResponse('error', 'ID Number must be exactly 8 digits. Received: ' . $id_number . ' (length: ' . strlen($id_number) . ')');
+    }
 
-                    // Handle file upload
-                    $photo = 'default.png';
-                    if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
-                        $allowed_types = ['image/jpeg', 'image/png'];
-                        $file_info = finfo_open(FILEINFO_MIME_TYPE);
-                        $mime_type = finfo_file($file_info, $_FILES['photo']['tmp_name']);
-                        finfo_close($file_info);
+    // Check if ID Number already exists
+    $check_id = $db->prepare("SELECT id FROM personell WHERE id_number = ? AND deleted = 0");
+    $check_id->bind_param("s", $id_number);
+    $check_id->execute();
+    $check_id->store_result();
+    
+    if ($check_id->num_rows > 0) {
+        jsonResponse('error', 'ID Number already exists');
+    }
+    $check_id->close();
 
-                        if (!in_array($mime_type, $allowed_types)) {
-                            jsonResponse('error', 'Only JPG and PNG images are allowed');
-                        }
+    // Handle file upload
+    $photo = 'default.png';
+    if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+        $allowed_types = ['image/jpeg', 'image/png', 'image/jpg'];
+        $file_info = finfo_open(FILEINFO_MIME_TYPE);
+        $mime_type = finfo_file($file_info, $_FILES['photo']['tmp_name']);
+        finfo_close($file_info);
 
-                        if ($_FILES['photo']['size'] > 2 * 1024 * 1024) {
-                            jsonResponse('error', 'Maximum file size is 2MB');
-                        }
+        if (!in_array($mime_type, $allowed_types)) {
+            jsonResponse('error', 'Only JPG and PNG images are allowed');
+        }
 
-                        $ext = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
-                        $photo = uniqid() . '.' . $ext;
-                        $target_dir = "uploads/";
-                        
-                        if (!file_exists($target_dir)) {
-                            mkdir($target_dir, 0755, true);
-                        }
+        if ($_FILES['photo']['size'] > 2 * 1024 * 1024) {
+            jsonResponse('error', 'Maximum file size is 2MB');
+        }
 
-                        $target_file = $target_dir . $photo;
-                        if (!move_uploaded_file($_FILES['photo']['tmp_name'], $target_file)) {
-                            jsonResponse('error', 'Failed to upload image');
-                        }
-                    }
+        $ext = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
+        $photo = uniqid() . '.' . $ext;
+        $target_dir = "uploads/";
+        
+        if (!file_exists($target_dir)) {
+            mkdir($target_dir, 0755, true);
+        }
 
-                    // Insert record - CORRECTED for your actual table structure
-                    $query = "INSERT INTO personell (
-                        id_number, last_name, first_name, date_of_birth, 
-                        role, category, department, status, photo, date_added
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+        $target_file = $target_dir . $photo;
+        if (!move_uploaded_file($_FILES['photo']['tmp_name'], $target_file)) {
+            jsonResponse('error', 'Failed to upload image');
+        }
+    }
 
-                    $stmt = $db->prepare($query);
-                    if (!$stmt) {
-                        jsonResponse('error', 'Prepare failed: ' . $db->error);
-                    }
+    // Insert record - CORRECTED for your table structure
+    $query = "INSERT INTO personell (
+        id_number, last_name, first_name, date_of_birth, 
+        role, category, department, status, photo, date_added
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
 
-                    $stmt->bind_param(
-                        "sssssssss", 
-                        $id_number, $last_name, $first_name, $date_of_birth,
-                        $role, $category, $department, $status, $photo
-                    );
+    $stmt = $db->prepare($query);
+    if (!$stmt) {
+        jsonResponse('error', 'Prepare failed: ' . $db->error);
+    }
 
-                    if ($stmt->execute()) {
-                        jsonResponse('success', 'Personnel added successfully');
-                    } else {
-                        jsonResponse('error', 'Database error: ' . $stmt->error);
-                    }
-                    break;
+    $stmt->bind_param(
+        "sssssssss", 
+        $id_number, $last_name, $first_name, $date_of_birth,
+        $role, $category, $department, $status, $photo
+    );
+
+    if ($stmt->execute()) {
+        jsonResponse('success', 'Personnel added successfully');
+    } else {
+        jsonResponse('error', 'Database error: ' . $stmt->error);
+    }
+    break;
 
                 case 'update_personnel':
                     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
