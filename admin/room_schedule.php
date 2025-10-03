@@ -42,7 +42,7 @@ $days = $db->query("SELECT DISTINCT day FROM room_schedules ORDER BY FIELD(day, 
 $instructors = $db->query("SELECT DISTINCT instructor FROM room_schedules ORDER BY instructor");
 
 // --- GET ALL OPTIONS FOR ADD MODAL ---
-$all_departments = $db->query("SELECT * FROM department ORDER BY department_name");
+$all_departments = $db->query("SELECT * FROM department WHERE department_name != 'Main' ORDER BY department_name");
 $all_rooms = $db->query("SELECT * FROM rooms ORDER BY room");
 $all_subjects = $db->query("SELECT * FROM subjects ORDER BY subject_name");
 $all_instructors = $db->query("SELECT * FROM instructor ORDER BY fullname");
@@ -167,14 +167,23 @@ $all_instructors = $db->query("SELECT * FROM instructor ORDER BY fullname");
                             <div class="row">
                                 <div class="col-md-3">
                                     <div class="form-group">
-                                        <label><b>Filter by Department:</b></label>
+                                    <label><b>Filter by Department:</b></label>
                                         <select class="form-control filter-select" id="filter_department" name="filter_department">
                                             <option value="">All Departments</option>
-                                            <?php while ($dept = $all_departments->fetch_assoc()): ?>
-                                                            <option value="<?= htmlspecialchars($dept['department_name']) ?>">
-                                                                <?= htmlspecialchars($dept['department_name']) ?>
-                                                            </option>
-                                            <?php endwhile; ?>
+                                            <?php 
+                                            // Reset the pointer to the beginning of the result set
+                                            $all_departments->data_seek(0);
+                                            while ($dept = $all_departments->fetch_assoc()): 
+                                                // Skip the "Main" department
+                                                if ($dept['department_name'] !== 'Main'): 
+                                            ?>
+                                                <option value="<?= htmlspecialchars($dept['department_name']) ?>">
+                                                    <?= htmlspecialchars($dept['department_name']) ?>
+                                                </option>
+                                            <?php 
+                                                endif;
+                                            endwhile; 
+                                            ?>
                                         </select>
                                     </div>
                                 </div>
