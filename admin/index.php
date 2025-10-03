@@ -1,14 +1,26 @@
 <?php
-// index.php
+// admin/index.php
 include '../connection.php';
+include '../security-headers.php';
 session_start();
 
-// // Add this to your admin/index.php or config file
-// header("Strict-Transport-Security: max-age=31536000; includeSubDomains");
-// header("X-Frame-Options: DENY");
-// header("X-Content-Type-Options: nosniff");
-// header("Referrer-Policy: strict-origin-when-cross-origin");
-// header("Content-Security-Policy: default-src 'self'");
+// Additional security headers
+header("X-Frame-Options: DENY"); // Prevent clickjacking
+header("X-Content-Type-Options: nosniff"); // Prevent MIME type sniffing
+header("X-XSS-Protection: 1; mode=block"); // Enable XSS protection
+header("Referrer-Policy: strict-origin-when-cross-origin"); // Control referrer information
+header("Permissions-Policy: geolocation=(), microphone=(), camera=()"); // Restrict browser features
+header("X-Permitted-Cross-Domain-Policies: none"); // Restrict Adobe Flash/Acrobat
+header("Cross-Origin-Embedder-Policy: require-corp"); // Control cross-origin embedding
+header("Cross-Origin-Opener-Policy: same-origin"); // Control cross-origin window opening
+header("Cross-Origin-Resource-Policy: same-origin"); // Control cross-origin resource loading
+// Cache control for sensitive pages
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+header("Expires: 0");
+
+// Strict Transport Security (HSTS) - Enable if using HTTPS
+// header("Strict-Transport-Security: max-age=31536000; includeSubDomains; preload");
 
 // Initialize variables
 $maxAttempts = 3; // Changed from 5 to 3
@@ -31,11 +43,14 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
     header('Location: dashboard.php');
     exit();
 }
+
+// Domain validation (uncomment and configure as needed)
 // $allowed_domains = ['rfid-gpms.com', 'www.rfid-gpms.com'];
 // $current_domain = $_SERVER['HTTP_HOST'];
 // if (!in_array($current_domain, $allowed_domains)) {
 //     die("Invalid domain access detected!");
 // }
+
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     
@@ -57,8 +72,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             $username = trim($_POST['username']);
             $password = trim($_POST['password']);
             
+            // Input validation
             if (empty($username) || empty($password)) {
                 $error = "Please enter both username and password.";
+            } elseif (strlen($username) > 50 || strlen($password) > 255) {
+                $error = "Invalid input length.";
             } else {
                 try {
                     $stmt = $db->prepare("SELECT * FROM user WHERE username = ?");
@@ -88,7 +106,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                             $_SESSION['email'] = $user['email'];
                             $_SESSION['logged_in'] = true;
                             
+                            // Regenerate session ID to prevent session fixation
                             session_regenerate_id(true);
+                            
+                            // Set secure session cookie parameters
+                            session_set_cookie_params([
+                                'lifetime' => 0,
+                                'path' => '/',
+                                'domain' => $_SERVER['HTTP_HOST'],
+                                'secure' => isset($_SERVER['HTTPS']), // Use HTTPS if available
+                                'httponly' => true,
+                                'samesite' => 'Strict'
+                            ]);
+                            
                             header('Location: dashboard.php');
                             exit();
                         } elseif ($user['password'] === $password) {
@@ -100,7 +130,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                             $_SESSION['email'] = $user['email'];
                             $_SESSION['logged_in'] = true;
                             
+                            // Regenerate session ID to prevent session fixation
                             session_regenerate_id(true);
+                            
+                            // Set secure session cookie parameters
+                            session_set_cookie_params([
+                                'lifetime' => 0,
+                                'path' => '/',
+                                'domain' => $_SERVER['HTTP_HOST'],
+                                'secure' => isset($_SERVER['HTTPS']),
+                                'httponly' => true,
+                                'samesite' => 'Strict'
+                            ]);
                             
                             // Hash the plain text password for future use
                             $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
@@ -151,11 +192,21 @@ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lock
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Login - RFID System</title>
+    
+    <!-- Security Meta Tags -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta name="robots" content="noindex, nofollow">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <meta name="description" content="Gate and Personnel Management System">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    
     <style>
         :root {
             --primary-color: #e1e7f0ff;
@@ -463,11 +514,16 @@ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lock
     <div class="login-container">
         <div class="login-header">
             <h3><i class="fas fa-user-shield me-2"></i>ADMIN LOGIN</h3>
-            
         </div>
         
         <div class="login-body">
-            
+            <!-- Error Message -->
+            <?php if (!empty($error)): ?>
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <?php echo htmlspecialchars($error); ?>
+                </div>
+            <?php endif; ?>
 
             <!-- Lockout Warning -->
             <div class="alert alert-warning <?php echo $isLockedOut ? '' : 'd-none'; ?>" id="lockoutAlert">
@@ -482,7 +538,7 @@ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lock
                 </div>
             </div>
 
-            <form method="POST" id="loginForm">
+            <form method="POST" id="loginForm" autocomplete="on">
                 <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                 <input type="hidden" name="login" value="1">
 
@@ -491,7 +547,7 @@ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lock
                     <div class="input-group">
                         <span class="input-group-text"><i class="fas fa-user"></i></span>
                         <input type="text" class="form-control" id="username" name="username" 
-                               placeholder="Enter your username" required autocomplete="off"
+                               placeholder="Enter your username" required autocomplete="username"
                                value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : 'joshua'; ?>"
                                <?php echo $isLockedOut ? 'disabled' : ''; ?>>
                     </div>
@@ -503,6 +559,7 @@ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lock
                         <span class="input-group-text"><i class="fas fa-lock"></i></span>
                         <input type="password" class="form-control" id="password" name="password" 
                                placeholder="Enter your password" required value="joshua@123"
+                               autocomplete="current-password"
                                <?php echo $isLockedOut ? 'disabled' : ''; ?>>
                         <span class="password-toggle" onclick="togglePassword()">
                             <i class="fas fa-eye"></i>
