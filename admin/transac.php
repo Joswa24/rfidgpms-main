@@ -22,12 +22,52 @@ function sanitizeInput($db, $input) {
     return mysqli_real_escape_string($db, trim($input));
 }
 
+// Function to handle file uploads
+function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'], $maxSize = 2 * 1024 * 1024) {
+    if (!isset($_FILES[$fileInput]) || $_FILES[$fileInput]['error'] !== UPLOAD_ERR_OK) {
+        return ['success' => false, 'message' => 'No file uploaded or upload error'];
+    }
+
+    $file = $_FILES[$fileInput];
+    
+    // Check file type
+    $fileInfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mimeType = finfo_file($fileInfo, $file['tmp_name']);
+    finfo_close($fileInfo);
+
+    if (!in_array($mimeType, $allowedTypes)) {
+        return ['success' => false, 'message' => 'Only JPG and PNG images are allowed'];
+    }
+
+    // Check file size
+    if ($file['size'] > $maxSize) {
+        return ['success' => false, 'message' => 'Maximum file size is 2MB'];
+    }
+
+    // Create directory if it doesn't exist
+    if (!file_exists($targetDir)) {
+        mkdir($targetDir, 0755, true);
+    }
+
+    // Generate unique filename
+    $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+    $filename = uniqid() . '.' . $ext;
+    $targetFile = $targetDir . $filename;
+
+    if (move_uploaded_file($file['tmp_name'], $targetFile)) {
+        return ['success' => true, 'filename' => $filename];
+    } else {
+        return ['success' => false, 'message' => 'Failed to upload file'];
+    }
+}
+
 // Check if this is an AJAX request for specific operations
 $validAjaxActions = [
     'add_department', 'update_department', 'delete_department', 
     'add_room', 'update_room', 'delete_room',
     'add_role', 'update_role', 'delete_role',
-    'add_personnel', 'update_personnel', 'delete_personnel'
+    'add_personnel', 'update_personnel', 'delete_personnel',
+    'add_student', 'update_student', 'delete_student'  // Added student operations
 ];
 $isAjaxRequest = isset($_GET['action']) && in_array($_GET['action'], $validAjaxActions);
 
@@ -334,422 +374,617 @@ if ($isAjaxRequest) {
             }
             break;
            
-            // ========================
-            // ROLE CRUD OPERATIONS
-            // ========================
-            case 'add_role':
-                if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                    jsonResponse('error', 'Invalid request method');
-                }
+        // ========================
+        // ROLE CRUD OPERATIONS
+        // ========================
+        case 'add_role':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                jsonResponse('error', 'Invalid request method');
+            }
 
-                // Validate required field
-                if (!isset($_POST['role']) || empty(trim($_POST['role']))) {
-                    jsonResponse('error', 'Role name is required');
-                }
+            // Validate required field
+            if (!isset($_POST['role']) || empty(trim($_POST['role']))) {
+                jsonResponse('error', 'Role name is required');
+            }
 
-                // Sanitize input
-                $role = sanitizeInput($db, trim($_POST['role']));
+            // Sanitize input
+            $role = sanitizeInput($db, trim($_POST['role']));
 
-                // Validate length
-                if (strlen($role) > 100) {
-                    jsonResponse('error', 'Role name must be less than 100 characters');
-                }
+            // Validate length
+            if (strlen($role) > 100) {
+                jsonResponse('error', 'Role name must be less than 100 characters');
+            }
 
-                // Check if role exists (case-insensitive)
-                $check = $db->prepare("SELECT id FROM role WHERE LOWER(role) = LOWER(?)");
-                if (!$check) {
-                    jsonResponse('error', 'Database error: ' . $db->error);
-                }
-                
-                $check->bind_param("s", $role);
-                if (!$check->execute()) {
-                    jsonResponse('error', 'Database error: ' . $check->error);
-                }
-                
-                $check->store_result();
-                
-                if ($check->num_rows > 0) {
-                    $check->close();
-                    jsonResponse('error', 'Role already exists');
-                }
+            // Check if role exists (case-insensitive)
+            $check = $db->prepare("SELECT id FROM role WHERE LOWER(role) = LOWER(?)");
+            if (!$check) {
+                jsonResponse('error', 'Database error: ' . $db->error);
+            }
+            
+            $check->bind_param("s", $role);
+            if (!$check->execute()) {
+                jsonResponse('error', 'Database error: ' . $check->error);
+            }
+            
+            $check->store_result();
+            
+            if ($check->num_rows > 0) {
                 $check->close();
+                jsonResponse('error', 'Role already exists');
+            }
+            $check->close();
 
-                // Insert role with prepared statement
-                $stmt = $db->prepare("INSERT INTO role (role) VALUES (?)");
-                if (!$stmt) {
-                    jsonResponse('error', 'Database error: ' . $db->error);
+            // Insert role with prepared statement
+            $stmt = $db->prepare("INSERT INTO role (role) VALUES (?)");
+            if (!$stmt) {
+                jsonResponse('error', 'Database error: ' . $db->error);
+            }
+            
+            $stmt->bind_param("s", $role);
+            
+            if ($stmt->execute()) {
+                jsonResponse('success', 'Role added successfully', [
+                    'id' => $stmt->insert_id,
+                    'role' => $role
+                ]);
+            } else {
+                jsonResponse('error', 'Failed to add role: ' . $stmt->error);
+            }
+            break;
+
+        case 'update_role':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                jsonResponse('error', 'Invalid request method');
+            }
+
+            // Validate required fields
+            if (!isset($_POST['id']) || empty($_POST['id'])) {
+                jsonResponse('error', 'Role ID is required');
+            }
+            if (!isset($_POST['role']) || empty(trim($_POST['role']))) {
+                jsonResponse('error', 'Role name is required');
+            }
+
+            // Sanitize inputs
+            $id = intval($_POST['id']);
+            $role = sanitizeInput($db, trim($_POST['role']));
+
+            // Validate ID
+            if ($id <= 0) {
+                jsonResponse('error', 'Invalid role ID');
+            }
+
+            // Validate length
+            if (strlen($role) > 100) {
+                jsonResponse('error', 'Role name must be less than 100 characters');
+            }
+
+            // Check if role exists (excluding current one)
+            $check = $db->prepare("SELECT id FROM role WHERE LOWER(role) = LOWER(?) AND id != ?");
+            $check->bind_param("si", $role, $id);
+            $check->execute();
+            $check->store_result();
+            
+            if ($check->num_rows > 0) {
+                jsonResponse('error', 'Role name already exists');
+            }
+            $check->close();
+
+            // Update role
+            $stmt = $db->prepare("UPDATE role SET role = ? WHERE id = ?");
+            $stmt->bind_param("si", $role, $id);
+
+            if ($stmt->execute()) {
+                jsonResponse('success', 'Role updated successfully');
+            } else {
+                jsonResponse('error', 'Failed to update role: ' . $db->error);
+            }
+            break;
+
+        case 'delete_role':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                jsonResponse('error', 'Invalid request method');
+            }
+
+            // Validate required field
+            if (!isset($_POST['id']) || empty($_POST['id'])) {
+                jsonResponse('error', 'Role ID is required');
+            }
+
+            // Sanitize input
+            $id = intval($_POST['id']);
+
+            if ($id <= 0) {
+                jsonResponse('error', 'Invalid role ID');
+            }
+
+            try {
+                // First, get the role name for checking dependencies
+                $getRole = $db->prepare("SELECT role FROM role WHERE id = ?");
+                $getRole->bind_param("i", $id);
+                $getRole->execute();
+                $getRole->bind_result($roleName);
+                $getRole->fetch();
+                $getRole->close();
+
+                if (empty($roleName)) {
+                    jsonResponse('error', 'Role not found');
                 }
-                
-                $stmt->bind_param("s", $role);
+
+                // Check if role is assigned to personnel
+                $checkPersonnel = $db->prepare("SELECT COUNT(*) FROM personell WHERE role = ?");
+                $checkPersonnel->bind_param("s", $roleName);
+                $checkPersonnel->execute();
+                $checkPersonnel->bind_result($personnelCount);
+                $checkPersonnel->fetch();
+                $checkPersonnel->close();
+
+                if ($personnelCount > 0) {
+                    jsonResponse('error', 'Cannot delete role assigned to personnel. There are ' . $personnelCount . ' personnel with this role.');
+                }
+
+                // Check if role is assigned to rooms
+                $checkRooms = $db->prepare("SELECT COUNT(*) FROM rooms WHERE authorized_personnel = ?");
+                $checkRooms->bind_param("s", $roleName);
+                $checkRooms->execute();
+                $checkRooms->bind_result($roomCount);
+                $checkRooms->fetch();
+                $checkRooms->close();
+
+                if ($roomCount > 0) {
+                    jsonResponse('error', 'Cannot delete role assigned to rooms. There are ' . $roomCount . ' rooms with this role.');
+                }
+
+                // Proceed with deletion
+                $stmt = $db->prepare("DELETE FROM role WHERE id = ?");
+                $stmt->bind_param("i", $id);
                 
                 if ($stmt->execute()) {
-                    jsonResponse('success', 'Role added successfully', [
-                        'id' => $stmt->insert_id,
-                        'role' => $role
-                    ]);
+                    jsonResponse('success', 'Role deleted successfully');
                 } else {
-                    jsonResponse('error', 'Failed to add role: ' . $stmt->error);
+                    jsonResponse('error', 'Failed to delete role: ' . $stmt->error);
                 }
-                break;
+            } catch (Exception $e) {
+                jsonResponse('error', 'Database error: ' . $e->getMessage());
+            }
+            break;
 
-            case 'update_role':
-                if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                    jsonResponse('error', 'Invalid request method');
+        // ========================
+        // PERSONNEL CRUD OPERATIONS
+        // ========================
+        case 'add_personnel':
+            error_log("=== ADD PERSONNEL STARTED ===");
+            
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                error_log("Invalid request method");
+                jsonResponse('error', 'Invalid request method');
+            }
+
+            // Log all received data
+            error_log("POST data: " . print_r($_POST, true));
+            error_log("FILES data: " . print_r($_FILES, true));
+
+            // Validate required fields
+            $required = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department'];
+            foreach ($required as $field) {
+                if (empty($_POST[$field])) {
+                    error_log("Missing field: $field");
+                    jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
                 }
+            }
 
-                // Validate required fields
-                if (!isset($_POST['id']) || empty($_POST['id'])) {
-                    jsonResponse('error', 'Role ID is required');
+            // Sanitize inputs
+            $last_name = sanitizeInput($db, $_POST['last_name']);
+            $first_name = sanitizeInput($db, $_POST['first_name']);
+            $date_of_birth = sanitizeInput($db, $_POST['date_of_birth']);
+            $id_number = sanitizeInput($db, $_POST['id_number']);
+            $role = sanitizeInput($db, $_POST['role']);
+            $category = sanitizeInput($db, $_POST['category']);
+            $department = sanitizeInput($db, $_POST['department']);
+            $status = 'Active';
+
+            error_log("Processing: $last_name, $first_name, ID: $id_number");
+
+            // Validate ID Number format
+            if (!preg_match('/^\d{8}$/', $id_number)) {
+                error_log("Invalid ID format: $id_number");
+                jsonResponse('error', 'ID Number must be exactly 8 digits. Received: ' . $id_number);
+            }
+
+            // Check if ID Number already exists
+            $check_id = $db->prepare("SELECT id FROM personell WHERE id_number = ? AND deleted = 0");
+            if (!$check_id) {
+                error_log("Prepare failed: " . $db->error);
+                jsonResponse('error', 'Database error: ' . $db->error);
+            }
+            
+            $check_id->bind_param("s", $id_number);
+            if (!$check_id->execute()) {
+                error_log("Execute failed: " . $check_id->error);
+                jsonResponse('error', 'Database error: ' . $check_id->error);
+            }
+            
+            $check_id->store_result();
+            
+            if ($check_id->num_rows > 0) {
+                error_log("ID already exists: $id_number");
+                jsonResponse('error', 'ID Number already exists');
+            }
+            $check_id->close();
+
+            // Handle file upload - SIMPLIFIED VERSION (no file upload first)
+            $photo = 'default.png';
+            error_log("Using default photo: $photo");
+
+            // Insert record
+            $query = "INSERT INTO personell (
+                id_number, last_name, first_name, date_of_birth, 
+                role, category, department, status, photo, date_added
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+
+            error_log("SQL Query: $query");
+            
+            $stmt = $db->prepare($query);
+            if (!$stmt) {
+                $error = $db->error;
+                error_log("Prepare failed: " . $error);
+                jsonResponse('error', 'Database prepare failed: ' . $error);
+            }
+
+            $stmt->bind_param(
+                "sssssssss", 
+                $id_number, $last_name, $first_name, $date_of_birth,
+                $role, $category, $department, $status, $photo
+            );
+
+            if ($stmt->execute()) {
+                error_log("Personnel added successfully");
+                jsonResponse('success', 'Personnel added successfully');
+            } else {
+                $error = $stmt->error;
+                error_log("Execute failed: " . $error);
+                jsonResponse('error', 'Database execute failed: ' . $error);
+            }
+            break;
+
+        case 'update_personnel':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                jsonResponse('error', 'Invalid request method');
+            }
+
+            // Validate required fields
+            if (empty($_POST['id'])) {
+                jsonResponse('error', 'Personnel ID is required');
+            }
+
+            $required = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'e_department', 'status'];
+            foreach ($required as $field) {
+                if (empty($_POST[$field])) {
+                    jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
                 }
-                if (!isset($_POST['role']) || empty(trim($_POST['role']))) {
-                    jsonResponse('error', 'Role name is required');
+            }
+
+            // Sanitize inputs
+            $id = intval($_POST['id']); // Use intval since your id is INT
+            $last_name = sanitizeInput($db, $_POST['last_name']);
+            $first_name = sanitizeInput($db, $_POST['first_name']);
+            $date_of_birth = sanitizeInput($db, $_POST['date_of_birth']);
+            $id_number = sanitizeInput($db, $_POST['id_number']);
+            $role = sanitizeInput($db, $_POST['role']);
+            $category = sanitizeInput($db, $_POST['category']);
+            $department = sanitizeInput($db, $_POST['e_department']); // Note: using e_department from form
+            $status = sanitizeInput($db, $_POST['status']);
+
+            // Validate ID Number format (8 digits)
+            if (!preg_match('/^\d{8}$/', $id_number)) {
+                jsonResponse('error', 'ID Number must be exactly 8 digits');
+            }
+
+            // Check if ID Number exists for other personnel
+            $check_id = $db->prepare("SELECT id FROM personell WHERE id_number = ? AND id != ?");
+            $check_id->bind_param("si", $id_number, $id);
+            $check_id->execute();
+            $check_id->store_result();
+            
+            if ($check_id->num_rows > 0) {
+                jsonResponse('error', 'ID Number already assigned to another personnel');
+            }
+            $check_id->close();
+
+            // Handle file upload
+            $photo = '';
+            if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+                $uploadResult = handleFileUpload('photo', 'uploads/');
+                if (!$uploadResult['success']) {
+                    jsonResponse('error', $uploadResult['message']);
                 }
+                $photo = $uploadResult['filename'];
+            } else {
+                // Keep existing photo if no new upload
+                $photo = sanitizeInput($db, $_POST['capturedImage']);
+            }
 
-                // Sanitize inputs
-                $id = intval($_POST['id']);
-                $role = sanitizeInput($db, trim($_POST['role']));
+            // Update personnel record
+            if (!empty($photo)) {
+                $query = "UPDATE personell SET 
+                    last_name = ?, first_name = ?, date_of_birth = ?, id_number = ?,
+                    role = ?, category = ?, department = ?, status = ?, photo = ?
+                    WHERE id = ?";
+                $stmt = $db->prepare($query);
+                $stmt->bind_param(
+                    "sssssssssi", 
+                    $last_name, $first_name, $date_of_birth, $id_number,
+                    $role, $category, $department, $status, $photo, $id
+                );
+            } else {
+                $query = "UPDATE personell SET 
+                    last_name = ?, first_name = ?, date_of_birth = ?, id_number = ?,
+                    role = ?, category = ?, department = ?, status = ?
+                    WHERE id = ?";
+                $stmt = $db->prepare($query);
+                $stmt->bind_param(
+                    "ssssssssi", 
+                    $last_name, $first_name, $date_of_birth, $id_number,
+                    $role, $category, $department, $status, $id
+                );
+            }
 
-                // Validate ID
-                if ($id <= 0) {
-                    jsonResponse('error', 'Invalid role ID');
+            if ($stmt->execute()) {
+                jsonResponse('success', 'Personnel updated successfully');
+            } else {
+                jsonResponse('error', 'Failed to update personnel: ' . $stmt->error);
+            }
+            break;
+
+        case 'delete_personnel':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                jsonResponse('error', 'Invalid request method');
+            }
+
+            // Validate required field
+            if (empty($_POST['id'])) {
+                jsonResponse('error', 'Personnel ID is required');
+            }
+
+            // Sanitize input
+            $id = intval($_POST['id']);
+
+            // Check for dependencies
+            $checkLostCards = $db->prepare("SELECT COUNT(*) FROM lostcard WHERE personnel_id = ?");
+            $checkLostCards->bind_param("i", $id);
+            $checkLostCards->execute();
+            $checkLostCards->bind_result($lostCardCount);
+            $checkLostCards->fetch();
+            $checkLostCards->close();
+
+            if ($lostCardCount > 0) {
+                jsonResponse('error', 'Cannot delete personnel with associated lost card records');
+            }
+
+            // Delete personnel
+            $stmt = $db->prepare("DELETE FROM personell WHERE id = ?");
+            $stmt->bind_param("i", $id);
+            
+            if ($stmt->execute()) {
+                jsonResponse('success', 'Personnel deleted successfully');
+            } else {
+                jsonResponse('error', 'Failed to delete personnel: ' . $stmt->error);
+            }
+            break;
+
+        // ========================
+        // STUDENT CRUD OPERATIONS
+        // ========================
+        case 'add_student':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                jsonResponse('error', 'Invalid request method');
+            }
+
+            // Validate required fields
+            $required = ['department_id', 'id_number', 'fullname', 'year', 'section'];
+            foreach ($required as $field) {
+                if (empty($_POST[$field])) {
+                    jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
                 }
+            }
 
-                // Validate length
-                if (strlen($role) > 100) {
-                    jsonResponse('error', 'Role name must be less than 100 characters');
+            // Sanitize inputs
+            $department_id = intval($_POST['department_id']);
+            $id_number = sanitizeInput($db, trim($_POST['id_number']));
+            $fullname = sanitizeInput($db, trim($_POST['fullname']));
+            $year = sanitizeInput($db, $_POST['year']);
+            $section = sanitizeInput($db, $_POST['section']);
+
+            // Validate department ID
+            if ($department_id <= 0) {
+                jsonResponse('error', 'Invalid department');
+            }
+
+            // Validate ID Number format
+            if (!preg_match('/^[A-Za-z0-9\-]+$/', $id_number)) {
+                jsonResponse('error', 'Invalid ID Number format. Only letters, numbers, and hyphens are allowed.');
+            }
+
+            // Check if ID Number already exists
+            $check_id = $db->prepare("SELECT id FROM students WHERE id_number = ?");
+            $check_id->bind_param("s", $id_number);
+            $check_id->execute();
+            $check_id->store_result();
+            
+            if ($check_id->num_rows > 0) {
+                jsonResponse('error', 'ID Number already exists');
+            }
+            $check_id->close();
+
+            // Handle file upload
+            $photo = 'default.png'; // Default photo
+            if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+                $uploadResult = handleFileUpload('photo', '../uploads/students/');
+                if (!$uploadResult['success']) {
+                    jsonResponse('error', $uploadResult['message']);
                 }
+                $photo = $uploadResult['filename'];
+            }
 
-                // Check if role exists (excluding current one)
-                $check = $db->prepare("SELECT id FROM role WHERE LOWER(role) = LOWER(?) AND id != ?");
-                $check->bind_param("si", $role, $id);
-                $check->execute();
-                $check->store_result();
-                
-                if ($check->num_rows > 0) {
-                    jsonResponse('error', 'Role name already exists');
+            // Insert student record
+            $query = "INSERT INTO students (department_id, id_number, fullname, year, section, photo, date_added) 
+                      VALUES (?, ?, ?, ?, ?, ?, NOW())";
+            
+            $stmt = $db->prepare($query);
+            if (!$stmt) {
+                jsonResponse('error', 'Database error: ' . $db->error);
+            }
+
+            $stmt->bind_param("isssss", $department_id, $id_number, $fullname, $year, $section, $photo);
+
+            if ($stmt->execute()) {
+                jsonResponse('success', 'Student added successfully', [
+                    'id' => $stmt->insert_id
+                ]);
+            } else {
+                jsonResponse('error', 'Failed to add student: ' . $stmt->error);
+            }
+            break;
+
+        case 'update_student':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                jsonResponse('error', 'Invalid request method');
+            }
+
+            // Validate required fields
+            if (empty($_POST['id'])) {
+                jsonResponse('error', 'Student ID is required');
+            }
+
+            $required = ['department_id', 'id_number', 'fullname', 'year', 'section'];
+            foreach ($required as $field) {
+                if (empty($_POST[$field])) {
+                    jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
                 }
-                $check->close();
+            }
 
-                // Update role
-                $stmt = $db->prepare("UPDATE role SET role = ? WHERE id = ?");
-                $stmt->bind_param("si", $role, $id);
+            // Sanitize inputs
+            $id = intval($_POST['id']);
+            $department_id = intval($_POST['department_id']);
+            $id_number = sanitizeInput($db, trim($_POST['id_number']));
+            $fullname = sanitizeInput($db, trim($_POST['fullname']));
+            $year = sanitizeInput($db, $_POST['year']);
+            $section = sanitizeInput($db, $_POST['section']);
 
-                if ($stmt->execute()) {
-                    jsonResponse('success', 'Role updated successfully');
-                } else {
-                    jsonResponse('error', 'Failed to update role: ' . $db->error);
+            // Validate IDs
+            if ($id <= 0) {
+                jsonResponse('error', 'Invalid student ID');
+            }
+            if ($department_id <= 0) {
+                jsonResponse('error', 'Invalid department');
+            }
+
+            // Validate ID Number format
+            if (!preg_match('/^[A-Za-z0-9\-]+$/', $id_number)) {
+                jsonResponse('error', 'Invalid ID Number format. Only letters, numbers, and hyphens are allowed.');
+            }
+
+            // Check if ID Number exists for other students
+            $check_id = $db->prepare("SELECT id FROM students WHERE id_number = ? AND id != ?");
+            $check_id->bind_param("si", $id_number, $id);
+            $check_id->execute();
+            $check_id->store_result();
+            
+            if ($check_id->num_rows > 0) {
+                jsonResponse('error', 'ID Number already assigned to another student');
+            }
+            $check_id->close();
+
+            // Handle file upload
+            $photo = '';
+            if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+                $uploadResult = handleFileUpload('photo', '../uploads/students/');
+                if (!$uploadResult['success']) {
+                    jsonResponse('error', $uploadResult['message']);
                 }
-                break;
+                $photo = $uploadResult['filename'];
+            } else {
+                // Keep existing photo if no new upload
+                $photo = sanitizeInput($db, $_POST['capturedImage']);
+            }
 
-            case 'delete_role':
-                if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                    jsonResponse('error', 'Invalid request method');
-                }
+            // Update student record
+            if (!empty($photo)) {
+                $query = "UPDATE students SET 
+                    department_id = ?, id_number = ?, fullname = ?, year = ?, section = ?, photo = ?
+                    WHERE id = ?";
+                $stmt = $db->prepare($query);
+                $stmt->bind_param("isssssi", $department_id, $id_number, $fullname, $year, $section, $photo, $id);
+            } else {
+                $query = "UPDATE students SET 
+                    department_id = ?, id_number = ?, fullname = ?, year = ?, section = ?
+                    WHERE id = ?";
+                $stmt = $db->prepare($query);
+                $stmt->bind_param("issssi", $department_id, $id_number, $fullname, $year, $section, $id);
+            }
 
-                // Validate required field
-                if (!isset($_POST['id']) || empty($_POST['id'])) {
-                    jsonResponse('error', 'Role ID is required');
-                }
+            if ($stmt->execute()) {
+                jsonResponse('success', 'Student updated successfully');
+            } else {
+                jsonResponse('error', 'Failed to update student: ' . $stmt->error);
+            }
+            break;
 
-                // Sanitize input
-                $id = intval($_POST['id']);
+        case 'delete_student':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                jsonResponse('error', 'Invalid request method');
+            }
 
-                if ($id <= 0) {
-                    jsonResponse('error', 'Invalid role ID');
-                }
+            // Validate required field
+            if (empty($_POST['id'])) {
+                jsonResponse('error', 'Student ID is required');
+            }
 
-                try {
-                    // First, get the role name for checking dependencies
-                    $getRole = $db->prepare("SELECT role FROM role WHERE id = ?");
-                    $getRole->bind_param("i", $id);
-                    $getRole->execute();
-                    $getRole->bind_result($roleName);
-                    $getRole->fetch();
-                    $getRole->close();
+            // Sanitize input
+            $id = intval($_POST['id']);
 
-                    if (empty($roleName)) {
-                        jsonResponse('error', 'Role not found');
-                    }
+            if ($id <= 0) {
+                jsonResponse('error', 'Invalid student ID');
+            }
 
-                    // Check if role is assigned to personnel
-                    $checkPersonnel = $db->prepare("SELECT COUNT(*) FROM personell WHERE role = ?");
-                    $checkPersonnel->bind_param("s", $roleName);
-                    $checkPersonnel->execute();
-                    $checkPersonnel->bind_result($personnelCount);
-                    $checkPersonnel->fetch();
-                    $checkPersonnel->close();
+            // Check if student exists
+            $checkStudent = $db->prepare("SELECT id FROM students WHERE id = ?");
+            $checkStudent->bind_param("i", $id);
+            $checkStudent->execute();
+            $checkStudent->store_result();
+            
+            if ($checkStudent->num_rows === 0) {
+                jsonResponse('error', 'Student not found');
+            }
+            $checkStudent->close();
 
-                    if ($personnelCount > 0) {
-                        jsonResponse('error', 'Cannot delete role assigned to personnel. There are ' . $personnelCount . ' personnel with this role.');
-                    }
+            // Check for student dependencies (attendance records, etc.)
+            // Uncomment and modify these checks based on your database schema
+            
+            
+            // Example: Check if student has attendance records
+            $checkAttendance = $db->prepare("SELECT COUNT(*) FROM attendance WHERE student_id = ?");
+            $checkAttendance->bind_param("i", $id);
+            $checkAttendance->execute();
+            $checkAttendance->bind_result($attendanceCount);
+            $checkAttendance->fetch();
+            $checkAttendance->close();
 
-                    // Check if role is assigned to rooms
-                    $checkRooms = $db->prepare("SELECT COUNT(*) FROM rooms WHERE authorized_personnel = ?");
-                    $checkRooms->bind_param("s", $roleName);
-                    $checkRooms->execute();
-                    $checkRooms->bind_result($roomCount);
-                    $checkRooms->fetch();
-                    $checkRooms->close();
+            if ($attendanceCount > 0) {
+                jsonResponse('error', 'Cannot delete student with attendance records');
+            }
+            
 
-                    if ($roomCount > 0) {
-                        jsonResponse('error', 'Cannot delete role assigned to rooms. There are ' . $roomCount . ' rooms with this role.');
-                    }
-
-                    // Proceed with deletion
-                    $stmt = $db->prepare("DELETE FROM role WHERE id = ?");
-                    $stmt->bind_param("i", $id);
-                    
-                    if ($stmt->execute()) {
-                        jsonResponse('success', 'Role deleted successfully');
-                    } else {
-                        jsonResponse('error', 'Failed to delete role: ' . $stmt->error);
-                    }
-                } catch (Exception $e) {
-                    jsonResponse('error', 'Database error: ' . $e->getMessage());
-                }
-                break;
-                 // ========================
-                // PERSONNEL CRUD OPERATIONS
-                // ========================
-               case 'add_personnel':
-    error_log("=== ADD PERSONNEL STARTED ===");
-    
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        error_log("Invalid request method");
-        jsonResponse('error', 'Invalid request method');
-    }
-
-    // Log all received data
-    error_log("POST data: " . print_r($_POST, true));
-    error_log("FILES data: " . print_r($_FILES, true));
-
-    // Validate required fields
-    $required = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department'];
-    foreach ($required as $field) {
-        if (empty($_POST[$field])) {
-            error_log("Missing field: $field");
-            jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
-        }
-    }
-
-    // Sanitize inputs
-    $last_name = sanitizeInput($db, $_POST['last_name']);
-    $first_name = sanitizeInput($db, $_POST['first_name']);
-    $date_of_birth = sanitizeInput($db, $_POST['date_of_birth']);
-    $id_number = sanitizeInput($db, $_POST['id_number']);
-    $role = sanitizeInput($db, $_POST['role']);
-    $category = sanitizeInput($db, $_POST['category']);
-    $department = sanitizeInput($db, $_POST['department']);
-    $status = 'Active';
-
-    error_log("Processing: $last_name, $first_name, ID: $id_number");
-
-    // Validate ID Number format
-    if (!preg_match('/^\d{8}$/', $id_number)) {
-        error_log("Invalid ID format: $id_number");
-        jsonResponse('error', 'ID Number must be exactly 8 digits. Received: ' . $id_number);
-    }
-
-    // Check if ID Number already exists
-    $check_id = $db->prepare("SELECT id FROM personell WHERE id_number = ? AND deleted = 0");
-    if (!$check_id) {
-        error_log("Prepare failed: " . $db->error);
-        jsonResponse('error', 'Database error: ' . $db->error);
-    }
-    
-    $check_id->bind_param("s", $id_number);
-    if (!$check_id->execute()) {
-        error_log("Execute failed: " . $check_id->error);
-        jsonResponse('error', 'Database error: ' . $check_id->error);
-    }
-    
-    $check_id->store_result();
-    
-    if ($check_id->num_rows > 0) {
-        error_log("ID already exists: $id_number");
-        jsonResponse('error', 'ID Number already exists');
-    }
-    $check_id->close();
-
-    // Handle file upload - SIMPLIFIED VERSION (no file upload first)
-    $photo = 'default.png';
-    error_log("Using default photo: $photo");
-
-    // Insert record
-    $query = "INSERT INTO personell (
-        id_number, last_name, first_name, date_of_birth, 
-        role, category, department, status, photo, date_added
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
-
-    error_log("SQL Query: $query");
-    
-    $stmt = $db->prepare($query);
-    if (!$stmt) {
-        $error = $db->error;
-        error_log("Prepare failed: " . $error);
-        jsonResponse('error', 'Database prepare failed: ' . $error);
-    }
-
-    $stmt->bind_param(
-        "sssssssss", 
-        $id_number, $last_name, $first_name, $date_of_birth,
-        $role, $category, $department, $status, $photo
-    );
-
-    if ($stmt->execute()) {
-        error_log("Personnel added successfully");
-        jsonResponse('success', 'Personnel added successfully');
-    } else {
-        $error = $stmt->error;
-        error_log("Execute failed: " . $error);
-        jsonResponse('error', 'Database execute failed: ' . $error);
-    }
-    break;
-
-                case 'update_personnel':
-                    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                        jsonResponse('error', 'Invalid request method');
-                    }
-
-                    // Validate required fields
-                    if (empty($_POST['id'])) {
-                        jsonResponse('error', 'Personnel ID is required');
-                    }
-
-                    $required = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'e_department', 'status'];
-                    foreach ($required as $field) {
-                        if (empty($_POST[$field])) {
-                            jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
-                        }
-                    }
-
-                    // Sanitize inputs
-                    $id = intval($_POST['id']); // Use intval since your id is INT
-                    $last_name = sanitizeInput($db, $_POST['last_name']);
-                    $first_name = sanitizeInput($db, $_POST['first_name']);
-                    $date_of_birth = sanitizeInput($db, $_POST['date_of_birth']);
-                    $id_number = sanitizeInput($db, $_POST['id_number']);
-                    $role = sanitizeInput($db, $_POST['role']);
-                    $category = sanitizeInput($db, $_POST['category']);
-                    $department = sanitizeInput($db, $_POST['e_department']); // Note: using e_department from form
-                    $status = sanitizeInput($db, $_POST['status']);
-
-                    // Validate ID Number format (8 digits)
-                    if (!preg_match('/^\d{8}$/', $id_number)) {
-                        jsonResponse('error', 'ID Number must be exactly 8 digits');
-                    }
-
-                    // Check if ID Number exists for other personnel
-                    $check_id = $db->prepare("SELECT id FROM personell WHERE id_number = ? AND id != ?");
-                    $check_id->bind_param("si", $id_number, $id);
-                    $check_id->execute();
-                    $check_id->store_result();
-                    
-                    if ($check_id->num_rows > 0) {
-                        jsonResponse('error', 'ID Number already assigned to another personnel');
-                    }
-                    $check_id->close();
-
-                    // Handle file upload
-                    $photo = '';
-                    if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
-                        $allowed_types = ['image/jpeg', 'image/png'];
-                        $file_info = finfo_open(FILEINFO_MIME_TYPE);
-                        $mime_type = finfo_file($file_info, $_FILES['photo']['tmp_name']);
-                        finfo_close($file_info);
-
-                        if (!in_array($mime_type, $allowed_types)) {
-                            jsonResponse('error', 'Only JPG and PNG images are allowed');
-                        }
-
-                        if ($_FILES['photo']['size'] > 2 * 1024 * 1024) {
-                            jsonResponse('error', 'Maximum file size is 2MB');
-                        }
-
-                        $ext = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
-                        $photo = uniqid() . '.' . $ext;
-                        $target_dir = "uploads/";
-                        
-                        if (!file_exists($target_dir)) {
-                            mkdir($target_dir, 0755, true);
-                        }
-
-                        $target_file = $target_dir . $photo;
-                        if (!move_uploaded_file($_FILES['photo']['tmp_name'], $target_file)) {
-                            jsonResponse('error', 'Failed to upload image');
-                        }
-                    } else {
-                        // Keep existing photo if no new upload
-                        $photo = sanitizeInput($db, $_POST['capturedImage']);
-                    }
-
-                    // Update personnel record
-                    if (!empty($photo)) {
-                        $query = "UPDATE personell SET 
-                            last_name = ?, first_name = ?, date_of_birth = ?, id_number = ?,
-                            role = ?, category = ?, department = ?, status = ?, photo = ?
-                            WHERE id = ?";
-                        $stmt = $db->prepare($query);
-                        $stmt->bind_param(
-                            "sssssssssi", 
-                            $last_name, $first_name, $date_of_birth, $id_number,
-                            $role, $category, $department, $status, $photo, $id
-                        );
-                    } else {
-                        $query = "UPDATE personell SET 
-                            last_name = ?, first_name = ?, date_of_birth = ?, id_number = ?,
-                            role = ?, category = ?, department = ?, status = ?
-                            WHERE id = ?";
-                        $stmt = $db->prepare($query);
-                        $stmt->bind_param(
-                            "ssssssssi", 
-                            $last_name, $first_name, $date_of_birth, $id_number,
-                            $role, $category, $department, $status, $id
-                        );
-                    }
-
-                    if ($stmt->execute()) {
-                        jsonResponse('success', 'Personnel updated successfully');
-                    } else {
-                        jsonResponse('error', 'Failed to update personnel: ' . $stmt->error);
-                    }
-                    break;
-
-                case 'delete_personnel':
-                    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                        jsonResponse('error', 'Invalid request method');
-                    }
-
-                    // Validate required field
-                    if (empty($_POST['id'])) {
-                        jsonResponse('error', 'Personnel ID is required');
-                    }
-
-                    // Sanitize input
-                    $id = intval($_POST['id']);
-
-                    // Check for dependencies
-                    $checkLostCards = $db->prepare("SELECT COUNT(*) FROM lostcard WHERE personnel_id = ?");
-                    $checkLostCards->bind_param("i", $id);
-                    $checkLostCards->execute();
-                    $checkLostCards->bind_result($lostCardCount);
-                    $checkLostCards->fetch();
-                    $checkLostCards->close();
-
-                    if ($lostCardCount > 0) {
-                        jsonResponse('error', 'Cannot delete personnel with associated lost card records');
-                    }
-
-                    // Delete personnel
-                    $stmt = $db->prepare("DELETE FROM personell WHERE id = ?");
-                    $stmt->bind_param("i", $id);
-                    
-                    if ($stmt->execute()) {
-                        jsonResponse('success', 'Personnel deleted successfully');
-                    } else {
-                        jsonResponse('error', 'Failed to delete personnel: ' . $stmt->error);
-                    }
-                    break;
+            // Delete student
+            $stmt = $db->prepare("DELETE FROM students WHERE id = ?");
+            $stmt->bind_param("i", $id);
+            
+            if ($stmt->execute()) {
+                jsonResponse('success', 'Student deleted successfully');
+            } else {
+                jsonResponse('error', 'Failed to delete student: ' . $stmt->error);
+            }
+            break;
 
         default:
             jsonResponse('error', 'Invalid action');
@@ -759,7 +994,6 @@ if ($isAjaxRequest) {
     if (!isset($_GET['action'])) {
         jsonResponse('error', 'No action specified');
     }
-
 }
 
 $db->close();

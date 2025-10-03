@@ -442,286 +442,250 @@ function getStudentPhoto($photo) {
         }
 
         // ==============
-        // CREATE (ADD STUDENT)
-        // ==============
-        $('#studentForm').submit(function(e) {
-            e.preventDefault();
+// CREATE (ADD STUDENT)
+// ==============
+$('#studentForm').submit(function(e) {
+    e.preventDefault();
+    
+    $('.error-message').text('');
+    const department_id = $('#department_id').val();
+    const id_number = $('#id_number').val().trim();
+    const fullname = $('#fullname').val().trim();
+    const year = $('#year').val();
+    const section = $('#section').val();
+    const photo = $('#photo')[0].files[0];
+    let isValid = true;
+
+    // Validation
+    if (!department_id) { 
+        $('#department_id-error').text('Department is required'); 
+        isValid = false; 
+    }
+    if (!id_number) { 
+        $('#id_number-error').text('ID Number is required'); 
+        isValid = false; 
+    }
+    if (!fullname) { 
+        $('#fullname-error').text('Full name is required'); 
+        isValid = false; 
+    }
+    if (!year) { 
+        $('#year-error').text('Year is required'); 
+        isValid = false; 
+    }
+    if (!section) { 
+        $('#section-error').text('Section is required'); 
+        isValid = false; 
+    }
+    if (!photo) { 
+        $('#photo-error').text('Photo is required'); 
+        isValid = false; 
+    }
+    
+    if (!isValid) return;
+
+    // Show loading state
+    $('#btn-student').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
+    $('#btn-student').prop('disabled', true);
+
+    var formData = new FormData(this);
+
+    $.ajax({
+        type: "POST",
+        url: "transac.php?action=add_student",
+        data: formData,
+        contentType: false,
+        processData: false,
+        dataType: 'json',
+        success: function(response) {
+            // Reset button state
+            $('#btn-student').html('Save');
+            $('#btn-student').prop('disabled', false);
             
-            $('.error-message').text('');
-            const department_id = $('#department_id').val();
-            const id_number = $('#id_number').val().trim();
-            const fullname = $('#fullname').val().trim();
-            const year = $('#year').val();
-            const section = $('#section').val();
-            const photo = $('#photo')[0].files[0];
-            let isValid = true;
-
-            // Validation
-            if (!department_id) { 
-                $('#department_id-error').text('Department is required'); 
-                isValid = false; 
+            if (response.status === 'success') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success!',
+                    text: response.message,
+                    showConfirmButton: true
+                }).then(() => {
+                    $('#studentModal').modal('hide');
+                    location.reload();
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: response.message
+                });
             }
-            if (!id_number) { 
-                $('#id_number-error').text('ID Number is required'); 
-                isValid = false; 
-            }
-            if (!fullname) { 
-                $('#fullname-error').text('Full name is required'); 
-                isValid = false; 
-            }
-            if (!year) { 
-                $('#year-error').text('Year is required'); 
-                isValid = false; 
-            }
-            if (!section) { 
-                $('#section-error').text('Section is required'); 
-                isValid = false; 
-            }
-            if (!photo) { 
-                $('#photo-error').text('Photo is required'); 
-                isValid = false; 
-            }
+        },
+        error: function(xhr, status, error) {
+            // Reset button state
+            $('#btn-student').html('Save');
+            $('#btn-student').prop('disabled', false);
             
-            if (!isValid) return;
+            Swal.fire({
+                icon: 'error',
+                title: 'Error!',
+                text: 'An error occurred: ' + error
+            });
+        }
+    });
+});
 
-            // Show loading state
-            $('#btn-student').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
-            $('#btn-student').prop('disabled', true);
+// ==========
+// UPDATE STUDENT
+// ==========
+$('#editStudentForm').submit(function(e) {
+    e.preventDefault();
+    
+    const id = $('#edit_studentid').val();
+    const department_id = $('#edepartment_id').val();
+    const id_number = $('#eid_number').val().trim();
+    const fullname = $('#efullname').val().trim();
+    const year = $('#eyear').val();
+    const section = $('#esection').val();
 
-            var formData = new FormData(this);
+    // Validation
+    let isValid = true;
+    if (!department_id) { 
+        $('#edepartment_id-error').text('Department is required'); 
+        isValid = false; 
+    } else { 
+        $('#edepartment_id-error').text(''); 
+    }
+    if (!id_number) { 
+        $('#eid_number-error').text('ID Number is required'); 
+        isValid = false; 
+    } else { 
+        $('#eid_number-error').text(''); 
+    }
+    if (!fullname) { 
+        $('#efullname-error').text('Full name is required'); 
+        isValid = false; 
+    } else { 
+        $('#efullname-error').text(''); 
+    }
+    if (!year) { 
+        $('#eyear-error').text('Year is required'); 
+        isValid = false; 
+    } else { 
+        $('#eyear-error').text(''); 
+    }
+    if (!section) { 
+        $('#esection-error').text('Section is required'); 
+        isValid = false; 
+    } else { 
+        $('#esection-error').text(''); 
+    }
+    
+    if (!isValid) return;
 
-            $.ajax({
-                type: "POST",
-                url: "transac.php?action=add_student",
-                data: formData,
-                contentType: false,
-                processData: false,
-                dataType: 'json',
-                success: function(response) {
-                    // Reset button state
-                    $('#btn-student').html('Save');
-                    $('#btn-student').prop('disabled', false);
-                    
-                    if (response.status === 'success') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success!',
-                            text: response.message,
-                            showConfirmButton: true
-                        }).then(() => {
-                            $('#studentModal').modal('hide');
-                            location.reload();
-                        });
-                    } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error!',
-                            text: response.message
-                        });
-                    }
-                },
-                error: function(xhr, status, error) {
-                    // Reset button state
-                    $('#btn-student').html('Save');
-                    $('#btn-student').prop('disabled', false);
-                    
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error!',
-                        text: 'An error occurred: ' + error
-                    });
+    // Show loading state
+    $('#btn-editstudent').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
+    $('#btn-editstudent').prop('disabled', true);
+
+    var formData = new FormData(this);
+    formData.append('id', id);
+
+    $.ajax({
+        type: "POST",
+        url: "transac.php?action=update_student",
+        data: formData,
+        contentType: false,
+        processData: false,
+        dataType: 'json',
+        success: function(response) {
+            // Reset button state
+            $('#btn-editstudent').html('Update');
+            $('#btn-editstudent').prop('disabled', false);
+            
+            if (response.status === 'success') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success!',
+                    text: response.message,
+                    showConfirmButton: true
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire({
+                    title: 'Error!',
+                    text: response.message,
+                    icon: 'error'
+                });
+            }
+        },
+        error: function(xhr) {
+            // Reset button state
+            $('#btn-editstudent').html('Update');
+            $('#btn-editstudent').prop('disabled', false);
+            
+            try {
+                // Try to parse the error response as JSON
+                var errorResponse = JSON.parse(xhr.responseText);
+                Swal.fire({
+                    title: 'Error!',
+                    text: errorResponse.message || 'An error occurred',
+                    icon: 'error'
+                });
+            } catch (e) {
+                // If not JSON, show raw response
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'An error occurred: ' + xhr.responseText,
+                    icon: 'error'
+                });
+            }
+        }
+    });
+});
+
+// Handle delete button click
+$(document).on('click', '.d_student_id', function() {
+    var studentId = $(this).data('id');
+    var studentName = $(this).attr('student_name');
+    
+    Swal.fire({
+        title: 'Are you sure?',
+        text: "You are about to delete student: " + studentName,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete it!',
+        cancelButtonText: 'Cancel'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Show loading
+            Swal.fire({
+                title: 'Deleting...',
+                text: 'Please wait',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
                 }
             });
-        });
-
-        // ==========
-        // READ (EDIT STUDENT)
-        // ==========
-        $(document).on('click', '.e_student_id', function() {
-            const id = $(this).data('id');
-            
-            // Retrieve data from the selected row
-            const $getphoto = $('.table-' + id + ' .photo').attr('src');
-            const $getidnumber = $('.table-' + id + ' .student_id').html();
-            const $getdept = $('.table-' + id + ' .department_id').val();
-            const $getfullname = $('.table-' + id + ' .fullname').val();
-            const $getyear = $('.table-' + id + ' .year').val();
-            const $getsection = $('.table-' + id + ' .section').val();
-
-            // Populate edit form
-            $('#edit_studentid').val(id);
-            $('.edit-photo').attr('src', $getphoto);
-            $('#eid_number').val($getidnumber);
-            $('#edepartment_id').val($getdept);
-            $('#efullname').val($getfullname);
-            $('#eyear').val($getyear);
-            $('#esection').val($getsection);
-            $('.capturedImage').val($getphoto);
-            
-            // Show modal
-            $('#editstudentModal').modal('show');
-        });
-
-        // ==========
-        // UPDATE STUDENT
-        // ==========
-        $('#editStudentForm').submit(function(e) {
-            e.preventDefault();
-            
-            const id = $('#edit_studentid').val();
-            const department_id = $('#edepartment_id').val();
-            const id_number = $('#eid_number').val().trim();
-            const fullname = $('#efullname').val().trim();
-            const year = $('#eyear').val();
-            const section = $('#esection').val();
-
-            // Validation
-            let isValid = true;
-            if (!department_id) { 
-                $('#edepartment_id-error').text('Department is required'); 
-                isValid = false; 
-            } else { 
-                $('#edepartment_id-error').text(''); 
-            }
-            if (!id_number) { 
-                $('#eid_number-error').text('ID Number is required'); 
-                isValid = false; 
-            } else { 
-                $('#eid_number-error').text(''); 
-            }
-            if (!fullname) { 
-                $('#efullname-error').text('Full name is required'); 
-                isValid = false; 
-            } else { 
-                $('#efullname-error').text(''); 
-            }
-            if (!year) { 
-                $('#eyear-error').text('Year is required'); 
-                isValid = false; 
-            } else { 
-                $('#eyear-error').text(''); 
-            }
-            if (!section) { 
-                $('#esection-error').text('Section is required'); 
-                isValid = false; 
-            } else { 
-                $('#esection-error').text(''); 
-            }
-            
-            if (!isValid) return;
-
-            // Show loading state
-            $('#btn-editstudent').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
-            $('#btn-editstudent').prop('disabled', true);
-
-            var formData = new FormData(this);
-            formData.append('id', id);
 
             $.ajax({
-                type: "POST",
-                url: "edit1.php?edit=student&id=" + id,
-                data: formData,
-                contentType: false,
-                processData: false,
-                dataType: 'json',
-                success: function(response) {
-                    // Reset button state
-                    $('#btn-editstudent').html('Update');
-                    $('#btn-editstudent').prop('disabled', false);
-                    
-                    if (response.status === 'success') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success!',
-                            text: response.message,
-                            showConfirmButton: true
-                        }).then(() => {
-                            location.reload();
-                        });
-                    } else {
-                        Swal.fire({
-                            title: 'Error!',
-                            text: response.message,
-                            icon: 'error'
-                        });
-                    }
-                },
-                error: function(xhr) {
-                    // Reset button state
-                    $('#btn-editstudent').html('Update');
-                    $('#btn-editstudent').prop('disabled', false);
-                    
-                    try {
-                        // Try to parse the error response as JSON
-                        var errorResponse = JSON.parse(xhr.responseText);
-                        Swal.fire({
-                            title: 'Error!',
-                            text: errorResponse.message || 'An error occurred',
-                            icon: 'error'
-                        });
-                    } catch (e) {
-                        // If not JSON, show raw response
-                        Swal.fire({
-                            title: 'Error!',
-                            text: 'An error occurred: ' + xhr.responseText,
-                            icon: 'error'
-                        });
-                    }
-                }
-            });
-        });
-
-        // Handle delete button click
-        $(document).on('click', '.btn-del', function() {
-            var studentId = $(this).data('id');
-            var studentName = $(this).attr('student_name');
-            
-            // Store these for use in the AJAX call
-            currentDeleteStudentId = studentId;
-            currentDeleteStudentName = studentName;
-            
-            // Show confirmation dialog
-            $('#delete_studentname').val(studentName);
-            $('#delete_studentid').val(studentId);
-            $('#delstudent-modal').modal('show');
-        });
-
-        // Handle the actual deletion when "Yes" is clicked in the modal
-        $(document).on('click', '#btn-delstudent', function() {
-            var studentId = $('#delete_studentid').val();
-            var studentName = $('#delete_studentname').val();
-            
-            // Show loading indicator
-            $('#btn-delstudent').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...');
-            $('#btn-delstudent').prop('disabled', true);
-            
-            $.ajax({
-                url: 'del.php',
+                url: 'transac.php?action=delete_student',
                 type: 'POST',
                 data: { 
-                    type: 'student',
                     id: studentId 
                 },
                 dataType: 'json',
                 success: function(response) {
-                    // Reset button state
-                    $('#btn-delstudent').html('Yes');
-                    $('#btn-delstudent').prop('disabled', false);
-                    
                     if (response.status === 'success') {
-                        // Close the modal
-                        $('#delstudent-modal').modal('hide');
-                        
-                        // Remove the row from the table
-                        dataTable.row($('.table-' + studentId)).remove().draw();
-                        
-                        // Show success message
                         Swal.fire({
-                            title: 'Success!',
+                            title: 'Deleted!',
                             text: response.message,
                             icon: 'success',
-                            timer: 3000,
+                            timer: 2000,
                             showConfirmButton: false
+                        }).then(() => {
+                            location.reload();
                         });
                     } else {
                         Swal.fire({
@@ -732,10 +696,6 @@ function getStudentPhoto($photo) {
                     }
                 },
                 error: function(xhr, status, error) {
-                    // Reset button state
-                    $('#btn-delstudent').html('Yes');
-                    $('#btn-delstudent').prop('disabled', false);
-                    
                     Swal.fire({
                         title: 'Error!',
                         text: 'An error occurred: ' + error,
@@ -743,57 +703,9 @@ function getStudentPhoto($photo) {
                     });
                 }
             });
-        });
-
-        // Reset modal when closed
-        $('#studentModal').on('hidden.bs.modal', function () {
-            $(this).find('form')[0].reset();
-            $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
-        });
-
-        // Image preview functionality
-        $("[class^=upload-field-]").change(function () {
-            readURL(this);
-        });
-
-        function readURL(input) {
-            if (input.files && input.files[0]) {
-                const file = input.files[0];
-                const validFormats = ['image/jpeg', 'image/png'];
-                const maxSize = 2 * 1024 * 1024; // 2MB
-
-                // Validate file format
-                if (!validFormats.includes(file.type)) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Invalid Format',
-                        text: 'Only JPG and PNG formats are allowed.',
-                    });
-                    input.value = ''; // Reset the input
-                    return;
-                }
-
-                // Validate file size
-                if (file.size > maxSize) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'File Too Large',
-                        text: 'Maximum file size is 2MB.',
-                    });
-                    input.value = ''; // Reset the input
-                    return;
-                }
-
-                // Preview the image
-                var reader = new FileReader();
-                reader.onload = function (e) {
-                    var num = $(input).attr('class').split('-')[2];
-                    $('.file-uploader .preview-' + num).attr('src', e.target.result);
-                };
-                reader.readAsDataURL(file);
-            }
         }
     });
+});
     </script>
 </body>
 </html>
