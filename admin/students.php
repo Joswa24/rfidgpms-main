@@ -442,8 +442,8 @@ function getStudentPhoto($photo) {
         }
 
         // ==============
-// CREATE (ADD STUDENT)
-// ==============
+        // CREATE (ADD STUDENT)
+        // ==============
 $('#studentForm').submit(function(e) {
     e.preventDefault();
     
@@ -706,6 +706,7 @@ $(document).on('click', '.d_student_id', function() {
         }
     });
 });
+    });
     </script>
 </body>
 </html>
