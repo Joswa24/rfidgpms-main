@@ -40,6 +40,12 @@ $subjects = $db->query("SELECT DISTINCT subject FROM room_schedules ORDER BY sub
 $year_levels = $db->query("SELECT DISTINCT year_level FROM room_schedules ORDER BY year_level");
 $days = $db->query("SELECT DISTINCT day FROM room_schedules ORDER BY FIELD(day, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')");
 $instructors = $db->query("SELECT DISTINCT instructor FROM room_schedules ORDER BY instructor");
+
+// --- GET ALL OPTIONS FOR ADD MODAL ---
+$all_departments = $db->query("SELECT * FROM department ORDER BY department_name");
+$all_rooms = $db->query("SELECT * FROM rooms ORDER BY room");
+$all_subjects = $db->query("SELECT * FROM subjects ORDER BY subject_name");
+$all_instructors = $db->query("SELECT * FROM instructor ORDER BY fullname");
 ?>
 
 <!DOCTYPE html>
@@ -124,6 +130,10 @@ $instructors = $db->query("SELECT DISTINCT instructor FROM room_schedules ORDER 
             border-radius: 0.25rem;
             font-size: 0.75rem;
             margin-left: 5px;
+        }
+        .option-disabled {
+            color: #6c757d;
+            font-style: italic;
         }
     </style>
 </head>
@@ -369,14 +379,13 @@ $instructors = $db->query("SELECT DISTINCT instructor FROM room_schedules ORDER 
                                             <div class="col-lg-9 col-md-6 col-sm-12">
                                                 <div class="form-group">
                                                     <label><b>Department:</b></label>
-                                                    <select name="department" class="form-control" required>
+                                                    <select name="department" id="add_department" class="form-control" required>
                                                         <option value="">Select Department</option>
-                                                        <?php
-                                                        $departments = $db->query("SELECT * FROM department ORDER BY department_name");
-                                                        while ($dept = $departments->fetch_assoc()) {
-                                                            echo '<option value="'.htmlspecialchars($dept['department_name']).'">'.htmlspecialchars($dept['department_name']).'</option>';
-                                                        }
-                                                        ?>
+                                                        <?php while ($dept = $all_departments->fetch_assoc()): ?>
+                                                            <option value="<?= htmlspecialchars($dept['department_name']) ?>">
+                                                                <?= htmlspecialchars($dept['department_name']) ?>
+                                                            </option>
+                                                        <?php endwhile; ?>
                                                     </select>
                                                     <span class="error-message" id="department-error"></span>
                                                 </div>
@@ -386,14 +395,9 @@ $instructors = $db->query("SELECT DISTINCT instructor FROM room_schedules ORDER 
                                             <div class="col-lg-6 col-md-6 col-sm-12 mt-1">
                                                 <div class="form-group">
                                                     <label><b>Room Name:</b></label>
-                                                    <select name="room_name" class="form-control" required>
+                                                    <select name="room_name" id="add_room_name" class="form-control" required>
                                                         <option value="">Select Room</option>
-                                                        <?php
-                                                        $rooms = $db->query("SELECT * FROM rooms ORDER BY room");
-                                                        while ($room = $rooms->fetch_assoc()) {
-                                                            echo '<option value="'.htmlspecialchars($room['room']).'" data-department="'.htmlspecialchars($room['department']).'">'.htmlspecialchars($room['room']).'</option>';
-                                                        }
-                                                        ?>
+                                                        <!-- Rooms will be populated dynamically based on department -->
                                                     </select>
                                                     <span class="error-message" id="room_name-error"></span>
                                                 </div>
@@ -401,7 +405,7 @@ $instructors = $db->query("SELECT DISTINCT instructor FROM room_schedules ORDER 
                                             <div class="col-lg-6 col-md-6 col-sm-12 mt-1">
                                                 <div class="form-group">
                                                     <label><b>Year Level:</b></label>
-                                                    <select name="year_level" class="form-control" required>
+                                                    <select name="year_level" id="add_year_level" class="form-control" required>
                                                         <option value="">Select Year Level</option>
                                                         <option value="1st Year">1st Year</option>
                                                         <option value="2nd Year">2nd Year</option>
@@ -416,17 +420,9 @@ $instructors = $db->query("SELECT DISTINCT instructor FROM room_schedules ORDER 
                                             <div class="col-lg-6 col-md-6 col-sm-12">
                                                 <div class="form-group">
                                                     <label><b>Subject:</b></label>
-                                                    <select name="subject" id="subject" class="form-control" required>
+                                                    <select name="subject" id="add_subject" class="form-control" required>
                                                         <option value="">Select Subject</option>
-                                                        <?php
-                                                        $subjects = $db->query("SELECT * FROM subjects ORDER BY subject_name");
-                                                        while ($subject = $subjects->fetch_assoc()) {
-                                                            echo '<option value="'.htmlspecialchars($subject['subject_name']).'" 
-                                                                  data-year-level="'.htmlspecialchars($subject['year_level']).'">'
-                                                                  .htmlspecialchars($subject['subject_code']).' - '.htmlspecialchars($subject['subject_name'])
-                                                                  .'</option>';
-                                                        }
-                                                        ?>
+                                                        <!-- Subjects will be populated dynamically based on year level -->
                                                     </select>
                                                     <span class="error-message" id="subject-error"></span>
                                                 </div>
@@ -434,7 +430,7 @@ $instructors = $db->query("SELECT DISTINCT instructor FROM room_schedules ORDER 
                                             <div class="col-lg-6 col-md-6 col-sm-12">
                                                 <div class="form-group">
                                                     <label><b>Section:</b></label>
-                                                    <input type="text" name="section" class="form-control" required>
+                                                    <input type="text" name="section" id="add_section" class="form-control" required placeholder="e.g., A, B, C">
                                                     <span class="error-message" id="section-error"></span>
                                                 </div>
                                             </div>
@@ -443,7 +439,7 @@ $instructors = $db->query("SELECT DISTINCT instructor FROM room_schedules ORDER 
                                             <div class="col-lg-4 col-md-6 col-sm-12">
                                                 <div class="form-group">
                                                     <label><b>Day:</b></label>
-                                                    <select name="day" class="form-control" required>
+                                                    <select name="day" id="add_day" class="form-control" required>
                                                         <option value="">Select Day</option>
                                                         <?php
                                                         $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -458,16 +454,17 @@ $instructors = $db->query("SELECT DISTINCT instructor FROM room_schedules ORDER 
                                             <div class="col-lg-8 col-md-6 col-sm-12">
                                                 <div class="form-group">
                                                     <label><b>Instructor:</b></label>
-                                                    <select name="instructor" id="instructor" class="form-control" required>
+                                                    <select name="instructor" id="add_instructor" class="form-control" required>
                                                         <option value="">Select Instructor</option>
-                                                        <?php
-                                                        $instructors = $db->query("SELECT * FROM instructor ORDER BY fullname");
-                                                        while ($instructor = $instructors->fetch_assoc()) {
-                                                            echo '<option value="'.htmlspecialchars($instructor['fullname']).'" 
-                                                                  data-rfid="'.htmlspecialchars($instructor['rfid_number']).'">'
-                                                                  .htmlspecialchars($instructor['fullname']).'</option>';
-                                                        }
-                                                        ?>
+                                                        <!-- Instructors will be populated from database -->
+                                                        <?php 
+                                                        $instructors_modal = $db->query("SELECT * FROM instructor ORDER BY fullname");
+                                                        while ($instructor = $instructors_modal->fetch_assoc()): ?>
+                                                            <option value="<?= htmlspecialchars($instructor['fullname']) ?>" 
+                                                                    data-rfid="<?= htmlspecialchars($instructor['rfid_number']) ?>">
+                                                                <?= htmlspecialchars($instructor['fullname']) ?>
+                                                            </option>
+                                                        <?php endwhile; ?>
                                                     </select>
                                                     <span class="error-message" id="instructor-error"></span>
                                                 </div>
@@ -477,14 +474,14 @@ $instructors = $db->query("SELECT DISTINCT instructor FROM room_schedules ORDER 
                                             <div class="col-lg-6 col-md-6 col-sm-12">
                                                 <div class="form-group">
                                                     <label><b>Start Time:</b></label>
-                                                    <input type="time" name="start_time" class="form-control" required>
+                                                    <input type="time" name="start_time" id="add_start_time" class="form-control" required>
                                                     <span class="error-message" id="start_time-error"></span>
                                                 </div>
                                             </div>
                                             <div class="col-lg-6 col-md-6 col-sm-12">
                                                 <div class="form-group">
                                                     <label><b>End Time:</b></label>
-                                                    <input type="time" name="end_time" class="form-control" required>
+                                                    <input type="time" name="end_time" id="add_end_time" class="form-control" required>
                                                     <span class="error-message" id="end_time-error"></span>
                                                 </div>
                                             </div>
@@ -701,6 +698,25 @@ $instructors = $db->query("SELECT DISTINCT instructor FROM room_schedules ORDER 
                 }
             });
 
+            // Store room and subject data for filtering
+            let roomData = <?php
+                $rooms_data = $db->query("SELECT * FROM rooms ORDER BY room");
+                $rooms_array = [];
+                while ($room = $rooms_data->fetch_assoc()) {
+                    $rooms_array[] = $room;
+                }
+                echo json_encode($rooms_array);
+            ?>;
+
+            let subjectData = <?php
+                $subjects_data = $db->query("SELECT * FROM subjects ORDER BY subject_name");
+                $subjects_array = [];
+                while ($subject = $subjects_data->fetch_assoc()) {
+                    $subjects_array[] = $subject;
+                }
+                echo json_encode($subjects_array);
+            ?>;
+
             // Active filters object
             let activeFilters = {};
 
@@ -832,13 +848,117 @@ $instructors = $db->query("SELECT DISTINCT instructor FROM room_schedules ORDER 
                 $('#activeFilters').empty();
             });
 
-            // Auto-apply room department when room is selected
-            $('select[name="room_name"]').change(function() {
-                var selectedOption = $(this).find('option:selected');
-                var department = selectedOption.data('department');
+            // =============================================
+            // ADD MODAL FILTERING FUNCTIONALITY
+            // =============================================
+
+            // Function to filter rooms based on selected department
+            function filterRoomsByDepartment(department) {
+                const roomSelect = $('#add_room_name');
+                roomSelect.empty().append('<option value="">Select Room</option>');
+                
                 if (department) {
-                    $('select[name="department"]').val(department);
+                    const filteredRooms = roomData.filter(room => room.department === department);
+                    
+                    if (filteredRooms.length === 0) {
+                        roomSelect.append('<option value="" disabled class="option-disabled">No rooms available for this department</option>');
+                    } else {
+                        filteredRooms.forEach(room => {
+                            roomSelect.append(`<option value="${room.room}">${room.room}</option>`);
+                        });
+                    }
+                } else {
+                    // Show all rooms if no department selected
+                    roomData.forEach(room => {
+                        roomSelect.append(`<option value="${room.room}">${room.room}</option>`);
+                    });
                 }
+            }
+
+            // Function to filter subjects based on selected year level
+            function filterSubjectsByYearLevel(yearLevel) {
+                const subjectSelect = $('#add_subject');
+                subjectSelect.empty().append('<option value="">Select Subject</option>');
+                
+                if (yearLevel) {
+                    const filteredSubjects = subjectData.filter(subject => subject.year_level === yearLevel);
+                    
+                    if (filteredSubjects.length === 0) {
+                        subjectSelect.append('<option value="" disabled class="option-disabled">No subjects available for this year level</option>');
+                    } else {
+                        filteredSubjects.forEach(subject => {
+                            subjectSelect.append(`<option value="${subject.subject_name}">${subject.subject_code} - ${subject.subject_name}</option>`);
+                        });
+                    }
+                } else {
+                    // Show all subjects if no year level selected
+                    subjectData.forEach(subject => {
+                        subjectSelect.append(`<option value="${subject.subject_name}">${subject.subject_code} - ${subject.subject_name}</option>`);
+                    });
+                }
+            }
+
+            // Department change handler for ADD modal
+            $('#add_department').change(function() {
+                const selectedDepartment = $(this).val();
+                filterRoomsByDepartment(selectedDepartment);
+                
+                // Auto-select room if only one option available
+                const roomSelect = $('#add_room_name');
+                if (roomSelect.find('option').length === 2 && !roomSelect.find('option:first').hasClass('option-disabled')) {
+                    roomSelect.val(roomSelect.find('option:last').val());
+                }
+            });
+
+            // Year level change handler for ADD modal
+            $('#add_year_level').change(function() {
+                const selectedYearLevel = $(this).val();
+                filterSubjectsByYearLevel(selectedYearLevel);
+                
+                // Auto-select subject if only one option available
+                const subjectSelect = $('#add_subject');
+                if (subjectSelect.find('option').length === 2 && !subjectSelect.find('option:first').hasClass('option-disabled')) {
+                    subjectSelect.val(subjectSelect.find('option:last').val());
+                }
+            });
+
+            // Room selection handler to auto-fill department in ADD modal
+            $('#add_room_name').change(function() {
+                const selectedRoom = $(this).val();
+                if (selectedRoom) {
+                    const room = roomData.find(r => r.room === selectedRoom);
+                    if (room) {
+                        $('#add_department').val(room.department);
+                    }
+                }
+            });
+
+            // Subject selection handler to auto-fill year level in ADD modal
+            $('#add_subject').change(function() {
+                const selectedSubject = $(this).val();
+                if (selectedSubject) {
+                    const subject = subjectData.find(s => s.subject_name === selectedSubject);
+                    if (subject) {
+                        $('#add_year_level').val(subject.year_level);
+                    }
+                }
+            });
+
+            // Initialize ADD modal dropdowns when modal is shown
+            $('#scheduleModal').on('show.bs.modal', function () {
+                // Populate rooms with all options initially
+                filterRoomsByDepartment('');
+                // Populate subjects with all options initially
+                filterSubjectsByYearLevel('');
+            });
+
+            // Reset ADD modal when closed
+            $('#scheduleModal').on('hidden.bs.modal', function () {
+                $(this).find('form')[0].reset();
+                $('.error-message').text('');
+                // Reset dropdowns to show all options
+                filterRoomsByDepartment('');
+                filterSubjectsByYearLevel('');
             });
 
             // ==========
@@ -887,15 +1007,15 @@ $instructors = $db->query("SELECT DISTINCT instructor FROM room_schedules ORDER 
                 e.preventDefault();
                 
                 $('.error-message').text('');
-                const department = $('select[name="department"]').val();
-                const room_name = $('select[name="room_name"]').val();
-                const year_level = $('select[name="year_level"]').val();
-                const subject = $('#subject').val();
-                const section = $('input[name="section"]').val().trim();
-                const day = $('select[name="day"]').val();
-                const instructor = $('#instructor').val();
-                const start_time = $('input[name="start_time"]').val();
-                const end_time = $('input[name="end_time"]').val();
+                const department = $('#add_department').val();
+                const room_name = $('#add_room_name').val();
+                const year_level = $('#add_year_level').val();
+                const subject = $('#add_subject').val();
+                const section = $('#add_section').val().trim();
+                const day = $('#add_day').val();
+                const instructor = $('#add_instructor').val();
+                const start_time = $('#add_start_time').val();
+                const end_time = $('#add_end_time').val();
                 
                 let isValid = true;
 
@@ -1237,12 +1357,7 @@ $instructors = $db->query("SELECT DISTINCT instructor FROM room_schedules ORDER 
                 });
             });
 
-            // Reset modal when closed
-            $('#scheduleModal').on('hidden.bs.modal', function () {
-                $(this).find('form')[0].reset();
-                $('.error-message').text('');
-            });
-
+            // Reset edit modal when closed
             $('#editscheduleModal').on('hidden.bs.modal', function () {
                 $('.error-message').text('');
             });
