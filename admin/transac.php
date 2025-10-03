@@ -61,17 +61,18 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
     }
 }
 
-// Check if this is an AJAX request for specific operations
-$validAjaxActions = [
-    'add_department', 'update_department', 'delete_department', 
-    'add_room', 'update_room', 'delete_room',
-    'add_role', 'update_role', 'delete_role',
-    'add_personnel', 'update_personnel', 'delete_personnel',
-    'add_student', 'update_student', 'delete_student'  // Added student operations
-];
-$isAjaxRequest = isset($_GET['action']) && in_array($_GET['action'], $validAjaxActions);
+        // Check if this is an AJAX request for specific operations
+        $validAjaxActions = [
+            'add_department', 'update_department', 'delete_department', 
+            'add_room', 'update_room', 'delete_room',
+            'add_role', 'update_role', 'delete_role',
+            'add_personnel', 'update_personnel', 'delete_personnel',
+            'add_student', 'update_student', 'delete_student',
+            'add_instructor', 'update_instructor', 'delete_instructor'  // Added instructor operations
+        ];
+        $isAjaxRequest = isset($_GET['action']) && in_array($_GET['action'], $validAjaxActions);
 
-if ($isAjaxRequest) {
+    if ($isAjaxRequest) {
     // For AJAX requests, handle specific actions
     switch ($_GET['action']) {
         // ============================
@@ -985,6 +986,215 @@ if ($isAjaxRequest) {
                 jsonResponse('error', 'Failed to delete student: ' . $stmt->error);
             }
             break;
+            // ========================
+            // INSTRUCTOR CRUD OPERATIONS
+            // ========================
+            case 'add_instructor':
+                if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                    jsonResponse('error', 'Invalid request method');
+                }
+
+                // Validate required fields
+                $required = ['department_id', 'id_number', 'fullname'];
+                foreach ($required as $field) {
+                    if (empty($_POST[$field])) {
+                        jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
+                    }
+                }
+
+                // Sanitize inputs
+                $department_id = intval($_POST['department_id']);
+                $id_number = sanitizeInput($db, trim($_POST['id_number']));
+                $fullname = sanitizeInput($db, trim($_POST['fullname']));
+
+                // Validate department ID
+                if ($department_id <= 0) {
+                    jsonResponse('error', 'Invalid department');
+                }
+
+                // Validate ID Number format (0000-0000 format)
+                if (!preg_match('/^\d{4}-\d{4}$/', $id_number)) {
+                    jsonResponse('error', 'Invalid ID Number format. Must be in 0000-0000 format.');
+                }
+
+                // Check if ID Number already exists
+                $check_id = $db->prepare("SELECT id FROM instructor WHERE id_number = ?");
+                $check_id->bind_param("s", $id_number);
+                $check_id->execute();
+                $check_id->store_result();
+                
+                if ($check_id->num_rows > 0) {
+                    jsonResponse('error', 'ID Number already exists');
+                }
+                $check_id->close();
+
+                // Handle file upload
+                $photo = 'default.png'; // Default photo
+                if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+                    $uploadResult = handleFileUpload('photo', '../uploads/instructors/');
+                    if (!$uploadResult['success']) {
+                        jsonResponse('error', $uploadResult['message']);
+                    }
+                    $photo = $uploadResult['filename'];
+                }
+
+                // Insert instructor record
+                $query = "INSERT INTO instructor (department_id, id_number, fullname, photo, date_added) 
+                        VALUES (?, ?, ?, ?, NOW())";
+                
+                $stmt = $db->prepare($query);
+                if (!$stmt) {
+                    jsonResponse('error', 'Database error: ' . $db->error);
+                }
+
+                $stmt->bind_param("isss", $department_id, $id_number, $fullname, $photo);
+
+                if ($stmt->execute()) {
+                    jsonResponse('success', 'Instructor added successfully', [
+                        'id' => $stmt->insert_id
+                    ]);
+                } else {
+                    jsonResponse('error', 'Failed to add instructor: ' . $stmt->error);
+                }
+                break;
+
+            case 'update_instructor':
+                if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                    jsonResponse('error', 'Invalid request method');
+                }
+
+                // Validate required fields
+                if (empty($_POST['id'])) {
+                    jsonResponse('error', 'Instructor ID is required');
+                }
+
+                $required = ['department_id', 'id_number', 'fullname'];
+                foreach ($required as $field) {
+                    if (empty($_POST[$field])) {
+                        jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
+                    }
+                }
+
+                // Sanitize inputs
+                $id = intval($_POST['id']);
+                $department_id = intval($_POST['department_id']);
+                $id_number = sanitizeInput($db, trim($_POST['id_number']));
+                $fullname = sanitizeInput($db, trim($_POST['fullname']));
+
+                // Validate IDs
+                if ($id <= 0) {
+                    jsonResponse('error', 'Invalid instructor ID');
+                }
+                if ($department_id <= 0) {
+                    jsonResponse('error', 'Invalid department');
+                }
+
+                // Validate ID Number format
+                if (!preg_match('/^\d{4}-\d{4}$/', $id_number)) {
+                    jsonResponse('error', 'Invalid ID Number format. Must be in 0000-0000 format.');
+                }
+
+                // Check if ID Number exists for other instructors
+                $check_id = $db->prepare("SELECT id FROM instructor WHERE id_number = ? AND id != ?");
+                $check_id->bind_param("si", $id_number, $id);
+                $check_id->execute();
+                $check_id->store_result();
+                
+                if ($check_id->num_rows > 0) {
+                    jsonResponse('error', 'ID Number already assigned to another instructor');
+                }
+                $check_id->close();
+
+                // Handle file upload
+                $photo = '';
+                if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+                    $uploadResult = handleFileUpload('photo', '../uploads/instructors/');
+                    if (!$uploadResult['success']) {
+                        jsonResponse('error', $uploadResult['message']);
+                    }
+                    $photo = $uploadResult['filename'];
+                } else {
+                    // Keep existing photo if no new upload
+                    $photo = sanitizeInput($db, $_POST['capturedImage']);
+                }
+
+                // Update instructor record
+                if (!empty($photo)) {
+                    $query = "UPDATE instructor SET 
+                        department_id = ?, id_number = ?, fullname = ?, photo = ?
+                        WHERE id = ?";
+                    $stmt = $db->prepare($query);
+                    $stmt->bind_param("isssi", $department_id, $id_number, $fullname, $photo, $id);
+                } else {
+                    $query = "UPDATE instructor SET 
+                        department_id = ?, id_number = ?, fullname = ?
+                        WHERE id = ?";
+                    $stmt = $db->prepare($query);
+                    $stmt->bind_param("issi", $department_id, $id_number, $fullname, $id);
+                }
+
+                if ($stmt->execute()) {
+                    jsonResponse('success', 'Instructor updated successfully');
+                } else {
+                    jsonResponse('error', 'Failed to update instructor: ' . $stmt->error);
+                }
+                break;
+
+            case 'delete_instructor':
+                if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                    jsonResponse('error', 'Invalid request method');
+                }
+
+                // Validate required field
+                if (empty($_POST['id'])) {
+                    jsonResponse('error', 'Instructor ID is required');
+                }
+
+                // Sanitize input
+                $id = intval($_POST['id']);
+
+                if ($id <= 0) {
+                    jsonResponse('error', 'Invalid instructor ID');
+                }
+
+                // Check if instructor exists
+                $checkInstructor = $db->prepare("SELECT id FROM instructor WHERE id = ?");
+                $checkInstructor->bind_param("i", $id);
+                $checkInstructor->execute();
+                $checkInstructor->store_result();
+                
+                if ($checkInstructor->num_rows === 0) {
+                    jsonResponse('error', 'Instructor not found');
+                }
+                $checkInstructor->close();
+
+                // Check for instructor dependencies (classes, schedules, etc.)
+                // Add dependency checks based on your database schema
+                
+                
+                // Example: Check if instructor has assigned classes
+                $checkClasses = $db->prepare("SELECT COUNT(*) FROM room_schedules WHERE instructor_id = ?");
+                $checkClasses->bind_param("i", $id);
+                $checkClasses->execute();
+                $checkClasses->bind_result($classCount);
+                $checkClasses->fetch();
+                $checkClasses->close();
+
+                if ($classCount > 0) {
+                    jsonResponse('error', 'Cannot delete instructor with assigned classes');
+                }
+                
+
+                // Delete instructor
+                $stmt = $db->prepare("DELETE FROM instructor WHERE id = ?");
+                $stmt->bind_param("i", $id);
+                
+                if ($stmt->execute()) {
+                    jsonResponse('success', 'Instructor deleted successfully');
+                } else {
+                    jsonResponse('error', 'Failed to delete instructor: ' . $stmt->error);
+                }
+                break;
 
         default:
             jsonResponse('error', 'Invalid action');

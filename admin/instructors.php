@@ -380,352 +380,363 @@ include '../connection.php';
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
-    $(document).ready(function() {
-        // Initialize DataTable
-        var dataTable = $('#myDataTable').DataTable({
-            order: [[5, 'desc']],
-            stateSave: true
-        });
+        $(document).ready(function() {
+            // Initialize DataTable
+            var dataTable = $('#myDataTable').DataTable({
+                order: [[5, 'desc']],
+                stateSave: true
+            });
 
-        // Reset form function
-        function resetForm() {
-            $('.error-message').text('');
-            $('#instructorForm')[0].reset();
-            $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
-        }
-
-        // Format ID number input as user types
-        $('#id_number, #eid_number').on('input', function() {
-            var value = $(this).val().replace(/-/g, '');
-            if (value.length > 4) {
-                value = value.substring(0, 4) + '-' + value.substring(4, 8);
+            // Reset form function
+            function resetForm() {
+                $('.error-message').text('');
+                $('#instructorForm')[0].reset();
+                $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
             }
-            $(this).val(value);
-        });
 
-        // ==============
-        // CREATE (ADD INSTRUCTOR)
-        // ==============
-        $('#instructorForm').submit(function(e) {
-            e.preventDefault();
-            
-            $('.error-message').text('');
-            const department_id = $('#department_id').val();
-            const id_number = $('#id_number').val().trim();
-            const fullname = $('#fullname').val().trim();
-            const photo = $('#photo')[0].files[0];
-            let isValid = true;
+            // Format ID number input as user types
+            $('#id_number, #eid_number').on('input', function() {
+                var value = $(this).val().replace(/-/g, '');
+                if (value.length > 4) {
+                    value = value.substring(0, 4) + '-' + value.substring(4, 8);
+                }
+                $(this).val(value);
+            });
 
-            // Validation
-            if (!department_id) { 
-                $('#department_id-error').text('Department is required'); 
-                isValid = false; 
-            }
-            if (!id_number) { 
-                $('#id_number-error').text('ID Number is required'); 
-                isValid = false; 
-            } else if (!/^\d{4}-\d{4}$/.test(id_number)) {
-                $('#id_number-error').text('Invalid ID format. Must be in 0000-0000 format'); 
-                isValid = false; 
-            }
-            if (!fullname) { 
-                $('#fullname-error').text('Full name is required'); 
-                isValid = false; 
-            }
-            
-            if (!isValid) return;
+            // ==========
+            // READ (EDIT INSTRUCTOR) - FIXED
+            // ==========
+            $(document).on('click', '.e_instructor_id', function() {
+                const id = $(this).data('id');
+                
+                // Retrieve data from the selected row
+                const $row = $(this).closest('tr');
+                const $getphoto = $row.find('.photo').attr('src');
+                const $getidnumber = $row.find('.instructor_id').text();
+                const $getdept = $row.find('.department_id').val();
+                const $getfullname = $row.find('.fullname').val();
 
-            // Show loading state
-            $('#btn-instructor').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
-            $('#btn-instructor').prop('disabled', true);
+                console.log('Editing instructor:', id, $getidnumber, $getfullname); // Debug log
 
-            var formData = new FormData(this);
+                // Populate edit form
+                $('#edit_instructorid').val(id);
+                $('.edit-photo').attr('src', $getphoto);
+                $('#eid_number').val($getidnumber);
+                $('#edepartment_id').val($getdept);
+                $('#efullname').val($getfullname);
+                $('.capturedImage').val($getphoto);
+                
+                // Clear any previous error messages
+                $('.error-message').text('');
+                
+                // Show modal
+                $('#editinstructorModal').modal('show');
+            });
 
-            $.ajax({
-                type: "POST",
-                url: "transac.php?action=add_instructor",
-                data: formData,
-                contentType: false,
-                processData: false,
-                dataType: 'json',
-                success: function(response) {
-                    // Reset button state
-                    $('#btn-instructor').html('Save');
-                    $('#btn-instructor').prop('disabled', false);
-                    
-                    if (response.status === 'success') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success!',
-                            text: response.message,
-                            showConfirmButton: true
-                        }).then(() => {
-                            $('#instructorModal').modal('hide');
-                            location.reload();
-                        });
-                    } else {
+            // ==============
+            // CREATE (ADD INSTRUCTOR)
+            // ==============
+            $('#instructorForm').submit(function(e) {
+                e.preventDefault();
+                
+                $('.error-message').text('');
+                const department_id = $('#department_id').val();
+                const id_number = $('#id_number').val().trim();
+                const fullname = $('#fullname').val().trim();
+                const photo = $('#photo')[0].files[0];
+                let isValid = true;
+
+                // Validation
+                if (!department_id) { 
+                    $('#department_id-error').text('Department is required'); 
+                    isValid = false; 
+                }
+                if (!id_number) { 
+                    $('#id_number-error').text('ID Number is required'); 
+                    isValid = false; 
+                } else if (!/^\d{4}-\d{4}$/.test(id_number)) {
+                    $('#id_number-error').text('Invalid ID format. Must be in 0000-0000 format'); 
+                    isValid = false; 
+                }
+                if (!fullname) { 
+                    $('#fullname-error').text('Full name is required'); 
+                    isValid = false; 
+                }
+                
+                if (!isValid) return;
+
+                // Show loading state
+                $('#btn-instructor').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
+                $('#btn-instructor').prop('disabled', true);
+
+                var formData = new FormData(this);
+
+                $.ajax({
+                    type: "POST",
+                    url: "transac.php?action=add_instructor",
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    dataType: 'json',
+                    success: function(response) {
+                        // Reset button state
+                        $('#btn-instructor').html('Save');
+                        $('#btn-instructor').prop('disabled', false);
+                        
+                        if (response.status === 'success') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Success!',
+                                text: response.message,
+                                showConfirmButton: true
+                            }).then(() => {
+                                $('#instructorModal').modal('hide');
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error!',
+                                text: response.message
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        // Reset button state
+                        $('#btn-instructor').html('Save');
+                        $('#btn-instructor').prop('disabled', false);
+                        
                         Swal.fire({
                             icon: 'error',
                             title: 'Error!',
-                            text: response.message
+                            text: 'An error occurred: ' + error
                         });
                     }
-                },
-                error: function(xhr, status, error) {
-                    // Reset button state
-                    $('#btn-instructor').html('Save');
-                    $('#btn-instructor').prop('disabled', false);
-                    
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error!',
-                        text: 'An error occurred: ' + error
-                    });
-                }
+                });
             });
-        });
 
-        // ==========
-        // READ (EDIT INSTRUCTOR)
-        // ==========
-        $(document).on('click', '.e_instructor_id', function() {
-            const id = $(this).data('id');
-            
-            // Retrieve data from the selected row
-            const $getphoto = $('.table-' + id + ' .photo').attr('src');
-            const $getidnumber = $('.table-' + id + ' .instructor_id').html();
-            const $getdept = $('.table-' + id + ' .department_id').val();
-            const $getfullname = $('.table-' + id + ' .fullname').val();
+            // ==========
+            // UPDATE INSTRUCTOR
+            // ==========
+            $('#editInstructorForm').submit(function(e) {
+                e.preventDefault();
+                
+                const id = $('#edit_instructorid').val();
+                const department_id = $('#edepartment_id').val();
+                const id_number = $('#eid_number').val().trim();
+                const fullname = $('#efullname').val().trim();
 
-            // Populate edit form
-            $('#edit_instructorid').val(id);
-            $('.edit-photo').attr('src', $getphoto);
-            $('#eid_number').val($getidnumber);
-            $('#edepartment_id').val($getdept);
-            $('#efullname').val($getfullname);
-            $('.capturedImage').val($getphoto);
-            
-            // Show modal
-            $('#editinstructorModal').modal('show');
-        });
-
-        // ==========
-        // UPDATE INSTRUCTOR
-        // ==========
-        $('#editInstructorForm').submit(function(e) {
-            e.preventDefault();
-            
-            const id = $('#edit_instructorid').val();
-            const department_id = $('#edepartment_id').val();
-            const id_number = $('#eid_number').val().trim();
-            const fullname = $('#efullname').val().trim();
-
-            // Validation
-            let isValid = true;
-            if (!department_id) { 
-                $('#edepartment_id-error').text('Department is required'); 
-                isValid = false; 
-            } else { 
-                $('#edepartment_id-error').text(''); 
-            }
-            if (!id_number) { 
-                $('#eid_number-error').text('ID Number is required'); 
-                isValid = false; 
-            } else if (!/^\d{4}-\d{4}$/.test(id_number)) {
-                $('#eid_number-error').text('Invalid ID format. Must be in 0000-0000 format'); 
-                isValid = false; 
-            } else { 
-                $('#eid_number-error').text(''); 
-            }
-            if (!fullname) { 
-                $('#efullname-error').text('Full name is required'); 
-                isValid = false; 
-            } else { 
-                $('#efullname-error').text(''); 
-            }
-            
-            if (!isValid) return;
-
-            // Show loading state
-            $('#btn-editinstructor').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
-            $('#btn-editinstructor').prop('disabled', true);
-
-            var formData = new FormData(this);
-            formData.append('id', id);
-
-            $.ajax({
-                type: "POST",
-                url: "edit1.php?edit=instructor&id=" + id,
-                data: formData,
-                contentType: false,
-                processData: false,
-                dataType: 'json',
-                success: function(response) {
-                    // Reset button state
-                    $('#btn-editinstructor').html('Update');
-                    $('#btn-editinstructor').prop('disabled', false);
-                    
-                    if (response.status === 'success') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success!',
-                            text: response.message,
-                            showConfirmButton: true
-                        }).then(() => {
-                            location.reload();
-                        });
-                    } else {
-                        Swal.fire({
-                            title: 'Error!',
-                            text: response.message,
-                            icon: 'error'
-                        });
-                    }
-                },
-                error: function(xhr) {
-                    // Reset button state
-                    $('#btn-editinstructor').html('Update');
-                    $('#btn-editinstructor').prop('disabled', false);
-                    
-                    try {
-                        // Try to parse the error response as JSON
-                        var errorResponse = JSON.parse(xhr.responseText);
-                        Swal.fire({
-                            title: 'Error!',
-                            text: errorResponse.message || 'An error occurred',
-                            icon: 'error'
-                        });
-                    } catch (e) {
-                        // If not JSON, show raw response
-                        Swal.fire({
-                            title: 'Error!',
-                            text: 'An error occurred: ' + xhr.responseText,
-                            icon: 'error'
-                        });
-                    }
+                // Validation
+                let isValid = true;
+                if (!department_id) { 
+                    $('#edepartment_id-error').text('Department is required'); 
+                    isValid = false; 
+                } else { 
+                    $('#edepartment_id-error').text(''); 
                 }
-            });
-        });
+                if (!id_number) { 
+                    $('#eid_number-error').text('ID Number is required'); 
+                    isValid = false; 
+                } else if (!/^\d{4}-\d{4}$/.test(id_number)) {
+                    $('#eid_number-error').text('Invalid ID format. Must be in 0000-0000 format'); 
+                    isValid = false; 
+                } else { 
+                    $('#eid_number-error').text(''); 
+                }
+                if (!fullname) { 
+                    $('#efullname-error').text('Full name is required'); 
+                    isValid = false; 
+                } else { 
+                    $('#efullname-error').text(''); 
+                }
+                
+                if (!isValid) return;
 
-        // Handle delete button click
-        $(document).on('click', '.btn-del', function() {
-            var instructorId = $(this).data('id');
-            var instructorName = $(this).attr('instructor_name');
-            
-            // Show confirmation dialog
-            $('#delete_instructorname').val(instructorName);
-            $('#delete_instructorid').val(instructorId);
-            $('#delinstructor-modal').modal('show');
-        });
+                // Show loading state
+                $('#btn-editinstructor').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
+                $('#btn-editinstructor').prop('disabled', true);
 
-        // Handle the actual deletion when "Yes" is clicked in the modal
-        $(document).on('click', '#btn-delinstructor', function() {
-            var instructorId = $('#delete_instructorid').val();
-            var instructorName = $('#delete_instructorname').val();
-            
-            // Show loading indicator
-            $('#btn-delinstructor').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...');
-            $('#btn-delinstructor').prop('disabled', true);
-            
-            $.ajax({
-                url: 'del.php',
-                type: 'POST',
-                data: { 
-                    type: 'instructor',
-                    id: instructorId 
-                },
-                dataType: 'json',
-                success: function(response) {
-                    // Reset button state
-                    $('#btn-delinstructor').html('Yes');
-                    $('#btn-delinstructor').prop('disabled', false);
-                    
-                    if (response.status === 'success') {
-                        // Close the modal
-                        $('#delinstructor-modal').modal('hide');
+                var formData = new FormData(this);
+                formData.append('id', id);
+
+                $.ajax({
+                    type: "POST",
+                    url: "transac.php?action=update_instructor",
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    dataType: 'json',
+                    success: function(response) {
+                        // Reset button state
+                        $('#btn-editinstructor').html('Update');
+                        $('#btn-editinstructor').prop('disabled', false);
                         
-                        // Remove the row from the table
-                        dataTable.row($('.table-' + instructorId)).remove().draw();
+                        if (response.status === 'success') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Success!',
+                                text: response.message,
+                                showConfirmButton: true
+                            }).then(() => {
+                                $('#editinstructorModal').modal('hide');
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Error!',
+                                text: response.message,
+                                icon: 'error'
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        // Reset button state
+                        $('#btn-editinstructor').html('Update');
+                        $('#btn-editinstructor').prop('disabled', false);
                         
-                        // Show success message
+                        try {
+                            // Try to parse the error response as JSON
+                            var errorResponse = JSON.parse(xhr.responseText);
+                            Swal.fire({
+                                title: 'Error!',
+                                text: errorResponse.message || 'An error occurred',
+                                icon: 'error'
+                            });
+                        } catch (e) {
+                            // If not JSON, show raw response
+                            Swal.fire({
+                                title: 'Error!',
+                                text: 'An error occurred: ' + xhr.responseText,
+                                icon: 'error'
+                            });
+                        }
+                    }
+                });
+            });
+
+            // Handle delete button click
+            $(document).on('click', '.d_instructor_id', function() {
+                var instructorId = $(this).data('id');
+                var instructorName = $(this).attr('instructor_name');
+                
+                Swal.fire({
+                    title: 'Are you sure?',
+                    text: "You are about to delete instructor: " + instructorName,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Yes, delete it!',
+                    cancelButtonText: 'Cancel'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Show loading
                         Swal.fire({
-                            title: 'Success!',
-                            text: response.message,
-                            icon: 'success',
-                            timer: 3000,
-                            showConfirmButton: false
+                            title: 'Deleting...',
+                            text: 'Please wait',
+                            allowOutsideClick: false,
+                            didOpen: () => {
+                                Swal.showLoading();
+                            }
                         });
-                    } else {
-                        Swal.fire({
-                            title: 'Error!',
-                            text: response.message,
-                            icon: 'error'
+
+                        $.ajax({
+                            url: 'transac.php?action=delete_instructor',
+                            type: 'POST',
+                            data: { 
+                                id: instructorId 
+                            },
+                            dataType: 'json',
+                            success: function(response) {
+                                if (response.status === 'success') {
+                                    Swal.fire({
+                                        title: 'Deleted!',
+                                        text: response.message,
+                                        icon: 'success',
+                                        timer: 2000,
+                                        showConfirmButton: false
+                                    }).then(() => {
+                                        location.reload();
+                                    });
+                                } else {
+                                    Swal.fire({
+                                        title: 'Error!',
+                                        text: response.message,
+                                        icon: 'error'
+                                    });
+                                }
+                            },
+                            error: function(xhr, status, error) {
+                                Swal.fire({
+                                    title: 'Error!',
+                                    text: 'An error occurred: ' + error,
+                                    icon: 'error'
+                                });
+                            }
                         });
                     }
-                },
-                error: function(xhr, status, error) {
-                    // Reset button state
-                    $('#btn-delinstructor').html('Yes');
-                    $('#btn-delinstructor').prop('disabled', false);
-                    
-                    Swal.fire({
-                        title: 'Error!',
-                        text: 'An error occurred: ' + error,
-                        icon: 'error'
-                    });
-                }
+                });
             });
-        });
 
-        // Reset modal when closed
-        $('#instructorModal').on('hidden.bs.modal', function () {
-            $(this).find('form')[0].reset();
-            $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
-        });
+            // Reset modal when closed
+            $('#instructorModal').on('hidden.bs.modal', function () {
+                $(this).find('form')[0].reset();
+                $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
+                $('.error-message').text('');
+            });
 
-        // Image preview functionality
-        $("[class^=upload-field-]").change(function () {
-            readURL(this);
-        });
+            $('#editinstructorModal').on('hidden.bs.modal', function () {
+                $('.error-message').text('');
+            });
 
-        function readURL(input) {
-            if (input.files && input.files[0]) {
-                const file = input.files[0];
-                const validFormats = ['image/jpeg', 'image/png'];
-                const maxSize = 2 * 1024 * 1024; // 2MB
+            // Image preview functionality for both forms
+            $(document).on('change', '[class^=upload-field-]', function() {
+                readURL(this);
+            });
 
-                // Validate file format
-                if (!validFormats.includes(file.type)) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Invalid Format',
-                        text: 'Only JPG and PNG formats are allowed.',
-                    });
-                    input.value = ''; // Reset the input
-                    return;
+            // Click handler for edit photo upload
+            $(document).on('click', '.edit-photo', function() {
+                $('#editPhoto').click();
+            });
+
+            function readURL(input) {
+                if (input.files && input.files[0]) {
+                    const file = input.files[0];
+                    const validFormats = ['image/jpeg', 'image/png', 'image/jpg'];
+                    const maxSize = 2 * 1024 * 1024; // 2MB
+
+                    // Validate file format
+                    if (!validFormats.includes(file.type)) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Invalid Format',
+                            text: 'Only JPG and PNG formats are allowed.',
+                        });
+                        input.value = ''; // Reset the input
+                        return;
+                    }
+
+                    // Validate file size
+                    if (file.size > maxSize) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'File Too Large',
+                            text: 'Maximum file size is 2MB.',
+                        });
+                        input.value = ''; // Reset the input
+                        return;
+                    }
+
+                    // Preview the image
+                    var reader = new FileReader();
+                    reader.onload = function (e) {
+                        // Find the closest preview image
+                        $(input).closest('.file-uploader').find('.preview-1').attr('src', e.target.result);
+                    };
+                    reader.readAsDataURL(file);
                 }
-
-                // Validate file size
-                if (file.size > maxSize) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'File Too Large',
-                        text: 'Maximum file size is 2MB.',
-                    });
-                    input.value = ''; // Reset the input
-                    return;
-                }
-
-                // Preview the image
-                var reader = new FileReader();
-                reader.onload = function (e) {
-                    var num = $(input).attr('class').split('-')[2];
-                    $('.file-uploader .preview-' + num).attr('src', e.target.result);
-                };
-                reader.readAsDataURL(file);
             }
-        }
-    });
-    </script>
+        });
+        </script>
 </body>
 </html>
