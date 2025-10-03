@@ -348,7 +348,7 @@ include '../connection.php';
             }
 
             // ==========
-            // READ (EDIT SUBJECT) - FIXED
+            // READ (EDIT SUBJECT) 
             // ==========
             $(document).on('click', '.e_subject_id', function() {
                 const id = $(this).data('id');
