@@ -512,14 +512,22 @@ if ($isAjaxRequest) {
                 // PERSONNEL CRUD OPERATIONS
                 // ========================
                case 'add_personnel':
+    error_log("=== ADD PERSONNEL STARTED ===");
+    
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        error_log("Invalid request method");
         jsonResponse('error', 'Invalid request method');
     }
+
+    // Log all received data
+    error_log("POST data: " . print_r($_POST, true));
+    error_log("FILES data: " . print_r($_FILES, true));
 
     // Validate required fields
     $required = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department'];
     foreach ($required as $field) {
         if (empty($_POST[$field])) {
+            error_log("Missing field: $field");
             jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
         }
     }
@@ -534,54 +542,38 @@ if ($isAjaxRequest) {
     $department = sanitizeInput($db, $_POST['department']);
     $status = 'Active';
 
+    error_log("Processing: $last_name, $first_name, ID: $id_number");
+
     // Validate ID Number format
     if (!preg_match('/^\d{8}$/', $id_number)) {
-        jsonResponse('error', 'ID Number must be exactly 8 digits');
+        error_log("Invalid ID format: $id_number");
+        jsonResponse('error', 'ID Number must be exactly 8 digits. Received: ' . $id_number);
     }
 
     // Check if ID Number already exists
     $check_id = $db->prepare("SELECT id FROM personell WHERE id_number = ? AND deleted = 0");
+    if (!$check_id) {
+        error_log("Prepare failed: " . $db->error);
+        jsonResponse('error', 'Database error: ' . $db->error);
+    }
+    
     $check_id->bind_param("s", $id_number);
-    $check_id->execute();
+    if (!$check_id->execute()) {
+        error_log("Execute failed: " . $check_id->error);
+        jsonResponse('error', 'Database error: ' . $check_id->error);
+    }
+    
     $check_id->store_result();
     
     if ($check_id->num_rows > 0) {
+        error_log("ID already exists: $id_number");
         jsonResponse('error', 'ID Number already exists');
     }
     $check_id->close();
 
-    // Handle file upload - SIMPLIFIED
+    // Handle file upload - SIMPLIFIED VERSION (no file upload first)
     $photo = 'default.png';
-    if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
-        $allowed_types = ['image/jpeg', 'image/png', 'image/jpg'];
-        $max_size = 2 * 1024 * 1024; // 2MB
-        
-        if ($_FILES['photo']['size'] > $max_size) {
-            jsonResponse('error', 'Maximum file size is 2MB');
-        }
-        
-        $file_type = $_FILES['photo']['type'];
-        if (!in_array($file_type, $allowed_types)) {
-            jsonResponse('error', 'Only JPG and PNG images are allowed');
-        }
-        
-        $ext = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
-        $photo = uniqid() . '.' . $ext;
-        $upload_dir = 'uploads/';
-        
-        // Create uploads directory if it doesn't exist
-        if (!is_dir($upload_dir)) {
-            mkdir($upload_dir, 0755, true);
-        }
-        
-        $upload_file = $upload_dir . $photo;
-        
-        if (move_uploaded_file($_FILES['photo']['tmp_name'], $upload_file)) {
-            // File uploaded successfully
-        } else {
-            jsonResponse('error', 'Failed to upload image file');
-        }
-    }
+    error_log("Using default photo: $photo");
 
     // Insert record
     $query = "INSERT INTO personell (
@@ -589,9 +581,13 @@ if ($isAjaxRequest) {
         role, category, department, status, photo, date_added
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
 
+    error_log("SQL Query: $query");
+    
     $stmt = $db->prepare($query);
     if (!$stmt) {
-        jsonResponse('error', 'Database prepare failed: ' . $db->error);
+        $error = $db->error;
+        error_log("Prepare failed: " . $error);
+        jsonResponse('error', 'Database prepare failed: ' . $error);
     }
 
     $stmt->bind_param(
@@ -601,9 +597,12 @@ if ($isAjaxRequest) {
     );
 
     if ($stmt->execute()) {
+        error_log("Personnel added successfully");
         jsonResponse('success', 'Personnel added successfully');
     } else {
-        jsonResponse('error', 'Database execute failed: ' . $stmt->error);
+        $error = $stmt->error;
+        error_log("Execute failed: " . $error);
+        jsonResponse('error', 'Database execute failed: ' . $error);
     }
     break;
 
