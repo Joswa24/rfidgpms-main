@@ -175,7 +175,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             
             header('Content-Type: application/json');
             die(json_encode([ 
-                'message' => "Unauthorized access. Security personnel not found with ID: $id_number (clean: $clean_id)  " 
+             "Unauthorized access. Security personnel not found with ID: $id_number (clean: $clean_id) " 
             ]));
         }
 
@@ -188,8 +188,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         if (!$isSecurity) {
             sleep(2);
             header('Content-Type: application/json');
-            die(json_encode([
-                'status' => 'error', 
+            die(json_encode([ 
                 'message' => "Unauthorized access. User found but not security personnel. Role: " . ($securityGuard['role'] ?? 'Unknown')
             ]));
         }
