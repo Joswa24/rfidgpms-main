@@ -763,6 +763,166 @@ include '../connection.php';
                 $('.error-message').text('');
             });
         });
+        let allRooms = [];
+    let allSubjects = [];
+
+    // Fetch all rooms and subjects on page load
+        function initializeDropdownData() {
+            // Get all rooms
+            $('select[name="room_name"] option').each(function() {
+                if ($(this).val()) {
+                    allRooms.push({
+                        value: $(this).val(),
+                        text: $(this).text(),
+                        department: $(this).data('department')
+                    });
+                }
+            });
+
+            // Get all subjects
+            $('#subject option').each(function() {
+                if ($(this).val()) {
+                    allSubjects.push({
+                        value: $(this).val(),
+                        text: $(this).text(),
+                        yearLevel: $(this).data('year-level')
+                    });
+                }
+            });
+
+            console.log('Initialized dropdown data:', {
+                rooms: allRooms,
+                subjects: allSubjects
+            });
+        }
+
+        // Filter rooms based on selected department
+        function filterRoomsByDepartment(department) {
+            const $roomSelect = $('select[name="room_name"]');
+            const currentValue = $roomSelect.val();
+            
+            $roomSelect.empty();
+            $roomSelect.append('<option value="">Select Room</option>');
+            
+            if (department) {
+                const filteredRooms = allRooms.filter(room => 
+                    room.department === department
+                );
+                
+                filteredRooms.forEach(room => {
+                    $roomSelect.append(
+                        $('<option></option>')
+                            .attr('value', room.value)
+                            .text(room.text)
+                            .attr('data-department', room.department)
+                    );
+                });
+                
+                // Restore previous selection if it exists in filtered list
+                if (currentValue && filteredRooms.some(room => room.value === currentValue)) {
+                    $roomSelect.val(currentValue);
+                }
+            } else {
+                // Show all rooms if no department selected
+                allRooms.forEach(room => {
+                    $roomSelect.append(
+                        $('<option></option>')
+                            .attr('value', room.value)
+                            .text(room.text)
+                            .attr('data-department', room.department)
+                    );
+                });
+            }
+        }
+
+        // Filter subjects based on selected year level
+        function filterSubjectsByYearLevel(yearLevel) {
+            const $subjectSelect = $('#subject');
+            const currentValue = $subjectSelect.val();
+            
+            $subjectSelect.empty();
+            $subjectSelect.append('<option value="">Select Subject</option>');
+            
+            if (yearLevel) {
+                const filteredSubjects = allSubjects.filter(subject => 
+                    subject.yearLevel === yearLevel
+                );
+                
+                filteredSubjects.forEach(subject => {
+                    $subjectSelect.append(
+                        $('<option></option>')
+                            .attr('value', subject.value)
+                            .text(subject.text)
+                            .attr('data-year-level', subject.yearLevel)
+                    );
+                });
+                
+                // Restore previous selection if it exists in filtered list
+                if (currentValue && filteredSubjects.some(subject => subject.value === currentValue)) {
+                    $subjectSelect.val(currentValue);
+                }
+            } else {
+                // Show all subjects if no year level selected
+                allSubjects.forEach(subject => {
+                    $subjectSelect.append(
+                        $('<option></option>')
+                            .attr('value', subject.value)
+                            .text(subject.text)
+                            .attr('data-year-level', subject.yearLevel)
+                    );
+                });
+            }
+        }
+
+        // Department change handler - filter rooms
+        $('select[name="department"]').change(function() {
+            const selectedDepartment = $(this).val();
+            console.log('Department changed to:', selectedDepartment);
+            filterRoomsByDepartment(selectedDepartment);
+        });
+
+        // Year level change handler - filter subjects
+        $('select[name="year_level"]').change(function() {
+            const selectedYearLevel = $(this).val();
+            console.log('Year level changed to:', selectedYearLevel);
+            filterSubjectsByYearLevel(selectedYearLevel);
+        });
+
+        // Room selection handler to auto-fill department (for consistency)
+        $('select[name="room_name"]').change(function() {
+            const selectedOption = $(this).find('option:selected');
+            const department = selectedOption.data('department');
+            if (department && department !== $('select[name="department"]').val()) {
+                $('select[name="department"]').val(department);
+                // Re-filter rooms to ensure consistency
+                filterRoomsByDepartment(department);
+            }
+        });
+
+        // Initialize dropdown data when page loads
+        $(document).ready(function() {
+            initializeDropdownData();
+            
+            // Apply initial filters based on any pre-selected values
+            const initialDepartment = $('select[name="department"]').val();
+            const initialYearLevel = $('select[name="year_level"]').val();
+            
+            if (initialDepartment) {
+                filterRoomsByDepartment(initialDepartment);
+            }
+            
+            if (initialYearLevel) {
+                filterSubjectsByYearLevel(initialYearLevel);
+            }
+        });
+
+        // Reset filters when modal is closed
+        $('#scheduleModal').on('hidden.bs.modal', function () {
+            // Reset to show all options
+            filterRoomsByDepartment('');
+            filterSubjectsByYearLevel('');
+        });
+    
         </script>
 </body>
 </html>
