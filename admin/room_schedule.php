@@ -170,10 +170,10 @@ $all_instructors = $db->query("SELECT * FROM instructor ORDER BY fullname");
                                         <label><b>Filter by Department:</b></label>
                                         <select class="form-control filter-select" id="filter_department" name="filter_department">
                                             <option value="">All Departments</option>
-                                            <?php while ($dept = $departments->fetch_assoc()): ?>
-                                                <option value="<?= htmlspecialchars($dept['department']) ?>">
-                                                    <?= htmlspecialchars($dept['department']) ?>
-                                                </option>
+                                            <?php while ($dept = $all_departments->fetch_assoc()): ?>
+                                                            <option value="<?= htmlspecialchars($dept['department_name']) ?>">
+                                                                <?= htmlspecialchars($dept['department_name']) ?>
+                                                            </option>
                                             <?php endwhile; ?>
                                         </select>
                                     </div>
