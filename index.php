@@ -174,9 +174,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             }
             
             
-            die(json_encode([ 
+            die(
              "Unauthorized access. Security personnel not found with ID: $id_number" 
-            ]));
+            );
         }
 
         $securityGuard = $securityResult->fetch_assoc();
