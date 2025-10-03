@@ -428,285 +428,379 @@ function getStudentPhoto($photo) {
 
     <script>
     $(document).ready(function() {
-        // Initialize DataTable
-        var dataTable = $('#myDataTable').DataTable({
-            order: [[7, 'desc']],
-            stateSave: true
-        });
+    // Initialize DataTable
+    var dataTable = $('#myDataTable').DataTable({
+        order: [[7, 'desc']],
+        stateSave: true
+    });
 
-        // Reset form function
-        function resetForm() {
-            $('.error-message').text('');
-            $('#studentForm')[0].reset();
-            $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
+    // Reset form function
+    function resetForm() {
+        $('.error-message').text('');
+        $('#studentForm')[0].reset();
+        $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
+    }
+
+    // ==========
+    // READ (EDIT STUDENT) - FIXED
+    // ==========
+    $(document).on('click', '.e_student_id', function() {
+        const id = $(this).data('id');
+        
+        // Retrieve data from the selected row
+        const $row = $(this).closest('tr');
+        const $getphoto = $row.find('.photo').attr('src');
+        const $getidnumber = $row.find('.student_id').text();
+        const $getdept = $row.find('.department_id').val();
+        const $getfullname = $row.find('.fullname').val();
+        const $getyear = $row.find('.year').val();
+        const $getsection = $row.find('.section').val();
+
+        console.log('Editing student:', id, $getidnumber, $getfullname); // Debug log
+
+        // Populate edit form
+        $('#edit_studentid').val(id);
+        $('.edit-photo').attr('src', $getphoto);
+        $('#eid_number').val($getidnumber);
+        $('#edepartment_id').val($getdept);
+        $('#efullname').val($getfullname);
+        $('#eyear').val($getyear);
+        $('#esection').val($getsection);
+        $('.capturedImage').val($getphoto);
+        
+        // Clear any previous error messages
+        $('.error-message').text('');
+        
+        // Show modal
+        $('#editstudentModal').modal('show');
+    });
+
+    // ==============
+    // CREATE (ADD STUDENT)
+    // ==============
+    $('#studentForm').submit(function(e) {
+        e.preventDefault();
+        
+        $('.error-message').text('');
+        const department_id = $('#department_id').val();
+        const id_number = $('#id_number').val().trim();
+        const fullname = $('#fullname').val().trim();
+        const year = $('#year').val();
+        const section = $('#section').val();
+        const photo = $('#photo')[0].files[0];
+        let isValid = true;
+
+        // Validation
+        if (!department_id) { 
+            $('#department_id-error').text('Department is required'); 
+            isValid = false; 
         }
+        if (!id_number) { 
+            $('#id_number-error').text('ID Number is required'); 
+            isValid = false; 
+        }
+        if (!fullname) { 
+            $('#fullname-error').text('Full name is required'); 
+            isValid = false; 
+        }
+        if (!year) { 
+            $('#year-error').text('Year is required'); 
+            isValid = false; 
+        }
+        if (!section) { 
+            $('#section-error').text('Section is required'); 
+            isValid = false; 
+        }
+        if (!photo) { 
+            $('#photo-error').text('Photo is required'); 
+            isValid = false; 
+        }
+        
+        if (!isValid) return;
 
-        // ==============
-        // CREATE (ADD STUDENT)
-        // ==============
-$('#studentForm').submit(function(e) {
-    e.preventDefault();
-    
-    $('.error-message').text('');
-    const department_id = $('#department_id').val();
-    const id_number = $('#id_number').val().trim();
-    const fullname = $('#fullname').val().trim();
-    const year = $('#year').val();
-    const section = $('#section').val();
-    const photo = $('#photo')[0].files[0];
-    let isValid = true;
+        // Show loading state
+        $('#btn-student').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
+        $('#btn-student').prop('disabled', true);
 
-    // Validation
-    if (!department_id) { 
-        $('#department_id-error').text('Department is required'); 
-        isValid = false; 
-    }
-    if (!id_number) { 
-        $('#id_number-error').text('ID Number is required'); 
-        isValid = false; 
-    }
-    if (!fullname) { 
-        $('#fullname-error').text('Full name is required'); 
-        isValid = false; 
-    }
-    if (!year) { 
-        $('#year-error').text('Year is required'); 
-        isValid = false; 
-    }
-    if (!section) { 
-        $('#section-error').text('Section is required'); 
-        isValid = false; 
-    }
-    if (!photo) { 
-        $('#photo-error').text('Photo is required'); 
-        isValid = false; 
-    }
-    
-    if (!isValid) return;
+        var formData = new FormData(this);
 
-    // Show loading state
-    $('#btn-student').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
-    $('#btn-student').prop('disabled', true);
-
-    var formData = new FormData(this);
-
-    $.ajax({
-        type: "POST",
-        url: "transac.php?action=add_student",
-        data: formData,
-        contentType: false,
-        processData: false,
-        dataType: 'json',
-        success: function(response) {
-            // Reset button state
-            $('#btn-student').html('Save');
-            $('#btn-student').prop('disabled', false);
-            
-            if (response.status === 'success') {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Success!',
-                    text: response.message,
-                    showConfirmButton: true
-                }).then(() => {
-                    $('#studentModal').modal('hide');
-                    location.reload();
-                });
-            } else {
+        $.ajax({
+            type: "POST",
+            url: "transac.php?action=add_student",
+            data: formData,
+            contentType: false,
+            processData: false,
+            dataType: 'json',
+            success: function(response) {
+                // Reset button state
+                $('#btn-student').html('Save');
+                $('#btn-student').prop('disabled', false);
+                
+                if (response.status === 'success') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: response.message,
+                        showConfirmButton: true
+                    }).then(() => {
+                        $('#studentModal').modal('hide');
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: response.message
+                    });
+                }
+            },
+            error: function(xhr, status, error) {
+                // Reset button state
+                $('#btn-student').html('Save');
+                $('#btn-student').prop('disabled', false);
+                
                 Swal.fire({
                     icon: 'error',
                     title: 'Error!',
-                    text: response.message
+                    text: 'An error occurred: ' + error
                 });
             }
-        },
-        error: function(xhr, status, error) {
-            // Reset button state
-            $('#btn-student').html('Save');
-            $('#btn-student').prop('disabled', false);
-            
-            Swal.fire({
-                icon: 'error',
-                title: 'Error!',
-                text: 'An error occurred: ' + error
-            });
-        }
+        });
     });
-});
 
-// ==========
-// UPDATE STUDENT
-// ==========
-$('#editStudentForm').submit(function(e) {
-    e.preventDefault();
-    
-    const id = $('#edit_studentid').val();
-    const department_id = $('#edepartment_id').val();
-    const id_number = $('#eid_number').val().trim();
-    const fullname = $('#efullname').val().trim();
-    const year = $('#eyear').val();
-    const section = $('#esection').val();
+    // ==========
+    // UPDATE STUDENT
+    // ==========
+    $('#editStudentForm').submit(function(e) {
+        e.preventDefault();
+        
+        const id = $('#edit_studentid').val();
+        const department_id = $('#edepartment_id').val();
+        const id_number = $('#eid_number').val().trim();
+        const fullname = $('#efullname').val().trim();
+        const year = $('#eyear').val();
+        const section = $('#esection').val();
 
-    // Validation
-    let isValid = true;
-    if (!department_id) { 
-        $('#edepartment_id-error').text('Department is required'); 
-        isValid = false; 
-    } else { 
-        $('#edepartment_id-error').text(''); 
-    }
-    if (!id_number) { 
-        $('#eid_number-error').text('ID Number is required'); 
-        isValid = false; 
-    } else { 
-        $('#eid_number-error').text(''); 
-    }
-    if (!fullname) { 
-        $('#efullname-error').text('Full name is required'); 
-        isValid = false; 
-    } else { 
-        $('#efullname-error').text(''); 
-    }
-    if (!year) { 
-        $('#eyear-error').text('Year is required'); 
-        isValid = false; 
-    } else { 
-        $('#eyear-error').text(''); 
-    }
-    if (!section) { 
-        $('#esection-error').text('Section is required'); 
-        isValid = false; 
-    } else { 
-        $('#esection-error').text(''); 
-    }
-    
-    if (!isValid) return;
-
-    // Show loading state
-    $('#btn-editstudent').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
-    $('#btn-editstudent').prop('disabled', true);
-
-    var formData = new FormData(this);
-    formData.append('id', id);
-
-    $.ajax({
-        type: "POST",
-        url: "transac.php?action=update_student",
-        data: formData,
-        contentType: false,
-        processData: false,
-        dataType: 'json',
-        success: function(response) {
-            // Reset button state
-            $('#btn-editstudent').html('Update');
-            $('#btn-editstudent').prop('disabled', false);
-            
-            if (response.status === 'success') {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Success!',
-                    text: response.message,
-                    showConfirmButton: true
-                }).then(() => {
-                    location.reload();
-                });
-            } else {
-                Swal.fire({
-                    title: 'Error!',
-                    text: response.message,
-                    icon: 'error'
-                });
-            }
-        },
-        error: function(xhr) {
-            // Reset button state
-            $('#btn-editstudent').html('Update');
-            $('#btn-editstudent').prop('disabled', false);
-            
-            try {
-                // Try to parse the error response as JSON
-                var errorResponse = JSON.parse(xhr.responseText);
-                Swal.fire({
-                    title: 'Error!',
-                    text: errorResponse.message || 'An error occurred',
-                    icon: 'error'
-                });
-            } catch (e) {
-                // If not JSON, show raw response
-                Swal.fire({
-                    title: 'Error!',
-                    text: 'An error occurred: ' + xhr.responseText,
-                    icon: 'error'
-                });
-            }
+        // Validation
+        let isValid = true;
+        if (!department_id) { 
+            $('#edepartment_id-error').text('Department is required'); 
+            isValid = false; 
+        } else { 
+            $('#edepartment_id-error').text(''); 
         }
-    });
-});
+        if (!id_number) { 
+            $('#eid_number-error').text('ID Number is required'); 
+            isValid = false; 
+        } else { 
+            $('#eid_number-error').text(''); 
+        }
+        if (!fullname) { 
+            $('#efullname-error').text('Full name is required'); 
+            isValid = false; 
+        } else { 
+            $('#efullname-error').text(''); 
+        }
+        if (!year) { 
+            $('#eyear-error').text('Year is required'); 
+            isValid = false; 
+        } else { 
+            $('#eyear-error').text(''); 
+        }
+        if (!section) { 
+            $('#esection-error').text('Section is required'); 
+            isValid = false; 
+        } else { 
+            $('#esection-error').text(''); 
+        }
+        
+        if (!isValid) return;
 
-// Handle delete button click
-$(document).on('click', '.d_student_id', function() {
-    var studentId = $(this).data('id');
-    var studentName = $(this).attr('student_name');
-    
-    Swal.fire({
-        title: 'Are you sure?',
-        text: "You are about to delete student: " + studentName,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Yes, delete it!',
-        cancelButtonText: 'Cancel'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // Show loading
-            Swal.fire({
-                title: 'Deleting...',
-                text: 'Please wait',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
+        // Show loading state
+        $('#btn-editstudent').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
+        $('#btn-editstudent').prop('disabled', true);
 
-            $.ajax({
-                url: 'transac.php?action=delete_student',
-                type: 'POST',
-                data: { 
-                    id: studentId 
-                },
-                dataType: 'json',
-                success: function(response) {
-                    if (response.status === 'success') {
-                        Swal.fire({
-                            title: 'Deleted!',
-                            text: response.message,
-                            icon: 'success',
-                            timer: 2000,
-                            showConfirmButton: false
-                        }).then(() => {
-                            location.reload();
-                        });
-                    } else {
-                        Swal.fire({
-                            title: 'Error!',
-                            text: response.message,
-                            icon: 'error'
-                        });
-                    }
-                },
-                error: function(xhr, status, error) {
+        var formData = new FormData(this);
+        formData.append('id', id);
+
+        $.ajax({
+            type: "POST",
+            url: "transac.php?action=update_student",
+            data: formData,
+            contentType: false,
+            processData: false,
+            dataType: 'json',
+            success: function(response) {
+                // Reset button state
+                $('#btn-editstudent').html('Update');
+                $('#btn-editstudent').prop('disabled', false);
+                
+                if (response.status === 'success') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: response.message,
+                        showConfirmButton: true
+                    }).then(() => {
+                        $('#editstudentModal').modal('hide');
+                        location.reload();
+                    });
+                } else {
                     Swal.fire({
                         title: 'Error!',
-                        text: 'An error occurred: ' + error,
+                        text: response.message,
                         icon: 'error'
                     });
                 }
-            });
+            },
+            error: function(xhr, status, error) {
+                // Reset button state
+                $('#btn-editstudent').html('Update');
+                $('#btn-editstudent').prop('disabled', false);
+                
+                try {
+                    // Try to parse the error response as JSON
+                    var errorResponse = JSON.parse(xhr.responseText);
+                    Swal.fire({
+                        title: 'Error!',
+                        text: errorResponse.message || 'An error occurred',
+                        icon: 'error'
+                    });
+                } catch (e) {
+                    // If not JSON, show raw response
+                    Swal.fire({
+                        title: 'Error!',
+                        text: 'An error occurred: ' + xhr.responseText,
+                        icon: 'error'
+                    });
+                }
+            }
+        });
+    });
+
+    // Handle delete button click
+    $(document).on('click', '.d_student_id', function() {
+        var studentId = $(this).data('id');
+        var studentName = $(this).attr('student_name');
+        
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "You are about to delete student: " + studentName,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!',
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Show loading
+                Swal.fire({
+                    title: 'Deleting...',
+                    text: 'Please wait',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                $.ajax({
+                    url: 'transac.php?action=delete_student',
+                    type: 'POST',
+                    data: { 
+                        id: studentId 
+                    },
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.status === 'success') {
+                            Swal.fire({
+                                title: 'Deleted!',
+                                text: response.message,
+                                icon: 'success',
+                                timer: 2000,
+                                showConfirmButton: false
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Error!',
+                                text: response.message,
+                                icon: 'error'
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        Swal.fire({
+                            title: 'Error!',
+                            text: 'An error occurred: ' + error,
+                            icon: 'error'
+                        });
+                    }
+                });
+            }
+        });
+    });
+
+    // Reset modal when closed
+    $('#studentModal').on('hidden.bs.modal', function () {
+        $(this).find('form')[0].reset();
+        $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
+        $('.error-message').text('');
+    });
+
+    $('#editstudentModal').on('hidden.bs.modal', function () {
+        $('.error-message').text('');
+    });
+
+    // Image preview functionality for both forms
+    $(document).on('change', '[class^=upload-field-]', function() {
+        readURL(this);
+    });
+
+    // Click handler for edit photo upload
+    $(document).on('click', '.edit-photo', function() {
+        $('#editPhoto').click();
+    });
+
+    function readURL(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const validFormats = ['image/jpeg', 'image/png', 'image/jpg'];
+            const maxSize = 2 * 1024 * 1024; // 2MB
+
+            // Validate file format
+            if (!validFormats.includes(file.type)) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid Format',
+                    text: 'Only JPG and PNG formats are allowed.',
+                });
+                input.value = ''; // Reset the input
+                return;
+            }
+
+            // Validate file size
+            if (file.size > maxSize) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'File Too Large',
+                    text: 'Maximum file size is 2MB.',
+                });
+                input.value = ''; // Reset the input
+                return;
+            }
+
+            // Preview the image
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                // Find the closest preview image
+                $(input).closest('.file-uploader').find('.preview-1').attr('src', e.target.result);
+            };
+            reader.readAsDataURL(file);
         }
-    });
+    }
 });
-    });
     </script>
 </body>
 </html>
