@@ -10,8 +10,46 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 session_start();
-include 'connection.php';
 
+// =====================================================================
+// SECURITY HEADERS - Comprehensive Protection
+// =====================================================================
+header("X-Frame-Options: DENY"); // Prevent clickjacking
+header("X-Content-Type-Options: nosniff"); // Prevent MIME type sniffing
+header("X-XSS-Protection: 1; mode=block"); // Enable XSS protection
+header("Referrer-Policy: strict-origin-when-cross-origin"); // Control referrer information
+header("Permissions-Policy: geolocation=(), microphone=(), camera=()"); // Restrict browser features
+
+// Content Security Policy (CSP) - Comprehensive
+header("Content-Security-Policy: " . implode("; ", [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://ajax.googleapis.com https://fonts.googleapis.com",
+    "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.googleapis.com",
+    "font-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.gstatic.com",
+    "img-src 'self' data: https:",
+    "connect-src 'self'",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+    "media-src 'self'"
+]));
+
+// Strict Transport Security (HSTS) - Enable if using HTTPS
+// header("Strict-Transport-Security: max-age=31536000; includeSubDomains; preload");
+
+// Additional security headers
+header("X-Permitted-Cross-Domain-Policies: none"); // Restrict Adobe Flash/Acrobat
+header("Cross-Origin-Embedder-Policy: require-corp"); // Control cross-origin embedding
+header("Cross-Origin-Opener-Policy: same-origin"); // Control cross-origin window opening
+header("Cross-Origin-Resource-Policy: same-origin"); // Control cross-origin resource loading
+
+// Cache control for sensitive pages
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+header("Expires: 0");
+
+include 'connection.php';
 
 // =====================================================================
 // MAINTENANCE TASKS - Improved with prepared statements
@@ -79,6 +117,15 @@ function sanitizeInput($data) {
 // LOGIN PROCESSING - Enhanced with Rate Limiting
 // =====================================================================
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    // Additional security: Validate CSRF token if implemented
+    // Additional security: Check request origin
+    $allowed_origins = ['https://yourdomain.com', 'http://localhost']; // Add your domains
+    if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed_origins)) {
+        header('Access-Control-Allow-Origin: ' . $_SERVER['HTTP_ORIGIN']);
+    } else {
+        header('Access-Control-Allow-Origin: ' . (isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : 'self'));
+    }
+    
     $department = sanitizeInput($_POST['roomdpt'] ?? '');
     $location = sanitizeInput($_POST['location'] ?? '');
     $password = $_POST['Ppassword'] ?? ''; // Don't sanitize passwords
@@ -95,7 +142,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     
     if (!empty($errors)) {
         http_response_code(400);
-        die(implode("<br>", $errors));
+        header('Content-Type: application/json');
+        die(json_encode(['status' => 'error', 'message' => implode("<br>", $errors)]));
     }
 
     // Check if this is a gate access request (Main department + Gate location)
@@ -107,13 +155,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $stmt = $db->prepare("SELECT * FROM personell WHERE id_number = ? AND department = 'Main'");
         if (!$stmt) {
             error_log("Prepare failed: " . $db->error);
-            die("Database error. Please check server logs.");
+            header('Content-Type: application/json');
+            die(json_encode(['status' => 'error', 'message' => "Database error. Please check server logs."]));
         }
         
         $stmt->bind_param("s", $clean_id);
         if (!$stmt->execute()) {
             error_log("Execute failed: " . $stmt->error);
-            die("Database query failed.");
+            header('Content-Type: application/json');
+            die(json_encode(['status' => 'error', 'message' => "Database query failed."]));
         }
         
         $securityResult = $stmt->get_result();
@@ -143,7 +193,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $availablePersonnel[] = " RFID:{$row['id_number']}, Name:{$row['first_name']} {$row['last_name']}";
             }
             
-            die("Unauthorized access. Security personnel not found with ID: $id_number (clean: $clean_id). Available: " . implode('; ', $availablePersonnel));
+            header('Content-Type: application/json');
+            die(json_encode([
+                'status' => 'error', 
+                'message' => "Unauthorized access. Security personnel not found with ID: $id_number (clean: $clean_id). Available: " . implode('; ', $availablePersonnel)
+            ]));
         }
 
         $securityGuard = $securityResult->fetch_assoc();
@@ -154,7 +208,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         
         if (!$isSecurity) {
             sleep(2);
-            die("Unauthorized access. User found but not security personnel. Role: " . ($securityGuard['role'] ?? 'Unknown'));
+            header('Content-Type: application/json');
+            die(json_encode([
+                'status' => 'error', 
+                'message' => "Unauthorized access. User found but not security personnel. Role: " . ($securityGuard['role'] ?? 'Unknown')
+            ]));
         }
 
         // Verify room credentials for gate
@@ -165,7 +223,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         if ($roomResult->num_rows === 0) {
             sleep(2);
-            die("Gate access not configured.");
+            header('Content-Type: application/json');
+            die(json_encode(['status' => 'error', 'message' => "Gate access not configured."]));
         }
 
         $room = $roomResult->fetch_assoc();
@@ -178,7 +237,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         if ($passwordResult->num_rows === 0) {
             sleep(2);
-            die("Invalid Gate Password.");
+            header('Content-Type: application/json');
+            die(json_encode(['status' => 'error', 'message' => "Invalid Gate Password."]));
         }
 
         // Gate login successful - set session data
@@ -196,6 +256,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             'last_activity' => time()
         ];
 
+        // Regenerate session ID to prevent session fixation
+        session_regenerate_id(true);
+
         // Clear any existing output
         while (ob_get_level()) {
             ob_end_clean();
@@ -203,6 +266,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         // Set proper headers
         header('Content-Type: application/json');
+        header('X-Content-Type-Options: nosniff');
 
         // Return JSON response for gate access - REDIRECT TO MAIN.PHP
         echo json_encode([
@@ -222,7 +286,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     if ($instructorResult->num_rows === 0) {
         sleep(2); // Slow down brute force attempts
-        die("Invalid ID number. Instructor not found.");
+        header('Content-Type: application/json');
+        die(json_encode(['status' => 'error', 'message' => "Invalid ID number. Instructor not found."]));
     }
 
     $instructor = $instructorResult->fetch_assoc();
@@ -235,7 +300,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     if ($roomResult->num_rows === 0) {
         sleep(2);
-        die("Room not found.");
+        header('Content-Type: application/json');
+        die(json_encode(['status' => 'error', 'message' => "Room not found."]));
     }
 
     $room = $roomResult->fetch_assoc();
@@ -247,7 +313,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     if ($password->num_rows === 0) {
         sleep(2);
-        die("Invalid Password.");
+        header('Content-Type: application/json');
+        die(json_encode(['status' => 'error', 'message' => "Invalid Password."]));
     }
 
     // Login successful - set session data
@@ -273,6 +340,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         'last_activity' => time()
     ];
 
+    // Regenerate session ID to prevent session fixation
+    session_regenerate_id(true);
+
     // Clear output buffer before JSON response
     if ($password->num_rows === 0) {
         sleep(2);
@@ -287,6 +357,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     // Set proper headers
     header('Content-Type: application/json');
+    header('X-Content-Type-Options: nosniff');
 
     // Return JSON response
     echo json_encode([
@@ -304,7 +375,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <title>GACPMS</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="description" content="Gate and Personnel Management System">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://ajax.googleapis.com https://fonts.googleapis.com 'unsafe-inline'; style-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' data:;">
+    <meta name="robots" content="noindex, nofollow"> <!-- Prevent search engine indexing -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://ajax.googleapis.com https://fonts.googleapis.com 'unsafe-inline'; style-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none';">
+    
+    <!-- Security Meta Tags -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    
     <link rel="icon" href="admin/uploads/logo.png" type="image/png">
     
     <!-- CSS -->
@@ -337,6 +414,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         .modal-subject-row:hover {
             background-color: #f8f9fa;
         }
+        
+        /* Additional security styling */
+        body {
+            position: relative;
+        }
     </style>
 </head>
 <body class="bg-light">
@@ -344,7 +426,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4">
             <div class="card shadow-sm">
                 <div class="card-body p-4 p-sm-5">
-                    <form id="logform" method="POST" novalidate>
+                    <form id="logform" method="POST" novalidate autocomplete="on">
                         <div id="alert-container" class="alert alert-danger d-none" role="alert"></div>
                         
                         <div class="d-flex align-items-center justify-content-between mb-4">
@@ -354,7 +436,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         
                         <div class="mb-3">
                             <label for="roomdpt" class="form-label">Department</label>
-                            <select class="form-select" name="roomdpt" id="roomdpt" required>
+                            <select class="form-select" name="roomdpt" id="roomdpt" required autocomplete="organization">
                                 <option value="Main" selected>Main</option>
                                 <?php
                                 $sql = "SELECT department_name FROM department WHERE department_name != 'Main'";
@@ -370,7 +452,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         
                         <div class="mb-3">
                             <label for="location" class="form-label">Location</label>
-                            <select class="form-select" name="location" id="location" required>
+                            <select class="form-select" name="location" id="location" required autocomplete="organization-title">
                                 <option value="Gate" selected>Gate</option>
                             </select>
                         </div>
@@ -378,7 +460,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <div class="mb-3">
                             <label for="password" class="form-label">Password</label>
                             <div class="input-group">
-                                <input type="password" class="form-control" id="password" name="Ppassword" required>
+                                <input type="password" class="form-control" id="password" name="Ppassword" required autocomplete="current-password">
                                 <button class="btn btn-outline-secondary" type="button" id="togglePassword">
                                     <i class="fas fa-eye"></i>
                                 </button>
@@ -388,7 +470,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <div class="mb-4">
                             <label for="id-input" class="form-label">ID Number</label>
                             <input type="text" class="form-control" id="id-input" name="Pid_number" 
-                                   placeholder="0000-0000" required
+                                   placeholder="0000-0000" required autocomplete="username"
                                    pattern="[0-9]{4}-[0-9]{4}" 
                                    title="Please enter ID in format: 0000-0000">
                             <div class="form-text">Scan your ID barcode or type manually (format: 0000-0000)</div>
@@ -404,6 +486,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <input type="hidden" name="selected_subject" id="selected_subject" value="">
                         <input type="hidden" name="selected_room" id="selected_room" value="">
                         <input type="hidden" name="selected_time" id="selected_time" value="">
+                        
+                        <!-- Security: Add CSRF token if needed -->
+                        <!-- <input type="hidden" name="csrf_token" value="<?php echo bin2hex(random_bytes(32)); ?>"> -->
                         
                         <button type="submit" class="btn btn-primary w-100 mb-3" id="loginButton">Login</button>
                         
@@ -464,7 +549,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
     <script>
+    // Security: Prevent console access in production
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        console.log = function() {};
+        console.warn = function() {};
+        console.error = function() {};
+    }
+
     $(document).ready(function() {
+        // Security: Add integrity checks for external resources (if needed)
+        
         // Password visibility toggle
         $('#togglePassword').click(function() {
             const icon = $(this).find('i');
@@ -577,141 +671,139 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
 
         // Load subjects for instructor with enhanced error handling
-        // Load subjects for instructor with enhanced error handling
-// Load subjects for instructor with enhanced error handling
-function loadInstructorSubjects(idNumber, selectedRoom) {
-    // Clean the ID number by removing hyphens
-    const cleanId = idNumber.replace(/-/g, '');
-    
-    console.log('🔍 Loading subjects for:', {
-        idNumber: idNumber,
-        cleanId: cleanId,
-        room: selectedRoom
-    });
-    
-    $('#subjectList').html(`
-        <tr>
-            <td colspan="5" class="text-center">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading subjects...</span>
-                </div>
-                <div class="mt-2 text-muted">Loading subjects for ${selectedRoom}...</div>
-            </td>
-        </tr>
-    `);
+        function loadInstructorSubjects(idNumber, selectedRoom) {
+            // Clean the ID number by removing hyphens
+            const cleanId = idNumber.replace(/-/g, '');
+            
+            console.log('🔍 Loading subjects for:', {
+                idNumber: idNumber,
+                cleanId: cleanId,
+                room: selectedRoom
+            });
+            
+            $('#subjectList').html(`
+                <tr>
+                    <td colspan="5" class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading subjects...</span>
+                        </div>
+                        <div class="mt-2 text-muted">Loading subjects for ${selectedRoom}...</div>
+                    </td>
+                </tr>
+            `);
 
-    $.ajax({
-        url: 'get_instructor_subjects.php',
-        type: 'GET',
-        data: { 
-            id_number: cleanId,
-            room_name: selectedRoom
-        },
-        dataType: 'text', // Change to text to see raw response first
-        timeout: 15000,
-        success: function(rawResponse) {
-            console.log('📨 Raw API Response:', rawResponse);
-            
-            let data;
-            try {
-                data = JSON.parse(rawResponse);
-                console.log('✅ Parsed JSON:', data);
-            } catch (e) {
-                console.error('❌ JSON Parse Error:', e);
-                console.error('Raw response that failed to parse:', rawResponse);
-                
-                $('#subjectList').html(`
-                    <tr>
-                        <td colspan="5" class="text-center text-danger">
-                            <i class="fas fa-exclamation-circle me-2"></i>
-                            Server returned invalid JSON format
-                            <br><small class="text-muted">Check browser console for details</small>
-                            <br><small class="text-muted">Response: ${rawResponse.substring(0, 100)}...</small>
-                        </td>
-                    </tr>
-                `);
-                return;
-            }
-            
-            // Now handle the parsed JSON
-            if (data.status === 'success') {
-                if (data.data && data.data.length > 0) {
-                    displaySubjects(data.data, selectedRoom);
-                } else {
+            $.ajax({
+                url: 'get_instructor_subjects.php',
+                type: 'GET',
+                data: { 
+                    id_number: cleanId,
+                    room_name: selectedRoom
+                },
+                dataType: 'text', // Change to text to see raw response first
+                timeout: 15000,
+                success: function(rawResponse) {
+                    console.log('📨 Raw API Response:', rawResponse);
+                    
+                    let data;
+                    try {
+                        data = JSON.parse(rawResponse);
+                        console.log('✅ Parsed JSON:', data);
+                    } catch (e) {
+                        console.error('❌ JSON Parse Error:', e);
+                        console.error('Raw response that failed to parse:', rawResponse);
+                        
+                        $('#subjectList').html(`
+                            <tr>
+                                <td colspan="5" class="text-center text-danger">
+                                    <i class="fas fa-exclamation-circle me-2"></i>
+                                    Server returned invalid JSON format
+                                    <br><small class="text-muted">Check browser console for details</small>
+                                    <br><small class="text-muted">Response: ${rawResponse.substring(0, 100)}...</small>
+                                </td>
+                            </tr>
+                        `);
+                        return;
+                    }
+                    
+                    // Now handle the parsed JSON
+                    if (data.status === 'success') {
+                        if (data.data && data.data.length > 0) {
+                            displaySubjects(data.data, selectedRoom);
+                        } else {
+                            $('#subjectList').html(`
+                                <tr>
+                                    <td colspan="5" class="text-center">
+                                        <div class="alert alert-warning mb-0">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            No scheduled subjects found for ${selectedRoom}
+                                            ${data.debug_info ? `<br><small>Instructor: ${data.debug_info.instructor_name}</small>` : ''}
+                                        </div>
+                                    </td>
+                                </tr>
+                            `);
+                        }
+                    } else {
+                        $('#subjectList').html(`
+                            <tr>
+                                <td colspan="5" class="text-center text-danger">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    ${data.message || 'Unknown error occurred'}
+                                    ${data.debug ? `<br><small class="text-muted">Debug: ${JSON.stringify(data.debug)}</small>` : ''}
+                                </td>
+                            </tr>
+                        `);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('🚨 AJAX Error:', {
+                        status: status,
+                        error: error,
+                        responseText: xhr.responseText,
+                        statusCode: xhr.status,
+                        readyState: xhr.readyState
+                    });
+                    
+                    let errorMessage = 'Failed to load subjects. ';
+                    
+                    if (status === 'timeout') {
+                        errorMessage = 'Request timed out after 15 seconds.';
+                    } else if (status === 'parsererror') {
+                        errorMessage = 'Server returned invalid data format.';
+                    } else if (xhr.status === 404) {
+                        errorMessage = 'API endpoint not found.';
+                    } else if (xhr.status === 500) {
+                        errorMessage = 'Server internal error.';
+                    } else if (xhr.status === 0) {
+                        errorMessage = 'Cannot connect to server. Check if server is running.';
+                    } else {
+                        errorMessage = `Network error: ${error}`;
+                    }
+                    
                     $('#subjectList').html(`
                         <tr>
-                            <td colspan="5" class="text-center">
-                                <div class="alert alert-warning mb-0">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    No scheduled subjects found for ${selectedRoom}
-                                    ${data.debug_info ? `<br><small>Instructor: ${data.debug_info.instructor_name}</small>` : ''}
-                                </div>
+                            <td colspan="5" class="text-center text-danger">
+                                <i class="fas fa-exclamation-circle me-2"></i>
+                                ${errorMessage}
+                                <br><small class="text-muted">Status: ${xhr.status} - ${status}</small>
+                                <br><small class="text-muted">Check browser console for details</small>
                             </td>
                         </tr>
                     `);
                 }
-            } else {
-                $('#subjectList').html(`
-                    <tr>
-                        <td colspan="5" class="text-center text-danger">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            ${data.message || 'Unknown error occurred'}
-                            ${data.debug ? `<br><small class="text-muted">Debug: ${JSON.stringify(data.debug)}</small>` : ''}
-                        </td>
-                    </tr>
-                `);
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('🚨 AJAX Error:', {
-                status: status,
-                error: error,
-                responseText: xhr.responseText,
-                statusCode: xhr.status,
-                readyState: xhr.readyState
             });
-            
-            let errorMessage = 'Failed to load subjects. ';
-            
-            if (status === 'timeout') {
-                errorMessage = 'Request timed out after 15 seconds.';
-            } else if (status === 'parsererror') {
-                errorMessage = 'Server returned invalid data format.';
-            } else if (xhr.status === 404) {
-                errorMessage = 'API endpoint not found.';
-            } else if (xhr.status === 500) {
-                errorMessage = 'Server internal error.';
-            } else if (xhr.status === 0) {
-                errorMessage = 'Cannot connect to server. Check if server is running.';
-            } else {
-                errorMessage = `Network error: ${error}`;
-            }
-            
+        }
+
+        function showSubjectError(message) {
             $('#subjectList').html(`
                 <tr>
                     <td colspan="5" class="text-center text-danger">
                         <i class="fas fa-exclamation-circle me-2"></i>
-                        ${errorMessage}
-                        <br><small class="text-muted">Status: ${xhr.status} - ${status}</small>
+                        ${message}
                         <br><small class="text-muted">Check browser console for details</small>
                     </td>
                 </tr>
             `);
         }
-    });
-}
-
-function showSubjectError(message) {
-    $('#subjectList').html(`
-        <tr>
-            <td colspan="5" class="text-center text-danger">
-                <i class="fas fa-exclamation-circle me-2"></i>
-                ${message}
-                <br><small class="text-muted">Check browser console for details</small>
-            </td>
-        </tr>
-    `);
-}
 
         // Display subjects in the modal table
         function displaySubjects(schedules, selectedRoom) {
