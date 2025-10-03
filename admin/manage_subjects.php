@@ -334,300 +334,320 @@ include '../connection.php';
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
-        $(document).ready(function() {
-            // Initialize DataTable
-            var dataTable = $('#myDataTable').DataTable({
-                order: [[5, 'desc']],
-                stateSave: true
-            });
+            $(document).ready(function() {
+                // Initialize DataTable
+                var dataTable = $('#myDataTable').DataTable({
+                    order: [[5, 'desc']],
+                    stateSave: true
+                });
 
-            // Reset form function
-            function resetForm() {
-                $('.error-message').text('');
-                $('#subjectForm')[0].reset();
-            }
-
-            // ==========
-            // READ (EDIT SUBJECT) 
-            // ==========
-            $(document).on('click', '.e_subject_id', function() {
-                const id = $(this).data('id');
-                
-                // Retrieve data from the selected row
-                const $row = $(this).closest('tr');
-                const $getsubjectcode = $row.find('.subject_code_display').text();
-                const $getsubjectname = $row.find('.subject_name').val();
-                const $getyearlevel = $row.find('.year_level').val();
-
-                console.log('Editing subject:', id, $getsubjectcode, $getsubjectname); // Debug log
-
-                // Populate edit form
-                $('#edit_subjectid').val(id);
-                $('#esubject_code').val($getsubjectcode);
-                $('#esubject_name').val($getsubjectname);
-                $('#eyear_level').val($getyearlevel);
-                
-                // Clear any previous error messages
-                $('.error-message').text('');
-                
-                // Show modal
-                $('#editsubjectModal').modal('show');
-            });
-
-            // ==============
-            // CREATE (ADD SUBJECT)
-            // ==============
-            $('#subjectForm').submit(function(e) {
-                e.preventDefault();
-                
-                $('.error-message').text('');
-                const subject_code = $('#subject_code').val().trim();
-                const subject_name = $('#subject_name').val().trim();
-                const year_level = $('#year_level').val();
-                let isValid = true;
-
-                // Validation
-                if (!subject_code) { 
-                    $('#subject_code-error').text('Subject code is required'); 
-                    isValid = false; 
+                // Reset form function
+                function resetForm() {
+                    $('.error-message').text('');
+                    $('#subjectForm')[0].reset();
                 }
-                if (!subject_name) { 
-                    $('#subject_name-error').text('Subject name is required'); 
-                    isValid = false; 
-                }
-                if (!year_level) { 
-                    $('#year_level-error').text('Year level is required'); 
-                    isValid = false; 
-                }
-                
-                if (!isValid) return;
 
-                // Show loading state
-                $('#btn-subject').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
-                $('#btn-subject').prop('disabled', true);
+                // ==========
+                // READ (EDIT SUBJECT) 
+                // ==========
+                $(document).on('click', '.e_subject_id', function() {
+                    const id = $(this).data('id');
+                    
+                    // Retrieve data from the selected row
+                    const $row = $(this).closest('tr');
+                    const $getsubjectcode = $row.find('.subject_code_display').text();
+                    const $getsubjectname = $row.find('.subject_name').val();
+                    const $getyearlevel = $row.find('.year_level').val();
 
-                // Use regular form data instead of FormData since there are no file uploads
-                var formData = {
-                    subject_code: subject_code,
-                    subject_name: subject_name,
-                    year_level: year_level
-                };
+                    console.log('Editing subject:', id, $getsubjectcode, $getsubjectname);
 
-                $.ajax({
-                    type: "POST",
-                    url: "transac.php?action=add_subject",
-                    data: formData,
-                    dataType: 'json',
-                    success: function(response) {
-                        // Reset button state
-                        $('#btn-subject').html('Save');
-                        $('#btn-subject').prop('disabled', false);
-                        
-                        if (response.status === 'success') {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Success!',
-                                text: response.message,
-                                showConfirmButton: true
-                            }).then(() => {
-                                $('#subjectModal').modal('hide');
-                                location.reload();
-                            });
-                        } else {
+                    // Populate edit form
+                    $('#edit_subjectid').val(id);
+                    $('#esubject_code').val($getsubjectcode);
+                    $('#esubject_name').val($getsubjectname);
+                    $('#eyear_level').val($getyearlevel);
+                    
+                    // Clear any previous error messages
+                    $('.error-message').text('');
+                    
+                    // Show modal
+                    $('#editsubjectModal').modal('show');
+                });
+
+                // ==============
+                // CREATE (ADD SUBJECT)
+                // ==============
+                $('#subjectForm').submit(function(e) {
+                    e.preventDefault();
+                    
+                    $('.error-message').text('');
+                    const subject_code = $('#subject_code').val().trim();
+                    const subject_name = $('#subject_name').val().trim();
+                    const year_level = $('#year_level').val();
+                    let isValid = true;
+
+                    // Validation
+                    if (!subject_code) { 
+                        $('#subject_code-error').text('Subject code is required'); 
+                        isValid = false; 
+                    }
+                    if (!subject_name) { 
+                        $('#subject_name-error').text('Subject name is required'); 
+                        isValid = false; 
+                    }
+                    if (!year_level) { 
+                        $('#year_level-error').text('Year level is required'); 
+                        isValid = false; 
+                    }
+                    
+                    if (!isValid) return;
+
+                    // Show loading state
+                    $('#btn-subject').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
+                    $('#btn-subject').prop('disabled', true);
+
+                    // Use regular form data
+                    var formData = {
+                        subject_code: subject_code,
+                        subject_name: subject_name,
+                        year_level: year_level
+                    };
+
+                    console.log('Sending data:', formData);
+
+                    $.ajax({
+                        type: "POST",
+                        url: "transac.php?action=add_subject",
+                        data: formData,
+                        dataType: 'json',
+                        success: function(response) {
+                            // Reset button state
+                            $('#btn-subject').html('Save');
+                            $('#btn-subject').prop('disabled', false);
+                            
+                            if (response.status === 'success') {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Success!',
+                                    text: response.message,
+                                    showConfirmButton: true
+                                }).then(() => {
+                                    $('#subjectModal').modal('hide');
+                                    location.reload();
+                                });
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error!',
+                                    text: response.message
+                                });
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            // Reset button state
+                            $('#btn-subject').html('Save');
+                            $('#btn-subject').prop('disabled', false);
+                            
+                            console.error('AJAX Error Details:');
+                            console.error('Status:', status);
+                            console.error('Error:', error);
+                            console.error('Response:', xhr.responseText);
+                            
+                            let errorMessage = 'An error occurred';
+                            try {
+                                const errorResponse = JSON.parse(xhr.responseText);
+                                errorMessage = errorResponse.message || errorMessage;
+                            } catch (e) {
+                                errorMessage = xhr.responseText || error;
+                            }
+                            
                             Swal.fire({
                                 icon: 'error',
                                 title: 'Error!',
-                                text: response.message
+                                text: errorMessage
                             });
                         }
-                    },
-                    error: function(xhr, status, error) {
-                        // Reset button state
-                        $('#btn-subject').html('Save');
-                        $('#btn-subject').prop('disabled', false);
-                        
-                        // Log the actual error for debugging
-                        console.error('AJAX Error:', xhr.responseText);
-                        
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error!',
-                            text: 'An error occurred: ' + (xhr.responseText || error)
-                        });
-                    }
+                    });
                 });
-            });
 
-            // ==========
-            // UPDATE SUBJECT
-            // ==========
-            $('#editSubjectForm').submit(function(e) {
-                e.preventDefault();
-                
-                const id = $('#edit_subjectid').val();
-                const subject_code = $('#esubject_code').val().trim();
-                const subject_name = $('#esubject_name').val().trim();
-                const year_level = $('#eyear_level').val();
+                // ==========
+                // UPDATE SUBJECT - FIXED to use regular form data
+                // ==========
+                $('#editSubjectForm').submit(function(e) {
+                    e.preventDefault();
+                    
+                    const id = $('#edit_subjectid').val();
+                    const subject_code = $('#esubject_code').val().trim();
+                    const subject_name = $('#esubject_name').val().trim();
+                    const year_level = $('#eyear_level').val();
 
-                // Validation
-                let isValid = true;
-                if (!subject_code) { 
-                    $('#esubject_code-error').text('Subject code is required'); 
-                    isValid = false; 
-                } else { 
-                    $('#esubject_code-error').text(''); 
-                }
-                if (!subject_name) { 
-                    $('#esubject_name-error').text('Subject name is required'); 
-                    isValid = false; 
-                } else { 
-                    $('#esubject_name-error').text(''); 
-                }
-                if (!year_level) { 
-                    $('#eyear_level-error').text('Year level is required'); 
-                    isValid = false; 
-                } else { 
-                    $('#eyear_level-error').text(''); 
-                }
-                
-                if (!isValid) return;
-
-                // Show loading state
-                $('#btn-editsubject').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
-                $('#btn-editsubject').prop('disabled', true);
-
-                var formData = new FormData(this);
-                formData.append('id', id);
-
-                $.ajax({
-                    type: "POST",
-                    url: "transac.php?action=update_subject",
-                    data: formData,
-                    contentType: false,
-                    processData: false,
-                    dataType: 'json',
-                    success: function(response) {
-                        // Reset button state
-                        $('#btn-editsubject').html('Update');
-                        $('#btn-editsubject').prop('disabled', false);
-                        
-                        if (response.status === 'success') {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Success!',
-                                text: response.message,
-                                showConfirmButton: true
-                            }).then(() => {
-                                $('#editsubjectModal').modal('hide');
-                                location.reload();
-                            });
-                        } else {
-                            Swal.fire({
-                                title: 'Error!',
-                                text: response.message,
-                                icon: 'error'
-                            });
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        // Reset button state
-                        $('#btn-editsubject').html('Update');
-                        $('#btn-editsubject').prop('disabled', false);
-                        
-                        try {
-                            // Try to parse the error response as JSON
-                            var errorResponse = JSON.parse(xhr.responseText);
-                            Swal.fire({
-                                title: 'Error!',
-                                text: errorResponse.message || 'An error occurred',
-                                icon: 'error'
-                            });
-                        } catch (e) {
-                            // If not JSON, show raw response
-                            Swal.fire({
-                                title: 'Error!',
-                                text: 'An error occurred: ' + xhr.responseText,
-                                icon: 'error'
-                            });
-                        }
+                    // Validation
+                    let isValid = true;
+                    if (!subject_code) { 
+                        $('#esubject_code-error').text('Subject code is required'); 
+                        isValid = false; 
+                    } else { 
+                        $('#esubject_code-error').text(''); 
                     }
-                });
-            });
+                    if (!subject_name) { 
+                        $('#esubject_name-error').text('Subject name is required'); 
+                        isValid = false; 
+                    } else { 
+                        $('#esubject_name-error').text(''); 
+                    }
+                    if (!year_level) { 
+                        $('#eyear_level-error').text('Year level is required'); 
+                        isValid = false; 
+                    } else { 
+                        $('#eyear_level-error').text(''); 
+                    }
+                    
+                    if (!isValid) return;
 
-            // Handle delete button click
-            $(document).on('click', '.d_subject_id', function() {
-                var subjectId = $(this).data('id');
-                var subjectName = $(this).attr('subject_name');
-                
-                Swal.fire({
-                    title: 'Are you sure?',
-                    text: "You are about to delete subject: " + subjectName,
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#d33',
-                    cancelButtonColor: '#3085d6',
-                    confirmButtonText: 'Yes, delete it!',
-                    cancelButtonText: 'Cancel'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        // Show loading
-                        Swal.fire({
-                            title: 'Deleting...',
-                            text: 'Please wait',
-                            allowOutsideClick: false,
-                            didOpen: () => {
-                                Swal.showLoading();
-                            }
-                        });
+                    // Show loading state
+                    $('#btn-editsubject').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
+                    $('#btn-editsubject').prop('disabled', true);
 
-                        $.ajax({
-                            url: 'transac.php?action=delete_subject',
-                            type: 'POST',
-                            data: { 
-                                id: subjectId 
-                            },
-                            dataType: 'json',
-                            success: function(response) {
-                                if (response.status === 'success') {
-                                    Swal.fire({
-                                        title: 'Deleted!',
-                                        text: response.message,
-                                        icon: 'success',
-                                        timer: 2000,
-                                        showConfirmButton: false
-                                    }).then(() => {
-                                        location.reload();
-                                    });
-                                } else {
-                                    Swal.fire({
-                                        title: 'Error!',
-                                        text: response.message,
-                                        icon: 'error'
-                                    });
-                                }
-                            },
-                            error: function(xhr, status, error) {
+                    // Use regular form data instead of FormData
+                    var formData = {
+                        id: id,
+                        subject_code: subject_code,
+                        subject_name: subject_name,
+                        year_level: year_level
+                    };
+
+                    console.log('Sending update data:', formData);
+
+                    $.ajax({
+                        type: "POST",
+                        url: "transac.php?action=update_subject",
+                        data: formData,
+                        dataType: 'json',
+                        success: function(response) {
+                            // Reset button state
+                            $('#btn-editsubject').html('Update');
+                            $('#btn-editsubject').prop('disabled', false);
+                            
+                            if (response.status === 'success') {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Success!',
+                                    text: response.message,
+                                    showConfirmButton: true
+                                }).then(() => {
+                                    $('#editsubjectModal').modal('hide');
+                                    location.reload();
+                                });
+                            } else {
                                 Swal.fire({
                                     title: 'Error!',
-                                    text: 'An error occurred: ' + error,
+                                    text: response.message,
                                     icon: 'error'
                                 });
                             }
-                        });
-                    }
+                        },
+                        error: function(xhr, status, error) {
+                            // Reset button state
+                            $('#btn-editsubject').html('Update');
+                            $('#btn-editsubject').prop('disabled', false);
+                            
+                            console.error('AJAX Update Error Details:');
+                            console.error('Status:', status);
+                            console.error('Error:', error);
+                            console.error('Response:', xhr.responseText);
+                            
+                            try {
+                                var errorResponse = JSON.parse(xhr.responseText);
+                                Swal.fire({
+                                    title: 'Error!',
+                                    text: errorResponse.message || 'An error occurred',
+                                    icon: 'error'
+                                });
+                            } catch (e) {
+                                Swal.fire({
+                                    title: 'Error!',
+                                    text: 'An error occurred: ' + (xhr.responseText || error),
+                                    icon: 'error'
+                                });
+                            }
+                        }
+                    });
+                });
+
+                // Handle delete button click
+                $(document).on('click', '.d_subject_id', function() {
+                    var subjectId = $(this).data('id');
+                    var subjectName = $(this).attr('subject_name');
+                    
+                    Swal.fire({
+                        title: 'Are you sure?',
+                        text: "You are about to delete subject: " + subjectName,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#3085d6',
+                        confirmButtonText: 'Yes, delete it!',
+                        cancelButtonText: 'Cancel'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            // Show loading
+                            Swal.fire({
+                                title: 'Deleting...',
+                                text: 'Please wait',
+                                allowOutsideClick: false,
+                                didOpen: () => {
+                                    Swal.showLoading();
+                                }
+                            });
+
+                            $.ajax({
+                                url: 'transac.php?action=delete_subject',
+                                type: 'POST',
+                                data: { 
+                                    id: subjectId 
+                                },
+                                dataType: 'json',
+                                success: function(response) {
+                                    if (response.status === 'success') {
+                                        Swal.fire({
+                                            title: 'Deleted!',
+                                            text: response.message,
+                                            icon: 'success',
+                                            timer: 2000,
+                                            showConfirmButton: false
+                                        }).then(() => {
+                                            location.reload();
+                                        });
+                                    } else {
+                                        Swal.fire({
+                                            title: 'Error!',
+                                            text: response.message,
+                                            icon: 'error'
+                                        });
+                                    }
+                                },
+                                error: function(xhr, status, error) {
+                                    Swal.fire({
+                                        title: 'Error!',
+                                        text: 'An error occurred: ' + error,
+                                        icon: 'error'
+                                    });
+                                }
+                            });
+                        }
+                    });
+                });
+
+                // Reset modal when closed
+                $('#subjectModal').on('hidden.bs.modal', function () {
+                    $(this).find('form')[0].reset();
+                    $('.error-message').text('');
+                });
+
+                $('#editsubjectModal').on('hidden.bs.modal', function () {
+                    $('.error-message').text('');
                 });
             });
-
-            // Reset modal when closed
-            $('#subjectModal').on('hidden.bs.modal', function () {
-                $(this).find('form')[0].reset();
-                $('.error-message').text('');
-            });
-
-            $('#editsubjectModal').on('hidden.bs.modal', function () {
-                $('.error-message').text('');
-            });
-        });
-        </script>
+            </script>
 </body>
 </html>
