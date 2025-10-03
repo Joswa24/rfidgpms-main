@@ -1421,8 +1421,8 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
                         // Check for schedule conflicts (same room, same day, overlapping time)
                         $check_conflict = $db->prepare("SELECT id FROM room_schedules 
                             WHERE room_name = ? AND day = ? 
-                            AND ((start_time <= ? AND end_time > ?) OR (start_time < ? AND end_time >= ?))");
-                        $check_conflict->bind_param("ssssss", $room_name, $day, $start_time, $start_time, $end_time, $end_time);
+                            AND ((start_time <= ? AND end_time > ?) OR (start_time < ? AND end_time >= ?) OR (start_time >= ? AND end_time <= ?))");
+                        $check_conflict->bind_param("ssssssss", $room_name, $day, $start_time, $start_time, $end_time, $end_time, $start_time, $end_time);
                         $check_conflict->execute();
                         $check_conflict->store_result();
                         
@@ -1434,8 +1434,8 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
                         // Check if instructor has schedule conflict
                         $check_instructor_conflict = $db->prepare("SELECT id FROM room_schedules 
                             WHERE instructor = ? AND day = ? 
-                            AND ((start_time <= ? AND end_time > ?) OR (start_time < ? AND end_time >= ?))");
-                        $check_instructor_conflict->bind_param("ssssss", $instructor, $day, $start_time, $start_time, $end_time, $end_time);
+                            AND ((start_time <= ? AND end_time > ?) OR (start_time < ? AND end_time >= ?) OR (start_time >= ? AND end_time <= ?))");
+                        $check_instructor_conflict->bind_param("ssssssss", $instructor, $day, $start_time, $start_time, $end_time, $end_time, $start_time, $end_time);
                         $check_instructor_conflict->execute();
                         $check_instructor_conflict->store_result();
                         
@@ -1506,8 +1506,8 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
                         // Check for schedule conflicts (excluding current schedule)
                         $check_conflict = $db->prepare("SELECT id FROM room_schedules 
                             WHERE room_name = ? AND day = ? AND id != ?
-                            AND ((start_time <= ? AND end_time > ?) OR (start_time < ? AND end_time >= ?))");
-                        $check_conflict->bind_param("ssisssss", $room_name, $day, $id, $start_time, $start_time, $end_time, $end_time);
+                            AND ((start_time <= ? AND end_time > ?) OR (start_time < ? AND end_time >= ?) OR (start_time >= ? AND end_time <= ?))");
+                        $check_conflict->bind_param("ssissssss", $room_name, $day, $id, $start_time, $start_time, $end_time, $end_time, $start_time, $end_time);
                         $check_conflict->execute();
                         $check_conflict->store_result();
                         
@@ -1519,8 +1519,8 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
                         // Check if instructor has schedule conflict (excluding current schedule)
                         $check_instructor_conflict = $db->prepare("SELECT id FROM room_schedules 
                             WHERE instructor = ? AND day = ? AND id != ?
-                            AND ((start_time <= ? AND end_time > ?) OR (start_time < ? AND end_time >= ?))");
-                        $check_instructor_conflict->bind_param("ssisssss", $instructor, $day, $id, $start_time, $start_time, $end_time, $end_time);
+                            AND ((start_time <= ? AND end_time > ?) OR (start_time < ? AND end_time >= ?) OR (start_time >= ? AND end_time <= ?))");
+                        $check_instructor_conflict->bind_param("ssissssss", $instructor, $day, $id, $start_time, $start_time, $end_time, $end_time, $start_time, $end_time);
                         $check_instructor_conflict->execute();
                         $check_instructor_conflict->store_result();
                         
