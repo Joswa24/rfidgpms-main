@@ -217,7 +217,7 @@ function cleanID($id) {
                                             <div class="col-lg-4 col-md-6 col-sm-12">
                                                 <div class="form-group">
                                                     <label>ROLE:</label>
-                                                    <select required class="form-control dept_ID" name="role" id="role" autocomplete="off" onchange="updateCategory()">
+                                                    <select required class="form-control dept_ID" name="role" id="role" autocomplete="off" onchange="updateCategory1()">
                                                         <?php
                                                             $sql = "SELECT * FROM role WHERE role != 'Instructor'";
                                                             $result = $db->query($sql);
@@ -500,7 +500,7 @@ function cleanID($id) {
         order: [[8, 'desc']],
         stateSave: true
     });
-    
+
     // Function to update category dropdown based on role selection
     function updateCategory() {
         var role = document.getElementById('role').value;
@@ -920,7 +920,22 @@ $('#personellForm').submit(function(e) {
             }
         });
 
-        
+        // Function to update category dropdown for edit modal
+        function updateCategory1(role) {
+            const categoryDropdown = document.getElementById('ecategory');
+            // Clear existing options
+            categoryDropdown.innerHTML = '';
+
+            if (role === 'Student') {
+                const studentOption = new Option('Student', 'Student');
+                categoryDropdown.add(studentOption);
+            } else {
+                const regularOption = new Option('Regular', 'Regular');
+                const contractualOption = new Option('Contractual', 'Contractual');
+                categoryDropdown.add(regularOption);
+                categoryDropdown.add(contractualOption);
+            }
+        }
         </script>
 </body>
 </html>
