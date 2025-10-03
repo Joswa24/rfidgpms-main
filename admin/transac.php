@@ -963,7 +963,7 @@ if ($isAjaxRequest) {
             
             
             // Example: Check if student has attendance records
-            $checkAttendance = $db->prepare("SELECT COUNT(*) FROM attendance WHERE student_id = ?");
+            $checkAttendance = $db->prepare("SELECT COUNT(*) FROM attendance_logs WHERE student_id = ?");
             $checkAttendance->bind_param("i", $id);
             $checkAttendance->execute();
             $checkAttendance->bind_result($attendanceCount);

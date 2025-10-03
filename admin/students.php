@@ -705,7 +705,7 @@ function getStudentPhoto($photo) {
                 });
 
                 $.ajax({
-                    url: 'transac.php?action=delete_student',
+                    url: "transac.php?action=delete_student",
                     type: 'POST',
                     data: { 
                         id: studentId 
