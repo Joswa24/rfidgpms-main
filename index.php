@@ -174,9 +174,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             }
             
             header('Content-Type: application/json');
-            die(json_encode([
-                'status' => 'error', 
-                'message' => "Unauthorized access. Security personnel not found with ID: $id_number (clean: $clean_id). Available: " . implode('; ', $availablePersonnel)
+            die(json_encode([ 
+                'message' => "Unauthorized access. Security personnel not found with ID: $id_number (clean: $clean_id)  " 
             ]));
         }
 
