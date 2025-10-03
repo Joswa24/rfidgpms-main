@@ -106,7 +106,6 @@ function cleanID($id) {
                                     <i class="fas fa-plus-circle"></i> Add Personnel
                                 </button>
                             </div>
-                            <button type="button" id="simpleTest" class="btn btn-success mt-2">Simple Test</button>
                         </div>
                         <hr>
                         <div class="table-responsive">
@@ -553,111 +552,138 @@ function cleanID($id) {
     });
 
     // ========================
-// CREATE PERSONNEL - DEBUG VERSION
-// ========================
-$('#personellForm').submit(function(e) {
-    e.preventDefault();
-    
-    console.log('=== ADD PERSONNEL DEBUG ===');
-    
-    // Basic validation
-    const required = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department'];
-    let missing = [];
-    
-    required.forEach(field => {
-        if (!$('#' + field).val()) {
-            missing.push(field);
+    // CREATE PERSONNEL 
+    // ========================
+    $('#personellForm').submit(function(e) {
+        e.preventDefault();
+        
+        console.log('=== ADD PERSONNEL STARTED ===');
+        
+        // Basic validation
+        const required = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department'];
+        let missing = [];
+        
+        required.forEach(field => {
+            if (!$('#' + field).val()) {
+                missing.push(field);
+            }
+        });
+        
+        if (missing.length > 0) {
+            Swal.fire('Error!', 'Please fill all required fields: ' + missing.join(', '), 'error');
+            return;
         }
-    });
-    
-    if (missing.length > 0) {
-        Swal.fire('Error!', 'Please fill all required fields: ' + missing.join(', '), 'error');
-        return;
-    }
 
-    const idNumber = $('#id_number').val();
-    if (!/^\d{4}-\d{4}$/.test(idNumber)) {
-        Swal.fire('Error!', 'ID Number must be in format: 0000-0000', 'error');
-        return;
-    }
+        const idNumber = $('#id_number').val();
+        if (!/^\d{4}-\d{4}$/.test(idNumber)) {
+            Swal.fire('Error!', 'ID Number must be in format: 0000-0000', 'error');
+            return;
+        }
 
-    // Remove hyphen from ID number
-    var cleanIdNumber = idNumber.replace(/-/g, '');
-    console.log('Clean ID Number:', cleanIdNumber);
-    
-    // Create FormData - SIMPLE VERSION (no file upload first)
-    var formData = new FormData();
-    formData.append('last_name', $('#last_name').val());
-    formData.append('first_name', $('#first_name').val());
-    formData.append('date_of_birth', $('#date_of_birth').val());
-    formData.append('id_number', cleanIdNumber);
-    formData.append('role', $('#role').val());
-    formData.append('category', $('#category').val());
-    formData.append('department', $('#department').val());
+        // Remove hyphen from ID number
+        var cleanIdNumber = idNumber.replace(/-/g, '');
+        console.log('Clean ID Number:', cleanIdNumber);
+        
+        // Create FormData - build manually to ensure all fields are included
+        var formData = new FormData();
+        formData.append('last_name', $('#last_name').val());
+        formData.append('first_name', $('#first_name').val());
+        formData.append('date_of_birth', $('#date_of_birth').val());
+        formData.append('id_number', cleanIdNumber);
+        formData.append('role', $('#role').val());
+        formData.append('category', $('#category').val());
+        formData.append('department', $('#department').val());
+        
+        // Add photo file if selected
+        var photoFile = $('#photo')[0].files[0];
+        if (photoFile) {
+            console.log('Photo file selected:', photoFile.name);
+            formData.append('photo', photoFile);
+        } else {
+            console.log('No photo selected - will use default.png');
+        }
 
-    console.log('Sending data to server...');
-
-    // Show loading indicator
-    $('#btn-emp').html('<span class="spinner-border spinner-border-sm"></span> Saving...');
-    $('#btn-emp').prop('disabled', true);
-    
-    $.ajax({
-        url: "transac.php?action=add_personnel",
-        type: 'POST',
-        data: formData,
-        contentType: false,
-        processData: false,
-        dataType: 'json',
-        success: function(response) {
-            $('#btn-emp').html('Save');
-            $('#btn-emp').prop('disabled', false);
-            
-            console.log('Server Response:', response);
-            
-            if (response.status === 'success') {
-                Swal.fire({
-                    title: 'Success!',
-                    text: response.message,
-                    icon: 'success'
-                }).then(() => {
-                    $('#employeeModal').modal('hide');
-                    location.reload();
-                });
+        // Debug what we're sending
+        console.log('Sending FormData:');
+        for (var pair of formData.entries()) {
+            if (pair[0] === 'photo') {
+                console.log(pair[0] + ': [FILE] ' + pair[1].name);
             } else {
+                console.log(pair[0] + ': ' + pair[1]);
+            }
+        }
+
+        // Show loading indicator
+        $('#btn-emp').html('<span class="spinner-border spinner-border-sm"></span> Saving...');
+        $('#btn-emp').prop('disabled', true);
+        
+        $.ajax({
+            url: "transac.php?action=add_personnel",
+            type: 'POST',
+            data: formData,
+            contentType: false,
+            processData: false,
+            dataType: 'json',
+            success: function(response) {
+                // Reset button state
+                $('#btn-emp').html('Save');
+                $('#btn-emp').prop('disabled', false);
+                
+                console.log('Server Response:', response);
+                
+                if (response.status === 'success') {
+                    Swal.fire({
+                        title: 'Success!',
+                        text: response.message,
+                        icon: 'success',
+                        confirmButtonColor: '#3085d6'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            $('#employeeModal').modal('hide');
+                            location.reload();
+                        }
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: response.message,
+                        icon: 'error',
+                        confirmButtonColor: '#d33'
+                    });
+                }
+            },
+            error: function(xhr, status, error) {
+                // Reset button state
+                $('#btn-emp').html('Save');
+                $('#btn-emp').prop('disabled', false);
+                
+                console.log('=== AJAX ERROR ===');
+                console.log('Status:', status);
+                console.log('Error:', error);
+                console.log('Response Text:', xhr.responseText);
+                
+                let errorMessage = 'An error occurred while adding personnel';
+                try {
+                    // Try to parse the error response
+                    if (xhr.responseText) {
+                        const errorResponse = JSON.parse(xhr.responseText);
+                        if (errorResponse.message) {
+                            errorMessage = errorResponse.message;
+                        }
+                    }
+                } catch (e) {
+                    // If not JSON, use the raw response
+                    errorMessage = xhr.responseText || 'No response from server';
+                }
+                
                 Swal.fire({
-                    title: 'Error!',
-                    text: response.message,
+                    title: 'Server Error!',
+                    text: errorMessage,
                     icon: 'error'
                 });
             }
-        },
-        error: function(xhr, status, error) {
-            $('#btn-emp').html('Save');
-            $('#btn-emp').prop('disabled', false);
-            
-            console.log('=== FULL AJAX ERROR ===');
-            console.log('Status:', status);
-            console.log('Error:', error);
-            console.log('Response Text:', xhr.responseText);
-            console.log('Ready State:', xhr.readyState);
-            console.log('Status Code:', xhr.status);
-            
-            // Show the actual server response
-            let serverResponse = xhr.responseText || 'No response from server';
-            
-            Swal.fire({
-                title: 'Server Error Details',
-                html: `<div style="text-align: left; font-family: monospace; font-size: 12px;">
-                       <strong>Status:</strong> ${xhr.status}<br>
-                       <strong>Error:</strong> ${error}<br>
-                       <strong>Response:</strong><br>${serverResponse}
-                       </div>`,
-                icon: 'error',
-                width: 600
-            });
-        }
+        });
     });
-});
 
 
             // ========================
@@ -951,35 +977,6 @@ $('#personellForm').submit(function(e) {
                 categoryDropdown.add(contractualOption);
             }
         }
-        $('#simpleTest').click(function() {
-    console.log('=== SIMPLE TEST ===');
-    
-    // Test with minimal data
-    var data = {
-        last_name: 'Test',
-        first_name: 'User', 
-        date_of_birth: '2000-01-01',
-        id_number: '12345678',
-        role: 'Student',
-        category: 'Student',
-        department: 'BSIT'
-    };
-    
-    $.ajax({
-        url: "transac.php?action=add_personnel",
-        type: 'POST',
-        data: data,
-        dataType: 'json',
-        success: function(r) {
-            console.log('SUCCESS:', r);
-            alert('Success: ' + r.message);
-        },
-        error: function(xhr) {
-            console.log('ERROR:', xhr);
-            alert('Error: ' + xhr.responseText);
-        }
-    });
-});
         </script>
 </body>
 </html>
