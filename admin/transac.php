@@ -63,13 +63,14 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
 
         // Check if this is an AJAX request for specific operations
         $validAjaxActions = [
-            'add_department', 'update_department', 'delete_department', 
-            'add_room', 'update_room', 'delete_room',
-            'add_role', 'update_role', 'delete_role',
-            'add_personnel', 'update_personnel', 'delete_personnel',
-            'add_student', 'update_student', 'delete_student',
-            'add_instructor', 'update_instructor', 'delete_instructor'  // Added instructor operations
-        ];
+                        'add_department', 'update_department', 'delete_department', 
+                        'add_room', 'update_room', 'delete_room',
+                        'add_role', 'update_role', 'delete_role',
+                        'add_personnel', 'update_personnel', 'delete_personnel',
+                        'add_student', 'update_student', 'delete_student',
+                        'add_instructor', 'update_instructor', 'delete_instructor',
+                        'add_subject', 'update_subject', 'delete_subject'  
+                            ];
         $isAjaxRequest = isset($_GET['action']) && in_array($_GET['action'], $validAjaxActions);
 
     if ($isAjaxRequest) {
@@ -1195,6 +1196,206 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
                     jsonResponse('error', 'Failed to delete instructor: ' . $stmt->error);
                 }
                 break;
+                // ========================
+                // SUBJECT CRUD OPERATIONS
+                // ========================
+                case 'add_subject':
+                    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                        jsonResponse('error', 'Invalid request method');
+                    }
+
+                    // Validate required fields
+                    $required = ['subject_code', 'subject_name', 'year_level'];
+                    foreach ($required as $field) {
+                        if (empty($_POST[$field])) {
+                            jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
+                        }
+                    }
+
+                    // Sanitize inputs
+                    $subject_code = sanitizeInput($db, trim($_POST['subject_code']));
+                    $subject_name = sanitizeInput($db, trim($_POST['subject_name']));
+                    $year_level = sanitizeInput($db, $_POST['year_level']);
+
+                    // Validate lengths
+                    if (strlen($subject_code) > 50) {
+                        jsonResponse('error', 'Subject code must be less than 50 characters');
+                    }
+
+                    if (strlen($subject_name) > 255) {
+                        jsonResponse('error', 'Subject name must be less than 255 characters');
+                    }
+
+                    // Check if subject code already exists
+                    $check_code = $db->prepare("SELECT id FROM subjects WHERE subject_code = ?");
+                    $check_code->bind_param("s", $subject_code);
+                    $check_code->execute();
+                    $check_code->store_result();
+                    
+                    if ($check_code->num_rows > 0) {
+                        jsonResponse('error', 'Subject code already exists');
+                    }
+                    $check_code->close();
+
+                    // Check if subject name already exists for the same year level
+                    $check_name = $db->prepare("SELECT id FROM subjects WHERE subject_name = ? AND year_level = ?");
+                    $check_name->bind_param("ss", $subject_name, $year_level);
+                    $check_name->execute();
+                    $check_name->store_result();
+                    
+                    if ($check_name->num_rows > 0) {
+                        jsonResponse('error', 'Subject name already exists for this year level');
+                    }
+                    $check_name->close();
+
+                    // Insert subject record
+                    $query = "INSERT INTO subjects (subject_code, subject_name, year_level, date_added) 
+                            VALUES (?, ?, ?, NOW())";
+                    
+                    $stmt = $db->prepare($query);
+                    if (!$stmt) {
+                        jsonResponse('error', 'Database error: ' . $db->error);
+                    }
+
+                    $stmt->bind_param("sss", $subject_code, $subject_name, $year_level);
+
+                    if ($stmt->execute()) {
+                        jsonResponse('success', 'Subject added successfully', [
+                            'id' => $stmt->insert_id
+                        ]);
+                    } else {
+                        jsonResponse('error', 'Failed to add subject: ' . $stmt->error);
+                    }
+                    break;
+
+                case 'update_subject':
+                    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                        jsonResponse('error', 'Invalid request method');
+                    }
+
+                    // Validate required fields
+                    if (empty($_POST['id'])) {
+                        jsonResponse('error', 'Subject ID is required');
+                    }
+
+                    $required = ['subject_code', 'subject_name', 'year_level'];
+                    foreach ($required as $field) {
+                        if (empty($_POST[$field])) {
+                            jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
+                        }
+                    }
+
+                    // Sanitize inputs
+                    $id = intval($_POST['id']);
+                    $subject_code = sanitizeInput($db, trim($_POST['subject_code']));
+                    $subject_name = sanitizeInput($db, trim($_POST['subject_name']));
+                    $year_level = sanitizeInput($db, $_POST['year_level']);
+
+                    // Validate ID
+                    if ($id <= 0) {
+                        jsonResponse('error', 'Invalid subject ID');
+                    }
+
+                    // Validate lengths
+                    if (strlen($subject_code) > 50) {
+                        jsonResponse('error', 'Subject code must be less than 50 characters');
+                    }
+
+                    if (strlen($subject_name) > 255) {
+                        jsonResponse('error', 'Subject name must be less than 255 characters');
+                    }
+
+                    // Check if subject code exists for other subjects
+                    $check_code = $db->prepare("SELECT id FROM subjects WHERE subject_code = ? AND id != ?");
+                    $check_code->bind_param("si", $subject_code, $id);
+                    $check_code->execute();
+                    $check_code->store_result();
+                    
+                    if ($check_code->num_rows > 0) {
+                        jsonResponse('error', 'Subject code already assigned to another subject');
+                    }
+                    $check_code->close();
+
+                    // Check if subject name exists for same year level (excluding current subject)
+                    $check_name = $db->prepare("SELECT id FROM subjects WHERE subject_name = ? AND year_level = ? AND id != ?");
+                    $check_name->bind_param("ssi", $subject_name, $year_level, $id);
+                    $check_name->execute();
+                    $check_name->store_result();
+                    
+                    if ($check_name->num_rows > 0) {
+                        jsonResponse('error', 'Subject name already exists for this year level');
+                    }
+                    $check_name->close();
+
+                    // Update subject record
+                    $query = "UPDATE subjects SET 
+                        subject_code = ?, subject_name = ?, year_level = ?
+                        WHERE id = ?";
+                    $stmt = $db->prepare($query);
+                    $stmt->bind_param("sssi", $subject_code, $subject_name, $year_level, $id);
+
+                    if ($stmt->execute()) {
+                        jsonResponse('success', 'Subject updated successfully');
+                    } else {
+                        jsonResponse('error', 'Failed to update subject: ' . $stmt->error);
+                    }
+                    break;
+
+                case 'delete_subject':
+                    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                        jsonResponse('error', 'Invalid request method');
+                    }
+
+                    // Validate required field
+                    if (empty($_POST['id'])) {
+                        jsonResponse('error', 'Subject ID is required');
+                    }
+
+                    // Sanitize input
+                    $id = intval($_POST['id']);
+
+                    if ($id <= 0) {
+                        jsonResponse('error', 'Invalid subject ID');
+                    }
+
+                    // Check if subject exists
+                    $checkSubject = $db->prepare("SELECT id FROM subjects WHERE id = ?");
+                    $checkSubject->bind_param("i", $id);
+                    $checkSubject->execute();
+                    $checkSubject->store_result();
+                    
+                    if ($checkSubject->num_rows === 0) {
+                        jsonResponse('error', 'Subject not found');
+                    }
+                    $checkSubject->close();
+
+                    // Check for subject dependencies (classes, schedules, etc.)
+                    // Add dependency checks based on your database schema
+                    
+                    
+                    // Example: Check if subject has assigned classes
+                    $checkClasses = $db->prepare("SELECT COUNT(*) FROM room_schedules WHERE subject = ?");
+                    $checkClasses->bind_param("i", $id);
+                    $checkClasses->execute();
+                    $checkClasses->bind_result($classCount);
+                    $checkClasses->fetch();
+                    $checkClasses->close();
+
+                    if ($classCount > 0) {
+                        jsonResponse('error', 'Cannot delete subject with assigned classes');
+                    }
+                    
+
+                    // Delete subject
+                    $stmt = $db->prepare("DELETE FROM subjects WHERE id = ?");
+                    $stmt->bind_param("i", $id);
+                    
+                    if ($stmt->execute()) {
+                        jsonResponse('success', 'Subject deleted successfully');
+                    } else {
+                        jsonResponse('error', 'Failed to delete subject: ' . $stmt->error);
+                    }
+                    break;
 
         default:
             jsonResponse('error', 'Invalid action');
