@@ -17,7 +17,7 @@ function getStudentPhoto($photo) {
     $defaultPhoto = '../assets/img/2601828.png';
 
     // If no photo or file does not exist → return default
-    if (empty($photo) || $photo === 'default.png' || !file_exists($basePath . $photo)) {
+    if (empty($photo) || $photo === '2601828.png' || !file_exists($basePath . $photo)) {
         return $defaultPhoto;
     }
 
