@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 30, 2025 at 10:53 AM
+-- Generation Time: Oct 03, 2025 at 12:49 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -157,53 +157,6 @@ CREATE TABLE `archived_attendance_logs` (
   `instructor_id` varchar(9) NOT NULL,
   `status` varchar(20) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `archived_attendance_logs`
---
-
-INSERT INTO `archived_attendance_logs` (`id`, `student_id`, `id_number`, `time_in`, `time_out`, `department`, `location`, `instructor_id`, `status`) VALUES
-(190, 40, '2024-1697', '2025-08-06 19:08:36', '2025-08-06 19:08:42', 'BSIT', 'ComLab1', '', NULL),
-(191, 40, '2024-1697', '2025-08-06 19:16:01', '2025-08-06 19:16:04', 'BSIT', 'ComLab1', '', NULL),
-(192, 40, '2024-1697', '2025-08-06 19:31:42', '2025-08-06 19:31:46', 'BSIT', 'ComLab1', '', NULL),
-(193, 40, '2024-1697', '2025-08-06 19:33:46', '2025-08-06 19:41:09', 'BSIT', 'ComLab1', '', NULL),
-(194, 40, '2024-1697', '2025-08-06 19:44:21', '2025-08-06 19:44:28', 'BSIT', 'ComLab1', '', NULL),
-(195, 40, '2024-1697', '2025-08-09 11:52:32', '2025-08-09 11:52:41', 'BSIT', 'ComLab1', '', NULL),
-(196, 40, '2024-1697', '2025-08-12 16:10:26', NULL, 'BSIT', 'ComLab2', '', NULL),
-(197, 40, '2024-1697', '2025-08-12 16:58:31', '2025-08-12 16:58:46', 'BSIT', 'ComLab1', '', NULL),
-(198, 40, '2024-1697', '2025-08-12 17:17:47', NULL, 'BSIT', 'ComLab1', '', NULL),
-(199, 40, '2024-1697', '2025-08-15 14:51:19', '2025-08-15 15:25:34', 'BSIT', 'ComLab1', '', NULL),
-(200, 46, '8888-8888', '2025-08-15 15:44:53', '2025-08-15 15:44:53', 'BSIT', 'ComLab1', '', NULL),
-(201, 44, '9999-9999', '2025-08-15 15:46:32', '2025-08-15 15:47:24', 'BSIT', 'ComLab1', '', NULL),
-(202, 46, '8888-8888', '2025-08-15 15:57:35', '2025-08-15 15:58:02', 'BSIT', 'ComLab1', '', NULL),
-(203, 46, '8888-8888', '2025-08-15 16:13:25', '2025-08-15 16:23:52', 'BSIT', 'ComLab1', '', NULL),
-(204, 46, '8888-8888', '2025-08-15 16:30:27', '2025-08-15 16:31:45', 'BSIT', 'ComLab1', '', NULL),
-(206, 40, '2024-1697', '2025-08-16 13:34:39', '2025-08-16 13:34:39', 'Department', 'Location', '', NULL),
-(207, 46, '8888-8888', '2025-08-16 13:48:43', '2025-08-16 13:48:43', 'BSIT', 'ComLab2', '', NULL),
-(208, 46, '8888-8888', '2025-08-16 13:50:01', '2025-08-16 13:50:22', 'Department', 'Location', '', NULL),
-(209, 46, '8888-8888', '2025-08-19 11:49:30', '2025-08-19 11:49:30', 'BSIT', 'ComLab1', '', NULL),
-(210, 40, '2024-1697', '2025-08-22 11:07:54', '2025-08-22 11:07:59', 'BSIT', 'ComLab2', '', NULL),
-(211, 40, '2024-1697', '2025-08-22 11:09:26', '2025-08-22 11:09:39', 'BSIT', 'ComLab2', '', NULL),
-(213, 40, '2024-1697', '2025-08-25 11:53:33', '2025-08-25 11:55:25', 'BSIT', 'ComLab2', '', NULL),
-(215, 46, '8888-8888', '2025-08-25 12:26:22', NULL, 'BSIT', 'ComLab2', '', NULL),
-(216, 44, '9999-9999', '2025-08-25 12:26:34', NULL, 'BSIT', 'ComLab2', '', NULL),
-(217, 44, '9999-9999', '2025-08-25 12:27:57', NULL, 'BSIT', 'ComLab1', '', NULL),
-(218, 47, '7777-7777', '2025-08-25 12:28:23', NULL, 'BSIT', 'ComLab1', '', NULL),
-(300, 78, '0000-0001', '2025-09-10 09:45:31', NULL, 'BSIT', 'ComLab2', '', NULL),
-(301, 77, '2024-1697', '2025-09-10 09:45:47', NULL, 'BSIT', 'ComLab2', '', NULL),
-(302, 75, '2024-1570', '2025-09-10 09:46:05', NULL, 'BSIT', 'ComLab2', '', NULL),
-(303, 77, '2024-1697', '2025-09-10 10:10:59', NULL, 'BSIT', 'ComLab2', '', NULL),
-(304, 77, '2024-1697', '2025-09-10 10:18:05', NULL, 'BSIT', 'ComLab2', '', NULL),
-(305, 77, '2024-1697', '2025-09-10 10:19:32', NULL, 'BSIT', 'ComLab2', '', NULL),
-(308, 75, '2024-1570', '2025-09-12 07:02:34', '2025-09-12 07:03:30', 'BSIT', 'ComLab2', '', NULL),
-(310, 75, '2024-1570', '2025-09-12 12:37:39', '2025-09-12 12:37:39', 'BSIT', 'ComLab2', '', NULL),
-(311, 75, '2024-1570', '2025-09-12 12:38:15', '2025-09-12 12:38:15', 'BSIT', 'ComLab2', '', NULL),
-(312, 75, '2024-1570', '2025-09-12 12:38:52', '2025-09-12 12:38:52', 'BSIT', 'ComLab2', '', NULL),
-(313, 75, '2024-1570', '2025-09-12 12:39:13', '2025-09-12 12:39:13', 'BSIT', 'ComLab2', '', NULL),
-(314, 75, '2024-1570', '2025-09-12 15:29:14', NULL, 'BSIT', 'ComLab2', '', NULL),
-(315, 75, '2024-1570', '2025-09-16 16:01:23', '2025-09-16 16:01:23', 'BSIT', 'ComLab2', '', NULL),
-(316, 75, '2024-1570', '2025-09-16 18:56:06', '2025-09-16 18:56:06', 'BSIT', 'ComLab3', '', NULL),
-(320, 75, '2024-1570', '2025-09-22 09:38:10', NULL, 'BSIT', 'ComLab1', '', NULL);
 
 -- --------------------------------------------------------
 
@@ -448,6 +401,7 @@ CREATE TABLE `gate_statistics` (
 
 CREATE TABLE `instructor` (
   `id` int(11) NOT NULL,
+  `photo` varchar(25) NOT NULL,
   `fullname` varchar(50) NOT NULL,
   `id_number` varchar(9) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
@@ -459,14 +413,14 @@ CREATE TABLE `instructor` (
 -- Dumping data for table `instructor`
 --
 
-INSERT INTO `instructor` (`id`, `fullname`, `id_number`, `created_at`, `updated_at`, `department_id`) VALUES
-(11, 'Mr.Kurt Alegre', '0001-0001', '2025-06-28 11:52:22', '2025-07-14 22:16:12', 33),
-(12, 'Mr.Alvin Billiones', '0001-0004', '2025-07-08 08:26:38', '2025-07-14 22:19:33', 33),
-(13, 'Mr.Danilo Villarino', '0001-0003', '2025-07-09 00:38:05', '2025-07-14 22:18:53', 33),
-(16, 'Ms.Jessica Alcazar', '2024-0117', '2025-07-14 22:18:35', '2025-07-14 22:47:34', 33),
-(17, 'Mr.Richard Bracero', '0001-0005', '2025-07-14 22:20:02', '2025-07-14 22:20:02', 33),
-(18, 'Mrs.Emily Forrosuelo', '0001-0006', '2025-07-14 22:20:39', '2025-07-14 22:20:39', 33),
-(19, 'Mr.GlennFord Buncal', '0001-0007', '2025-07-14 22:21:14', '2025-07-14 22:21:14', 33);
+INSERT INTO `instructor` (`id`, `photo`, `fullname`, `id_number`, `created_at`, `updated_at`, `department_id`) VALUES
+(11, '', 'Mr.Kurt Alegre', '0001-0001', '2025-06-28 11:52:22', '2025-07-14 22:16:12', 33),
+(12, '', 'Mr.Alvin Billiones', '0001-0004', '2025-07-08 08:26:38', '2025-07-14 22:19:33', 33),
+(13, '', 'Mr.Danilo Villarino', '0001-0003', '2025-07-09 00:38:05', '2025-07-14 22:18:53', 33),
+(16, '', 'Ms.Jessica Alcazar', '2024-0117', '2025-07-14 22:18:35', '2025-07-14 22:47:34', 33),
+(17, '', 'Mr.Richard Bracero', '0001-0005', '2025-07-14 22:20:02', '2025-07-14 22:20:02', 33),
+(18, '', 'Mrs.Emily Forrosuelo', '0001-0006', '2025-07-14 22:20:39', '2025-07-14 22:20:39', 33),
+(19, '', 'Mr.GlennFord Buncal', '0001-0007', '2025-07-14 22:21:14', '2025-07-14 22:21:14', 33);
 
 -- --------------------------------------------------------
 
@@ -675,7 +629,6 @@ CREATE TABLE `lost_found` (
 
 CREATE TABLE `personell` (
   `id` int(11) NOT NULL,
-  `id_no` varchar(255) NOT NULL,
   `id_number` varchar(10) NOT NULL,
   `last_name` varchar(255) NOT NULL,
   `first_name` varchar(255) NOT NULL,
@@ -701,9 +654,9 @@ CREATE TABLE `personell` (
 -- Dumping data for table `personell`
 --
 
-INSERT INTO `personell` (`id`, `id_no`, `id_number`, `last_name`, `first_name`, `middle_name`, `date_of_birth`, `role`, `sex`, `civil_status`, `contact_number`, `email_address`, `department`, `section`, `status`, `complete_address`, `photo`, `place_of_birth`, `category`, `date_added`, `deleted`) VALUES
-(68, '', '12121212', 'Tuff', 'Ace', NULL, '1991-01-30', 'Security Personnel', '', '', NULL, NULL, 'BSIT', '', 'Active', '', '68cc082d524a5.png', '', 'Regular', '2025-09-18 13:25:01', 0),
-(69, '', '11111111', 'Bantay', 'Tig', NULL, '1986-03-20', 'Security Personnel', '', '', NULL, NULL, 'BSIT', '', 'Active', '', '68c37551339fa.png', '', 'Regular', '2025-09-12 01:20:17', 0);
+INSERT INTO `personell` (`id`, `id_number`, `last_name`, `first_name`, `middle_name`, `date_of_birth`, `role`, `sex`, `civil_status`, `contact_number`, `email_address`, `department`, `section`, `status`, `complete_address`, `photo`, `place_of_birth`, `category`, `date_added`, `deleted`) VALUES
+(68, '12121212', 'Tuff', 'Ace', NULL, '1991-01-30', 'Security Personnel', '', '', NULL, NULL, 'BSIT', '', 'Active', '', '68cc082d524a5.png', '', 'Regular', '2025-09-18 13:25:01', 0),
+(69, '11111111', 'Bantay', 'Tig', NULL, '1986-03-20', 'Security Personnel', '', '', NULL, NULL, 'BSIT', '', 'Active', '', '68c37551339fa.png', '', 'Regular', '2025-09-12 01:20:17', 0);
 
 -- --------------------------------------------------------
 
