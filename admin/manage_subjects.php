@@ -406,9 +406,8 @@ include '../connection.php';
                     $('#btn-subject').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
                     $('#btn-subject').prop('disabled', true);
 
-                    // Use regular form data
+                    // Use regular form data - REMOVE THE 'id' FIELD FOR ADD
                     var formData = {
-                        id: id,
                         subject_code: subject_code,
                         subject_name: subject_name,
                         year_level: year_level
