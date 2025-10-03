@@ -210,7 +210,7 @@ function cleanID($id) {
                                                             title="Upload Photo.." />
                                                     </label>
                                                     <input type="file" id="photo" name="photo" class="upload-field-1" 
-                                                            style="opacity: 0; position: absolute; z-index: -1;" accept="image/*" required>
+                                                        style="opacity: 0; position: absolute; z-index: -1;" accept="image/*">
                                                 </div>
                                             </div>
 
@@ -552,97 +552,138 @@ function cleanID($id) {
     });
 
     // ========================
-// CREATE PERSONNEL - FIXED VERSION
-// ========================
-$('#personellForm').submit(function(e) {
-    e.preventDefault();
-    
-    console.log('=== ADD PERSONNEL DEBUG ===');
-    
-    // Basic validation
-    const idNumber = $('#id_number').val();
-    if (!/^\d{4}-\d{4}$/.test(idNumber)) {
-        Swal.fire('Error!', 'ID Number must be in format: 0000-0000', 'error');
-        return;
-    }
-
-    // Remove hyphen from ID number
-    var cleanIdNumber = idNumber.replace(/-/g, '');
-    console.log('Clean ID Number:', cleanIdNumber);
-    
-    // Create FormData object
-    var formData = new FormData(this);
-    
-    // Override the id_number value with the clean version
-    formData.set('id_number', cleanIdNumber);
-    
-    // Debug what we're sending
-    console.log('FormData contents:');
-    for (var pair of formData.entries()) {
-        if (pair[0] === 'photo') {
-            console.log(pair[0] + ': [FILE] ' + pair[1].name);
-        } else {
-            console.log(pair[0] + ': ' + pair[1]);
+    // CREATE PERSONNEL - WORKING VERSION
+    // ========================
+    $('#personellForm').submit(function(e) {
+        e.preventDefault();
+        
+        console.log('=== ADD PERSONNEL STARTED ===');
+        
+        // Basic validation
+        const required = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department'];
+        let missing = [];
+        
+        required.forEach(field => {
+            if (!$('#' + field).val()) {
+                missing.push(field);
+            }
+        });
+        
+        if (missing.length > 0) {
+            Swal.fire('Error!', 'Please fill all required fields: ' + missing.join(', '), 'error');
+            return;
         }
-    }
 
-    // Show loading indicator
-    $('#btn-emp').html('<span class="spinner-border spinner-border-sm"></span> Saving...');
-    $('#btn-emp').prop('disabled', true);
-    
-    $.ajax({
-        url: "transac.php?action=add_personnel",
-        type: 'POST',
-        data: formData,
-        contentType: false,
-        processData: false,
-        dataType: 'json',
-        success: function(response) {
-            // Reset button state
-            $('#btn-emp').html('Save');
-            $('#btn-emp').prop('disabled', false);
-            
-            console.log('Server Response:', response);
-            
-            if (response.status === 'success') {
-                Swal.fire({
-                    title: 'Success!',
-                    text: response.message,
-                    icon: 'success',
-                    confirmButtonColor: '#3085d6'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        $('#employeeModal').modal('hide');
-                        location.reload();
-                    }
-                });
+        const idNumber = $('#id_number').val();
+        if (!/^\d{4}-\d{4}$/.test(idNumber)) {
+            Swal.fire('Error!', 'ID Number must be in format: 0000-0000', 'error');
+            return;
+        }
+
+        // Remove hyphen from ID number
+        var cleanIdNumber = idNumber.replace(/-/g, '');
+        console.log('Clean ID Number:', cleanIdNumber);
+        
+        // Create FormData - build manually to ensure all fields are included
+        var formData = new FormData();
+        formData.append('last_name', $('#last_name').val());
+        formData.append('first_name', $('#first_name').val());
+        formData.append('date_of_birth', $('#date_of_birth').val());
+        formData.append('id_number', cleanIdNumber);
+        formData.append('role', $('#role').val());
+        formData.append('category', $('#category').val());
+        formData.append('department', $('#department').val());
+        
+        // Add photo file if selected
+        var photoFile = $('#photo')[0].files[0];
+        if (photoFile) {
+            console.log('Photo file selected:', photoFile.name);
+            formData.append('photo', photoFile);
+        } else {
+            console.log('No photo selected - will use default.png');
+        }
+
+        // Debug what we're sending
+        console.log('Sending FormData:');
+        for (var pair of formData.entries()) {
+            if (pair[0] === 'photo') {
+                console.log(pair[0] + ': [FILE] ' + pair[1].name);
             } else {
+                console.log(pair[0] + ': ' + pair[1]);
+            }
+        }
+
+        // Show loading indicator
+        $('#btn-emp').html('<span class="spinner-border spinner-border-sm"></span> Saving...');
+        $('#btn-emp').prop('disabled', true);
+        
+        $.ajax({
+            url: "transac.php?action=add_personnel",
+            type: 'POST',
+            data: formData,
+            contentType: false,
+            processData: false,
+            dataType: 'json',
+            success: function(response) {
+                // Reset button state
+                $('#btn-emp').html('Save');
+                $('#btn-emp').prop('disabled', false);
+                
+                console.log('Server Response:', response);
+                
+                if (response.status === 'success') {
+                    Swal.fire({
+                        title: 'Success!',
+                        text: response.message,
+                        icon: 'success',
+                        confirmButtonColor: '#3085d6'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            $('#employeeModal').modal('hide');
+                            location.reload();
+                        }
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: response.message,
+                        icon: 'error',
+                        confirmButtonColor: '#d33'
+                    });
+                }
+            },
+            error: function(xhr, status, error) {
+                // Reset button state
+                $('#btn-emp').html('Save');
+                $('#btn-emp').prop('disabled', false);
+                
+                console.log('=== AJAX ERROR ===');
+                console.log('Status:', status);
+                console.log('Error:', error);
+                console.log('Response Text:', xhr.responseText);
+                
+                let errorMessage = 'An error occurred while adding personnel';
+                try {
+                    // Try to parse the error response
+                    if (xhr.responseText) {
+                        const errorResponse = JSON.parse(xhr.responseText);
+                        if (errorResponse.message) {
+                            errorMessage = errorResponse.message;
+                        }
+                    }
+                } catch (e) {
+                    // If not JSON, use the raw response
+                    errorMessage = xhr.responseText || 'No response from server';
+                }
+                
                 Swal.fire({
-                    title: 'Error!',
-                    text: response.message,
-                    icon: 'error',
-                    confirmButtonColor: '#d33'
+                    title: 'Server Error!',
+                    text: errorMessage,
+                    icon: 'error'
                 });
             }
-        },
-        error: function(xhr, status, error) {
-            // Reset button state
-            $('#btn-emp').html('Save');
-            $('#btn-emp').prop('disabled', false);
-            
-            console.log('AJAX Error:');
-            console.log('Status:', status);
-            console.log('Error:', error);
-            console.log('Response:', xhr.responseText);
-            
-            Swal.fire({
-                title: 'Server Error!',
-                text: 'Check browser console for details',
-                icon: 'error'
-            });
-        }
+        });
     });
-});
 
 
             // ========================

@@ -534,12 +534,9 @@ if ($isAjaxRequest) {
     $department = sanitizeInput($db, $_POST['department']);
     $status = 'Active';
 
-    // Debug: Log the received data
-    error_log("ADD PERSONNEL - ID: $id_number, Name: $first_name $last_name");
-
-    // Validate ID Number format (should be 8 digits from JavaScript)
+    // Validate ID Number format
     if (!preg_match('/^\d{8}$/', $id_number)) {
-        jsonResponse('error', 'ID Number must be exactly 8 digits. Received: ' . $id_number . ' (length: ' . strlen($id_number) . ')');
+        jsonResponse('error', 'ID Number must be exactly 8 digits');
     }
 
     // Check if ID Number already exists
@@ -553,49 +550,37 @@ if ($isAjaxRequest) {
     }
     $check_id->close();
 
-    // Handle file upload - FIXED PATH
+    // Handle file upload - SIMPLIFIED
     $photo = 'default.png';
     if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
         $allowed_types = ['image/jpeg', 'image/png', 'image/jpg'];
-        $file_info = finfo_open(FILEINFO_MIME_TYPE);
-        $mime_type = finfo_file($file_info, $_FILES['photo']['tmp_name']);
-        finfo_close($file_info);
-
-        if (!in_array($mime_type, $allowed_types)) {
-            jsonResponse('error', 'Only JPG and PNG images are allowed');
-        }
-
-        if ($_FILES['photo']['size'] > 2 * 1024 * 1024) {
+        $max_size = 2 * 1024 * 1024; // 2MB
+        
+        if ($_FILES['photo']['size'] > $max_size) {
             jsonResponse('error', 'Maximum file size is 2MB');
         }
-
-        $ext = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
+        
+        $file_type = $_FILES['photo']['type'];
+        if (!in_array($file_type, $allowed_types)) {
+            jsonResponse('error', 'Only JPG and PNG images are allowed');
+        }
+        
+        $ext = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
         $photo = uniqid() . '.' . $ext;
+        $upload_dir = 'uploads/';
         
-        // FIXED: Use correct relative path from transac.php location
-        $target_dir = __DIR__ . "/uploads/"; // This ensures we're in the correct directory
-        
-        if (!file_exists($target_dir)) {
-            mkdir($target_dir, 0755, true);
-        }
-
-        $target_file = $target_dir . $photo;
-        
-        // Debug file upload
-        error_log("Uploading file to: " . $target_file);
-        error_log("File upload error: " . $_FILES['photo']['error']);
-        
-        if (!move_uploaded_file($_FILES['photo']['tmp_name'], $target_file)) {
-            $upload_error = error_get_last();
-            error_log("File upload failed: " . $upload_error['message']);
-            jsonResponse('error', 'Failed to upload image: ' . $upload_error['message']);
+        // Create uploads directory if it doesn't exist
+        if (!is_dir($upload_dir)) {
+            mkdir($upload_dir, 0755, true);
         }
         
-        error_log("File uploaded successfully: " . $photo);
-    } else {
-        // Log file upload error for debugging
-        $file_error = $_FILES['photo']['error'] ?? 'No file uploaded';
-        error_log("File upload status: " . $file_error);
+        $upload_file = $upload_dir . $photo;
+        
+        if (move_uploaded_file($_FILES['photo']['tmp_name'], $upload_file)) {
+            // File uploaded successfully
+        } else {
+            jsonResponse('error', 'Failed to upload image file');
+        }
     }
 
     // Insert record
@@ -606,7 +591,7 @@ if ($isAjaxRequest) {
 
     $stmt = $db->prepare($query);
     if (!$stmt) {
-        jsonResponse('error', 'Prepare failed: ' . $db->error);
+        jsonResponse('error', 'Database prepare failed: ' . $db->error);
     }
 
     $stmt->bind_param(
@@ -618,7 +603,7 @@ if ($isAjaxRequest) {
     if ($stmt->execute()) {
         jsonResponse('success', 'Personnel added successfully');
     } else {
-        jsonResponse('error', 'Database error: ' . $stmt->error);
+        jsonResponse('error', 'Database execute failed: ' . $stmt->error);
     }
     break;
 
