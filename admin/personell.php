@@ -495,206 +495,198 @@ function cleanID($id) {
 
             <script>
         $(document).ready(function() {
-            // Initialize DataTable
-            var dataTable = $('#myDataTable').DataTable({
-                order: [[8, 'desc']],
-                stateSave: true
+    // Initialize DataTable
+    var dataTable = $('#myDataTable').DataTable({
+        order: [[8, 'desc']],
+        stateSave: true
+    });
+
+    // Function to update category dropdown based on role selection
+    function updateCategory() {
+        var role = document.getElementById('role').value;
+        var categorySelect = document.getElementById('category');
+        
+        // Clear the existing options
+        categorySelect.innerHTML = '';
+
+        if (role === 'Student') {
+            // If the role is 'Student', show 'Student' only in category
+            var option = document.createElement('option');
+            option.value = 'Student';
+            option.text = 'Student';
+            categorySelect.appendChild(option);
+        } else {
+            // If the role is not 'Student', show 'Regular' and 'Contractual'
+            var option1 = document.createElement('option');
+            option1.value = 'Regular';
+            option1.text = 'Regular';
+            categorySelect.appendChild(option1);
+
+            var option2 = document.createElement('option');
+            option2.value = 'Contractual';
+            option2.text = 'Contractual';
+            categorySelect.appendChild(option2);
+        }
+    }
+
+    // Initialize category dropdown on page load
+    updateCategory();
+
+    // Format ID number input to "0000-0000" pattern
+    function formatIDNumber(input) {
+        // Remove any non-digit characters
+        let value = input.value.replace(/\D/g, '');
+        
+        // Add hyphen after 4 digits
+        if (value.length > 4) {
+            value = value.substring(0, 4) + '-' + value.substring(4, 8);
+        }
+        
+        // Update the input value
+        input.value = value;
+    }
+
+    // Add event listeners for ID number formatting
+    $('#id_number, #id_number1').on('input', function() {
+        formatIDNumber(this);
+    });
+
+    // ========================
+    // CREATE PERSONNEL - FIXED VERSION
+    // ========================
+    $('#personellForm').submit(function(e) {
+        e.preventDefault();
+        
+        // Reset all error messages first
+        $('.lname-error, .fname-error, .dob-error, .idno-error, .pob-error, .dprt-error').text('');
+        
+        // Validate required fields
+        const requiredFields = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department'];
+        let isValid = true;
+        
+        requiredFields.forEach(field => {
+            const fieldValue = $('#' + field).val();
+            if (!fieldValue || fieldValue.trim() === '') {
+                isValid = false;
+                $('.' + field + '-error').text('This field is required').css('color', 'red');
+            }
+        });
+        
+        // Validate ID number format (0000-0000)
+        const idNumber = $('#id_number').val();
+        const idPattern = /^\d{4}-\d{4}$/;
+        if (!idPattern.test(idNumber)) {
+            isValid = false;
+            $('.idno-error').text('ID Number must be in format: 0000-0000').css('color', 'red');
+        }
+        
+        // Validate date of birth (minimum age 18)
+        const dob = new Date($('#date_of_birth').val());
+        const today = new Date();
+        const minAgeDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
+        
+        if (dob > minAgeDate) {
+            isValid = false;
+            $('.dob-error').text('Personnel must be at least 18 years old').css('color', 'red');
+        }
+        
+        if (!isValid) {
+            Swal.fire({
+                title: 'Error!',
+                text: 'Please fill all required fields correctly',
+                icon: 'error'
             });
+            return;
+        }
 
-            // Function to update category dropdown based on role selection
-            function updateCategory() {
-                var role = document.getElementById('role').value;
-                var categorySelect = document.getElementById('category');
+        // Remove hyphen from ID number before submitting
+        var cleanIdNumber = idNumber.replace(/-/g, '');
+        
+        // Create FormData object
+        var formData = new FormData(this);
+        
+        // Override the id_number value with the clean version (without hyphen)
+        formData.set('id_number', cleanIdNumber);
+        
+        // Debug: Log form data to console
+        console.log('=== ADD PERSONNEL REQUEST ===');
+        console.log('FormData contents:');
+        for (var pair of formData.entries()) {
+            console.log(pair[0] + ': ' + pair[1]);
+        }
+        console.log('Clean ID Number:', cleanIdNumber);
+
+        // Show loading indicator
+        $('#btn-emp').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
+        $('#btn-emp').prop('disabled', true);
+        
+        $.ajax({
+            url: "transac.php?action=add_personnel",
+            type: 'POST',
+            data: formData,
+            contentType: false,
+            processData: false,
+            dataType: 'json',
+            success: function(response) {
+                // Reset button state
+                $('#btn-emp').html('Save');
+                $('#btn-emp').prop('disabled', false);
                 
-                // Clear the existing options
-                categorySelect.innerHTML = '';
-
-                if (role === 'Student') {
-                    // If the role is 'Student', show 'Student' only in category
-                    var option = document.createElement('option');
-                    option.value = 'Student';
-                    option.text = 'Student';
-                    categorySelect.appendChild(option);
+                console.log('Server Response:', response);
+                
+                if (response.status === 'success') {
+                    Swal.fire({
+                        title: 'Success!',
+                        text: response.message,
+                        icon: 'success',
+                        confirmButtonColor: '#3085d6'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            // Close modal and refresh page to show new record
+                            $('#employeeModal').modal('hide');
+                            location.reload();
+                        }
+                    });
                 } else {
-                    // If the role is not 'Student', show 'Regular' and 'Contractual'
-                    var option1 = document.createElement('option');
-                    option1.value = 'Regular';
-                    option1.text = 'Regular';
-                    categorySelect.appendChild(option1);
-
-                    var option2 = document.createElement('option');
-                    option2.value = 'Contractual';
-                    option2.text = 'Contractual';
-                    categorySelect.appendChild(option2);
-                }
-            }
-
-            // Initialize category dropdown on page load
-            updateCategory();
-
-            // Format ID number input to "0000-0000" pattern
-            function formatIDNumber(input) {
-                // Remove any non-digit characters
-                let value = input.value.replace(/\D/g, '');
-                
-                // Add hyphen after 4 digits
-                if (value.length > 4) {
-                    value = value.substring(0, 4) + '-' + value.substring(4, 8);
-                }
-                
-                // Update the input value
-                input.value = value;
-            }
-
-            // Add event listeners for ID number formatting
-            $('#id_number, #id_number1').on('input', function() {
-                formatIDNumber(this);
-            });
-
-             // ========================
-            // CREATE PERSONNEL - ENHANCED DEBUGGING VERSION
-            // ========================
-            $('#personellForm').submit(function(e) {
-                e.preventDefault();
-                
-                // Reset all error messages first
-                $('.lname-error, .fname-error, .dob-error, .idno-error, .pob-error, .dprt-error').text('');
-                
-                // Validate required fields
-                const requiredFields = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department'];
-                let isValid = true;
-                
-                requiredFields.forEach(field => {
-                    const fieldValue = $('#' + field).val();
-                    if (!fieldValue || fieldValue.trim() === '') {
-                        isValid = false;
-                        $('.' + field + '-error').text('This field is required').css('color', 'red');
-                    }
-                });
-                
-                // Validate ID number format (0000-0000)
-                const idNumber = $('#id_number').val();
-                const idPattern = /^\d{4}-\d{4}$/;
-                if (!idPattern.test(idNumber)) {
-                    isValid = false;
-                    $('.idno-error').text('ID Number must be in format: 0000-0000').css('color', 'red');
-                }
-                
-                // Validate date of birth (minimum age 18)
-                const dob = new Date($('#date_of_birth').val());
-                const today = new Date();
-                const minAgeDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
-                
-                if (dob > minAgeDate) {
-                    isValid = false;
-                    $('.dob-error').text('Personnel must be at least 18 years old').css('color', 'red');
-                }
-                
-                if (!isValid) {
                     Swal.fire({
                         title: 'Error!',
-                        text: 'Please fill all required fields correctly',
-                        icon: 'error'
+                        text: response.message || 'Failed to add personnel',
+                        icon: 'error',
+                        confirmButtonColor: '#d33'
                     });
-                    return;
                 }
-
-                // Remove hyphen from ID number before submitting
-                var cleanIdNumber = idNumber.replace(/-/g, '');
+            },
+            error: function(xhr, status, error) {
+                // Reset button state
+                $('#btn-emp').html('Save');
+                $('#btn-emp').prop('disabled', false);
                 
-                // Create FormData object
-                var formData = new FormData(this);
+                console.log('AJAX Error Details:');
+                console.log('XHR Response:', xhr.responseText);
+                console.log('Status:', status);
+                console.log('Error:', error);
                 
-                // Override the id_number value with the clean version (without hyphen)
-                formData.set('id_number', cleanIdNumber);
-                
-                // Enhanced Debugging
-                console.log('=== ADD PERSONNEL DEBUG INFO ===');
-                console.log('Clean ID Number:', cleanIdNumber);
-                console.log('FormData contents:');
-                for (var pair of formData.entries()) {
-                    console.log(pair[0] + ': ' + pair[1]);
-                }
-                
-                // Check if file is selected
-                var photoFile = $('#photo')[0].files[0];
-                if (photoFile) {
-                    console.log('Photo file selected:', photoFile.name, 'Size:', photoFile.size, 'Type:', photoFile.type);
-                } else {
-                    console.log('No photo file selected');
-                }
-
-                // Show loading indicator
-                $('#btn-emp').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
-                $('#btn-emp').prop('disabled', true);
-                
-                $.ajax({
-                    url: "transac.php?action=add_personnel",
-                    type: 'POST',
-                    data: formData,
-                    contentType: false,
-                    processData: false,
-                    dataType: 'json',
-                    success: function(response) {
-                        // Reset button state
-                        $('#btn-emp').html('Save');
-                        $('#btn-emp').prop('disabled', false);
-                        
-                        console.log('=== SUCCESS RESPONSE ===');
-                        console.log('Server Response:', response);
-                        
-                        if (response.status === 'success') {
-                            Swal.fire({
-                                title: 'Success!',
-                                text: response.message,
-                                icon: 'success',
-                                confirmButtonColor: '#3085d6'
-                            }).then((result) => {
-                                if (result.isConfirmed) {
-                                    // Close modal and refresh page to show new record
-                                    $('#employeeModal').modal('hide');
-                                    location.reload();
-                                }
-                            });
-                        } else {
-                            Swal.fire({
-                                title: 'Error!',
-                                text: response.message || 'Failed to add personnel',
-                                icon: 'error',
-                                confirmButtonColor: '#d33'
-                            });
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        // Reset button state
-                        $('#btn-emp').html('Save');
-                        $('#btn-emp').prop('disabled', false);
-                        
-                        console.log('=== AJAX ERROR ===');
-                        console.log('XHR Response:', xhr.responseText);
-                        console.log('Status:', status);
-                        console.log('Error:', error);
-                        
-                        let errorMessage = 'An error occurred while processing your request';
-                        try {
-                            const errorResponse = JSON.parse(xhr.responseText);
-                            if (errorResponse.message) {
-                                errorMessage = errorResponse.message;
-                            }
-                        } catch (e) {
-                            // If not JSON, show the raw response for debugging
-                            errorMessage = 'Server response: ' + xhr.responseText;
-                        }
-                        
-                        Swal.fire({
-                            title: 'Error!',
-                            text: errorMessage,
-                            icon: 'error',
-                            confirmButtonColor: '#d33'
-                        });
+                let errorMessage = 'An error occurred while processing your request';
+                try {
+                    const errorResponse = JSON.parse(xhr.responseText);
+                    if (errorResponse.message) {
+                        errorMessage = errorResponse.message;
                     }
+                } catch (e) {
+                    // If not JSON, show the raw response for debugging
+                    errorMessage = 'Server response: ' + xhr.responseText;
+                }
+                
+                Swal.fire({
+                    title: 'Error!',
+                    text: errorMessage,
+                    icon: 'error',
+                    confirmButtonColor: '#d33'
                 });
-            });
+            }
+        });
+    });
+
 
             // ========================
             // UPDATE PERSONNEL - FIXED VERSION
