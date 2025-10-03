@@ -32,6 +32,14 @@ if (isset($_GET['edit'])) {
 
 // --- GET ALL SCHEDULES ---
 $schedules = $db->query("SELECT * FROM room_schedules ORDER BY room_name, day, start_time");
+
+// --- GET FILTER OPTIONS ---
+$departments = $db->query("SELECT DISTINCT department FROM room_schedules ORDER BY department");
+$rooms = $db->query("SELECT DISTINCT room_name FROM room_schedules ORDER BY room_name");
+$subjects = $db->query("SELECT DISTINCT subject FROM room_schedules ORDER BY subject");
+$year_levels = $db->query("SELECT DISTINCT year_level FROM room_schedules ORDER BY year_level");
+$days = $db->query("SELECT DISTINCT day FROM room_schedules ORDER BY FIELD(day, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')");
+$instructors = $db->query("SELECT DISTINCT instructor FROM room_schedules ORDER BY instructor");
 ?>
 
 <!DOCTYPE html>
@@ -100,6 +108,23 @@ $schedules = $db->query("SELECT * FROM room_schedules ORDER BY room_name, day, s
             border-radius: 0.25rem;
             font-size: 0.875rem;
         }
+        .filter-section {
+            background-color: #e9ecef;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .filter-btn {
+            margin-top: 32px;
+        }
+        .filter-badge {
+            background-color: #4e73df;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            margin-left: 5px;
+        }
     </style>
 </head>
 
@@ -126,6 +151,118 @@ $schedules = $db->query("SELECT * FROM room_schedules ORDER BY room_name, day, s
                                 </button>
                             </div>
                         </div>
+                        
+                        <!-- Filter Section -->
+                        <div class="filter-section">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label><b>Filter by Department:</b></label>
+                                        <select class="form-control filter-select" id="filter_department" name="filter_department">
+                                            <option value="">All Departments</option>
+                                            <?php while ($dept = $departments->fetch_assoc()): ?>
+                                                <option value="<?= htmlspecialchars($dept['department']) ?>">
+                                                    <?= htmlspecialchars($dept['department']) ?>
+                                                </option>
+                                            <?php endwhile; ?>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label><b>Filter by Room:</b></label>
+                                        <select class="form-control filter-select" id="filter_room" name="filter_room">
+                                            <option value="">All Rooms</option>
+                                            <?php while ($room = $rooms->fetch_assoc()): ?>
+                                                <option value="<?= htmlspecialchars($room['room_name']) ?>">
+                                                    <?= htmlspecialchars($room['room_name']) ?>
+                                                </option>
+                                            <?php endwhile; ?>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label><b>Filter by Subject:</b></label>
+                                        <select class="form-control filter-select" id="filter_subject" name="filter_subject">
+                                            <option value="">All Subjects</option>
+                                            <?php while ($subject = $subjects->fetch_assoc()): ?>
+                                                <option value="<?= htmlspecialchars($subject['subject']) ?>">
+                                                    <?= htmlspecialchars($subject['subject']) ?>
+                                                </option>
+                                            <?php endwhile; ?>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label><b>Filter by Year Level:</b></label>
+                                        <select class="form-control filter-select" id="filter_year_level" name="filter_year_level">
+                                            <option value="">All Year Levels</option>
+                                            <?php while ($year = $year_levels->fetch_assoc()): ?>
+                                                <option value="<?= htmlspecialchars($year['year_level']) ?>">
+                                                    <?= htmlspecialchars($year['year_level']) ?>
+                                                </option>
+                                            <?php endwhile; ?>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label><b>Filter by Day:</b></label>
+                                        <select class="form-control filter-select" id="filter_day" name="filter_day">
+                                            <option value="">All Days</option>
+                                            <?php while ($day = $days->fetch_assoc()): ?>
+                                                <option value="<?= htmlspecialchars($day['day']) ?>">
+                                                    <?= htmlspecialchars($day['day']) ?>
+                                                </option>
+                                            <?php endwhile; ?>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label><b>Filter by Instructor:</b></label>
+                                        <select class="form-control filter-select" id="filter_instructor" name="filter_instructor">
+                                            <option value="">All Instructors</option>
+                                            <?php while ($instructor = $instructors->fetch_assoc()): ?>
+                                                <option value="<?= htmlspecialchars($instructor['instructor']) ?>">
+                                                    <?= htmlspecialchars($instructor['instructor']) ?>
+                                                </option>
+                                            <?php endwhile; ?>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label><b>Filter by Time Range:</b></label>
+                                        <select class="form-control filter-select" id="filter_time" name="filter_time">
+                                            <option value="">All Times</option>
+                                            <option value="morning">Morning (6AM-12PM)</option>
+                                            <option value="afternoon">Afternoon (12PM-6PM)</option>
+                                            <option value="evening">Evening (6PM-10PM)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group filter-btn">
+                                        <button type="button" class="btn btn-outline-secondary w-100" id="resetFilters">
+                                            <i class="fas fa-refresh"></i> Reset Filters
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-md-12">
+                                    <div id="activeFilters" class="d-flex flex-wrap gap-2">
+                                        <!-- Active filters will appear here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <hr>
                         <div class="table-responsive">
                             <table class="table table-border" id="myDataTable">
@@ -558,16 +695,144 @@ $schedules = $db->query("SELECT * FROM room_schedules ORDER BY room_name, day, s
             // Initialize DataTable
             var dataTable = $('#myDataTable').DataTable({
                 order: [[9, 'desc']],
-                stateSave: true
+                stateSave: true,
+                language: {
+                    search: "Search all columns:"
+                }
             });
 
-            // Reset form function
-            function resetForm() {
-                $('.error-message').text('');
-                $('#scheduleForm')[0].reset();
+            // Active filters object
+            let activeFilters = {};
+
+            // Function to update active filters display
+            function updateActiveFilters() {
+                $('#activeFilters').empty();
+                let filterCount = 0;
+                
+                for (const [key, value] of Object.entries(activeFilters)) {
+                    if (value) {
+                        filterCount++;
+                        let filterName = key.replace('filter_', '').replace('_', ' ');
+                        filterName = filterName.charAt(0).toUpperCase() + filterName.slice(1);
+                        
+                        $('#activeFilters').append(`
+                            <span class="filter-badge">
+                                ${filterName}: ${value}
+                                <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.7rem;" data-filter="${key}"></button>
+                            </span>
+                        `);
+                    }
+                }
+                
+                // Update table info with filter count
+                if (filterCount > 0) {
+                    $('.dataTables_info').append(` <span class="text-primary">(${filterCount} active filter(s))</span>`);
+                }
             }
 
-            // Room selection handler to auto-fill department
+            // Function to apply all filters
+            function applyFilters() {
+                dataTable.columns().search('').draw();
+                
+                // Apply department filter
+                if (activeFilters.filter_department) {
+                    dataTable.column(1).search(activeFilters.filter_department, true, false);
+                }
+                
+                // Apply room filter
+                if (activeFilters.filter_room) {
+                    dataTable.column(1).search(activeFilters.filter_room, true, false);
+                }
+                
+                // Apply subject filter
+                if (activeFilters.filter_subject) {
+                    dataTable.column(2).search(activeFilters.filter_subject, true, false);
+                }
+                
+                // Apply year level filter
+                if (activeFilters.filter_year_level) {
+                    dataTable.column(4).search(activeFilters.filter_year_level, true, false);
+                }
+                
+                // Apply day filter
+                if (activeFilters.filter_day) {
+                    dataTable.column(5).search(activeFilters.filter_day, true, false);
+                }
+                
+                // Apply instructor filter
+                if (activeFilters.filter_instructor) {
+                    dataTable.column(6).search(activeFilters.filter_instructor, true, false);
+                }
+                
+                // Apply time range filter
+                if (activeFilters.filter_time) {
+                    dataTable.column(7).every(function() {
+                        var column = this;
+                        var searchTerm = activeFilters.filter_time;
+                        
+                        column.nodes().each(function(node) {
+                            var cellText = $(node).text().toLowerCase();
+                            var showRow = false;
+                            
+                            switch(searchTerm) {
+                                case 'morning':
+                                    showRow = cellText.includes('am') && !cellText.includes('pm');
+                                    break;
+                                case 'afternoon':
+                                    showRow = cellText.includes('pm') && (
+                                        cellText.includes('12:') || cellText.includes('1:') || 
+                                        cellText.includes('2:') || cellText.includes('3:') || 
+                                        cellText.includes('4:') || cellText.includes('5:')
+                                    );
+                                    break;
+                                case 'evening':
+                                    showRow = cellText.includes('pm') && (
+                                        cellText.includes('6:') || cellText.includes('7:') || 
+                                        cellText.includes('8:') || cellText.includes('9:') || 
+                                        cellText.includes('10:')
+                                    );
+                                    break;
+                            }
+                            
+                            if (!showRow) {
+                                $(node).parent().hide();
+                            } else {
+                                $(node).parent().show();
+                            }
+                        });
+                    });
+                }
+                
+                dataTable.draw();
+                updateActiveFilters();
+            }
+
+            // Filter change handler
+            $('.filter-select').change(function() {
+                const filterName = $(this).attr('id');
+                const filterValue = $(this).val();
+                
+                activeFilters[filterName] = filterValue;
+                applyFilters();
+            });
+
+            // Remove individual filter
+            $(document).on('click', '.filter-badge .btn-close', function() {
+                const filterName = $(this).data('filter');
+                activeFilters[filterName] = '';
+                $('#' + filterName).val('');
+                applyFilters();
+            });
+
+            // Reset all filters
+            $('#resetFilters').click(function() {
+                $('.filter-select').val('');
+                activeFilters = {};
+                applyFilters();
+                $('#activeFilters').empty();
+            });
+
+            // Auto-apply room department when room is selected
             $('select[name="room_name"]').change(function() {
                 var selectedOption = $(this).find('option:selected');
                 var department = selectedOption.data('department');
@@ -577,7 +842,7 @@ $schedules = $db->query("SELECT * FROM room_schedules ORDER BY room_name, day, s
             });
 
             // ==========
-            // READ (EDIT SCHEDULE) - FIXED
+            // READ (EDIT SCHEDULE)
             // ==========
             $(document).on('click', '.e_schedule_id', function() {
                 const id = $(this).data('id');
@@ -616,7 +881,7 @@ $schedules = $db->query("SELECT * FROM room_schedules ORDER BY room_name, day, s
             });
 
             // ==============
-            // CREATE (ADD SCHEDULE) - FIXED to use regular form data
+            // CREATE (ADD SCHEDULE)
             // ==============
             $('#scheduleForm').submit(function(e) {
                 e.preventDefault();
@@ -682,7 +947,6 @@ $schedules = $db->query("SELECT * FROM room_schedules ORDER BY room_name, day, s
                 $('#btn-schedule').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
                 $('#btn-schedule').prop('disabled', true);
 
-                // Use regular form data instead of FormData
                 var formData = {
                     department: department,
                     room_name: room_name,
@@ -753,7 +1017,7 @@ $schedules = $db->query("SELECT * FROM room_schedules ORDER BY room_name, day, s
             });
 
             // ==========
-            // UPDATE SCHEDULE - FIXED to use regular form data
+            // UPDATE SCHEDULE
             // ==========
             $('#editScheduleForm').submit(function(e) {
                 e.preventDefault();
@@ -838,7 +1102,6 @@ $schedules = $db->query("SELECT * FROM room_schedules ORDER BY room_name, day, s
                 $('#btn-editschedule').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
                 $('#btn-editschedule').prop('disabled', true);
 
-                // Use regular form data instead of FormData
                 var formData = {
                     id: id,
                     department: department,
@@ -984,6 +1247,6 @@ $schedules = $db->query("SELECT * FROM room_schedules ORDER BY room_name, day, s
                 $('.error-message').text('');
             });
         });
-        </script>
+    </script>
 </body>
 </html>
