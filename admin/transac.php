@@ -1238,8 +1238,8 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
                     $check_code->close();
 
                     // Insert subject record
-                    $query = "INSERT INTO subjects (subject_code, subject_name, year_level, date_added) 
-                            VALUES (?, ?, ?, NOW())";
+                    $query = "INSERT INTO subjects (subject_code, subject_name, year_level,) 
+                            VALUES (?, ?, ?,)";
                     
                     $stmt = $db->prepare($query);
                     if (!$stmt) {
