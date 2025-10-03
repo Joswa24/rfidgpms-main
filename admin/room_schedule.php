@@ -390,11 +390,16 @@ $all_instructors = $db->query("SELECT * FROM instructor ORDER BY fullname");
                                                     <label><b>Department:</b></label>
                                                     <select name="department" id="add_department" class="form-control" required>
                                                         <option value="">Select Department</option>
-                                                        <?php while ($dept = $all_departments->fetch_assoc()): ?>
+                                                        <?php 
+                                                        $all_departments->data_seek(0);
+                                                        while ($dept = $all_departments->fetch_assoc()):
+                                                        if ($dept['department_name'] !== 'Main'): 
+                                                        endif;?>
                                                             <option value="<?= htmlspecialchars($dept['department_name']) ?>">
                                                                 <?= htmlspecialchars($dept['department_name']) ?>
                                                             </option>
-                                                        <?php endwhile; ?>
+                                                        <?php
+                                                    endwhile; ?>
                                                     </select>
                                                     <span class="error-message" id="department-error"></span>
                                                 </div>
