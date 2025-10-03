@@ -511,7 +511,7 @@ if ($isAjaxRequest) {
                  // ========================
                 // PERSONNEL CRUD OPERATIONS
                 // ========================
-                case 'add_personnel':
+               case 'add_personnel':
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         jsonResponse('error', 'Invalid request method');
     }
@@ -528,15 +528,14 @@ if ($isAjaxRequest) {
     $last_name = sanitizeInput($db, $_POST['last_name']);
     $first_name = sanitizeInput($db, $_POST['first_name']);
     $date_of_birth = sanitizeInput($db, $_POST['date_of_birth']);
-    $id_number = sanitizeInput($db, $_POST['id_number']); // This should be the 8-digit ID
+    $id_number = sanitizeInput($db, $_POST['id_number']);
     $role = sanitizeInput($db, $_POST['role']);
     $category = sanitizeInput($db, $_POST['category']);
     $department = sanitizeInput($db, $_POST['department']);
     $status = 'Active';
 
-    // Debug: Log the received ID number
-    error_log("Received ID Number: " . $id_number);
-    error_log("ID Number length: " . strlen($id_number));
+    // Debug: Log the received data
+    error_log("ADD PERSONNEL - ID: $id_number, Name: $first_name $last_name");
 
     // Validate ID Number format (should be 8 digits from JavaScript)
     if (!preg_match('/^\d{8}$/', $id_number)) {
@@ -554,7 +553,7 @@ if ($isAjaxRequest) {
     }
     $check_id->close();
 
-    // Handle file upload
+    // Handle file upload - FIXED PATH
     $photo = 'default.png';
     if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
         $allowed_types = ['image/jpeg', 'image/png', 'image/jpg'];
@@ -572,19 +571,34 @@ if ($isAjaxRequest) {
 
         $ext = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
         $photo = uniqid() . '.' . $ext;
-        $target_dir = "uploads/";
+        
+        // FIXED: Use correct relative path from transac.php location
+        $target_dir = __DIR__ . "/uploads/"; // This ensures we're in the correct directory
         
         if (!file_exists($target_dir)) {
             mkdir($target_dir, 0755, true);
         }
 
         $target_file = $target_dir . $photo;
+        
+        // Debug file upload
+        error_log("Uploading file to: " . $target_file);
+        error_log("File upload error: " . $_FILES['photo']['error']);
+        
         if (!move_uploaded_file($_FILES['photo']['tmp_name'], $target_file)) {
-            jsonResponse('error', 'Failed to upload image');
+            $upload_error = error_get_last();
+            error_log("File upload failed: " . $upload_error['message']);
+            jsonResponse('error', 'Failed to upload image: ' . $upload_error['message']);
         }
+        
+        error_log("File uploaded successfully: " . $photo);
+    } else {
+        // Log file upload error for debugging
+        $file_error = $_FILES['photo']['error'] ?? 'No file uploaded';
+        error_log("File upload status: " . $file_error);
     }
 
-    // Insert record - CORRECTED for your table structure
+    // Insert record
     $query = "INSERT INTO personell (
         id_number, last_name, first_name, date_of_birth, 
         role, category, department, status, photo, date_added

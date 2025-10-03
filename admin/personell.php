@@ -552,7 +552,7 @@ function cleanID($id) {
             });
 
              // ========================
-            // CREATE PERSONNEL - FIXED VERSION
+            // CREATE PERSONNEL - ENHANCED DEBUGGING VERSION
             // ========================
             $('#personellForm').submit(function(e) {
                 e.preventDefault();
@@ -608,10 +608,20 @@ function cleanID($id) {
                 // Override the id_number value with the clean version (without hyphen)
                 formData.set('id_number', cleanIdNumber);
                 
-                // Debug: Log form data to console
+                // Enhanced Debugging
+                console.log('=== ADD PERSONNEL DEBUG INFO ===');
+                console.log('Clean ID Number:', cleanIdNumber);
                 console.log('FormData contents:');
                 for (var pair of formData.entries()) {
                     console.log(pair[0] + ': ' + pair[1]);
+                }
+                
+                // Check if file is selected
+                var photoFile = $('#photo')[0].files[0];
+                if (photoFile) {
+                    console.log('Photo file selected:', photoFile.name, 'Size:', photoFile.size, 'Type:', photoFile.type);
+                } else {
+                    console.log('No photo file selected');
                 }
 
                 // Show loading indicator
@@ -630,6 +640,7 @@ function cleanID($id) {
                         $('#btn-emp').html('Save');
                         $('#btn-emp').prop('disabled', false);
                         
+                        console.log('=== SUCCESS RESPONSE ===');
                         console.log('Server Response:', response);
                         
                         if (response.status === 'success') {
@@ -659,7 +670,7 @@ function cleanID($id) {
                         $('#btn-emp').html('Save');
                         $('#btn-emp').prop('disabled', false);
                         
-                        console.log('AJAX Error Details:');
+                        console.log('=== AJAX ERROR ===');
                         console.log('XHR Response:', xhr.responseText);
                         console.log('Status:', status);
                         console.log('Error:', error);
