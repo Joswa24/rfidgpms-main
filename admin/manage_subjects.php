@@ -406,14 +406,17 @@ include '../connection.php';
                 $('#btn-subject').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
                 $('#btn-subject').prop('disabled', true);
 
-                var formData = new FormData(this);
+                // Use regular form data instead of FormData since there are no file uploads
+                var formData = {
+                    subject_code: subject_code,
+                    subject_name: subject_name,
+                    year_level: year_level
+                };
 
                 $.ajax({
                     type: "POST",
                     url: "transac.php?action=add_subject",
                     data: formData,
-                    contentType: false,
-                    processData: false,
                     dataType: 'json',
                     success: function(response) {
                         // Reset button state
@@ -443,10 +446,13 @@ include '../connection.php';
                         $('#btn-subject').html('Save');
                         $('#btn-subject').prop('disabled', false);
                         
+                        // Log the actual error for debugging
+                        console.error('AJAX Error:', xhr.responseText);
+                        
                         Swal.fire({
                             icon: 'error',
                             title: 'Error!',
-                            text: 'An error occurred: ' + error
+                            text: 'An error occurred: ' + (xhr.responseText || error)
                         });
                     }
                 });
