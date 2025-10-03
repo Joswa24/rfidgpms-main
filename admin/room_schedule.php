@@ -430,7 +430,7 @@ $all_instructors = $db->query("SELECT * FROM instructor ORDER BY fullname");
                                             <div class="col-lg-6 col-md-6 col-sm-12">
                                                 <div class="form-group">
                                                     <label><b>Section:</b></label>
-                                                    <input type="text" name="section" id="add_section" class="form-control" required placeholder="e.g., A, B, C">
+                                                    <input type="text" name="section" id="add_section" class="form-control" required placeholder="Input Section..">
                                                     <span class="error-message" id="section-error"></span>
                                                 </div>
                                             </div>
