@@ -819,32 +819,64 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
             }
             $check_id->close();
 
-            // Handle file upload
-            $photo = 'default.png'; // Default photo
+            // Handle photo upload - FILE BASED SYSTEM
+            $photoName = '';
             if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
-                $uploadResult = handleFileUpload('photo', '../uploads/students/');
-                if (!$uploadResult['success']) {
-                    jsonResponse('error', $uploadResult['message']);
+                $uploadDir = '../uploads/students/';
+                
+                // Create directory if it doesn't exist
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0777, true);
                 }
-                $photo = $uploadResult['filename'];
+                
+                $fileExtension = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
+                $photoName = $id_number . '_' . uniqid() . '.' . $fileExtension;
+                $uploadFile = $uploadDir . $photoName;
+                
+                // Validate file type and size
+                $allowedTypes = ['jpg', 'jpeg', 'png'];
+                $maxSize = 2 * 1024 * 1024; // 2MB
+                
+                if (!in_array($fileExtension, $allowedTypes)) {
+                    jsonResponse('error', 'Invalid photo format. Only JPG, JPEG, and PNG are allowed.');
+                }
+                
+                if ($_FILES['photo']['size'] > $maxSize) {
+                    jsonResponse('error', 'Photo size too large. Maximum size is 2MB.');
+                }
+                
+                // Move uploaded file
+                if (!move_uploaded_file($_FILES['photo']['tmp_name'], $uploadFile)) {
+                    jsonResponse('error', 'Failed to upload photo');
+                }
+            } else {
+                jsonResponse('error', 'Photo is required');
             }
 
-            // Insert student record
+            // Insert student record with photo filename
             $query = "INSERT INTO students (department_id, id_number, fullname, year, section, photo, date_added) 
-                      VALUES (?, ?, ?, ?, ?, ?, NOW())";
+                    VALUES (?, ?, ?, ?, ?, ?, NOW())";
             
             $stmt = $db->prepare($query);
             if (!$stmt) {
+                // Clean up uploaded file if database fails
+                if (!empty($photoName) && file_exists($uploadDir . $photoName)) {
+                    unlink($uploadDir . $photoName);
+                }
                 jsonResponse('error', 'Database error: ' . $db->error);
             }
 
-            $stmt->bind_param("isssss", $department_id, $id_number, $fullname, $year, $section, $photo);
+            $stmt->bind_param("isssss", $department_id, $id_number, $fullname, $year, $section, $photoName);
 
             if ($stmt->execute()) {
                 jsonResponse('success', 'Student added successfully', [
                     'id' => $stmt->insert_id
                 ]);
             } else {
+                // Clean up uploaded file if insert fails
+                if (!empty($photoName) && file_exists($uploadDir . $photoName)) {
+                    unlink($uploadDir . $photoName);
+                }
                 jsonResponse('error', 'Failed to add student: ' . $stmt->error);
             }
             break;
@@ -873,6 +905,7 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
             $fullname = sanitizeInput($db, trim($_POST['fullname']));
             $year = sanitizeInput($db, $_POST['year']);
             $section = sanitizeInput($db, $_POST['section']);
+            $current_photo = sanitizeInput($db, $_POST['current_photo'] ?? '');
 
             // Validate IDs
             if ($id <= 0) {
@@ -898,37 +931,67 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
             }
             $check_id->close();
 
-            // Handle file upload
-            $photo = '';
+            // Handle photo upload - FILE BASED SYSTEM
+            $photoName = $current_photo; // Default to current photo
+            
             if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
-                $uploadResult = handleFileUpload('photo', '../uploads/students/');
-                if (!$uploadResult['success']) {
-                    jsonResponse('error', $uploadResult['message']);
+                $uploadDir = '../uploads/students/';
+                
+                // Create directory if it doesn't exist
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0777, true);
                 }
-                $photo = $uploadResult['filename'];
-            } else {
-                // Keep existing photo if no new upload
-                $photo = sanitizeInput($db, $_POST['capturedImage']);
+                
+                $fileExtension = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
+                $photoName = $id_number . '_' . uniqid() . '.' . $fileExtension;
+                $uploadFile = $uploadDir . $photoName;
+                
+                // Validate file type and size
+                $allowedTypes = ['jpg', 'jpeg', 'png'];
+                $maxSize = 2 * 1024 * 1024; // 2MB
+                
+                if (!in_array($fileExtension, $allowedTypes)) {
+                    jsonResponse('error', 'Invalid photo format. Only JPG, JPEG, and PNG are allowed.');
+                }
+                
+                if ($_FILES['photo']['size'] > $maxSize) {
+                    jsonResponse('error', 'Photo size too large. Maximum size is 2MB.');
+                }
+                
+                // Move uploaded file
+                if (!move_uploaded_file($_FILES['photo']['tmp_name'], $uploadFile)) {
+                    jsonResponse('error', 'Failed to upload photo');
+                }
+                
+                // Delete old photo if it exists and is not the default
+                if (!empty($current_photo) && $current_photo !== 'default.png' && file_exists($uploadDir . $current_photo)) {
+                    unlink($uploadDir . $current_photo);
+                }
             }
 
             // Update student record
-            if (!empty($photo)) {
-                $query = "UPDATE students SET 
-                    department_id = ?, id_number = ?, fullname = ?, year = ?, section = ?, photo = ?
-                    WHERE id = ?";
-                $stmt = $db->prepare($query);
-                $stmt->bind_param("isssssi", $department_id, $id_number, $fullname, $year, $section, $photo, $id);
-            } else {
-                $query = "UPDATE students SET 
-                    department_id = ?, id_number = ?, fullname = ?, year = ?, section = ?
-                    WHERE id = ?";
-                $stmt = $db->prepare($query);
-                $stmt->bind_param("issssi", $department_id, $id_number, $fullname, $year, $section, $id);
+            $query = "UPDATE students SET 
+                department_id = ?, id_number = ?, fullname = ?, year = ?, section = ?, photo = ?
+                WHERE id = ?";
+            
+            $stmt = $db->prepare($query);
+            if (!$stmt) {
+                // Clean up new uploaded file if database fails
+                if (isset($_FILES['photo']) && !empty($photoName) && file_exists($uploadDir . $photoName)) {
+                    unlink($uploadDir . $photoName);
+                }
+                jsonResponse('error', 'Database error: ' . $db->error);
             }
+
+            $stmt->bind_param("isssssi", $department_id, $id_number, $fullname, $year, $section, $photoName, $id);
 
             if ($stmt->execute()) {
                 jsonResponse('success', 'Student updated successfully');
             } else {
+                // Clean up new uploaded file if update fails
+                if (isset($_FILES['photo']) && !empty($photoName) && file_exists($uploadDir . $photoName)) {
+                    unlink($uploadDir . $photoName);
+                }
                 jsonResponse('error', 'Failed to update student: ' . $stmt->error);
             }
             break;
@@ -950,11 +1013,13 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
                 jsonResponse('error', 'Invalid student ID');
             }
 
-            // Check if student exists
-            $checkStudent = $db->prepare("SELECT id FROM students WHERE id = ?");
+            // Check if student exists and get photo filename
+            $checkStudent = $db->prepare("SELECT id, photo FROM students WHERE id = ?");
             $checkStudent->bind_param("i", $id);
             $checkStudent->execute();
             $checkStudent->store_result();
+            $checkStudent->bind_result($studentId, $photoFilename);
+            $checkStudent->fetch();
             
             if ($checkStudent->num_rows === 0) {
                 jsonResponse('error', 'Student not found');
@@ -962,10 +1027,6 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
             $checkStudent->close();
 
             // Check for student dependencies (attendance records, etc.)
-            // Uncomment and modify these checks based on your database schema
-            
-            
-            // Example: Check if student has attendance records
             $checkAttendance = $db->prepare("SELECT COUNT(*) FROM attendance_logs WHERE student_id = ?");
             $checkAttendance->bind_param("i", $id);
             $checkAttendance->execute();
@@ -976,13 +1037,19 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
             if ($attendanceCount > 0) {
                 jsonResponse('error', 'Cannot delete student with attendance records');
             }
-            
 
             // Delete student
             $stmt = $db->prepare("DELETE FROM students WHERE id = ?");
             $stmt->bind_param("i", $id);
             
             if ($stmt->execute()) {
+                // Delete student photo file if it exists and is not default
+                if (!empty($photoFilename) && $photoFilename !== 'default.png') {
+                    $uploadDir = '../uploads/students/';
+                    if (file_exists($uploadDir . $photoFilename)) {
+                        unlink($uploadDir . $photoFilename);
+                    }
+                }
                 jsonResponse('success', 'Student deleted successfully');
             } else {
                 jsonResponse('error', 'Failed to delete student: ' . $stmt->error);
