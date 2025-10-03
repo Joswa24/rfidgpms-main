@@ -1237,20 +1237,9 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
                     }
                     $check_code->close();
 
-                    // Check if subject name already exists for the same year level
-                    $check_name = $db->prepare("SELECT id FROM subjects WHERE subject_name = ? AND year_level = ?");
-                    $check_name->bind_param("ss", $subject_name, $year_level);
-                    $check_name->execute();
-                    $check_name->store_result();
-                    
-                    if ($check_name->num_rows > 0) {
-                        jsonResponse('error', 'Subject name already exists for this year level');
-                    }
-                    $check_name->close();
-
                     // Insert subject record
-                    $query = "INSERT INTO subjects (subject_code, subject_name, year_level) 
-                            VALUES (?, ?, ?,)";
+                    $query = "INSERT INTO subjects (subject_code, subject_name, year_level, date_added) 
+                            VALUES (?, ?, ?, NOW())";
                     
                     $stmt = $db->prepare($query);
                     if (!$stmt) {
