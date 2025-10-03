@@ -90,12 +90,22 @@ $log_stmt->execute();
 $log_result = $log_stmt->get_result();
 $existing_log = $log_result->fetch_assoc();
 
+// In process_barcode.php, update the photo path section:
+
+// Get the actual photo path - ensure it's relative to your main1.php
+$photo_path = getStudentPhoto($student['photo']);
+
+// If the photo path starts with '../', remove it for the scanner
+if (strpos($photo_path, '../') === 0) {
+    $photo_path = substr($photo_path, 3); // Remove the '../' part
+}
+
 // Prepare response
 $response = [
     'full_name' => $student['fullname'],
     'id_number' => $student['id_number'],
     'department' => $student['department'] ?? 'N/A',
-    'photo' => $photo_path, // Now using file path instead of base64
+    'photo' => $photo_path, // Now using consistent file path
     'section' => $student['section'],
     'year_level' => $student['year'],
     'role' => $student['role'] ?? 'Student',
@@ -104,6 +114,7 @@ $response = [
     'time_in_out' => '',
     'alert_class' => 'alert-primary',
     'voice' => ''
+];
 ];
 
 // Check if there's an existing log for today
