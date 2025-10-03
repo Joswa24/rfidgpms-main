@@ -173,9 +173,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $availablePersonnel[] = " RFID:{$row['id_number']}, Name:{$row['first_name']} {$row['last_name']}";
             }
             
-            header('Content-Type: application/json');
+            
             die(json_encode([ 
-             "Unauthorized access. Security personnel not found with ID: $id_number (clean: $clean_id) " 
+             "Unauthorized access. Security personnel not found with ID: $id_number" 
             ]));
         }
 
