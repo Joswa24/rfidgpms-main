@@ -408,6 +408,7 @@ include '../connection.php';
 
                     // Use regular form data
                     var formData = {
+                        id: id,
                         subject_code: subject_code,
                         subject_name: subject_name,
                         year_level: year_level
