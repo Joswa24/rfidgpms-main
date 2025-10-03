@@ -423,7 +423,7 @@ function cleanID($id) {
                                             <div class="col-lg-4 col-md-6 col-sm-12">
                                                 <div class="form-group">
                                                     <label>ID NUMBER:</label>
-                                                    <input required type="text" class="form-control edit-id" name="id_number" id="id_number1" minlength="9" maxlength="9" autocomplete="off" placeholder="0000-0000" pattern="[0-9]{4}-[0-9]{4}">
+                                                    <input required type="text" class="form-control edit-id" name="id_number" id="id_number" minlength="9" maxlength="9" autocomplete="off" placeholder="0000-0000" pattern="[0-9]{4}-[0-9]{4}">
                                                     <span class="idno-error"></span>
                                                 </div>
                                             </div>
