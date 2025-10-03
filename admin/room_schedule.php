@@ -167,7 +167,7 @@ $all_instructors = $db->query("SELECT * FROM instructor ORDER BY fullname");
                             <div class="row">
                                 <div class="col-md-3">
                                     <div class="form-group">
-                                    <label><b>Filter by Department:</b></label>
+                                    <label><b>Department:</b></label>
                                         <select class="form-control filter-select" id="filter_department" name="filter_department">
                                             <option value="">All Departments</option>
                                             <?php 
@@ -189,7 +189,7 @@ $all_instructors = $db->query("SELECT * FROM instructor ORDER BY fullname");
                                 </div>
                                 <div class="col-md-3">
                                     <div class="form-group">
-                                        <label><b>Filter by Room:</b></label>
+                                        <label><b>Room:</b></label>
                                         <select class="form-control filter-select" id="filter_room" name="filter_room">
                                             <option value="">All Rooms</option>
                                             <?php while ($room = $rooms->fetch_assoc()): ?>
@@ -202,7 +202,7 @@ $all_instructors = $db->query("SELECT * FROM instructor ORDER BY fullname");
                                 </div>
                                 <div class="col-md-3">
                                     <div class="form-group">
-                                        <label><b>Filter by Subject:</b></label>
+                                        <label><b>Subject:</b></label>
                                         <select class="form-control filter-select" id="filter_subject" name="filter_subject">
                                             <option value="">All Subjects</option>
                                             <?php while ($subject = $subjects->fetch_assoc()): ?>
@@ -215,7 +215,7 @@ $all_instructors = $db->query("SELECT * FROM instructor ORDER BY fullname");
                                 </div>
                                 <div class="col-md-3">
                                     <div class="form-group">
-                                        <label><b>Filter by Year Level:</b></label>
+                                        <label><b>Year Level:</b></label>
                                         <select class="form-control filter-select" id="filter_year_level" name="filter_year_level">
                                             <option value="">All Year Levels</option>
                                             <?php while ($year = $year_levels->fetch_assoc()): ?>
@@ -230,7 +230,7 @@ $all_instructors = $db->query("SELECT * FROM instructor ORDER BY fullname");
                             <div class="row mt-2">
                                 <div class="col-md-3">
                                     <div class="form-group">
-                                        <label><b>Filter by Day:</b></label>
+                                        <label><b>Day:</b></label>
                                         <select class="form-control filter-select" id="filter_day" name="filter_day">
                                             <option value="">All Days</option>
                                             <?php while ($day = $days->fetch_assoc()): ?>
@@ -243,7 +243,7 @@ $all_instructors = $db->query("SELECT * FROM instructor ORDER BY fullname");
                                 </div>
                                 <div class="col-md-3">
                                     <div class="form-group">
-                                        <label><b>Filter by Instructor:</b></label>
+                                        <label><b>Instructor:</b></label>
                                         <select class="form-control filter-select" id="filter_instructor" name="filter_instructor">
                                             <option value="">All Instructors</option>
                                             <?php while ($instructor = $instructors->fetch_assoc()): ?>
@@ -256,7 +256,7 @@ $all_instructors = $db->query("SELECT * FROM instructor ORDER BY fullname");
                                 </div>
                                 <div class="col-md-3">
                                     <div class="form-group">
-                                        <label><b>Filter by Time Range:</b></label>
+                                        <label><b>Time Range:</b></label>
                                         <select class="form-control filter-select" id="filter_time" name="filter_time">
                                             <option value="">All Times</option>
                                             <option value="morning">Morning (6AM-12PM)</option>
