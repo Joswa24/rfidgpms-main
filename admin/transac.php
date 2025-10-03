@@ -1444,7 +1444,7 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
                         }
                         $check_instructor_conflict->close();
 
-                        // Insert schedule record
+                        // Insert schedule 
                         $query = "INSERT INTO room_schedules (department, room_name, year_level, subject, section, day, instructor, start_time, end_time) 
                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
                         
