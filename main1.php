@@ -712,7 +712,7 @@ function initializeScanner() {
         })
         .catch(err => {
             console.error("Camera permission denied:", err);
-            showErrorMessage("");
+            showErrorMessage("Tap Your ID Card to the Scanner or Use Manual Input");
         });
 }
 
