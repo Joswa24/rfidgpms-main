@@ -988,60 +988,20 @@ function showErrorMessage(message) {
 }
 
 // Show confirmation modal with complete student data
+// Updated function to show confirmation modal with the new design
 function showConfirmationModal(data) {
     // Get current time and date
     const now = new Date();
     const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const dateString = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-    // Student details
-    document.getElementById('modalStudentName').textContent = 
-        data.full_name || 'Unknown Student';
-        
-    document.getElementById('modalStudentId').textContent = 
-        data.id_number || 'N/A';
-        
-    document.getElementById('modalStudentDept').textContent = 
-        "<?php echo $department; ?>" || 'N/A';
-        
-    document.getElementById('modalStudentRole').textContent = 
-        data.role || 'N/A';
-        
-    document.getElementById('modalTimeInOut').textContent = 
-        data.time_in_out || 'Attendance Recorded';
-        
+    // Update modal content
+    document.getElementById('modalStudentName').textContent = data.full_name || 'Unknown Student';
+    document.getElementById('modalStudentId').textContent = data.id_number || 'N/A';
+    document.getElementById('modalStudentDept').textContent = data.department || 'N/A';
+    document.getElementById('modalStudentRole').textContent = data.role || 'Student';
     document.getElementById('modalTimeDisplay').textContent = timeString;
     document.getElementById('modalDateDisplay').textContent = dateString;
-
-    // ✅ Student Photo Mapping
-    const studentPhotos = {
-   
-    "2024-1570": "uploads/students/c9c9ed00-ab5c-4c3e-b197-56559ab7ca61.jpg", //JOhn cyrus
-   
-    "2024-1697": "uploads/students/68b75972d9975_5555-7777.jpg", //Rose Ann
-        // add more ID-photo pairs here...
-    };
-
-    let photoPath = studentPhotos[data.id_number] || "uploads/students/default.png";
-    document.getElementById("modalStudentPhoto").src = photoPath + "?t=" + new Date().getTime();
-
-    // Update status color and icon
-    const statusElement = document.getElementById('modalAttendanceStatus');
-    statusElement.className = 'attendance-status';
-    
-    if (data.alert_class === 'alert-success') {
-        statusElement.classList.add('time-in');
-        statusElement.innerHTML = `
-            <i class="fas fa-sign-in-alt me-2"></i>
-            ${data.time_in_out || 'Time In Recorded'}
-        `;
-    } else {
-        statusElement.classList.add('time-out');
-        statusElement.innerHTML = `
-            <i class="fas fa-sign-out-alt me-2"></i>
-            ${data.time_in_out || 'Time Out Recorded'}
-        `;
-    }
 
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('confirmationModal'));
