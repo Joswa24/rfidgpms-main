@@ -1102,7 +1102,7 @@ function processManualInput() {
         type: "POST",
         url: "process_barcode.php",
         data: { 
-            barcode: idNumber,
+            barcode: barcode,
             current_department: "<?php echo $department; ?>",
             current_location: "<?php echo $location; ?>",
             is_first_student: isFirstStudent
