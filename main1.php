@@ -912,6 +912,16 @@ function onScanError(error) {
     function processBarcode(barcode) {
     console.log("Processing barcode:", barcode);
     
+    // Show processing state
+    document.getElementById('result').innerHTML = `
+        <div class="d-flex justify-content-center align-items-center">
+            <div class="spinner-border text-primary me-2" role="status" style="width: 1rem; height: 1rem;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <span>Processing ID: ${barcode}</span>
+        </div>
+    `;
+    
     $.ajax({
         type: "POST",
         url: "process_barcode.php",
@@ -920,58 +930,51 @@ function onScanError(error) {
             department: "<?php echo $department; ?>",
             location: "<?php echo $location; ?>"
         },
+        dataType: 'json', // Explicitly expect JSON
+        timeout: 10000, // 10 second timeout
         success: function(response) {
             console.log("✅ SUCCESS - Raw response:", response);
             
-            try {
-                const data = typeof response === 'string' ? JSON.parse(response) : response;
-                console.log("✅ Parsed data:", data);
-
-                if (data.error) {
-                    console.log("❌ Server error:", data.error);
-                    showErrorMessage(data.error);
-                    speakErrorMessage(data.error);
-                    document.querySelector('.scanner-overlay').style.display = 'flex';
-                    return;
-                }
-
-                // Update UI
-                updateAttendanceUI(data);
-                
-                // Update photo in the main display
-                if (data.photo) {
-                    document.getElementById('pic').src = data.photo;
-                }
-                
-                // Show confirmation modal with all data
-                console.log("🎯 Showing confirmation modal");
-                showConfirmationModal(data);
-                
-                // Clear result after showing modal
-                setTimeout(() => {
-                    document.getElementById('result').innerHTML = "";
-                }, 1000);
-                
-            } catch (e) {
-                console.error("❌ JSON Parse error:", e);
-                console.error("❌ Response was:", response);
-                showErrorMessage("Error processing response: " + e.message);
+            // No need to parse JSON since we used dataType: 'json'
+            if (response.error) {
+                console.log("❌ Server error:", response.error);
+                showErrorMessage(response.error);
+                speakErrorMessage(response.error);
                 document.querySelector('.scanner-overlay').style.display = 'flex';
+                return;
             }
+
+            // Update UI
+            updateAttendanceUI(response);
+            
+            // Update photo in the main display
+            if (response.photo) {
+                document.getElementById('pic').src = response.photo;
+            }
+            
+            // Show confirmation modal with all data
+            console.log("🎯 Showing confirmation modal");
+            showConfirmationModal(response);
+            
         },
         error: function(xhr, status, error) {
             console.error("❌ AJAX ERROR:");
             console.error("Status:", status);
             console.error("Error:", error);
             console.error("Response text:", xhr.responseText);
-            console.error("Ready state:", xhr.readyState);
-            console.error("Status code:", xhr.status);
             
-            // Even if AJAX fails, try to show success message since attendance was recorded
-            showSuccessFallback(barcode);
+            if (status === "timeout") {
+                showErrorMessage("Request timeout. Please try again.");
+            } else if (status === "parsererror") {
+                showErrorMessage("Invalid response from server.");
+            } else {
+                // Even if AJAX fails, show success since attendance was likely recorded
+                showSuccessFallback(barcode);
+            }
         }
     });
 }
+
 
 // Fallback function if AJAX fails but attendance was recorded
 function showSuccessFallback(barcode) {

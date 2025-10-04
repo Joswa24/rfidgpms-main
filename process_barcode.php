@@ -1,13 +1,19 @@
 <?php
-// Turn off all error display to prevent HTML output
-error_reporting(0);
-ini_set('display_errors', 0);
+// Turn on error reporting for debugging (remove this in production)
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
 session_start();
 include 'connection.php';
 
-// Set JSON header at the very top
-header('Content-Type: application/json');
+// Set JSON header at the very top - with proper encoding
+header('Content-Type: application/json; charset=utf-8');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST');
+header('Access-Control-Allow-Headers: Content-Type');
+
+// Prevent any other output
+ob_start();
 
 // Get POST data
 $barcode = $_POST['barcode'] ?? '';
@@ -19,16 +25,18 @@ $now = date('Y-m-d H:i:s');
 // Validate barcode
 if (empty($barcode)) {
     echo json_encode(['error' => 'Invalid barcode']);
+    ob_end_flush();
     exit;
 }
 
 // Check database connection
 if (!$db) {
     echo json_encode(['error' => 'Database connection failed']);
+    ob_end_flush();
     exit;
 }
 
-// Fetch student data including photo path
+// Fetch student data
 $student_query = "SELECT s.*, d.department_name 
                   FROM students s 
                   LEFT JOIN department d ON s.department_id = d.department_id 
@@ -37,6 +45,7 @@ $stmt = $db->prepare($student_query);
 
 if (!$stmt) {
     echo json_encode(['error' => 'Database query preparation failed']);
+    ob_end_flush();
     exit;
 }
 
@@ -47,6 +56,7 @@ $student_result = $stmt->get_result();
 if ($student_result->num_rows === 0) {
     echo json_encode(['error' => 'Student not found']);
     $stmt->close();
+    ob_end_flush();
     exit;
 }
 
@@ -56,9 +66,8 @@ $stmt->close();
 // Get photo path
 function getStudentPhoto($photo) {
     $basePath = 'uploads/students/';
-    $defaultPhoto = 'assets/img/default.png';
+    $defaultPhoto = 'assets/img/2601828.png';
 
-    // If no photo or file does not exist → return default
     if (empty($photo) || !file_exists($basePath . $photo)) {
         return $defaultPhoto;
     }
@@ -68,37 +77,21 @@ function getStudentPhoto($photo) {
 
 $photo_path = getStudentPhoto($student['photo']);
 
-// Section/Year verification (server-side)
-$firstLogQuery = "SELECT s.year, s.section 
-                  FROM attendance_logs l
-                  JOIN students s ON l.student_id = s.id
-                  WHERE DATE(l.time_in) = ?
-                  ORDER BY l.time_in ASC
-                  LIMIT 1";
-$stmt = $db->prepare($firstLogQuery);
-
-if ($stmt) {
-    $stmt->bind_param("s", $today);
-    $stmt->execute();
-    $stmt->store_result();
-
-    $firstYear = null;
-    $firstSection = null;
-
-    if ($stmt->num_rows > 0) {
-        $stmt->bind_result($firstYear, $firstSection);
-        $stmt->fetch();
-    }
-    $stmt->close();
-
-    // If logs exist today, enforce section/year
-    if ($firstYear && $firstSection) {
-        if ($student['year'] != $firstYear || $student['section'] != $firstSection) {
-            echo json_encode(['error' => 'You don\'t belong to this class! Only ' . $firstYear . ' - Section ' . $firstSection . ' can log in today.']);
-            exit;
-        }
-    }
-}
+// Prepare response with complete student data
+$response = [
+    'full_name' => $student['fullname'] ?? 'Unknown Student',
+    'id_number' => $student['id_number'] ?? $barcode,
+    'department' => $current_department,
+    'photo' => $photo_path,
+    'section' => $student['section'] ?? 'N/A',
+    'year_level' => $student['year'] ?? 'N/A',
+    'role' => $student['role'] ?? 'Student',
+    'time_in' => '',
+    'time_out' => '',
+    'Status' => 'Present',
+    'alert_class' => 'alert-primary',
+    'voice' => ''
+];
 
 // Check existing logs
 $log_query = "SELECT * FROM attendance_logs 
@@ -111,7 +104,9 @@ $log_query = "SELECT * FROM attendance_logs
 $log_stmt = $db->prepare($log_query);
 
 if (!$log_stmt) {
-    echo json_encode(['error' => 'Failed to check attendance logs']);
+    $response['error'] = 'Failed to check attendance logs';
+    echo json_encode($response);
+    ob_end_flush();
     exit;
 }
 
@@ -119,22 +114,6 @@ $log_stmt->bind_param("isss", $student['id'], $today, $current_department, $curr
 $log_stmt->execute();
 $log_result = $log_stmt->get_result();
 $existing_log = $log_result->fetch_assoc();
-
-// Prepare response with complete student data
-$response = [
-    'full_name' => $student['fullname'],
-    'id_number' => $student['id_number'],
-    'department' => $current_department,
-    'photo' => $photo_path,
-    'section' => $student['section'],
-    'year_level' => $student['year'],
-    'role' => $student['role'] ?? 'Student',
-    'time_in' => '',
-    'time_out' => '',
-    'Status' => 'Present',
-    'alert_class' => 'alert-primary',
-    'voice' => ''
-];
 
 // Check if there's an existing log for today
 if ($existing_log) {
@@ -195,7 +174,9 @@ if ($existing_log) {
 $log_stmt->close();
 mysqli_close($db);
 
-// Output JSON response
+// Clean any output and send JSON
+ob_clean();
 echo json_encode($response);
+ob_end_flush();
 exit;
 ?>
