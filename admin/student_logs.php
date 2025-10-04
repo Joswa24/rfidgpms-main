@@ -169,7 +169,7 @@ if ($view == 'archived') {
                             </thead>
                             <tbody>
                                 <?php
-                                $query = "SELECT l.*, i.fullname as instructor_name,department, location, i.id_number,
+                                $query = "SELECT l.*, i.fullname as instructor_name, location, i.id_number,department,
                                          CASE WHEN l.time_out IS NOT NULL THEN 'Saved' ELSE 'Pending' END as save_status
                                          FROM $instructor_table l
                                          JOIN instructor i ON l.instructor_id = i.id
