@@ -1,6 +1,13 @@
 <?php
+// Turn off all error display to prevent HTML output
+error_reporting(0);
+ini_set('display_errors', 0);
+
 session_start();
 include 'connection.php';
+
+// Set JSON header at the very top
+header('Content-Type: application/json');
 
 // Get POST data
 $barcode = $_POST['barcode'] ?? '';
@@ -15,12 +22,24 @@ if (empty($barcode)) {
     exit;
 }
 
+// Check database connection
+if (!$db) {
+    echo json_encode(['error' => 'Database connection failed']);
+    exit;
+}
+
 // Fetch student data including photo path
 $student_query = "SELECT s.*, d.department_name 
                   FROM students s 
                   LEFT JOIN department d ON s.department_id = d.department_id 
                   WHERE s.id_number = ?";
 $stmt = $db->prepare($student_query);
+
+if (!$stmt) {
+    echo json_encode(['error' => 'Database query preparation failed']);
+    exit;
+}
+
 $stmt->bind_param("s", $barcode);
 $stmt->execute();
 $student_result = $stmt->get_result();
@@ -34,16 +53,10 @@ if ($student_result->num_rows === 0) {
 $student = $student_result->fetch_assoc();
 $stmt->close();
 
-// Get photo path using the EXACT same function as students.php
-function getStudentPhoto($photo, $context = 'scanner') {
-    // Determine base path based on context
-    if ($context === 'scanner') {
-        $basePath = 'uploads/students/';
-        $defaultPhoto = 'assets/img/default.png';
-    } else { // admin context
-        $basePath = '../uploads/students/';
-        $defaultPhoto = '../assets/img/default.png';
-    }
+// Get photo path
+function getStudentPhoto($photo) {
+    $basePath = 'uploads/students/';
+    $defaultPhoto = 'assets/img/default.png';
 
     // If no photo or file does not exist → return default
     if (empty($photo) || !file_exists($basePath . $photo)) {
@@ -53,8 +66,7 @@ function getStudentPhoto($photo, $context = 'scanner') {
     return $basePath . $photo;
 }
 
-// In process_barcode.php, use:
-$photo_path = getStudentPhoto($student['photo'], 'scanner');
+$photo_path = getStudentPhoto($student['photo']);
 
 // Section/Year verification (server-side)
 $firstLogQuery = "SELECT s.year, s.section 
@@ -64,24 +76,27 @@ $firstLogQuery = "SELECT s.year, s.section
                   ORDER BY l.time_in ASC
                   LIMIT 1";
 $stmt = $db->prepare($firstLogQuery);
-$stmt->bind_param("s", $today);
-$stmt->execute();
-$stmt->store_result();
 
-$firstYear = null;
-$firstSection = null;
+if ($stmt) {
+    $stmt->bind_param("s", $today);
+    $stmt->execute();
+    $stmt->store_result();
 
-if ($stmt->num_rows > 0) {
-    $stmt->bind_result($firstYear, $firstSection);
-    $stmt->fetch();
-}
-$stmt->close();
+    $firstYear = null;
+    $firstSection = null;
 
-// If logs exist today, enforce section/year
-if ($firstYear && $firstSection) {
-    if ($student['year'] != $firstYear || $student['section'] != $firstSection) {
-        echo json_encode(['error' => 'You don\'t belong to this class! Only ' . $firstYear . ' - Section ' . $firstSection . ' can log in today.']);
-        exit;
+    if ($stmt->num_rows > 0) {
+        $stmt->bind_result($firstYear, $firstSection);
+        $stmt->fetch();
+    }
+    $stmt->close();
+
+    // If logs exist today, enforce section/year
+    if ($firstYear && $firstSection) {
+        if ($student['year'] != $firstYear || $student['section'] != $firstSection) {
+            echo json_encode(['error' => 'You don\'t belong to this class! Only ' . $firstYear . ' - Section ' . $firstSection . ' can log in today.']);
+            exit;
+        }
     }
 }
 
@@ -94,6 +109,12 @@ $log_query = "SELECT * FROM attendance_logs
               ORDER BY time_in DESC LIMIT 1";
               
 $log_stmt = $db->prepare($log_query);
+
+if (!$log_stmt) {
+    echo json_encode(['error' => 'Failed to check attendance logs']);
+    exit;
+}
+
 $log_stmt->bind_param("isss", $student['id'], $today, $current_department, $current_location);
 $log_stmt->execute();
 $log_result = $log_stmt->get_result();
@@ -103,7 +124,7 @@ $existing_log = $log_result->fetch_assoc();
 $response = [
     'full_name' => $student['fullname'],
     'id_number' => $student['id_number'],
-    'department' => $current_department, // Use department_name from join
+    'department' => $current_department,
     'photo' => $photo_path,
     'section' => $student['section'],
     'year_level' => $student['year'],
@@ -121,18 +142,21 @@ if ($existing_log) {
         // Record time out
         $update_query = "UPDATE attendance_logs SET time_out = ? WHERE id = ?";
         $update_stmt = $db->prepare($update_query);
-        $update_stmt->bind_param("si", $now, $existing_log['id']);
         
-        if ($update_stmt->execute()) {
-            $response['time_out'] = date('h:i A', strtotime($now));
-            $response['time_in'] = date('h:i A', strtotime($existing_log['time_in']));
-            $response['time_in_out'] = 'Time Out Recorded';
-            $response['alert_class'] = 'alert-warning';
-            $response['voice'] = "Time out recorded for {$student['fullname']}";
-        } else {
-            $response['error'] = 'Failed to record time out';
+        if ($update_stmt) {
+            $update_stmt->bind_param("si", $now, $existing_log['id']);
+            
+            if ($update_stmt->execute()) {
+                $response['time_out'] = date('h:i A', strtotime($now));
+                $response['time_in'] = date('h:i A', strtotime($existing_log['time_in']));
+                $response['time_in_out'] = 'Time Out Recorded';
+                $response['alert_class'] = 'alert-warning';
+                $response['voice'] = "Time out recorded for {$student['fullname']}";
+            } else {
+                $response['error'] = 'Failed to record time out';
+            }
+            $update_stmt->close();
         }
-        $update_stmt->close();
     } else {
         $response['error'] = 'Already timed out today';
         $response['voice'] = "Already timed out today";
@@ -143,30 +167,35 @@ if ($existing_log) {
                     (student_id, id_number, time_in, department, location) 
                     VALUES (?, ?, ?, ?, ?)";
     $insert_stmt = $db->prepare($insert_query);
-    $insert_stmt->bind_param("issss", 
-        $student['id'], 
-        $student['id_number'], 
-        $now, 
-        $current_department, 
-        $current_location
-    );
     
-    if ($insert_stmt->execute()) {
-        $response['time_in'] = date('h:i A', strtotime($now));
-        $response['time_in_out'] = 'Time In Recorded';
-        $response['alert_class'] = 'alert-success';
-        $response['voice'] = "Time in recorded for {$student['fullname']}";
+    if ($insert_stmt) {
+        $insert_stmt->bind_param("issss", 
+            $student['id'], 
+            $student['id_number'], 
+            $now, 
+            $current_department, 
+            $current_location
+        );
+        
+        if ($insert_stmt->execute()) {
+            $response['time_in'] = date('h:i A', strtotime($now));
+            $response['time_in_out'] = 'Time In Recorded';
+            $response['alert_class'] = 'alert-success';
+            $response['voice'] = "Time in recorded for {$student['fullname']}";
+        } else {
+            $response['error'] = 'Failed to record time in';
+        }
+        $insert_stmt->close();
     } else {
-        $response['error'] = 'Failed to record time in';
+        $response['error'] = 'Failed to prepare attendance insert';
     }
-    $insert_stmt->close();
 }
 
 // Close statements
 $log_stmt->close();
+mysqli_close($db);
 
-// Set proper JSON header
-header('Content-Type: application/json');
+// Output JSON response
 echo json_encode($response);
 exit;
 ?>

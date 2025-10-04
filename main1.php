@@ -854,8 +854,11 @@ function onScanError(error) {
                 location: "<?php echo $location; ?>"
             },
             success: function(response) {
+                console.log("Raw response:", response);
+                
                 try {
                     const data = typeof response === 'string' ? JSON.parse(response) : response;
+                    console.log("Parsed data:", data);
 
                     if (data.error) {
                         showErrorMessage(data.error);
@@ -882,8 +885,9 @@ function onScanError(error) {
                     }, 1000);
                     
                 } catch (e) {
-                    console.error("Error parsing response:", e, response);
-                    showErrorMessage("Error processing barcode");
+                    console.error("Error parsing response:", e);
+                    console.error("Response was:", response);
+                    showErrorMessage("Error processing barcode: " + e.message);
                     document.querySelector('.scanner-overlay').style.display = 'flex';
                 }
             },
