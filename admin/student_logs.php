@@ -203,61 +203,6 @@ if ($view == 'archived') {
                                 <span class="badge bg-secondary ms-2">Archived</span>
                             <?php endif; ?>
                         </h6>
-
-                        <!-- Summary Statistics -->
-                        <?php
-                        $summary_query = "SELECT 
-                            COUNT(*) as total_records,
-                            COUNT(DISTINCT instructor_id) as unique_instructors,
-                            COUNT(DISTINCT department) as unique_departments,
-                            COUNT(DISTINCT location) as unique_locations
-                            FROM $instructor_table 
-                            WHERE DATE(time_in) = ?";
-                        
-                        $summary_stmt = $db->prepare($summary_query);
-                        if ($summary_stmt) {
-                            $summary_stmt->bind_param("s", $selected_date);
-                            $summary_stmt->execute();
-                            $summary_result = $summary_stmt->get_result();
-                            $summary = $summary_result->fetch_assoc();
-                            $summary_stmt->close();
-                        }
-                        ?>
-                        
-                        <div class="row mb-3">
-                            <div class="col-md-3">
-                                <div class="card text-white bg-primary mb-3">
-                                    <div class="card-body">
-                                        <h5 class="card-title"><?php echo $summary['total_records'] ?? 0; ?></h5>
-                                        <p class="card-text">Total Records</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="card text-white bg-success mb-3">
-                                    <div class="card-body">
-                                        <h5 class="card-title"><?php echo $summary['unique_instructors'] ?? 0; ?></h5>
-                                        <p class="card-text">Unique Instructors</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="card text-white bg-info mb-3">
-                                    <div class="card-body">
-                                        <h5 class="card-title"><?php echo $summary['unique_departments'] ?? 0; ?></h5>
-                                        <p class="card-text">Departments</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="card text-white bg-warning mb-3">
-                                    <div class="card-body">
-                                        <h5 class="card-title"><?php echo $summary['unique_locations'] ?? 0; ?></h5>
-                                        <p class="card-text">Locations</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                         
                         <!-- Instructor Attendance Table -->
                         <table class="table table-striped">
