@@ -1048,8 +1048,9 @@ function showSuccessFallback(barcode) {
 
 
 // Show confirmation modal with complete student data
+// Show confirmation modal with complete student data
 function showConfirmationModal(data) {
-    console.log("🎯 showConfirmationModal called with student data:", data);
+    console.log("🎯 showConfirmationModal called with:", data);
     
     // Get current time and date
     const now = new Date();
@@ -1084,29 +1085,20 @@ function showConfirmationModal(data) {
     }
     
     // Update student photo in modal with proper error handling
-    const modalPhoto = document.getElementById('modalStudentPhoto');
-    if (data.photo && data.photo !== 'assets/img/2601828.png') {
-        console.log("🖼️ Setting modal photo:", data.photo);
+    if (data.photo) {
+        const modalPhoto = document.getElementById('modalStudentPhoto');
         modalPhoto.src = data.photo + '?t=' + new Date().getTime();
         
         // Add error handling for broken images
         modalPhoto.onerror = function() {
-            console.log("❌ Failed to load student photo, using default");
             this.src = 'assets/img/2601828.png';
-            this.onerror = null; // Prevent infinite loop
-        };
-        
-        // Add success handler
-        modalPhoto.onload = function() {
-            console.log("✅ Student photo loaded successfully");
         };
     } else {
-        console.log("🖼️ Using default student photo");
-        modalPhoto.src = 'assets/img/2601828.png';
+        document.getElementById('modalStudentPhoto').src = 'assets/img/2601828.png';
     }
 
     // Show additional student info in console for debugging
-    console.log("📋 Complete Student Data:", {
+    console.log("📋 Student Data Loaded:", {
         name: data.full_name,
         id: data.id_number,
         department: data.department,
@@ -1114,9 +1106,7 @@ function showConfirmationModal(data) {
         section: data.section,
         role: data.role,
         photo: data.photo,
-        attendance: data.time_in_out,
-        time_in: data.time_in,
-        time_out: data.time_out
+        attendance: data.time_in_out
     });
 
     // Show modal using Bootstrap
@@ -1148,13 +1138,8 @@ function restartScanner() {
     document.getElementById('manualIdInput').focus();
 }
 
+// Update UI with attendance data
 function updateAttendanceUI(data) {
-    console.log("🔄 Updating UI with student data:", {
-        name: data.full_name,
-        attendance: data.time_in_out,
-        alert_class: data.alert_class
-    });
-    
     // Update alert color and text
     const alertElement = document.getElementById('alert');
     const inOutElement = document.getElementById('in_out');
@@ -1169,15 +1154,9 @@ function updateAttendanceUI(data) {
     
     inOutElement.textContent = data.time_in_out || 'Scan Your ID Card for Attendance';
     
-    // Update photo in main display with error handling
-    if (data.photo && data.photo !== 'assets/img/2601828.png') {
-        const mainPhoto = document.getElementById('pic');
-        mainPhoto.src = data.photo + '?t=' + new Date().getTime();
-        
-        mainPhoto.onerror = function() {
-            console.log("❌ Failed to load main display photo");
-            this.src = 'assets/img/section/type.jpg';
-        };
+    // Update photo in main display
+    if (data.photo) {
+        document.getElementById('pic').src = data.photo;
     }
     
     // Update result display
@@ -1185,11 +1164,12 @@ function updateAttendanceUI(data) {
         document.getElementById('result').innerHTML = `
             <div class="alert ${data.alert_class || 'alert-success'} py-2" role="alert">
                 <i class="fas fa-check-circle me-2"></i>
-                ${data.time_in_out} - ${data.full_name || 'Student'}
+                ${data.time_in_out}
             </div>
         `;
     }
 }
+
 // Show preview modal in the scanner frame
 function showScannerPreviewModal(data) {
     // Fill preview modal with student data

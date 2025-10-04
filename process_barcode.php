@@ -1,54 +1,45 @@
 <?php
-// Enhanced error handling and security
+// Turn on error reporting for debugging
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 session_start();
 include 'connection.php';
 
-// Set JSON header immediately
+// Set JSON header at the very top
 header('Content-Type: application/json; charset=utf-8');
 
-// Start output buffering
+// Start output buffering to catch any stray output
 ob_start();
 
 // Initialize response array
-$response = ['success' => false, 'error' => ''];
+$response = [];
 
 try {
-    // Validate request method
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        throw new Exception('Invalid request method');
-    }
-
-    // Get and validate POST data
-    $barcode = trim($_POST['barcode'] ?? '');
-    $current_department = trim($_POST['department'] ?? '');
-    $current_location = trim($_POST['location'] ?? '');
-    
-    if (empty($barcode)) {
-        throw new Exception('Invalid barcode');
-    }
-    
-    if (empty($current_department) || empty($current_location)) {
-        throw new Exception('Department or location not specified');
-    }
-
+    // Get POST data
+    $barcode = $_POST['barcode'] ?? '';
+    $current_department = $_POST['department'] ?? '';
+    $current_location = $_POST['location'] ?? '';
     $today = date('Y-m-d');
     $now = date('Y-m-d H:i:s');
 
-    // Check database connection
-    if (!$db || $db->connect_error) {
-        throw new Exception('Database connection failed: ' . ($db->connect_error ?? 'Unknown error'));
+    // Validate barcode
+    if (empty($barcode)) {
+        throw new Exception('Invalid barcode');
     }
 
-    // Fetch student data with prepared statement
+    // Check database connection
+    if (!$db) {
+        throw new Exception('Database connection failed');
+    }
+
+    // Fetch ALL student data (similar to students.php)
     $student_query = "SELECT s.*, d.department_name 
                       FROM students s 
                       LEFT JOIN department d ON s.department_id = d.department_id 
-                      WHERE s.id_number = ? AND s.status = 'active'";
-    
+                      WHERE s.id_number = ?";
     $stmt = $db->prepare($student_query);
+
     if (!$stmt) {
         throw new Exception('Database query preparation failed: ' . $db->error);
     }
@@ -62,41 +53,42 @@ try {
     $student_result = $stmt->get_result();
 
     if ($student_result->num_rows === 0) {
-        throw new Exception('Student not found with ID: ' . htmlspecialchars($barcode));
+        throw new Exception('Student not found with ID: ' . $barcode);
     }
 
     $student = $student_result->fetch_assoc();
     $stmt->close();
 
-    // Get student photo path
+    // Get photo path (same function as in students.php)
     function getStudentPhoto($photo, $basePath = 'uploads/students/') {
         $defaultPhoto = 'assets/img/2601828.png';
         
+        // If no photo provided, return default
         if (empty($photo)) {
             return $defaultPhoto;
         }
         
-        // Check multiple possible locations
-        $possiblePaths = [
-            $basePath . $photo,
-            'admin/uploads/students/' . $photo,
-            'uploads/students/' . $photo
-        ];
-        
-        foreach ($possiblePaths as $path) {
-            if (file_exists($path) && is_file($path)) {
-                return $path;
-            }
+        // Check if file exists in the uploads directory
+        $fullPath = $basePath . $photo;
+        if (file_exists($fullPath)) {
+            return $fullPath;
         }
         
+        // Also check in admin/uploads/students/ directory
+        $adminPath = 'admin/uploads/students/' . $photo;
+        if (file_exists($adminPath)) {
+            return $adminPath;
+        }
+        
+        // Return default if file doesn't exist
         return $defaultPhoto;
     }
 
     $photo_path = getStudentPhoto($student['photo'] ?? '');
 
-    // Prepare response data
+    // Prepare COMPLETE response with ALL student data
     $response = [
-        'success' => true,
+        // Student Information (from students table)
         'student_id' => $student['id'] ?? '',
         'full_name' => $student['fullname'] ?? 'Unknown Student',
         'id_number' => $student['id_number'] ?? $barcode,
@@ -106,13 +98,17 @@ try {
         'section' => $student['section'] ?? 'N/A',
         'role' => $student['role'] ?? 'Student',
         'photo' => $photo_path,
+        'date_added' => $student['date_added'] ?? '',
+        
+        // Attendance Information
         'time_in' => '',
         'time_out' => '',
         'Status' => 'Present',
         'alert_class' => 'alert-primary',
         'time_in_out' => 'Attendance Recorded',
         'voice' => '',
-        'attendance_type' => '',
+        
+        // Current Session Info
         'current_department' => $current_department,
         'current_location' => $current_location,
         'scan_time' => $now
@@ -127,6 +123,7 @@ try {
                   ORDER BY time_in DESC LIMIT 1";
                   
     $log_stmt = $db->prepare($log_query);
+
     if (!$log_stmt) {
         throw new Exception('Failed to prepare log query: ' . $db->error);
     }
@@ -147,13 +144,7 @@ try {
             $update_query = "UPDATE attendance_logs SET time_out = ? WHERE id = ?";
             $update_stmt = $db->prepare($update_query);
             
-            if (!$update_stmt) {
-                throw new Exception('Failed to prepare update query: ' . $db->error);
-            }
-            
-            $update_stmt->bind_param("si", $now, $existing_log['id']);
-            
-            if ($update_stmt->execute()) {
+            if ($update_stmt && $update_stmt->bind_param("si", $now, $existing_log['id']) && $update_stmt->execute()) {
                 $response['time_out'] = date('h:i A', strtotime($now));
                 $response['time_in'] = date('h:i A', strtotime($existing_log['time_in']));
                 $response['time_in_out'] = 'Time Out Recorded';
@@ -161,11 +152,11 @@ try {
                 $response['voice'] = "Time out recorded for {$student['fullname']}";
                 $response['attendance_type'] = 'time_out';
                 
-                error_log("SUCCESS: Time Out recorded for {$student['fullname']} ({$student['id_number']})");
+                // Log the action
+                error_log("Time Out recorded for student: {$student['fullname']} ({$student['id_number']})");
             } else {
-                throw new Exception('Failed to record time out: ' . $update_stmt->error);
+                throw new Exception('Failed to record time out: ' . ($update_stmt ? $update_stmt->error : 'Statement preparation failed'));
             }
-            
             if ($update_stmt) $update_stmt->close();
         } else {
             throw new Exception('Already timed out today');
@@ -177,53 +168,47 @@ try {
                         VALUES (?, ?, ?, ?, ?)";
         $insert_stmt = $db->prepare($insert_query);
         
-        if (!$insert_stmt) {
-            throw new Exception('Failed to prepare insert query: ' . $db->error);
-        }
-        
-        $insert_stmt->bind_param("issss", 
+        if ($insert_stmt && $insert_stmt->bind_param("issss", 
             $student['id'], 
             $student['id_number'], 
             $now, 
             $current_department, 
             $current_location
-        );
-        
-        if ($insert_stmt->execute()) {
+        ) && $insert_stmt->execute()) {
             $response['time_in'] = date('h:i A', strtotime($now));
             $response['time_in_out'] = 'Time In Recorded';
             $response['alert_class'] = 'alert-success';
             $response['voice'] = "Time in recorded for {$student['fullname']}";
             $response['attendance_type'] = 'time_in';
             
-            error_log("SUCCESS: Time In recorded for {$student['fullname']} ({$student['id_number']})");
+            // Log the action
+            error_log("Time In recorded for student: {$student['fullname']} ({$student['id_number']})");
         } else {
-            throw new Exception('Failed to record time in: ' . $insert_stmt->error);
+            throw new Exception('Failed to record time in: ' . ($insert_stmt ? $insert_stmt->error : 'Statement preparation failed'));
         }
-        
         if ($insert_stmt) $insert_stmt->close();
     }
 
     $log_stmt->close();
 
 } catch (Exception $e) {
-    $response['success'] = false;
     $response['error'] = $e->getMessage();
-    error_log("ERROR in process_barcode.php: " . $e->getMessage());
-} finally {
-    // Close database connection
-    if (isset($db)) {
-        $db->close();
-    }
+    error_log("Error in process_barcode.php: " . $e->getMessage());
+}
+
+// Close database connection
+if (isset($db)) {
+    mysqli_close($db);
 }
 
 // Clean any output and send JSON response
 $ob_contents = ob_get_contents();
 ob_end_clean();
 
-// Log unexpected output but don't include in response
+// If there was any unexpected output, log it but still send JSON
 if (!empty($ob_contents)) {
     error_log("Unexpected output in process_barcode.php: " . $ob_contents);
+    // Don't include unexpected output in response
 }
 
 // Ensure we only output JSON
