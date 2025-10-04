@@ -44,6 +44,27 @@ if ($view == 'archived') {
         $recent_stmt->close();
     }
 }
+
+// DEBUG: Check if archived table has department and location data
+if ($view == 'archived') {
+    $debug_query = "SELECT 
+                   COUNT(*) as total,
+                   SUM(CASE WHEN department IS NOT NULL AND department != '' THEN 1 ELSE 0 END) as has_department,
+                   SUM(CASE WHEN location IS NOT NULL AND location != '' THEN 1 ELSE 0 END) as has_location
+                   FROM archived_instructor_logs 
+                   WHERE DATE(time_in) = ?";
+    $debug_stmt = $db->prepare($debug_query);
+    if ($debug_stmt) {
+        $debug_stmt->bind_param("s", $selected_date);
+        $debug_stmt->execute();
+        $debug_result = $debug_stmt->get_result();
+        $debug_data = $debug_result->fetch_assoc();
+        error_log("Archived data check - Total: " . $debug_data['total'] . 
+                 ", Has Department: " . $debug_data['has_department'] . 
+                 ", Has Location: " . $debug_data['has_location']);
+        $debug_stmt->close();
+    }
+}
 ?>
 <style>
     .instructor-header {
@@ -74,12 +95,27 @@ if ($view == 'archived') {
         color: #212529;
     }
 
-    .instructor-date-item,
-    .instructor-submitter-item,
-    .instructor-year-item,
-    .instructor-section-item {
-        display: flex;
-        align-items: center;
+    .department-badge {
+        background-color: #e3f2fd;
+        color: #1976d2;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.875rem;
+        border: 1px solid #bbdefb;
+    }
+
+    .location-badge {
+        background-color: #f3e5f5;
+        color: #7b1fa2;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.875rem;
+        border: 1px solid #e1bee7;
+    }
+
+    .table-responsive {
+        max-height: 70vh;
+        overflow-y: auto;
     }
 
     @media (max-width: 576px) {
@@ -91,10 +127,6 @@ if ($view == 'archived') {
         .instructor-details {
             flex-direction: column;
             gap: 0.25rem;
-        }
-        .btn-outline-danger {
-            align-self: flex-end;
-            margin-top: 0.5rem;
         }
     }
 </style>
@@ -111,6 +143,7 @@ if ($view == 'archived') {
                             <h6 class="mb-4">Instructor Attendance Logs</h6>
                         </div>
                     </div>
+                    
                     <?php if (isset($_SESSION['message'])): ?>
                         <div class="alert alert-success mt-3">
                             <?php echo $_SESSION['message']; unset($_SESSION['message']); ?>
@@ -127,9 +160,41 @@ if ($view == 'archived') {
                             <label>Instructor:</label>
                             <input type="text" class="form-control" name="search_instructor" placeholder="Search instructor" value="<?php echo htmlspecialchars($search_instructor); ?>">
                         </div>
-                        <div class="col-lg-3 mt-4">
+                        <div class="col-lg-3">
+                            <label>Department:</label>
+                            <select class="form-control" name="search_department">
+                                <option value="">All Departments</option>
+                                <?php
+                                $dept_query = "SELECT DISTINCT department FROM $instructor_table WHERE department IS NOT NULL AND department != '' ORDER BY department";
+                                $dept_result = $db->query($dept_query);
+                                if ($dept_result && $dept_result->num_rows > 0) {
+                                    while ($dept_row = $dept_result->fetch_assoc()) {
+                                        $selected = (isset($_GET['search_department']) && $_GET['search_department'] == $dept_row['department']) ? 'selected' : '';
+                                        echo '<option value="'.htmlspecialchars($dept_row['department']).'" '.$selected.'>'.htmlspecialchars($dept_row['department']).'</option>';
+                                    }
+                                }
+                                ?>
+                            </select>
+                        </div>
+                        <div class="col-lg-3">
+                            <label>Location:</label>
+                            <select class="form-control" name="search_location">
+                                <option value="">All Locations</option>
+                                <?php
+                                $loc_query = "SELECT DISTINCT location FROM $instructor_table WHERE location IS NOT NULL AND location != '' ORDER BY location";
+                                $loc_result = $db->query($loc_query);
+                                if ($loc_result && $loc_result->num_rows > 0) {
+                                    while ($loc_row = $loc_result->fetch_assoc()) {
+                                        $selected = (isset($_GET['search_location']) && $_GET['search_location'] == $loc_row['location']) ? 'selected' : '';
+                                        echo '<option value="'.htmlspecialchars($loc_row['location']).'" '.$selected.'>'.htmlspecialchars($loc_row['location']).'</option>';
+                                    }
+                                }
+                                ?>
+                            </select>
+                        </div>
+                        <div class="col-lg-12 mt-3">
                             <button type="submit" class="btn btn-primary"><i class="fa fa-search"></i> Filter</button>
-                            <a href="student_logs.php" class="btn btn-warning"><i class="fa fa-sync"></i> Reset</a>
+                            <a href="student_logs.php?view=<?php echo $view; ?>" class="btn btn-warning"><i class="fa fa-sync"></i> Reset</a>
                         </div>
                     </form>
                     
@@ -151,10 +216,13 @@ if ($view == 'archived') {
                         
                         <h6>
                             Instructor Attendance for: <span class="text-primary"><?php echo date('F d, Y', strtotime($selected_date)); ?></span>
+                            <?php if ($view == 'archived'): ?>
+                                <span class="badge bg-secondary ms-2">Archived</span>
+                            <?php endif; ?>
                         </h6>
                         
                         <!-- Instructor Attendance Table -->
-                        <table class="table table-striped">
+                        <table class="table table-striped table-hover">
                             <thead class="sticky-top bg-light">
                                 <tr>
                                     <th>ID Number</th>
@@ -169,18 +237,30 @@ if ($view == 'archived') {
                             </thead>
                             <tbody>
                                 <?php
-                                // Build the query to fetch all necessary fields including department and location
+                                // Build query with all filters
                                 $query = "SELECT l.*, i.fullname as instructor_name,
-                                        CASE WHEN l.time_out IS NOT NULL THEN 'Saved' ELSE 'Pending' END as save_status
-                                        FROM $instructor_table l
-                                        JOIN instructor i ON l.instructor_id = i.id
-                                        WHERE DATE(l.time_in) = ?";
+                                         CASE WHEN l.time_out IS NOT NULL THEN 'Saved' ELSE 'Pending' END as save_status
+                                         FROM $instructor_table l
+                                         JOIN instructor i ON l.instructor_id = i.id
+                                         WHERE DATE(l.time_in) = ?";
                                 $params = [$selected_date];
                                 $types = "s";
                                 
                                 if ($search_instructor !== '') {
                                     $query .= " AND i.fullname LIKE ?";
                                     $params[] = "%$search_instructor%";
+                                    $types .= "s";
+                                }
+                                
+                                if (isset($_GET['search_department']) && $_GET['search_department'] !== '') {
+                                    $query .= " AND l.department = ?";
+                                    $params[] = $_GET['search_department'];
+                                    $types .= "s";
+                                }
+                                
+                                if (isset($_GET['search_location']) && $_GET['search_location'] !== '') {
+                                    $query .= " AND l.location = ?";
+                                    $params[] = $_GET['search_location'];
                                     $types .= "s";
                                 }
                                 
@@ -214,19 +294,19 @@ if ($view == 'archived') {
                                         echo '<td>' . ($row['time_out'] ? date('h:i A', strtotime($row['time_out'])) : 'N/A') . '</td>';
                                         echo '<td>' . ($row['save_status'] == 'Saved' ? '<span class="badge bg-success">Saved</span>' : '<span class="badge bg-warning">Pending</span>') . '</td>';
                                         
-                                        // Enhanced Department display with fallback
+                                        // Display Department
                                         echo '<td>';
                                         if (!empty($row['department'])) {
-                                            echo '<span class="badge bg-primary">' . htmlspecialchars($row['department']) . '</span>';
+                                            echo '<span class="department-badge">' . htmlspecialchars($row['department']) . '</span>';
                                         } else {
                                             echo '<span class="text-muted">N/A</span>';
                                         }
                                         echo '</td>';
                                         
-                                        // Enhanced Location display with fallback
+                                        // Display Location
                                         echo '<td>';
                                         if (!empty($row['location'])) {
-                                            echo '<span class="badge bg-info text-dark">' . htmlspecialchars($row['location']) . '</span>';
+                                            echo '<span class="location-badge">' . htmlspecialchars($row['location']) . '</span>';
                                         } else {
                                             echo '<span class="text-muted">N/A</span>';
                                         }
@@ -239,7 +319,7 @@ if ($view == 'archived') {
                                     echo '<tr><td colspan="8" class="text-center py-4">';
                                     echo '<div class="text-muted">';
                                     echo '<i class="fa fa-search fa-2x mb-2"></i><br>';
-                                    echo 'No instructor attendance records found for ' . date('F d, Y', strtotime($selected_date));
+                                    echo 'No instructor attendance records found for the selected criteria.';
                                     echo '</div>';
                                     echo '</td></tr>';
                                 }
@@ -254,4 +334,5 @@ if ($view == 'archived') {
         <?php include 'footer.php'; ?>
     </div>
 </div>
+
 <?php mysqli_close($db); ?>
