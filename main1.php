@@ -685,34 +685,47 @@ function processBarcode(barcode) {
         success: function(response) {
             console.log("Server response:", response);
             
-            if (response.error) {
-                showErrorMessage(response.error);
-                speakErrorMessage(response.error);
+            // Check if response is a string that needs parsing
+            let data = response;
+            if (typeof response === 'string') {
+                try {
+                    data = JSON.parse(response);
+                } catch (e) {
+                    console.error("Failed to parse response as JSON:", response);
+                    showErrorMessage("Invalid server response");
+                    restartScanner();
+                    return;
+                }
+            }
+            
+            if (data.error) {
+                showErrorMessage(data.error);
+                speakErrorMessage(data.error);
                 restartScanner();
                 return;
             }
 
             // If first student, set allowed section/year
-            if (isFirstStudent && response.section && response.year_level) {
-                console.log("Setting first student restrictions:", response.section, response.year_level);
+            if (isFirstStudent && data.section && data.year_level) {
+                console.log("Setting first student restrictions:", data.section, data.year_level);
                 // Store in session via AJAX
                 $.post('set_session.php', {
-                    allowed_section: response.section,
-                    allowed_year: response.year_level,
+                    allowed_section: data.section,
+                    allowed_year: data.year_level,
                     is_first_student: false
                 });
                 
                 // Update local variables
-                allowedSection = response.section;
-                allowedYear = response.year_level;
+                allowedSection = data.section;
+                allowedYear = data.year_level;
                 isFirstStudent = false;
             }
 
             // Update the preview photo in the scanner column
-            updatePreviewPhoto(response);
+            updatePreviewPhoto(data);
             
             // Show confirmation modal
-            showConfirmationModal(response);
+            showConfirmationModal(data);
             
         },
         error: function(xhr, status, error) {
@@ -725,7 +738,7 @@ function processBarcode(barcode) {
                     const errorResponse = JSON.parse(xhr.responseText);
                     errorMessage = errorResponse.error || errorMessage;
                 } catch (e) {
-                    errorMessage = xhr.responseText.substring(0, 100);
+                    errorMessage = "Server response: " + xhr.responseText.substring(0, 100);
                 }
             }
             
@@ -756,18 +769,18 @@ function showConfirmationModal(data) {
     const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const dateString = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-    // Student details
+    // Student details - with null checks
     document.getElementById('modalStudentName').textContent = 
-        data.full_name || 'Unknown Student';
+        data.full_name || data.fullname || 'Unknown Student';
         
     document.getElementById('modalStudentId').textContent = 
         data.id_number || 'N/A';
         
     document.getElementById('modalStudentDept').textContent = 
-        data.department || 'N/A';
+        data.department || 'BST' || 'N/A';
         
     document.getElementById('modalStudentYearSection').textContent = 
-        (data.year_level || 'N/A') + ' - ' + (data.section || 'N/A');
+        (data.year_level || data.year || 'N/A') + ' - ' + (data.section || 'N/A');
         
     document.getElementById('modalStudentRole').textContent = 
         data.role || 'Student';
@@ -780,9 +793,9 @@ function showConfirmationModal(data) {
 
     // Student Photo - Use the base64 photo from process_barcode.php
     const modalPhoto = document.getElementById('modalStudentPhoto');
-    if (data.photo && data.photo.startsWith('data:image')) {
+    if (data.photo && (data.photo.startsWith('data:image') || data.photo.startsWith('../'))) {
         modalPhoto.src = data.photo;
-        console.log("Set modal photo to base64 image");
+        console.log("Set modal photo to:", data.photo);
     } else {
         modalPhoto.src = "assets/img/2601828.png";
         console.log("Set modal photo to default image");
@@ -818,12 +831,18 @@ function showConfirmationModal(data) {
     // Clear result message
     document.getElementById('result').innerHTML = '';
     
-    // Show modal
+    // Show modal using Bootstrap 5 method
     const modalElement = document.getElementById('confirmationModal');
     const modal = new bootstrap.Modal(modalElement);
+    
+    // Add event listener for when modal is fully shown
+    modalElement.addEventListener('shown.bs.modal', function () {
+        console.log("Confirmation modal is now fully visible");
+    });
+    
     modal.show();
     
-    console.log("Confirmation modal shown");
+    console.log("Confirmation modal show() called");
     
     // Play success sound
     playAlertSound();
@@ -986,6 +1005,24 @@ function closeAndRefresh() {
     }, 500);
 }
 
+// Debug function to test modal manually
+function testModal() {
+    const testData = {
+        full_name: "WAWA",
+        id_number: "3333-3333",
+        department: "BST",
+        section: "North",
+        year_level: "2nd Year",
+        role: "Student",
+        time_in_out: "Time In Recorded",
+        alert_class: "alert-success",
+        time_in: "10:36 AM",
+        photo: "assets/img/2601828.png",
+        voice: "Time in recorded for WAWA"
+    };
+    showConfirmationModal(testData);
+}
+
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOM loaded, initializing scanner...");
@@ -1004,6 +1041,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Focus on manual input field
     document.getElementById('manualIdInput').focus();
+    
+    // Add test button for debugging (remove in production)
+    const testButton = document.createElement('button');
+    testButton.textContent = 'Test Modal';
+    testButton.className = 'btn btn-warning btn-sm position-fixed';
+    testButton.style.top = '10px';
+    testButton.style.right = '10px';
+    testButton.style.zIndex = '9999';
+    testButton.onclick = testModal;
+    document.body.appendChild(testButton);
     
     // Handle page visibility changes
     document.addEventListener('visibilitychange', function() {
