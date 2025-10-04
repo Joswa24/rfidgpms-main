@@ -143,114 +143,111 @@ if ($view == 'archived') {
                     </ul>
                     
                     <div class="table-responsive">
-    <?php
-    // Let's see exactly what our query returns
-    $query = "SELECT l.*, i.fullname as instructor_name,
-             CASE WHEN l.time_out IS NOT NULL THEN 'Saved' ELSE 'Pending' END as save_status
-             FROM $instructor_table l
-             JOIN instructor i ON l.instructor_id = i.id
-             WHERE DATE(l.time_in) = ?";
-    $params = [$selected_date];
-    $types = "s";
-    
-    if ($search_instructor !== '') {
-        $query .= " AND i.fullname LIKE ?";
-        $params[] = "%$search_instructor%";
-        $types .= "s";
-    }
-    
-    $query .= " ORDER BY l.time_in DESC";
-    
-    echo "<!-- DEBUG: Query: " . htmlspecialchars($query) . " -->";
-    echo "<!-- DEBUG: Params: " . implode(', ', $params) . " -->";
-    
-    $stmt = $db->prepare($query);
-    if ($stmt === false) {
-        die("Error preparing query: " . $db->error);
-    }
-    
-    if (!empty($params)) {
-        $bind_result = $stmt->bind_param($types, ...$params);
-        if ($bind_result === false) {
-            die("Error binding parameters: " . $stmt->error);
-        }
-    }
-    
-    $execute_result = $stmt->execute();
-    if ($execute_result === false) {
-        die("Error executing query: " . $stmt->error);
-    }
-    
-    $result = $stmt->get_result();
-    $field_count = $result->field_count;
-    
-    echo "<!-- DEBUG: Number of fields returned: " . $field_count . " -->";
-    
-    // List all field names
-    $fields = [];
-    while ($field = $result->fetch_field()) {
-        $fields[] = $field->name;
-    }
-    echo "<!-- DEBUG: Field names: " . implode(', ', $fields) . " -->";
-    ?>
+                        <?php if ($recent_archives): ?>
+                            <div class="alert alert-success mb-3">
+                                <i class="fa fa-check-circle"></i> Showing archived records for <?php echo date('F d, Y', strtotime($selected_date)); ?>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <h6>
+                            Instructor Attendance for: <span class="text-primary"><?php echo date('F d, Y', strtotime($selected_date)); ?></span>
+                        </h6>
+                        
+                        <!-- Instructor Attendance Table -->
+                        <table class="table table-striped">
+                            <thead class="sticky-top bg-light">
+                                <tr>
+                                    <th>ID Number</th>
+                                    <th>Name</th>
+                                    <th>Time In</th>
+                                    <th>Time Out</th>
+                                    <th>Status</th>
+                                    <th>Department</th>
+                                    <th>Location</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                // Build the query to fetch all necessary fields including department and location
+                                $query = "SELECT l.*, i.fullname as instructor_name,
+                                        CASE WHEN l.time_out IS NOT NULL THEN 'Saved' ELSE 'Pending' END as save_status
+                                        FROM $instructor_table l
+                                        JOIN instructor i ON l.instructor_id = i.id
+                                        WHERE DATE(l.time_in) = ?";
+                                $params = [$selected_date];
+                                $types = "s";
+                                
+                                if ($search_instructor !== '') {
+                                    $query .= " AND i.fullname LIKE ?";
+                                    $params[] = "%$search_instructor%";
+                                    $types .= "s";
+                                }
+                                
+                                $query .= " ORDER BY l.time_in DESC";
+                                
+                                $stmt = $db->prepare($query);
+                                if ($stmt === false) {
+                                    die("Error preparing query: " . $db->error);
+                                }
+                                
+                                if (!empty($params)) {
+                                    $bind_result = $stmt->bind_param($types, ...$params);
+                                    if ($bind_result === false) {
+                                        die("Error binding parameters: " . $stmt->error);
+                                    }
+                                }
+                                
+                                $execute_result = $stmt->execute();
+                                if ($execute_result === false) {
+                                    die("Error executing query: " . $stmt->error);
+                                }
+                                
+                                $result = $stmt->get_result();
 
-    <table class="table table-striped">
-        <thead class="sticky-top bg-light">
-            <tr>
-                <th>ID Number</th>
-                <th>Name</th>
-                <th>Time In</th>
-                <th>Time Out</th>
-                <th>Status</th>
-                <th>Department</th>
-                <th>Location</th>
-                <th>Date</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php
-            if ($result->num_rows > 0) {
-                while ($row = $result->fetch_assoc()) {
-                    echo "<!-- DEBUG ROW: Department = '" . ($row['department'] ?? 'NOT_SET') . "', Location = '" . ($row['location'] ?? 'NOT_SET') . "' -->";
-                    
-                    echo '<tr>';
-                    echo '<td>' . htmlspecialchars($row['id_number'] ?? 'N/A') . '</td>';
-                    echo '<td>' . htmlspecialchars($row['instructor_name'] ?? 'N/A') . '</td>';
-                    echo '<td>' . ($row['time_in'] ? date('h:i A', strtotime($row['time_in'])) : 'N/A') . '</td>';
-                    echo '<td>' . ($row['time_out'] ? date('h:i A', strtotime($row['time_out'])) : 'N/A') . '</td>';
-                    echo '<td>' . ($row['save_status'] == 'Saved' ? '<span class="badge bg-success">Saved</span>' : '<span class="badge bg-warning">Pending</span>') . '</td>';
-                    
-                    // Department - with explicit check
-                    echo '<td>';
-                    if (isset($row['department']) && $row['department'] !== '') {
-                        echo '<span class="badge bg-primary">' . htmlspecialchars($row['department']) . '</span>';
-                    } else {
-                        echo '<span class="text-muted">N/A</span>';
-                        echo '<!-- DEBUG: Department is empty or not set -->';
-                    }
-                    echo '</td>';
-                    
-                    // Location - with explicit check
-                    echo '<td>';
-                    if (isset($row['location']) && $row['location'] !== '') {
-                        echo '<span class="badge bg-info text-dark">' . htmlspecialchars($row['location']) . '</span>';
-                    } else {
-                        echo '<span class="text-muted">N/A</span>';
-                        echo '<!-- DEBUG: Location is empty or not set -->';
-                    }
-                    echo '</td>';
-                    
-                    echo '<td>' . date('m/d/Y', strtotime($row['time_in'])) . '</td>';
-                    echo '</tr>';
-                }
-            } else {
-                echo '<tr><td colspan="8" class="text-center">No instructor attendance records found for this date</td></tr>';
-            }
-            $stmt->close();
-            ?>
-        </tbody>
-    </table>
-</div>
+                                if ($result->num_rows > 0) {
+                                    while ($row = $result->fetch_assoc()) {
+                                        echo '<tr>';
+                                        echo '<td>' . htmlspecialchars($row['id_number']) . '</td>';
+                                        echo '<td>' . htmlspecialchars($row['instructor_name']) . '</td>';
+                                        echo '<td>' . ($row['time_in'] ? date('h:i A', strtotime($row['time_in'])) : 'N/A') . '</td>';
+                                        echo '<td>' . ($row['time_out'] ? date('h:i A', strtotime($row['time_out'])) : 'N/A') . '</td>';
+                                        echo '<td>' . ($row['save_status'] == 'Saved' ? '<span class="badge bg-success">Saved</span>' : '<span class="badge bg-warning">Pending</span>') . '</td>';
+                                        
+                                        // Enhanced Department display with fallback
+                                        echo '<td>';
+                                        if (!empty($row['department'])) {
+                                            echo '<span class="badge bg-primary">' . htmlspecialchars($row['department']) . '</span>';
+                                        } else {
+                                            echo '<span class="text-muted">N/A</span>';
+                                        }
+                                        echo '</td>';
+                                        
+                                        // Enhanced Location display with fallback
+                                        echo '<td>';
+                                        if (!empty($row['location'])) {
+                                            echo '<span class="badge bg-info text-dark">' . htmlspecialchars($row['location']) . '</span>';
+                                        } else {
+                                            echo '<span class="text-muted">N/A</span>';
+                                        }
+                                        echo '</td>';
+                                        
+                                        echo '<td>' . date('m/d/Y', strtotime($row['time_in'])) . '</td>';
+                                        echo '</tr>';
+                                    }
+                                } else {
+                                    echo '<tr><td colspan="8" class="text-center py-4">';
+                                    echo '<div class="text-muted">';
+                                    echo '<i class="fa fa-search fa-2x mb-2"></i><br>';
+                                    echo 'No instructor attendance records found for ' . date('F d, Y', strtotime($selected_date));
+                                    echo '</div>';
+                                    echo '</td></tr>';
+                                }
+                                $stmt->close();
+                                ?>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
