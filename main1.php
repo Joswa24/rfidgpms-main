@@ -1121,7 +1121,7 @@ function speakMessage(message) {
             speech.voice = voice;
         }
         
-        window.speechSynthesis.speak(speech);
+        
     }
 }
 
