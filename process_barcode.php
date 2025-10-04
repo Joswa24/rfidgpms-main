@@ -3,9 +3,10 @@ session_start();
 include 'connection.php';
 
 // Get POST data
-$barcode = $_POST['id_number'] ?? '';
-$current_department = $_POST['department'] ?? '';
-$current_location = $_POST['location'] ?? '';
+$barcode = $_POST['barcode'] ?? '';
+$current_department = $_POST['current_department'] ?? '';
+$current_location = $_POST['current_location'] ?? '';
+$is_first_student = filter_var($_POST['is_first_student'] ?? false, FILTER_VALIDATE_BOOLEAN);
 $today = date('Y-m-d');
 $now = date('Y-m-d H:i:s');
 
@@ -15,20 +16,8 @@ if (empty($barcode)) {
     exit;
 }
 
-// Fetch complete student data including department name
-$student_query = "SELECT 
-                    s.id,
-                    s.id_number, 
-                    s.fullname, 
-                    s.photo, 
-                    s.section, 
-                    s.year, 
-                    s.role,
-                    s.department_id,
-                    d.department_name 
-                  FROM students s 
-                  LEFT JOIN department d ON s.department_id = d.department_id 
-                  WHERE s.id_number = ?";
+// Fetch student data
+$student_query = "SELECT * FROM students WHERE id_number = ?";
 $stmt = $db->prepare($student_query);
 $stmt->bind_param("s", $barcode);
 $stmt->execute();
@@ -42,28 +31,6 @@ if ($student_result->num_rows === 0) {
 
 $student = $student_result->fetch_assoc();
 $stmt->close();
-
-// Get photo path using the EXACT same function as students.php
-function getStudentPhoto($photo, $context = 'scanner') {
-    // Determine base path based on context
-    if ($context === 'scanner') {
-        $basePath = 'uploads/students/';
-        $defaultPhoto = 'assets/img/default.png';
-    } else { // admin context
-        $basePath = '../uploads/students/';
-        $defaultPhoto = '../assets/img/default.png';
-    }
-
-    // If no photo or file does not exist → return default
-    if (empty($photo) || !file_exists($basePath . $photo)) {
-        return $defaultPhoto;
-    }
-
-    return $basePath . $photo;
-}
-
-// In process_barcode.php, use:
-$photo_path = getStudentPhoto($student['photo'], 'scanner');
 
 // Section/Year verification (server-side)
 $firstLogQuery = "SELECT s.year, s.section 
@@ -108,23 +75,23 @@ $log_stmt->execute();
 $log_result = $log_stmt->get_result();
 $existing_log = $log_result->fetch_assoc();
 
-// Prepare response with complete student data
+// Prepare response
 $response = [
     'full_name' => $student['fullname'],
     'id_number' => $student['id_number'],
-    'department' => $student['department_name'], // Use department_name from join
-    'photo' => $photo_path,
+    'department' => $student['department'] ?? 'N/A',
+    'photo' => $student['photo'] ?? '',
     'section' => $student['section'],
-    'year_level' => $student['year'],
-    'role' => $student['role'] ?? 'Student',
+    'year_level' => $student['year'],  // Matches your 'year' column
+    'role' => $student['role'] ?? 'Student', // Added default value
     'time_in' => '',
     'time_out' => '',
-    'Status' => 'Present',
+    'time_in_out' => '',
     'alert_class' => 'alert-primary',
     'voice' => ''
 ];
-
 // Check if there's an existing log for today
+
 if ($existing_log) {
     if (empty($existing_log['time_out'])) {
         // Record time out
@@ -165,6 +132,11 @@ if ($existing_log) {
         $response['time_in_out'] = 'Time In Recorded';
         $response['alert_class'] = 'alert-success';
         $response['voice'] = "Time in recorded for {$student['fullname']}";
+        
+        // If this is the first student, include in response
+        if ($is_first_student) {
+            $response['is_first'] = true;
+        }
     } else {
         $response['error'] = 'Failed to record time in';
     }
@@ -174,8 +146,6 @@ if ($existing_log) {
 // Close statements
 $log_stmt->close();
 
-// Set proper JSON header
-header('Content-Type: application/json');
 echo json_encode($response);
 exit;
 ?>

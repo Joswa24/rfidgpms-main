@@ -404,15 +404,6 @@ mysqli_close($db);
             text-align: center;
             font-weight: bold;
         }
-        .modal-student-photo {
-            width: 150px;
-            height: 150px;
-            object-fit: cover;
-            border-radius: 50%;
-            border: 3px solid #084298;
-            margin: 0 auto 20px;
-            display: block;
-        }
     </style>
 </head>
 
@@ -1102,7 +1093,7 @@ function processManualInput() {
         type: "POST",
         url: "process_barcode.php",
         data: { 
-            barcode: barcode,
+            barcode: idNumber,
             current_department: "<?php echo $department; ?>",
             current_location: "<?php echo $location; ?>",
             is_first_student: isFirstStudent
