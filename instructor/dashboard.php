@@ -5,7 +5,7 @@ session_start();
 // Check if essential session variables exist
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true || 
     !isset($_SESSION['role']) || $_SESSION['role'] !== 'instructor' ||
-    !isset($_SESSION['instructor_id']) || !isset($_SESSION['fullname']) || !isset($_SESSION['department'])) {
+    !isset($_SESSION['instructor_id'])) {
     header("Location: index.php");
     exit();
 }
@@ -32,8 +32,43 @@ if (!isset($_SESSION['user_agent'])) {
 }
 
 // Now include other files
-include 'header.php';   
 include '../connection.php';
+
+// ✅ Fetch Updated Instructor Information
+$instructor_info = null;
+$instructor_id = $_SESSION['instructor_id'];
+
+$stmt = $db->prepare("
+    SELECT i.fullname, i.id_number, d.department_name, i.email, i.contact_number
+    FROM instructor i 
+    LEFT JOIN department d ON i.department_id = d.department_id 
+    WHERE i.id = ?
+");
+if ($stmt) {
+    $stmt->bind_param("i", $instructor_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result->num_rows > 0) {
+        $instructor_info = $result->fetch_assoc();
+        
+        // Update session variables with fresh data from database
+        $_SESSION['fullname'] = $instructor_info['fullname'];
+        $_SESSION['department'] = $instructor_info['department_name'] ?? 'Not Assigned';
+        $_SESSION['id_number'] = $instructor_info['id_number'] ?? '';
+        $_SESSION['email'] = $instructor_info['email'] ?? '';
+        $_SESSION['contact_number'] = $instructor_info['contact_number'] ?? '';
+    } else {
+        // Instructor not found in database - logout user
+        session_unset();
+        session_destroy();
+        header("Location: index.php?error=instructor_not_found");
+        exit();
+    }
+    $stmt->close();
+} else {
+    die("Database error: " . $db->error);
+}
 
 // ✅ Fetch Instructor Schedules
 $today_classes = null;
@@ -48,7 +83,7 @@ $stmt = $db->prepare("
     ORDER BY start_time ASC
 ");
 if ($stmt) {
-    $stmt->bind_param("is", $_SESSION['instructor_id'], $today_day);
+    $stmt->bind_param("is", $instructor_id, $today_day);
     $stmt->execute();
     $today_classes = $stmt->get_result();
     $stmt->close();
@@ -65,13 +100,16 @@ $stmt = $db->prepare("
              start_time ASC
 ");
 if ($stmt) {
-    $stmt->bind_param("i", $_SESSION['instructor_id']);
+    $stmt->bind_param("i", $instructor_id);
     $stmt->execute();
     $upcoming_classes = $stmt->get_result();
     $stmt->close();
 } else {
     die("Database error: " . $db->error);
 }
+
+// Include header after all processing
+include 'header.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -137,9 +175,46 @@ if ($stmt) {
         .welcome-header {
             background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
             color: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            position: relative;
+            overflow: hidden;
+        }
+        .welcome-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: rotate(45deg);
+            z-index: 1;
+        }
+        .welcome-content {
+            position: relative;
+            z-index: 2;
+        }
+        .instructor-avatar {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+        .info-badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-right: 10px;
+            margin-bottom: 5px;
+            display: inline-block;
         }
         @media (max-width: 768px) {
             .sidebar {
@@ -150,6 +225,9 @@ if ($stmt) {
             .navbar, .main-content {
                 margin-left: 0;
                 width: 100%;
+            }
+            .welcome-header {
+                padding: 20px;
             }
         }
     </style>
@@ -191,7 +269,8 @@ if ($stmt) {
                 <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle me-1"></i> <?php echo htmlspecialchars($_SESSION['fullname']); ?>
+                            <i class="fas fa-user-circle me-1"></i> 
+                            <?php echo htmlspecialchars($_SESSION['fullname'] ?? 'Instructor'); ?>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="profile.php"><i class="fas fa-user me-2"></i>Profile</a></li>
@@ -219,18 +298,53 @@ if ($stmt) {
 
     <!-- Main Content -->
     <div class="main-content">
+        <!-- Enhanced Welcome Header -->
         <div class="welcome-header">
-            <h2><i class="fas fa-chalkboard-teacher me-2"></i>Welcome, <?php echo htmlspecialchars($_SESSION['fullname']); ?>!</h2>
-            <p class="mb-0">Department: <?php echo htmlspecialchars($_SESSION['department']); ?></p>
-            <p class="mb-0">Today is <?php echo date('l, F j, Y'); ?></p>
+            <div class="welcome-content">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <div class="instructor-avatar">
+                            <i class="fas fa-chalkboard-teacher"></i>
+                        </div>
+                        <h2 class="mb-2">Welcome, <?php echo htmlspecialchars($_SESSION['fullname']); ?>!</h2>
+                        <div class="mb-3">
+                            <span class="info-badge">
+                                <i class="fas fa-id-card me-1"></i>
+                                ID: <?php echo htmlspecialchars($_SESSION['id_number'] ?? 'N/A'); ?>
+                            </span>
+                            <span class="info-badge">
+                                <i class="fas fa-building me-1"></i>
+                                Department: <?php echo htmlspecialchars($_SESSION['department']); ?>
+                            </span>
+                            <?php if (!empty($_SESSION['email'])): ?>
+                            <span class="info-badge">
+                                <i class="fas fa-envelope me-1"></i>
+                                <?php echo htmlspecialchars($_SESSION['email']); ?>
+                            </span>
+                            <?php endif; ?>
+                        </div>
+                        <p class="mb-0"><i class="fas fa-calendar-day me-2"></i>Today is <?php echo date('l, F j, Y'); ?></p>
+                    </div>
+                    <div class="col-md-4 text-md-end">
+                        <div class="card bg-light bg-opacity-50 border-0">
+                            <div class="card-body text-dark">
+                                <h6 class="card-title"><i class="fas fa-clock me-2"></i>Current Time</h6>
+                                <h4 id="current-time" class="mb-0"><?php echo date('g:i A'); ?></h4>
+                                <small id="current-date"><?php echo date('M j, Y'); ?></small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="row">
             <!-- Today's Classes -->
             <div class="col-md-6">
                 <div class="card card-dashboard h-100">
-                    <div class="card-header bg-primary-custom">
+                    <div class="card-header bg-primary-custom d-flex justify-content-between align-items-center">
                         <h5 class="card-title mb-0"><i class="fas fa-calendar-day me-2"></i>Today's Classes</h5>
+                        <span class="badge bg-light text-dark"><?php echo $today_classes ? $today_classes->num_rows : 0; ?> classes</span>
                     </div>
                     <div class="card-body">
                         <?php if ($today_classes && $today_classes->num_rows > 0): ?>
@@ -252,6 +366,7 @@ if ($stmt) {
                                         <p class="mb-1">Room: <?php echo htmlspecialchars($class['room_name']); ?></p>
                                         <small>
                                             Section: <?php echo htmlspecialchars($class['section']); ?> | 
+                                            Year: <?php echo htmlspecialchars($class['year_level'] ?? 'N/A'); ?> | 
                                             <?php echo $start_time . ' - ' . $end_time; ?>
                                         </small>
                                         <br>
@@ -263,7 +378,10 @@ if ($stmt) {
                                 <?php endwhile; ?>
                             </div>
                         <?php else: ?>
-                            <p class="text-muted">No classes scheduled for today.</p>
+                            <div class="text-center py-4">
+                                <i class="fas fa-calendar-times text-muted mb-3" style="font-size: 3rem;"></i>
+                                <p class="text-muted">No classes scheduled for today.</p>
+                            </div>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -278,16 +396,28 @@ if ($stmt) {
                     <div class="card-body">
                         <div class="row text-center">
                             <div class="col-6 mb-3">
-                                <a href="attendance.php" class="btn btn-outline-primary w-100 py-3"><i class="fas fa-clipboard-check fa-2x mb-2"></i><br>Take Attendance</a>
+                                <a href="attendance.php" class="btn btn-outline-primary w-100 py-3">
+                                    <i class="fas fa-clipboard-check fa-2x mb-2"></i><br>
+                                    <span>Take Attendance</span>
+                                </a>
                             </div>
                             <div class="col-6 mb-3">
-                                <a href="schedule.php" class="btn btn-outline-primary w-100 py-3"><i class="fas fa-calendar-alt fa-2x mb-2"></i><br>View Schedule</a>
+                                <a href="schedule.php" class="btn btn-outline-primary w-100 py-3">
+                                    <i class="fas fa-calendar-alt fa-2x mb-2"></i><br>
+                                    <span>View Schedule</span>
+                                </a>
                             </div>
                             <div class="col-6">
-                                <a href="reports.php" class="btn btn-outline-primary w-100 py-3"><i class="fas fa-chart-bar fa-2x mb-2"></i><br>Reports</a>
+                                <a href="reports.php" class="btn btn-outline-primary w-100 py-3">
+                                    <i class="fas fa-chart-bar fa-2x mb-2"></i><br>
+                                    <span>Reports</span>
+                                </a>
                             </div>
                             <div class="col-6">
-                                <a href="profile.php" class="btn btn-outline-primary w-100 py-3"><i class="fas fa-user-cog fa-2x mb-2"></i><br>Profile</a>
+                                <a href="profile.php" class="btn btn-outline-primary w-100 py-3">
+                                    <i class="fas fa-user-cog fa-2x mb-2"></i><br>
+                                    <span>Profile</span>
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -299,8 +429,9 @@ if ($stmt) {
         <div class="row mt-4">
             <div class="col-12">
                 <div class="card card-dashboard">
-                    <div class="card-header bg-primary-custom">
+                    <div class="card-header bg-primary-custom d-flex justify-content-between align-items-center">
                         <h5 class="card-title mb-0"><i class="fas fa-calendar-week me-2"></i>Upcoming Classes This Week</h5>
+                        <span class="badge bg-light text-dark"><?php echo $upcoming_classes ? $upcoming_classes->num_rows : 0; ?> total</span>
                     </div>
                     <div class="card-body">
                         <?php if ($upcoming_classes && $upcoming_classes->num_rows > 0): ?>
@@ -314,24 +445,37 @@ if ($stmt) {
                                             <th>Room</th>
                                             <th>Year Level</th>
                                             <th>Section</th>
+                                            <th>Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <?php while ($class = $upcoming_classes->fetch_assoc()): ?>
                                             <tr>
-                                                <td><?php echo htmlspecialchars($class['day']); ?></td>
+                                                <td><strong><?php echo htmlspecialchars($class['day']); ?></strong></td>
                                                 <td><?php echo date("g:i A", strtotime($class['start_time'])) . ' - ' . date("g:i A", strtotime($class['end_time'])); ?></td>
                                                 <td><?php echo htmlspecialchars($class['subject']); ?></td>
                                                 <td><?php echo htmlspecialchars($class['room_name']); ?></td>                                       
                                                 <td><?php echo isset($class['year_level']) ? htmlspecialchars($class['year_level']) : '-'; ?></td>
                                                 <td><?php echo htmlspecialchars($class['section']); ?></td>
+                                                <td>
+                                                    <a href="attendance.php?year=<?php echo urlencode($class['year_level']); ?>&section=<?php echo urlencode($class['section']); ?>&subject=<?php echo urlencode($class['subject']); ?>" 
+                                                       class="btn btn-sm btn-outline-primary">
+                                                       <i class="fas fa-eye me-1"></i> View
+                                                    </a>
+                                                </td>
                                             </tr>
                                         <?php endwhile; ?>
                                     </tbody>
                                 </table>
                             </div>
                         <?php else: ?>
-                            <p class="text-muted">No upcoming classes this week.</p>
+                            <div class="text-center py-4">
+                                <i class="fas fa-calendar-plus text-muted mb-3" style="font-size: 3rem;"></i>
+                                <p class="text-muted">No upcoming classes scheduled for this week.</p>
+                                <a href="schedule.php" class="btn btn-primary">
+                                    <i class="fas fa-plus me-2"></i>Add Schedule
+                                </a>
+                            </div>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -340,5 +484,29 @@ if ($stmt) {
     </div><!-- /.main-content -->
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Update current time every second
+        function updateCurrentTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { 
+                hour: 'numeric', 
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true 
+            });
+            const dateString = now.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            });
+            
+            document.getElementById('current-time').textContent = timeString;
+            document.getElementById('current-date').textContent = dateString;
+        }
+
+        // Update time immediately and then every second
+        updateCurrentTime();
+        setInterval(updateCurrentTime, 1000);
+    </script>
 </body>
 </html>
