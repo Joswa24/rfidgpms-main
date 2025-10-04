@@ -593,8 +593,7 @@ function initScanner() {
         }
     }
     
-    // Create new scanner instance
-    try {
+    // Create new scanner instance    try {
         scanner = new Html5QrcodeScanner(
             'largeReader', 
             { 
@@ -615,8 +614,8 @@ function initScanner() {
         console.log("Scanner initialized successfully");
         
     } catch (error) {
-        console.error("Scanner initialization failed:", error);
-        showErrorMessage("Scanner initialization failed: " + error.message);
+        console.error("Tap Your ID to the Scanner Or Use Manual Input");
+        showErrorMessage("Tap Your ID to the Scanner Or Use Manual Input");
     }
 }
 
@@ -658,7 +657,7 @@ function onScanError(error) {
     }
 }
 
-// Process barcode function
+// Process barcode function - UPDATED
 function processBarcode(barcode) {
     console.log("Processing barcode:", barcode);
     
@@ -681,21 +680,38 @@ function processBarcode(barcode) {
             current_location: "<?php echo $location; ?>",
             is_first_student: isFirstStudent
         },
-        dataType: 'json',
         success: function(response) {
-            console.log("Server response:", response);
+            console.log("Raw server response:", response);
             
-            // Check if response is a string that needs parsing
-            let data = response;
+            let data;
+            
+            // Handle both JSON string and object responses
             if (typeof response === 'string') {
                 try {
                     data = JSON.parse(response);
+                    console.log("Parsed JSON data:", data);
                 } catch (e) {
-                    console.error("Failed to parse response as JSON:", response);
-                    showErrorMessage("Invalid server response");
-                    restartScanner();
-                    return;
+                    console.error("Failed to parse JSON:", e);
+                    // Try to extract JSON from string if it's wrapped
+                    const jsonMatch = response.match(/\{.*\}/);
+                    if (jsonMatch) {
+                        try {
+                            data = JSON.parse(jsonMatch[0]);
+                            console.log("Extracted and parsed JSON:", data);
+                        } catch (e2) {
+                            showErrorMessage("Invalid server response format");
+                            restartScanner();
+                            return;
+                        }
+                    } else {
+                        showErrorMessage("Server returned invalid data");
+                        restartScanner();
+                        return;
+                    }
                 }
+            } else {
+                data = response;
+                console.log("Response is already object:", data);
             }
             
             if (data.error) {
@@ -706,7 +722,7 @@ function processBarcode(barcode) {
             }
 
             // If first student, set allowed section/year
-            if (isFirstStudent && data.section && data.year_level) {
+            if (isFirstStudent && (data.section || data.section)) {
                 console.log("Setting first student restrictions:", data.section, data.year_level);
                 // Store in session via AJAX
                 $.post('set_session.php', {
@@ -730,16 +746,11 @@ function processBarcode(barcode) {
         },
         error: function(xhr, status, error) {
             console.error("AJAX error:", status, error);
-            console.error("Response text:", xhr.responseText);
+            console.error("Full response:", xhr.responseText);
             
             let errorMessage = "Server error occurred";
             if (xhr.responseText) {
-                try {
-                    const errorResponse = JSON.parse(xhr.responseText);
-                    errorMessage = errorResponse.error || errorMessage;
-                } catch (e) {
-                    errorMessage = "Server response: " + xhr.responseText.substring(0, 100);
-                }
+                errorMessage = "Server response: " + xhr.responseText.substring(0, 200);
             }
             
             showErrorMessage(errorMessage);
@@ -747,6 +758,106 @@ function processBarcode(barcode) {
             restartScanner();
         }
     });
+}
+
+// Show confirmation modal with complete student data - UPDATED
+function showConfirmationModal(data) {
+    console.log("Preparing confirmation modal with data:", data);
+    
+    // Get current time and date
+    const now = new Date();
+    const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const dateString = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    // Student details - with comprehensive null checks
+    const fullName = data.full_name || data.fullname || 'Unknown Student';
+    const idNumber = data.id_number || 'N/A';
+    const department = data.department || data.department_name || 'BST' || 'N/A';
+    const yearLevel = data.year_level || data.year || 'N/A';
+    const section = data.section || 'N/A';
+    const role = data.role || 'Student';
+    const timeInOut = data.time_in_out || 'Attendance Recorded';
+    const timeIn = data.time_in || '';
+    const timeOut = data.time_out || '';
+    const alertClass = data.alert_class || 'alert-success';
+    const voice = data.voice || `Attendance recorded for ${fullName}`;
+
+    console.log("Formatted data:", {
+        fullName, idNumber, department, yearLevel, section, role, timeInOut, timeIn, timeOut, alertClass
+    });
+
+    // Update modal content
+    document.getElementById('modalStudentName').textContent = fullName;
+    document.getElementById('modalStudentId').textContent = idNumber;
+    document.getElementById('modalStudentDept').textContent = department;
+    document.getElementById('modalStudentYearSection').textContent = `${yearLevel} - ${section}`;
+    document.getElementById('modalStudentRole').textContent = role;
+    document.getElementById('modalTimeInOut').textContent = timeInOut;
+    document.getElementById('modalTimeDisplay').textContent = timeString;
+    document.getElementById('modalDateDisplay').textContent = dateString;
+
+    // Student Photo - Use the base64 photo from process_barcode.php
+    const modalPhoto = document.getElementById('modalStudentPhoto');
+    if (data.photo && (data.photo.startsWith('data:image') || data.photo.includes('.jpg') || data.photo.includes('.png'))) {
+        modalPhoto.src = data.photo;
+        console.log("Set modal photo to:", data.photo);
+    } else {
+        modalPhoto.src = "assets/img/2601828.png";
+        console.log("Set modal photo to default image");
+    }
+
+    // Update status color and icon
+    const statusElement = document.getElementById('modalAttendanceStatus');
+    statusElement.className = 'attendance-status p-3 rounded';
+    
+    if (alertClass === 'alert-success') {
+        statusElement.classList.add('time-in');
+        statusElement.innerHTML = `
+            <i class="fas fa-sign-in-alt me-2"></i>
+            ${timeInOut}
+            ${timeIn ? `<br><small>Time In: ${timeIn}</small>` : ''}
+        `;
+    } else if (alertClass === 'alert-warning') {
+        statusElement.classList.add('time-out');
+        statusElement.innerHTML = `
+            <i class="fas fa-sign-out-alt me-2"></i>
+            ${timeInOut}
+            ${timeIn ? `<br><small>Time In: ${timeIn}</small>` : ''}
+            ${timeOut ? `<br><small>Time Out: ${timeOut}</small>` : ''}
+        `;
+    } else {
+        statusElement.classList.add('time-in');
+        statusElement.innerHTML = `
+            <i class="fas fa-check-circle me-2"></i>
+            ${timeInOut}
+        `;
+    }
+
+    // Clear result message
+    document.getElementById('result').innerHTML = '';
+    
+    // Show modal using Bootstrap 5
+    const modalElement = document.getElementById('confirmationModal');
+    const modal = new bootstrap.Modal(modalElement);
+    
+    // Show the modal
+    modal.show();
+    console.log("Modal show() called");
+    
+    // Play success sound
+    playAlertSound();
+    
+    // Speak confirmation message
+    speakErrorMessage(voice);
+}
+
+// Add this debug function to check what's happening during scanning
+function debugScanResponse(response) {
+    console.log("=== DEBUG SCAN RESPONSE ===");
+    console.log("Response type:", typeof response);
+    console.log("Response length:", response.length);
+    console.log("First 200 chars:", response.substring(0, 200));
+    console.log("=== END DEBUG ===");
 }
 
 // Update preview photo in the scanner column
