@@ -414,9 +414,6 @@ mysqli_close($db);
 <div id="message"></div>
 
 <img src="uploads/Head.png" style="width: 100%; height: 150px; margin-left: 10px; padding=10px; margin-top=20px;S">
-
-
-<img src="uploads/Head.png" style="width: 100%; height: 150px; margin-left: 10px; padding=10px; margin-top=20px;S">
         <!-- Confirmation Modal -->
         <div class="modal fade confirmation-modal" id="confirmationModal" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog">
