@@ -169,11 +169,12 @@ if ($view == 'archived') {
                             </thead>
                             <tbody>
                                 <?php
-                                $query = "SELECT l.*, i.fullname as instructor_name, location, i.id_number,department,
-                                         CASE WHEN l.time_out IS NOT NULL THEN 'Saved' ELSE 'Pending' END as save_status
-                                         FROM $instructor_table l
-                                         JOIN instructor i ON l.instructor_id = i.id
-                                         WHERE DATE(l.time_in) = ?";
+                                // Build the query to fetch all necessary fields including department and location
+                                $query = "SELECT l.*, i.fullname as instructor_name,
+                                        CASE WHEN l.time_out IS NOT NULL THEN 'Saved' ELSE 'Pending' END as save_status
+                                        FROM $instructor_table l
+                                        JOIN instructor i ON l.instructor_id = i.id
+                                        WHERE DATE(l.time_in) = ?";
                                 $params = [$selected_date];
                                 $types = "s";
                                 
@@ -207,18 +208,40 @@ if ($view == 'archived') {
                                 if ($result->num_rows > 0) {
                                     while ($row = $result->fetch_assoc()) {
                                         echo '<tr>';
-                                        echo '<td>'.htmlspecialchars($row['id_number']).'</td>';
-                                        echo '<td>'.htmlspecialchars($row['instructor_name']).'</td>';
-                                        echo '<td>'.($row['time_in'] ? date('h:i A', strtotime($row['time_in'])) : 'N/A').'</td>';
-                                        echo '<td>'.($row['time_out'] ? date('h:i A', strtotime($row['time_out'])) : 'N/A').'</td>';
-                                        echo '<td>'.($row['save_status'] == 'Saved' ? '<span class="badge bg-success">Saved</span>' : '<span class="badge bg-warning">Pending</span>').'</td>';
-                                        echo '<td>'.htmlspecialchars($row['department']).'</td>';
-                                        echo '<td>'.htmlspecialchars($row['location']).'</td>';
-                                        echo '<td>'.date('m/d/Y', strtotime($row['time_in'])).'</td>';
+                                        echo '<td>' . htmlspecialchars($row['id_number']) . '</td>';
+                                        echo '<td>' . htmlspecialchars($row['instructor_name']) . '</td>';
+                                        echo '<td>' . ($row['time_in'] ? date('h:i A', strtotime($row['time_in'])) : 'N/A') . '</td>';
+                                        echo '<td>' . ($row['time_out'] ? date('h:i A', strtotime($row['time_out'])) : 'N/A') . '</td>';
+                                        echo '<td>' . ($row['save_status'] == 'Saved' ? '<span class="badge bg-success">Saved</span>' : '<span class="badge bg-warning">Pending</span>') . '</td>';
+                                        
+                                        // Enhanced Department display with fallback
+                                        echo '<td>';
+                                        if (!empty($row['department'])) {
+                                            echo '<span class="badge bg-primary">' . htmlspecialchars($row['department']) . '</span>';
+                                        } else {
+                                            echo '<span class="text-muted">N/A</span>';
+                                        }
+                                        echo '</td>';
+                                        
+                                        // Enhanced Location display with fallback
+                                        echo '<td>';
+                                        if (!empty($row['location'])) {
+                                            echo '<span class="badge bg-info text-dark">' . htmlspecialchars($row['location']) . '</span>';
+                                        } else {
+                                            echo '<span class="text-muted">N/A</span>';
+                                        }
+                                        echo '</td>';
+                                        
+                                        echo '<td>' . date('m/d/Y', strtotime($row['time_in'])) . '</td>';
                                         echo '</tr>';
                                     }
                                 } else {
-                                    echo '<tr><td colspan="8" class="text-center">No instructor attendance records found for this date</td></tr>';
+                                    echo '<tr><td colspan="8" class="text-center py-4">';
+                                    echo '<div class="text-muted">';
+                                    echo '<i class="fa fa-search fa-2x mb-2"></i><br>';
+                                    echo 'No instructor attendance records found for ' . date('F d, Y', strtotime($selected_date));
+                                    echo '</div>';
+                                    echo '</td></tr>';
                                 }
                                 $stmt->close();
                                 ?>
