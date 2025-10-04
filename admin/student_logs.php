@@ -31,7 +31,7 @@ $search_instructor = isset($_GET['search_instructor']) ? trim($_GET['search_inst
 
 // Check for recently archived records
 $recent_archives = false;
-if ($view == 'current') {
+if ($view == 'archived') {
     $recent_query = "SELECT COUNT(*) as count FROM archived_instructor_logs 
                     WHERE DATE(time_in) = ?";
     $recent_stmt = $db->prepare($recent_query);
