@@ -513,28 +513,26 @@ mysqli_close($db);
         <!-- Main Content Row - Adjusted heights -->
         <div class="row" style="height: calc(100% - 120px);">
             <!-- Scanner Column (70% width) -->
-            <!-- Scanner Column (70% width) -->
-<div class="col-md-8 h-100" style="padding-right: 5px;">
-    <div class="alert alert-primary py-1 mb-2" role="alert" id="alert">
-        <center><h3 id="in_out" class="mb-0" style="font-size: 1rem;">
-            <i class="fas fa-barcode me-2"></i>Scan Your ID Card for Attendance
-        </h3></center>
-    </div>
+            <div class="col-md-8 h-100" style="padding-right: 5px;">
+                <div class="alert alert-primary py-1 mb-2" role="alert" id="alert">
+                    <div class="alert alert-primary py-1 mb-2" role="alert" id="alert">
+                    <center><h3 id="in_out" class="mb-0" style="font-size: 1rem;">
+                        <i class="fas fa-id-card me-2"></i>Scan Your ID Card for Attendance
+                    </h3></center>
+                </div>
+                </div>
 
-    <!-- Barcode Scanner Ready Display -->
-    <div class="large-scanner-container" style="height: calc(100% - 60px); display: flex; align-items: center; justify-content: center; background: #f8f9fa; border: 2px dashed #084298; border-radius: 10px;">
-        <div class="text-center">
-            <i class="fas fa-barcode" style="font-size: 4rem; color: #084298; margin-bottom: 20px;"></i>
-            <h4 style="color: #084298;">Barcode Scanner Ready</h4>
-            <p class="text-muted">Point scanner at ID card and scan</p>
-            <div class="scanner-ready-animation">
-                <i class="fas fa-redo fa-spin" style="color: #084298;"></i>
-                <span class="ms-2">Waiting for scan...</span>
+                <!-- Scanner Container - Adjusted size -->
+                <div class="large-scanner-container" style="height: calc(100% - 60px);">
+                    <div id="largeReader" style="height: 100%;"></div>
+                    <div class="scanner-overlay">
+                        <div class="scanner-frame" style="height: 130px; margin-bottom: 10px;">
+                            <div class="scanner-laser"></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="result" class="text-center" style="min-height: 40px; font-size: 0.9rem;"></div>
             </div>
-        </div>
-    </div>
-    <div id="result" class="text-center" style="min-height: 40px; font-size: 0.9rem;"></div>
-</div>
             
             <!-- Photo/Manual Input Column (30% width) -->
             <div class="col-md-4 h-100 d-flex flex-column" style="padding-left: 5px;">
