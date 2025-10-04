@@ -122,7 +122,6 @@ $response = [
     'role' => $student['role'] ?? 'Student',
     'time_in' => '',
     'time_out' => '',
-    'time_in_out' => '',
     'alert_class' => 'alert-primary',
     'voice' => ''
 ];
