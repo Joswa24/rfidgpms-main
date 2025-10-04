@@ -346,35 +346,63 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
             error_log("Instructor records to archive: " . $instructor_stats['total'] . ", Instructor ID: " . $instructor_stats['instructor_id']);
         }
 
-        // 3. Archive student logs - ENSURING DEPARTMENT AND LOCATION ARE PRESERVED
-$db->query("CREATE TABLE IF NOT EXISTS archived_attendance_logs LIKE attendance_logs");
+        // 3. Archive student logs - ENSURING INSTRUCTOR_ID IS PRESERVED
+        $db->query("CREATE TABLE IF NOT EXISTS archived_attendance_logs LIKE attendance_logs");
+        
+        // Verify table structures match
+        $check_tables = $db->query("
+            SELECT 
+                (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'attendance_logs') as source_cols,
+                (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'archived_attendance_logs') as archive_cols
+        ");
+        if ($check_tables) {
+            $table_stats = $check_tables->fetch_assoc();
+            error_log("Table columns - Source: " . $table_stats['source_cols'] . ", Archive: " . $table_stats['archive_cols']);
+            
+            // If column counts don't match, drop and recreate archive table
+            if ($table_stats['source_cols'] != $table_stats['archive_cols']) {
+                error_log("Table structures don't match - recreating archive table");
+                $db->query("DROP TABLE IF EXISTS archived_attendance_logs");
+                $db->query("CREATE TABLE archived_attendance_logs LIKE attendance_logs");
+            }
+        }
 
-// Archive with explicit column mapping to ensure all fields are copied
-$archive_result = $db->query("INSERT INTO archived_attendance_logs 
-                            SELECT * FROM attendance_logs 
-                            WHERE DATE(time_in) = CURDATE()");
+        // Archive with explicit verification
+        $archive_result = $db->query("INSERT INTO archived_attendance_logs 
+                                    SELECT * FROM attendance_logs 
+                                    WHERE DATE(time_in) = CURDATE()");
+        
+        if (!$archive_result) {
+            error_log("Archive error: " . $db->error);
+            throw new Exception("Error archiving student data: " . $db->error);
+        }
+        
+        $archived_count = $db->affected_rows;
+        error_log("Successfully archived " . $archived_count . " student records");
 
-if (!$archive_result) {
-    error_log("Archive error: " . $db->error);
-    throw new Exception("Error archiving student data: " . $db->error);
-}
+        // Verify archived data has instructor_id
+        $verify_archive = $db->query("SELECT COUNT(*) as total, 
+                                     SUM(CASE WHEN instructor_id IS NULL THEN 1 ELSE 0 END) as missing_instructor 
+                                     FROM archived_attendance_logs 
+                                     WHERE DATE(time_in) = CURDATE()");
+        if ($verify_archive) {
+            $verify_stats = $verify_archive->fetch_assoc();
+            error_log("Archived verification - Total: " . $verify_stats['total'] . ", Missing instructor_id: " . $verify_stats['missing_instructor']);
+        }
 
-$archived_count = $db->affected_rows;
-error_log("Successfully archived " . $archived_count . " student records");
-
-// 4. Archive instructor logs WITH DEPARTMENT AND LOCATION
-$db->query("CREATE TABLE IF NOT EXISTS archived_instructor_logs LIKE instructor_logs");
-
-$instructor_archive_result = $db->query("INSERT INTO archived_instructor_logs 
-                                       SELECT * FROM instructor_logs 
-                                       WHERE DATE(time_in) = CURDATE()");
-
-if (!$instructor_archive_result) {
-    throw new Exception("Error archiving instructor data: " . $db->error);
-}
-
-$instructor_archived_count = $db->affected_rows;
-error_log("Successfully archived " . $instructor_archived_count . " instructor records");
+        // 4. Archive instructor logs
+        $db->query("CREATE TABLE IF NOT EXISTS archived_instructor_logs LIKE instructor_logs");
+        
+        $instructor_archive_result = $db->query("INSERT INTO archived_instructor_logs 
+                                               SELECT * FROM instructor_logs 
+                                               WHERE DATE(time_in) = CURDATE()");
+        
+        if (!$instructor_archive_result) {
+            throw new Exception("Error archiving instructor data: " . $db->error);
+        }
+        
+        $instructor_archived_count = $db->affected_rows;
+        error_log("Successfully archived " . $instructor_archived_count . " instructor records");
 
         // 5. Clear current logs ONLY after successful archiving and verification
         $delete_students = $db->query("DELETE FROM attendance_logs WHERE DATE(time_in) = CURDATE()");
