@@ -91,7 +91,99 @@ mysqli_close($db);
             border-radius: 4px;
             word-break: break-all;
         }
+/* Enhanced modal styles */
+.confirmation-modal .modal-dialog {
+    max-width: 500px;
+}
 
+.confirmation-modal .modal-content {
+    border-radius: 15px;
+    overflow: hidden;
+    border: 3px solid #084298;
+}
+
+.confirmation-modal .modal-header {
+    background: linear-gradient(135deg, #084298 0%, #0d6efd 100%);
+    color: white;
+    border-bottom: none;
+    padding: 1rem 1.5rem;
+}
+
+.confirmation-modal .modal-body {
+    padding: 2rem;
+    text-align: center;
+    background: #f8f9fa;
+}
+
+.confirmation-modal .student-photo {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin: 0 auto 1rem;
+    border: 4px solid #084298;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.confirmation-modal .student-info {
+    background: white;
+    padding: 1rem;
+    border-radius: 10px;
+    margin: 1rem 0;
+    border-left: 4px solid #084298;
+}
+
+.confirmation-modal .student-info div {
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+}
+
+.confirmation-modal .attendance-status {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin: 1.5rem 0;
+    padding: 1rem;
+    border-radius: 10px;
+    border: 2px solid;
+}
+
+.confirmation-modal .time-in {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border-color: #0f5132;
+}
+
+.confirmation-modal .time-out {
+    background-color: #f8d7da;
+    color: #842029;
+    border-color: #842029;
+}
+
+.confirmation-modal .time-display {
+    background: white;
+    border: 2px solid #084298;
+    border-radius: 10px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.confirmation-modal .modal-footer {
+    border-top: none;
+    justify-content: center;
+    padding: 1rem 1.5rem;
+    background: #f8f9fa;
+}
+
+/* Success animation */
+@keyframes successPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.confirmation-modal .student-photo {
+    animation: successPulse 2s ease-in-out;
+}
 
 .processing-text {
     color: #084298;
@@ -1007,10 +1099,11 @@ function onScanError(error) {
 
 
 // Fallback function if AJAX fails but attendance was recorded
+// Fallback function if AJAX fails but attendance was recorded
 function showSuccessFallback(barcode) {
     console.log("🔄 Using fallback success display");
     
-    // Create a basic success response
+    // Create a more detailed fallback response
     const fallbackData = {
         full_name: "Student",
         id_number: barcode,
@@ -1019,8 +1112,9 @@ function showSuccessFallback(barcode) {
         section: "N/A",
         year_level: "N/A", 
         role: "Student",
-        time_in_out: "Attendance Recorded",
-        alert_class: "alert-success"
+        time_in_out: "Attendance Recorded Successfully",
+        alert_class: "alert-success",
+        attendance_type: "time_in"
     };
     
     updateAttendanceUI(fallbackData);
@@ -1031,6 +1125,7 @@ function showSuccessFallback(barcode) {
 
 
 // Show confirmation modal with complete student data
+// Show confirmation modal with complete student data
 function showConfirmationModal(data) {
     console.log("🎯 showConfirmationModal called with:", data);
     
@@ -1039,7 +1134,7 @@ function showConfirmationModal(data) {
     const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const dateString = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-    // Update modal content
+    // Update modal content with ALL student data
     document.getElementById('modalStudentName').textContent = data.full_name || 'Student';
     document.getElementById('modalStudentId').textContent = data.id_number || 'N/A';
     document.getElementById('modalStudentDept').textContent = data.department || 'N/A';
@@ -1048,27 +1143,48 @@ function showConfirmationModal(data) {
     document.getElementById('modalTimeDisplay').textContent = timeString;
     document.getElementById('modalDateDisplay').textContent = dateString;
     
-    // Set attendance status
+    // Set attendance status with better styling
     const statusElement = document.getElementById('modalTimeInOut');
     const statusContainer = document.getElementById('modalAttendanceStatus');
     
-    if (data.time_in_out === 'Time In Recorded' || data.alert_class === 'alert-success') {
-        statusElement.textContent = 'Time In Recorded ✓';
+    if (data.time_in_out === 'Time In Recorded' || data.alert_class === 'alert-success' || data.attendance_type === 'time_in') {
+        statusElement.textContent = '✓ Time In Recorded Successfully';
+        statusElement.className = 'text-success fw-bold';
         statusContainer.className = 'attendance-status mb-3 time-in';
-    } else if (data.time_in_out === 'Time Out Recorded' || data.alert_class === 'alert-warning') {
-        statusElement.textContent = 'Time Out Recorded ✓';
+    } else if (data.time_in_out === 'Time Out Recorded' || data.alert_class === 'alert-warning' || data.attendance_type === 'time_out') {
+        statusElement.textContent = '✓ Time Out Recorded Successfully';
+        statusElement.className = 'text-warning fw-bold';
         statusContainer.className = 'attendance-status mb-3 time-out';
     } else {
-        statusElement.textContent = data.time_in_out || 'Attendance Recorded ✓';
-        statusContainer.className = 'attendance-status mb-3 time-in';
+        statusElement.textContent = data.time_in_out || '✓ Attendance Recorded Successfully';
+        statusElement.className = 'text-primary fw-bold';
+        statusContainer.className = 'attendance-status mb-3';
     }
     
-    // Update student photo in modal
+    // Update student photo in modal with proper error handling
     if (data.photo) {
-        document.getElementById('modalStudentPhoto').src = data.photo + '?t=' + new Date().getTime();
+        const modalPhoto = document.getElementById('modalStudentPhoto');
+        modalPhoto.src = data.photo + '?t=' + new Date().getTime();
+        
+        // Add error handling for broken images
+        modalPhoto.onerror = function() {
+            this.src = 'assets/img/2601828.png';
+        };
     } else {
         document.getElementById('modalStudentPhoto').src = 'assets/img/2601828.png';
     }
+
+    // Show additional student info in console for debugging
+    console.log("📋 Student Data Loaded:", {
+        name: data.full_name,
+        id: data.id_number,
+        department: data.department,
+        year: data.year_level,
+        section: data.section,
+        role: data.role,
+        photo: data.photo,
+        attendance: data.time_in_out
+    });
 
     // Show modal using Bootstrap
     const modalElement = document.getElementById('confirmationModal');
@@ -1085,8 +1201,12 @@ function showConfirmationModal(data) {
         console.log("🎯 Modal closed, restarting scanner");
         restartScanner();
     });
+    
+    // Speak confirmation message if available
+    if (data.voice) {
+        speakErrorMessage(data.voice);
+    }
 }
-
 // Function to restart scanner after modal is closed
 function restartScanner() {
     document.querySelector('.scanner-overlay').style.display = 'flex';

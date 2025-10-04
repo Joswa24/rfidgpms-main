@@ -33,7 +33,7 @@ try {
         throw new Exception('Database connection failed');
     }
 
-    // Fetch student data
+    // Fetch ALL student data (similar to students.php)
     $student_query = "SELECT s.*, d.department_name 
                       FROM students s 
                       LEFT JOIN department d ON s.department_id = d.department_id 
@@ -59,7 +59,7 @@ try {
     $student = $student_result->fetch_assoc();
     $stmt->close();
 
-    // Get photo path
+    // Get photo path (same function as in students.php)
     function getStudentPhoto($photo) {
         if (empty($photo)) {
             return 'assets/img/2601828.png';
@@ -78,20 +78,32 @@ try {
 
     $photo_path = getStudentPhoto($student['photo'] ?? '');
 
-    // Prepare base response
+    // Prepare COMPLETE response with ALL student data
     $response = [
+        // Student Information (from students table)
+        'student_id' => $student['id'] ?? '',
         'full_name' => $student['fullname'] ?? 'Unknown Student',
         'id_number' => $student['id_number'] ?? $barcode,
-        'department' => $current_department,
-        'photo' => $photo_path,
-        'section' => $student['section'] ?? 'N/A',
+        'department' => $student['department_name'] ?? $current_department,
+        'department_id' => $student['department_id'] ?? '',
         'year_level' => $student['year'] ?? 'N/A',
+        'section' => $student['section'] ?? 'N/A',
         'role' => $student['role'] ?? 'Student',
+        'photo' => $photo_path,
+        'date_added' => $student['date_added'] ?? '',
+        
+        // Attendance Information
         'time_in' => '',
         'time_out' => '',
         'Status' => 'Present',
         'alert_class' => 'alert-primary',
-        'time_in_out' => 'Attendance Recorded'
+        'time_in_out' => 'Attendance Recorded',
+        'voice' => '',
+        
+        // Current Session Info
+        'current_department' => $current_department,
+        'current_location' => $current_location,
+        'scan_time' => $now
     ];
 
     // Check existing logs
@@ -130,6 +142,7 @@ try {
                 $response['time_in_out'] = 'Time Out Recorded';
                 $response['alert_class'] = 'alert-warning';
                 $response['voice'] = "Time out recorded for {$student['fullname']}";
+                $response['attendance_type'] = 'time_out';
             } else {
                 throw new Exception('Failed to record time out');
             }
@@ -155,6 +168,7 @@ try {
             $response['time_in_out'] = 'Time In Recorded';
             $response['alert_class'] = 'alert-success';
             $response['voice'] = "Time in recorded for {$student['fullname']}";
+            $response['attendance_type'] = 'time_in';
         } else {
             throw new Exception('Failed to record time in');
         }
