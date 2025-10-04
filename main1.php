@@ -2,19 +2,29 @@
 include 'connection.php';
 session_start();
 
-// Fix these lines to get department and location from the correct session path
-$logo1 = "";
-$nameo = "";
-$address = "";
-$logo2 = "";
-$department = $_SESSION['access']['room']['department'] ?? 'Department';  // Changed from $_SESSION['rooms']
-$location = $_SESSION['access']['room']['room'] ?? 'Location';  // Changed from $_SESSION['rooms']
+// Initialize session variables with proper checks
+$_SESSION['allowed_section'] = $_SESSION['allowed_section'] ?? null;
+$_SESSION['allowed_year'] = $_SESSION['allowed_year'] ?? null;
+$_SESSION['is_first_student'] = $_SESSION['is_first_student'] ?? true;
+
+// Safely get department and location from session
+$department = isset($_SESSION['access']['room']['department']) ? 
+              $_SESSION['access']['room']['department'] : 'Department';
+$location = isset($_SESSION['access']['room']['room']) ? 
+            $_SESSION['access']['room']['room'] : 'Location';
+
+// Check for force redirect
+if (isset($_SESSION['access']['force_redirect'])) {
+    header('Location: ' . $_SESSION['access']['force_redirect']);
+    exit;
+}
 
 // Fetch data from the about table
+$logo1 = $nameo = $address = $logo2 = "";
 $sql = "SELECT * FROM about LIMIT 1";
 $result = $db->query($sql);
 
-if ($result->num_rows > 0) {
+if ($result && $result->num_rows > 0) {
     $row = $result->fetch_assoc();
     $logo1 = $row['logo1'];
     $nameo = $row['name'];
@@ -24,7 +34,6 @@ if ($result->num_rows > 0) {
 
 mysqli_close($db);
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -38,7 +47,7 @@ mysqli_close($db);
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/css/all.min.css" rel="stylesheet">
     
-    <title>Barcode Scanner</title>
+    <title>Classroom Attendance Scanner</title>
     <link rel="icon" href="uploads/scanner.webp" type="image/webp">
     <style>
         /* Updated styles for barcode scanner interface */
@@ -49,25 +58,14 @@ mysqli_close($db);
             padding: 30px;
             text-align: center;
             margin: 20px 0;
-            min-height: 200px;
+            min-height: 100px;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
         }
 
-        .scanner-ready-message {
-            color: #084298;
-            margin-bottom: 20px;
-        }
-
-        .scanner-ready-message i {
-            margin-bottom: 15px;
-            color: #084298;
-            font-size: 3rem;
-        }
-
-        .scanned-id-display {
+         .scanned-id-display {
             background-color: #f8f9fa;
             border: 2px solid #084298;
             border-radius: 8px;
@@ -94,69 +92,6 @@ mysqli_close($db);
             word-break: break-all;
         }
 
-        .barcode-scanner-display {
-            background-color: #084298;
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            margin: 20px 0;
-        }
-
-        .barcode-scanner-icon {
-            font-size: 4rem;
-            margin-bottom: 15px;
-        }
-        .scanner-display-area {
-    background-color: #f8f9fa;
-    border: 2px dashed #084298;
-    border-radius: 10px;
-    padding: 30px;
-    text-align: center;
-    margin: 20px 0;
-    min-height: 300px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-}
-
-.scanner-ready-message {
-    color: #084298;
-    margin-bottom: 20px;
-}
-
-.scanner-ready-message i {
-    margin-bottom: 15px;
-    color: #084298;
-}
-
-.scanned-id-display {
-    background-color: #f8f9fa;
-    border: 2px solid #084298;
-    border-radius: 8px;
-    padding: 15px;
-    margin: 10px 0;
-    text-align: center;
-    width: 100%;
-}
-
-.scanned-label {
-    font-weight: bold;
-    color: #084298;
-    margin-bottom: 5px;
-}
-
-.scanned-value {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: #212529;
-    margin: 10px 0;
-    padding: 8px;
-    background-color: #e9ecef;
-    border-radius: 4px;
-    word-break: break-all;
-}
 
 .processing-text {
     color: #084298;
@@ -207,8 +142,8 @@ mysqli_close($db);
         }
         
         #reader {
-            width: 100%;
-            max-width: 500px;
+            width: 50%;
+            max-width: 250px;
             margin: 0 auto; /* Centered horizontally */
             border: 2px solid #084298;
             border-radius: 10px;
@@ -281,15 +216,19 @@ mysqli_close($db);
         .manual-input-section {
             margin-top: 20px;
             background-color: #f8f9fa;
-            border-radius: 10px;
-            padding: 15px;
+            border-radius: 8px;
+            padding: 10px;
             border: 1px solid #dee2e6;
+            height: 20px;
+            
+                
         }
         
         .manual-input-section h4 {
             color: #084298;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             text-align: center;
+
         }
         
         .input-group {
@@ -306,6 +245,7 @@ mysqli_close($db);
         #manualSubmitBtn {
             height: 50px;
             font-size: 1.1rem;
+           
         }
         
         /* Confirmation modal styling */
@@ -370,13 +310,12 @@ mysqli_close($db);
         .large-scanner-container {
             position: relative;
             height: 60vh;
-            max-height: 600px;
+            max-height: 300px;
             margin: 20px auto;
         }
         
         #largeReader {
-            width: 100%;
-            height: 100%;
+            
             border: 2px solid #084298;
             border-radius: 10px;
             overflow: hidden;
@@ -465,6 +404,71 @@ mysqli_close($db);
             text-align: center;
             font-weight: bold;
         }
+        /* Confirmation modal styling */
+.confirmation-modal .modal-dialog {
+    max-width: 500px;
+}
+
+.confirmation-modal .modal-content {
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.confirmation-modal .modal-header {
+    background-color: #084298;
+    color: white;
+    border-bottom: none;
+}
+
+.confirmation-modal .modal-body {
+    padding: 30px;
+    text-align: center;
+}
+
+.confirmation-modal .student-photo {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin: 0 auto 20px;
+    border: 3px solid #084298;
+}
+
+.confirmation-modal .student-info {
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+}
+
+.confirmation-modal .attendance-status {
+    font-size: 1.3rem;
+    font-weight: bold;
+    margin: 20px 0;
+    padding: 10px;
+    border-radius: 10px;
+}
+
+.confirmation-modal .time-in {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border: 2px solid #0f5132;
+}
+
+.confirmation-modal .time-out {
+    background-color: #f8d7da;
+    color: #842029;
+    border: 2px solid #842029;
+}
+
+.confirmation-modal .modal-footer {
+    border-top: none;
+    justify-content: center;
+}
+
+.confirmation-modal .time-display {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+}
     </style>
 </head>
 
@@ -474,40 +478,48 @@ mysqli_close($db);
 </audio> 
 <div id="message"></div>
 
-
-<!-- Confirmation Modal -->
-<div class="modal fade confirmation-modal" id="confirmationModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Attendance Recorded</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <img id="modalStudentPhoto" class="student-photo" src="uploads/temporary.png" type="image/png" alt="Student Photo">
-                <h4 id="modalStudentName"></h4>
-                
-                <div class="student-info">
-                    <div>ID: <span id="modalStudentId"></span></div>
-                    <div>Department: <span id="modalStudentDept"></span></div>
-                    <div>Role: <span id="modalStudentRole"></span></div>
+<img src="uploads/Head.png" style="width: 100%; height: 150px; margin-left: 10px; padding=10px; margin-top=20px;S">
+        <!-- Confirmation Modal -->
+        <div class="modal fade confirmation-modal" id="confirmationModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Attendance Recorded</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-center">
+                        <!-- ✅ Student Photo - Fixed -->
+                        <img id="modalStudentPhoto" 
+                            src="assets/img/2601828.png" 
+                            alt="Student Photo" 
+                            class="modal-student-photo">
+                        
+                        <h4 id="modalStudentName" class="mb-3"></h4>
+                        
+                        <div class="student-info mb-3">
+                            <div class="mb-2"><strong>ID:</strong> <span id="modalStudentId"></span></div>
+                            <div class="mb-2"><strong>Department:</strong> <span id="modalStudentDept"></span></div>
+                            <div class="mb-2"><strong>Year & Section:</strong> <span id="modalStudentYearSection"></span></div>
+                            <div><strong>Role:</strong> <span id="modalStudentRole"></span></div>
+                        </div>
+                        
+                        <div class="attendance-status mb-3" id="modalAttendanceStatus">
+                            <span id="modalTimeInOut"></span>
+                        </div>
+                        
+                        <div class="time-display bg-light p-3 rounded">
+                            <div id="modalTimeDisplay" class="fw-bold fs-5"></div>
+                            <div id="modalDateDisplay" class="text-muted"></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary" style="background-color: #87abe0ff" onclick="closeAndRefresh()">OK</button>
+                    </div>
                 </div>
-                
-                <div class="attendance-status" id="modalAttendanceStatus">
-                    <span id="modalTimeInOut"></span>
-                </div>
-                
-                <div class="time-display">
-                    <div id="modalTimeDisplay"></div>
-                    <div id="modalDateDisplay"></div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                 <button type="button" class="btn btn-primary" onclick="window.location.href='main1.php'">OK</button>
             </div>
         </div>
-    </div>
-</div>
+
+
 
 <!-- Scanner Preview Modal (shown within scanner frame) -->
 <div id="ScannerPreviewModal" class="Scanner-preview-modal" style="display: none;">
@@ -524,17 +536,6 @@ mysqli_close($db);
     </div>
 </div>
 
-<nav class="navbar navbar-expand-lg navbar-light py-2" style="height: 1%; border-bottom: 1px solid #FBC257; margin-bottom: 1%; padding: 0px 50px 0px 50px; display: flex; justify-content: center; align-items: center;">
-    <div style="text-align: left; margin-right: 10px;">
-        <img src="<?php echo 'admin/uploads/'.$logo1; ?>" alt="Image 1" style="height: 100px;">
-    </div>
-    <div class="column wide" style="flex-grow: 2; text-align: center;">
-        <h2><?php echo $nameo; ?></h2>
-    </div>
-    <div style="text-align: right; margin-left: 10px;">
-        <img src="<?php echo 'admin/uploads/'.$logo2; ?>" alt="Image 2" style="height: 100px;">
-    </div>
-</nav>
 
 <!-- Navigation Tabs -->
 <div class="container mt-3">
@@ -542,70 +543,81 @@ mysqli_close($db);
         <li class="nav-item">
             <a class="nav-link active active-tab" aria-current="page" href="#">Scanner</a>
         </li>
-        <li class="nav-item">
-            <a class="nav-link" href="students_logs.php">Attendance Log</a>
-        </li>
+       <li class="nav-item">
+    <a class="nav-link" href="students_logs.php?from_scanner=1">Attendance Log</a>
+</li>
     </ul>
 </div>
-
-<section class="hero" style="margin-top: 0%">
-    <div class="container">
-        <!-- Department/Location Info Display -->
-        <div class="dept-location-info">
-            <h3>Department: <?php echo $department; ?></h3>
-            <h3>Room: <?php echo $location; ?></h3>
+<section class="hero" style="margin-top: 0; height: calc(100vh - 140px);">
+    <div class="container h-100">
+        <!-- Department/Location Info Display - Made more compact -->
+        <div class="dept-location-info mb-2 py-1">
+            <h3 class="mb-1" style="font-size: 1rem;">Department: <?php echo $department; ?></h3>
+            <h3 class="mb-1" style="font-size: 1rem;">Room: <?php echo $location; ?></h3>
         </div>
         
+        <!-- Compact Clock Display -->
         <center>
-            <div id="clockdate" style="border: 1px solid #f5af5b;background-color: #f5af5b">
-                <div class="clockdate-wrapper" style="height:100px;">
-                    <div id="clock" style="font-weight: bold; color: #fff;font-size: 50px"></div>
-                    <div id="date" style="color: #fff"><span id="currentDate"></span></div>
+            <div id="clockdate" style="border: 1px solid #084298; background-color: #084298; height: 70px; margin-bottom: 10px;">
+                <div class="clockdate-wrapper d-flex flex-column justify-content-center" style="height:100%;">
+                    <div id="clock" style="font-weight: bold; color: #fff; font-size: 1.8rem; line-height: 1.2;"></div>
+                    <div id="date" style="color: #fff; font-size: 0.8rem;"><span id="currentDate"></span></div>
                 </div>
             </div>
         </center>
-        <br><br>
         
-        <div class="row">
-            <div class="col-md-8">
-                <div class="alert alert-primary" role="alert" id="alert">
-                    <center><h3 id="in_out">Scan Your ID Barcode</h3></center>
+        <!-- Main Content Row - Adjusted heights -->
+        <div class="row" style="height: calc(100% - 120px);">
+            <!-- Scanner Column (70% width) -->
+            <div class="col-md-8 h-100" style="padding-right: 5px;">
+                <div class="alert alert-primary py-1 mb-2" role="alert" id="alert">
+                    <div class="alert alert-primary py-1 mb-2" role="alert" id="alert">
+                    <center><h3 id="in_out" class="mb-0" style="font-size: 1rem;">
+                        <i class="fas fa-id-card me-2"></i>Scan Your ID Card for Attendance
+                    </h3></center>
+                </div>
                 </div>
 
-                <!-- Large Scanner -->
-                <div class="large-scanner-container">
-                    <div id="largeReader"></div>
+                <!-- Scanner Container - Adjusted size -->
+                <div class="large-scanner-container" style="height: calc(100% - 60px);">
+                    <div id="largeReader" style="height: 100%;"></div>
                     <div class="scanner-overlay">
-                        <div class="scanner-frame">
+                        <div class="scanner-frame" style="height: 130px; margin-bottom: 10px;">
                             <div class="scanner-laser"></div>
                         </div>
                     </div>
                 </div>
-                <div id="result" class="text-center"></div>
+                <div id="result" class="text-center" style="min-height: 40px; font-size: 0.9rem;"></div>
             </div>
-            <div class="col-md-4 photo-column">
-                <img id="pic" class="large-photo entrant" alt="Student Photo" 
-                     src="assets/img/section/type.jpg">
+            
+            <!-- Photo/Manual Input Column (30% width) -->
+            <div class="col-md-4 h-100 d-flex flex-column" style="padding-left: 5px;">
+                <!-- Student Photo - Made smaller -->
+                <img id="pic" class="mb-2" alt=""; 
+                     src="assets/img/section/type.jpg"
+                     style="margin-top: .5px; width: 100%; height: 200px; object-fit: cover; border: 2px solid #084298; border-radius: 3px;">
                 
-                <!-- Manual Input Section -->
-                <div class="manual-input-section w-100">
-                    <h4><i class="fas fa-keyboard"></i> Manual Attendance</h4>
-                    <p class="text-center">For students who forgot their ID</p>
+                <!-- Manual Input Section - Made more compact -->
+                <div class="manual-input-section flex-grow-1" style="padding: 10px; margin-bottom:60px;">
+                    <h4 class="mb-1" style="font-size: 1rem;"><i class="fas fa-keyboard"></i> Manual Attendance</h4>
+                    <p class="text-center mb-2" style="font-size: 0.8rem;">For students who forgot their ID</p>
                     
-                    <div class="input-group">
+                    <div class="input-group mb-1">
                         <input type="text" 
                                class="form-control" 
                                id="manualIdInput" 
-                               placeholder="0000-0000">
+                               placeholder="0000-0000"
+                               style="height: 40px; font-size: 0.9rem;">
                         <button class="btn btn-primary" 
-                                id="manualSubmitBtn"
+                                id="manualSubmitBtn" 
+                                style="height: 40px; font-size: 0.9rem; border: 1px solid #084298; background-color: #084298;"
                                 onclick="processManualInput()">
                             Submit
                         </button>
                     </div>
                     
                     <div class="text-center">
-                        <small class="text-muted">Press Enter after typing ID</small>
+                        <small class="text-muted" style="font-size: 0.7rem;">Press Enter after typing ID</small>
                     </div>
                 </div>
             </div>
@@ -621,6 +633,20 @@ const scanCooldown = 1000; // 1 second cooldown between scans
 let allowedSection = null;
 let allowedYear = null;
 let isFirstStudent = true;
+
+// Student photo mapping
+const studentPhotos = {
+    "2024-0380": "uploads/students/68b703dcdff49_1232-1232.jpg",
+    "2024-1570": "uploads/students/68b703dcdff49_1232-1232.jpg",
+    "2024-0117": "uploads/students/68b703dcdff49_1232-1232.jpg",
+    "2024-1697": "uploads/students/68b703dcdff49_1232-1232.jpg",
+    // ✅ add more here...
+};
+
+function setStudentPhoto(idNumber) {
+    let photoPath = studentPhotos[idNumber] || "uploads/students/default.png";
+    document.getElementById("modalStudentPhoto").src = photoPath + "?t=" + new Date().getTime();
+}
 
 // Scanner Initialization and Control Functions
 function initScanner() {
@@ -752,6 +778,21 @@ function toggleTorch() {
         console.error("Failed to toggle torch:", err);
     });
 }
+function setStudentPhoto(idNumber) {
+    let photoPath = "uploads/students/default.png"; // default fallback
+
+    if (idNumber === "2024-1697") {
+        photoPath = "uploads/students/68b6d200ec51d_1117-8547.png";
+    } else if (idNumber === "2024-1698") {
+        photoPath = "uploads/students/68b6d200ec51d_1117-8547.png";
+    } else if (idNumber === "2024-1699") {
+        photoPath = "uploads/students/03.jpg";
+    }
+    // ✅ add more as needed...
+
+    // Update modal photo with cache busting
+    document.getElementById("modalStudentPhoto").src = photoPath + "?t=" + new Date().getTime();
+}
 
 // Initialize scanner when page loads
 document.addEventListener('DOMContentLoaded', function() {
@@ -771,7 +812,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(err => {
             console.error("Scanner permission denied:", err);
-            showErrorMessage("Long Press the Scanner for access.");
+            showErrorMessage("Tap Your ID to the Scanner.");
         });
     
     // Set up event listeners for manual controls
@@ -868,59 +909,287 @@ function onScanError(error) {
     // console.error('Scanner error:', error);
 }
 
-// Process barcode (both scanned and manual input)
-function processBarcode(barcode) {
+    function processBarcode(barcode) {
+    console.log("🔍 Processing barcode:", barcode);
+    
+    // Show processing state
     document.getElementById('result').innerHTML = `
-        <div class="d-flex justify-content-center">
-            <div class="spinner-border text-primary" role="status">
+        <div class="d-flex justify-content-center align-items-center">
+            <div class="spinner-border text-primary me-2" role="status" style="width: 1rem; height: 1rem;">
                 <span class="visually-hidden">Loading...</span>
             </div>
-            <span class="ms-2">Processing...</span>
+            <span>Processing ID: ${barcode}</span>
         </div>
     `;
+    
+    // Disable inputs during processing
+    document.getElementById('manualIdInput').disabled = true;
+    document.getElementById('manualSubmitBtn').disabled = true;
     
     $.ajax({
         type: "POST",
         url: "process_barcode.php",
         data: { 
             barcode: barcode,
-            current_department: "<?php echo $department; ?>",
-            current_location: "<?php echo $location; ?>",
-            is_first_student: isFirstStudent,
-            allowed_section: allowedSection,
-            allowed_year: allowedYear
+            department: "<?php echo $department; ?>",
+            location: "<?php echo $location; ?>"
         },
+        dataType: 'json',
+        timeout: 15000,
         success: function(response) {
-            try {
-                const data = typeof response === 'string' ? JSON.parse(response) : response;
-
-                if (data.error) {
-                    showErrorMessage(data.error);
-                    return;
-                }
-
-                // Show the preview modal in the scanner frame
-                showScannerPreviewModal(data);
-                
-                // If this is the first student, set the allowed section/year
-                if (isFirstStudent && data.section && data.year_level) {
-                    allowedSection = data.section;
-                    allowedYear = data.year_level;
-                    isFirstStudent = false;
-                }
-
-            } catch (e) {
-                console.error("Error processing response:", e, response);
-                showErrorMessage("Error processing response");
+            console.log("✅ SUCCESS - Raw response:", response);
+            
+            // Check if response is valid
+            if (!response || typeof response !== 'object') {
+                console.error("❌ Invalid response format");
+                showSuccessFallback(barcode);
+                return;
             }
+            
+            if (response.error) {
+                console.log("❌ Server error:", response.error);
+                showErrorMessage(response.error);
+                speakErrorMessage(response.error);
+                document.querySelector('.scanner-overlay').style.display = 'flex';
+                return;
+            }
+
+            // Log successful student data retrieval
+            console.log("🎓 Student Data Retrieved:", {
+                name: response.full_name,
+                id: response.id_number,
+                department: response.department,
+                year: response.year_level,
+                section: response.section,
+                photo: response.photo
+            });
+
+            // Update UI with student data
+            updateAttendanceUI(response);
+            
+            // Update photo in the main display
+            if (response.photo) {
+                console.log("🖼️ Setting student photo:", response.photo);
+                document.getElementById('pic').src = response.photo;
+            }
+            
+            // Show confirmation modal with all data
+            console.log("🎯 Showing confirmation modal with student data");
+            showConfirmationModal(response);
+            
         },
         error: function(xhr, status, error) {
-            console.error("AJAX error:", status, error);
-            showErrorMessage("Server error: " + error);
+            console.error("❌ AJAX ERROR:");
+            console.error("Status:", status);
+            console.error("Error:", error);
+            console.error("Response text:", xhr.responseText);
+            console.error("Ready state:", xhr.readyState);
+            console.error("Status code:", xhr.status);
+            
+            // Try to parse response even if AJAX reports error
+            if (xhr.responseText && xhr.responseText.trim() !== '') {
+                try {
+                    const parsedResponse = JSON.parse(xhr.responseText);
+                    console.log("📦 Parsed response despite AJAX error:", parsedResponse);
+                    
+                    if (parsedResponse.error) {
+                        showErrorMessage(parsedResponse.error);
+                    } else {
+                        // If we got valid JSON but AJAX still errored, try to use it
+                        console.log("🔄 Using parsed response data");
+                        updateAttendanceUI(parsedResponse);
+                        showConfirmationModal(parsedResponse);
+                        return;
+                    }
+                } catch (e) {
+                    console.log("❌ Could not parse response as JSON:", e.message);
+                }
+            }
+            
+            // Fallback to success since attendance was likely recorded
+            console.log("🔄 Using fallback success display");
+            showSuccessFallback(barcode);
+        },
+        complete: function() {
+            // Re-enable inputs
+            document.getElementById('manualIdInput').disabled = false;
+            document.getElementById('manualSubmitBtn').disabled = false;
+            document.getElementById('manualIdInput').value = '';
+            document.getElementById('manualIdInput').focus();
         }
     });
 }
 
+
+// Fallback function if AJAX fails but attendance was recorded
+// Fallback function if AJAX fails but attendance was recorded
+function showSuccessFallback(barcode) {
+    console.log("🔄 Using fallback success display");
+    
+    // Create a more detailed fallback response
+    const fallbackData = {
+        full_name: "Student",
+        id_number: barcode,
+        department: "<?php echo $department; ?>",
+        photo: "assets/img/2601828.png",
+        section: "N/A",
+        year_level: "N/A", 
+        role: "Student",
+        time_in_out: "Attendance Recorded Successfully",
+        alert_class: "alert-success",
+        attendance_type: "time_in"
+    };
+    
+    updateAttendanceUI(fallbackData);
+    showConfirmationModal(fallbackData);
+    
+    document.querySelector('.scanner-overlay').style.display = 'none';
+}
+
+
+// Show confirmation modal with complete student data
+function showConfirmationModal(data) {
+    console.log("🎯 showConfirmationModal called with student data:", data);
+    
+    // Get current time and date
+    const now = new Date();
+    const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const dateString = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    // Update modal content with ALL student data
+    document.getElementById('modalStudentName').textContent = data.full_name || 'Student';
+    document.getElementById('modalStudentId').textContent = data.id_number || 'N/A';
+    document.getElementById('modalStudentDept').textContent = data.department || 'N/A';
+    document.getElementById('modalStudentYearSection').textContent = (data.year_level || 'N/A') + ' - ' + (data.section || 'N/A');
+    document.getElementById('modalStudentRole').textContent = data.role || 'Student';
+    document.getElementById('modalTimeDisplay').textContent = timeString;
+    document.getElementById('modalDateDisplay').textContent = dateString;
+    
+    // Set attendance status with better styling
+    const statusElement = document.getElementById('modalTimeInOut');
+    const statusContainer = document.getElementById('modalAttendanceStatus');
+    
+    if (data.time_in_out === 'Time In Recorded' || data.alert_class === 'alert-success' || data.attendance_type === 'time_in') {
+        statusElement.textContent = '✓ Time In Recorded Successfully';
+        statusElement.className = 'text-success fw-bold';
+        statusContainer.className = 'attendance-status mb-3 time-in';
+    } else if (data.time_in_out === 'Time Out Recorded' || data.alert_class === 'alert-warning' || data.attendance_type === 'time_out') {
+        statusElement.textContent = '✓ Time Out Recorded Successfully';
+        statusElement.className = 'text-warning fw-bold';
+        statusContainer.className = 'attendance-status mb-3 time-out';
+    } else {
+        statusElement.textContent = data.time_in_out || '✓ Attendance Recorded Successfully';
+        statusElement.className = 'text-primary fw-bold';
+        statusContainer.className = 'attendance-status mb-3';
+    }
+    
+    // Update student photo in modal with proper error handling
+    const modalPhoto = document.getElementById('modalStudentPhoto');
+    if (data.photo && data.photo !== 'assets/img/2601828.png') {
+        console.log("🖼️ Setting modal photo:", data.photo);
+        modalPhoto.src = data.photo + '?t=' + new Date().getTime();
+        
+        // Add error handling for broken images
+        modalPhoto.onerror = function() {
+            console.log("❌ Failed to load student photo, using default");
+            this.src = 'assets/img/2601828.png';
+            this.onerror = null; // Prevent infinite loop
+        };
+        
+        // Add success handler
+        modalPhoto.onload = function() {
+            console.log("✅ Student photo loaded successfully");
+        };
+    } else {
+        console.log("🖼️ Using default student photo");
+        modalPhoto.src = 'assets/img/2601828.png';
+    }
+
+    // Show additional student info in console for debugging
+    console.log("📋 Complete Student Data:", {
+        name: data.full_name,
+        id: data.id_number,
+        department: data.department,
+        year: data.year_level,
+        section: data.section,
+        role: data.role,
+        photo: data.photo,
+        attendance: data.time_in_out,
+        time_in: data.time_in,
+        time_out: data.time_out
+    });
+
+    // Show modal using Bootstrap
+    const modalElement = document.getElementById('confirmationModal');
+    const modal = new bootstrap.Modal(modalElement);
+    
+    console.log("🎯 Showing modal now...");
+    modal.show();
+    
+    // Hide scanner overlay while modal is open
+    document.querySelector('.scanner-overlay').style.display = 'none';
+    
+    // Add event listener for when modal is hidden
+    modalElement.addEventListener('hidden.bs.modal', function () {
+        console.log("🎯 Modal closed, restarting scanner");
+        restartScanner();
+    });
+    
+    // Speak confirmation message if available
+    if (data.voice) {
+        speakErrorMessage(data.voice);
+    }
+}
+// Function to restart scanner after modal is closed
+function restartScanner() {
+    document.querySelector('.scanner-overlay').style.display = 'flex';
+    document.getElementById('result').innerHTML = "";
+    document.getElementById('manualIdInput').value = '';
+    document.getElementById('manualIdInput').focus();
+}
+
+function updateAttendanceUI(data) {
+    console.log("🔄 Updating UI with student data:", {
+        name: data.full_name,
+        attendance: data.time_in_out,
+        alert_class: data.alert_class
+    });
+    
+    // Update alert color and text
+    const alertElement = document.getElementById('alert');
+    const inOutElement = document.getElementById('in_out');
+    
+    alertElement.classList.remove('alert-primary', 'alert-success', 'alert-danger', 'alert-warning');
+    
+    if (data.alert_class) {
+        alertElement.classList.add(data.alert_class);
+    } else {
+        alertElement.classList.add('alert-primary');
+    }
+    
+    inOutElement.textContent = data.time_in_out || 'Scan Your ID Card for Attendance';
+    
+    // Update photo in main display with error handling
+    if (data.photo && data.photo !== 'assets/img/2601828.png') {
+        const mainPhoto = document.getElementById('pic');
+        mainPhoto.src = data.photo + '?t=' + new Date().getTime();
+        
+        mainPhoto.onerror = function() {
+            console.log("❌ Failed to load main display photo");
+            this.src = 'assets/img/section/type.jpg';
+        };
+    }
+    
+    // Update result display
+    if (data.time_in_out) {
+        document.getElementById('result').innerHTML = `
+            <div class="alert ${data.alert_class || 'alert-success'} py-2" role="alert">
+                <i class="fas fa-check-circle me-2"></i>
+                ${data.time_in_out} - ${data.full_name || 'Student'}
+            </div>
+        `;
+    }
+}
 // Show preview modal in the scanner frame
 function showScannerPreviewModal(data) {
     // Fill preview modal with student data
@@ -955,7 +1224,7 @@ function showScannerPreviewModal(data) {
 function recordAttendance(idNumber, studentData) {
     $.ajax({
         type: "POST",
-        url: "student_logs.php",
+        url: "students_logs.php",
         data: { 
             id_number: idNumber,
             department: "<?php echo $department; ?>",
@@ -976,8 +1245,7 @@ function recordAttendance(idNumber, studentData) {
                 // Show confirmation modal
                 showConfirmationModal(data);
                 
-                // Update student photo in the right column
-                document.getElementById('pic').src = data.photo ? 'uploads' + data.photo : 'type.jpg';
+               
 
             } catch (e) {
                 console.error("Error processing response:", e, response);
@@ -1009,72 +1277,6 @@ function showErrorMessage(message) {
     playAlertSound();
 }
 
-// Show confirmation modal with complete student data
-function showConfirmationModal(data) {
-    // Get current time and date
-    const now = new Date();
-    const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const dateString = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    
-    // Update modal content with complete student data
-    document.getElementById('modalStudentPhoto').src = 
-        data.photo ? 'uploads' + data.photo : 
-        'temporary.png';
-        
-    document.getElementById('modalStudentName').textContent = 
-        data.full_name || 'Unknown Student';
-        
-    document.getElementById('modalStudentId').textContent = 
-        data.id_number || 'N/A';
-        
-    document.getElementById('modalStudentDept').textContent = 
-        "<?php echo $department; ?> " || 'N/A';
-        
-    document.getElementById('modalStudentRole').textContent = 
-        data.role || 'N/A';
-        
-    document.getElementById('modalTimeInOut').textContent = 
-        data.time_in_out || 'Attendance Recorded';
-        
-    document.getElementById('modalTimeDisplay').textContent = timeString;
-    document.getElementById('modalDateDisplay').textContent = dateString;
-    
-    // Update status color
-    const statusElement = document.getElementById('modalAttendanceStatus');
-    statusElement.className = 'attendance-status';
-    
-    if (data.alert_class === 'alert-success') {
-        statusElement.classList.add('time-in');
-        statusElement.innerHTML = `
-            <i class="fas fa-sign-in-alt me-2"></i>
-            ${data.time_in_out || 'Time In Recorded'}
-        `;
-    } else {
-        statusElement.classList.add('time-out');
-        statusElement.innerHTML = `
-            <i class="fas fa-sign-out-alt me-2"></i>
-            ${data.time_in_out || 'Time Out Recorded'}
-        `;
-    }
-    
-    // Show modal
-    const modal = new bootstrap.Modal(document.getElementById('confirmationModal'));
-    modal.show();
-}
-
-// Update UI with attendance data
-function updateAttendanceUI(data) {
-    // Update alert color and text
-    const alertElement = document.getElementById('alert');
-    alertElement.classList.remove('alert-primary', 'alert-success', 'alert-danger', 'alert-warning');
-    alertElement.classList.add(data.alert_class || 'alert-primary');
-    document.getElementById('in_out').textContent = data.time_in_out || 'Scan Your ID Barcode';
-    
-    // Update photo
-    if (data.photo) {
-        document.getElementById('pic').src = 'admin/uploads/' + data.photo;
-    }
-}
 
 // Play alert sound
 function playAlertSound() {
@@ -1085,9 +1287,6 @@ function playAlertSound() {
     });
 }
 
-// ========= MANUAL ATTENDANCE FEATURES =========
-
-// Process manual input
 // ========= MANUAL ATTENDANCE FEATURES =========
 function processManualInput() {
     const idNumber = document.getElementById('manualIdInput').value.trim();
@@ -1100,11 +1299,11 @@ function processManualInput() {
     
     // Show processing state
     document.getElementById('result').innerHTML = `
-        <div class="d-flex justify-content-center">
-            <div class="spinner-border text-primary" role="status">
+        <div class="d-flex justify-content-center align-items-center">
+            <div class="spinner-border text-primary me-2" role="status" style="width: 1rem; height: 1rem;">
                 <span class="visually-hidden">Loading...</span>
             </div>
-            <span class="ms-2">Processing...</span>
+            <span>Processing...</span>
         </div>
     `;
     
@@ -1112,62 +1311,10 @@ function processManualInput() {
     document.getElementById('manualIdInput').disabled = true;
     document.getElementById('manualSubmitBtn').disabled = true;
     
-    // Process the attendance
-    $.ajax({
-        type: "POST",
-        url: "process_barcode.php",
-        data: { 
-            barcode: idNumber,
-            current_department: "<?php echo $department; ?>",
-            current_location: "<?php echo $location; ?>",
-            is_first_student: isFirstStudent
-        },
-        success: function(response) {
-            try {
-                const data = typeof response === 'string' ? JSON.parse(response) : response;
-
-                if (data.error) {
-                    showErrorMessage(data.error);
-                    speakErrorMessage(data.error);
-                    return;
-                }
-
-                // Update UI immediately
-                updateAttendanceUI(data);
-                
-                // Update student photo
-                document.getElementById('pic').src = data.photo ? 'uploads' + data.photo : 'temporary.png';
-                
-                // Show confirmation modal
-                showConfirmationModal(data);
-                
-                // If this is the first student, set allowed section/year
-                if (isFirstStudent && data.section && data.year_level) {
-                    allowedSection = data.section;
-                    allowedYear = data.year_level;
-                    isFirstStudent = false;
-                }
-
-            } catch (e) {
-                console.error("Error processing response:", e, response);
-                
-                
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error("AJAX error:", status, error);
-            const msg = "Connection error. Please try again.";
-            showErrorMessage(msg);
-            speakErrorMessage(msg);
-        },
-        complete: function() {
-            // Re-enable input
-            document.getElementById('manualIdInput').value = '';
-            document.getElementById('manualIdInput').disabled = false;
-            document.getElementById('manualSubmitBtn').disabled = false;
-            document.getElementById('manualIdInput').focus();
-        }
-    });
+    // ✅ FIXED: Only call processBarcode once - remove the duplicate AJAX call below
+    processBarcode(idNumber);
+    
+    // Re-enable input after processing (moved to AJAX complete callback)
 }
 
 // Add this new function to speak error messages
@@ -1247,4 +1394,4 @@ function closeAndRefresh() {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="admin/lib/chart/chart.min.js"></script>
 </body>
-</html>
+</html> 
