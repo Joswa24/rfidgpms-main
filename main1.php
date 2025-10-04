@@ -513,26 +513,28 @@ mysqli_close($db);
         <!-- Main Content Row - Adjusted heights -->
         <div class="row" style="height: calc(100% - 120px);">
             <!-- Scanner Column (70% width) -->
-            <div class="col-md-8 h-100" style="padding-right: 5px;">
-                <div class="alert alert-primary py-1 mb-2" role="alert" id="alert">
-                    <div class="alert alert-primary py-1 mb-2" role="alert" id="alert">
-                    <center><h3 id="in_out" class="mb-0" style="font-size: 1rem;">
-                        <i class="fas fa-id-card me-2"></i>Scan Your ID Card for Attendance
-                    </h3></center>
-                </div>
-                </div>
+            <!-- Scanner Column (70% width) -->
+<div class="col-md-8 h-100" style="padding-right: 5px;">
+    <div class="alert alert-primary py-1 mb-2" role="alert" id="alert">
+        <center><h3 id="in_out" class="mb-0" style="font-size: 1rem;">
+            <i class="fas fa-barcode me-2"></i>Scan Your ID Card for Attendance
+        </h3></center>
+    </div>
 
-                <!-- Scanner Container - Adjusted size -->
-                <div class="large-scanner-container" style="height: calc(100% - 60px);">
-                    <div id="largeReader" style="height: 100%;"></div>
-                    <div class="scanner-overlay">
-                        <div class="scanner-frame" style="height: 130px; margin-bottom: 10px;">
-                            <div class="scanner-laser"></div>
-                        </div>
-                    </div>
-                </div>
-                <div id="result" class="text-center" style="min-height: 40px; font-size: 0.9rem;"></div>
+    <!-- Barcode Scanner Ready Display -->
+    <div class="large-scanner-container" style="height: calc(100% - 60px); display: flex; align-items: center; justify-content: center; background: #f8f9fa; border: 2px dashed #084298; border-radius: 10px;">
+        <div class="text-center">
+            <i class="fas fa-barcode" style="font-size: 4rem; color: #084298; margin-bottom: 20px;"></i>
+            <h4 style="color: #084298;">Barcode Scanner Ready</h4>
+            <p class="text-muted">Point scanner at ID card and scan</p>
+            <div class="scanner-ready-animation">
+                <i class="fas fa-redo fa-spin" style="color: #084298;"></i>
+                <span class="ms-2">Waiting for scan...</span>
             </div>
+        </div>
+    </div>
+    <div id="result" class="text-center" style="min-height: 40px; font-size: 0.9rem;"></div>
+</div>
             
             <!-- Photo/Manual Input Column (30% width) -->
             <div class="col-md-4 h-100 d-flex flex-column" style="padding-left: 5px;">
@@ -571,41 +573,56 @@ mysqli_close($db);
 
 <script>
 // Global variables
-let scanner = null;
-let barcodeBuffer = '';
 let lastScanTime = 0;
-const scanCooldown = 1000; // 1 second cooldown between scans
+const scanCooldown = 1000;
 let allowedSection = null;
 let allowedYear = null;
-let isFirstStudent = true;
+let isFirstStudent = <?php echo $_SESSION['is_first_student'] ? 'true' : 'false'; ?>;
+let scanTimeout = null;
 
-// Initialize scanner when page loads
+// Initialize when page loads
 function initScanner() {
-    // Clear any existing scanner instance
-    if (scanner) {
-        scanner.clear().catch(error => {
-            console.log("Scanner clear error:", error);
-        });
-    }
+    console.log("Initializing barcode scanner...");
     
-    // Create new scanner instance
-    scanner = new Html5QrcodeScanner('largeReader', { 
-        qrbox: {
-            width: 250,
-            height: 250,
-        },
-        fps: 20,
-        rememberLastUsedCamera: true,
-        supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-        showTorchButtonIfSupported: true
+    // Focus on manual input field (where barcode scanner will type)
+    document.getElementById('manualIdInput').focus();
+    
+    // Set up event listener for barcode scanner input
+    const manualInput = document.getElementById('manualIdInput');
+    
+    manualInput.addEventListener('input', function(e) {
+        clearTimeout(scanTimeout);
+        
+        // Set a timeout to detect when scanning is complete
+        // Barcode scanners typically type quickly and then send Enter
+        scanTimeout = setTimeout(() => {
+            const scannedValue = manualInput.value.trim();
+            
+            // Only process if there's a value and it looks like a barcode/ID
+            if (scannedValue.length > 3 && !scannedValue.includes(' ')) {
+                console.log("Detected barcode scan:", scannedValue);
+                processBarcode(scannedValue);
+            }
+        }, 100); // Short timeout to catch rapid input
     });
     
-    // Render the scanner
-    scanner.render(onScanSuccess, onScanError);
+    // Also listen for Enter key (many scanners send Enter after barcode)
+    manualInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            clearTimeout(scanTimeout);
+            
+            const scannedValue = manualInput.value.trim();
+            if (scannedValue.length > 0) {
+                console.log("Barcode scan with Enter:", scannedValue);
+                processBarcode(scannedValue);
+            }
+        }
+    });
 }
 
-// Scanner success callback
-function onScanSuccess(decodedText) {
+// Process barcode function
+function processBarcode(barcode) {
     const now = Date.now();
     
     // Implement scan cooldown to prevent duplicate scans
@@ -616,31 +633,27 @@ function onScanSuccess(decodedText) {
     
     lastScanTime = now;
     
+    console.log("Processing barcode:", barcode);
+    
     // Show processing state
     document.getElementById('result').innerHTML = `
-        <div class="processing-text">
-            <i class="fas fa-spinner fa-spin"></i> Processing: ${decodedText}
+        <div class="d-flex justify-content-center align-items-center">
+            <div class="spinner-border text-primary me-2" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <span>Processing: ${barcode}</span>
         </div>
     `;
     
-    // Hide scanner overlay during processing
-    document.querySelector('.scanner-overlay').style.display = 'none';
+    // Clear the input field
+    document.getElementById('manualIdInput').value = '';
     
-    // Process the scanned barcode
-    processBarcode(decodedText);
-}
-
-// Scanner error callback
-function onScanError(error) {
-    // Only show actual errors, not "no barcode found" messages
-    if (!error.includes('NotFoundException') && !error.includes('No MultiFormat Readers')) {
-        console.error('Scanner error:', error);
-    }
-}
-
-// Process barcode function
-function processBarcode(barcode) {
-    console.log("Processing barcode:", barcode);
+    // Disable input during processing
+    const manualInput = document.getElementById('manualIdInput');
+    const submitBtn = document.getElementById('manualSubmitBtn');
+    
+    manualInput.disabled = true;
+    submitBtn.disabled = true;
     
     $.ajax({
         type: "POST",
@@ -651,46 +664,83 @@ function processBarcode(barcode) {
             current_location: "<?php echo $location; ?>",
             is_first_student: isFirstStudent
         },
-        dataType: 'json',
         success: function(response) {
-            console.log("Server response:", response);
+            console.log("Raw server response:", response);
             
-            if (response.error) {
-                showErrorMessage(response.error);
-                speakErrorMessage(response.error);
-                restartScanner();
+            let data;
+            
+            // Handle both JSON string and object responses
+            if (typeof response === 'string') {
+                try {
+                    data = JSON.parse(response);
+                    console.log("Parsed JSON data:", data);
+                } catch (e) {
+                    console.error("Failed to parse JSON:", e);
+                    showErrorMessage("Invalid server response format");
+                    reenableInput();
+                    return;
+                }
+            } else {
+                data = response;
+                console.log("Response is already object:", data);
+            }
+            
+            if (data.error) {
+                showErrorMessage(data.error);
+                speakErrorMessage(data.error);
+                reenableInput();
                 return;
             }
 
             // If first student, set allowed section/year
-            if (isFirstStudent && response.section && response.year_level) {
-                // Store in session via AJAX
-                $.post('set_session.php', {
-                    allowed_section: response.section,
-                    allowed_year: response.year_level,
-                    is_first_student: false
-                });
-                
-                // Update local variables
-                allowedSection = response.section;
-                allowedYear = response.year_level;
+            if (isFirstStudent && data.section && data.year_level) {
+                console.log("Setting first student restrictions:", data.section, data.year_level);
+                allowedSection = data.section;
+                allowedYear = data.year_level;
                 isFirstStudent = false;
             }
 
             // Update the preview photo in the scanner column
-            updatePreviewPhoto(response);
+            updatePreviewPhoto(data);
             
             // Show confirmation modal
-            showConfirmationModal(response);
+            showConfirmationModal(data);
             
         },
         error: function(xhr, status, error) {
             console.error("AJAX error:", status, error);
-            showErrorMessage("Server error: " + error);
+            console.error("Response text:", xhr.responseText);
+            
+            let errorMessage = "Server connection error";
+            if (xhr.responseText) {
+                try {
+                    const errorResponse = JSON.parse(xhr.responseText);
+                    errorMessage = errorResponse.error || errorMessage;
+                } catch (e) {
+                    errorMessage = "Server error: " + xhr.status;
+                }
+            }
+            
+            showErrorMessage(errorMessage);
             speakErrorMessage("Server error occurred");
-            restartScanner();
+            reenableInput();
         }
     });
+}
+
+// Re-enable input after processing
+function reenableInput() {
+    const manualInput = document.getElementById('manualIdInput');
+    const submitBtn = document.getElementById('manualSubmitBtn');
+    
+    manualInput.disabled = false;
+    submitBtn.disabled = false;
+    manualInput.focus();
+    
+    // Clear result message after a delay
+    setTimeout(() => {
+        document.getElementById('result').innerHTML = '';
+    }, 3000);
 }
 
 // Update preview photo in the scanner column
@@ -698,6 +748,7 @@ function updatePreviewPhoto(data) {
     const previewImg = document.getElementById('pic');
     if (data.photo && data.photo !== '') {
         previewImg.src = data.photo;
+        console.log("Updated preview photo");
     } else {
         previewImg.src = "assets/img/2601828.png";
     }
@@ -712,79 +763,89 @@ function showConfirmationModal(data) {
     const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const dateString = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-    // Student details
-    document.getElementById('modalStudentName').textContent = 
-        data.full_name || 'Unknown Student';
-        
-    document.getElementById('modalStudentId').textContent = 
-        data.id_number || 'N/A';
-        
-    document.getElementById('modalStudentDept').textContent = 
-        data.department || 'N/A';
-        
-    document.getElementById('modalStudentYearSection').textContent = 
-        (data.year_level || 'N/A') + ' - ' + (data.section || 'N/A');
-        
-    document.getElementById('modalStudentRole').textContent = 
-        data.role || 'Student';
-        
-    document.getElementById('modalTimeInOut').textContent = 
-        data.time_in_out || 'Attendance Recorded';
-        
+    // Student details - with comprehensive null checks
+    const fullName = data.full_name || 'Unknown Student';
+    const idNumber = data.id_number || 'N/A';
+    const department = data.department || 'N/A';
+    const yearLevel = data.year_level || 'N/A';
+    const section = data.section || 'N/A';
+    const role = data.role || 'Student';
+    const timeInOut = data.time_in_out || 'Attendance Recorded';
+    const timeIn = data.time_in || '';
+    const timeOut = data.time_out || '';
+    const alertClass = data.alert_class || 'alert-success';
+    const voice = data.voice || `Attendance recorded for ${fullName}`;
+
+    console.log("Formatted data for modal:", {
+        fullName, idNumber, department, yearLevel, section, role, timeInOut
+    });
+
+    // Update modal content
+    document.getElementById('modalStudentName').textContent = fullName;
+    document.getElementById('modalStudentId').textContent = idNumber;
+    document.getElementById('modalStudentDept').textContent = department;
+    document.getElementById('modalStudentYearSection').textContent = `${yearLevel} - ${section}`;
+    document.getElementById('modalStudentRole').textContent = role;
+    document.getElementById('modalTimeInOut').textContent = timeInOut;
     document.getElementById('modalTimeDisplay').textContent = timeString;
     document.getElementById('modalDateDisplay').textContent = dateString;
 
-    // ✅ Student Photo - Use the base64 photo from process_barcode.php
+    // Student Photo
     const modalPhoto = document.getElementById('modalStudentPhoto');
     if (data.photo && data.photo.startsWith('data:image')) {
-        // Use the base64 photo directly from the response
         modalPhoto.src = data.photo;
+        console.log("Set modal photo to base64 image");
     } else {
-        // Fallback to default photo
         modalPhoto.src = "assets/img/2601828.png";
+        console.log("Set modal photo to default image");
     }
 
     // Update status color and icon
     const statusElement = document.getElementById('modalAttendanceStatus');
     statusElement.className = 'attendance-status p-3 rounded';
     
-    if (data.alert_class === 'alert-success') {
+    if (alertClass === 'alert-success') {
         statusElement.classList.add('time-in');
         statusElement.innerHTML = `
             <i class="fas fa-sign-in-alt me-2"></i>
-            ${data.time_in_out || 'Time In Recorded'}
-            ${data.time_in ? `<br><small>Time In: ${data.time_in}</small>` : ''}
+            ${timeInOut}
+            ${timeIn ? `<br><small>Time In: ${timeIn}</small>` : ''}
         `;
-    } else if (data.alert_class === 'alert-warning') {
+    } else if (alertClass === 'alert-warning') {
         statusElement.classList.add('time-out');
         statusElement.innerHTML = `
             <i class="fas fa-sign-out-alt me-2"></i>
-            ${data.time_in_out || 'Time Out Recorded'}
-            ${data.time_in ? `<br><small>Time In: ${data.time_in}</small>` : ''}
-            ${data.time_out ? `<br><small>Time Out: ${data.time_out}</small>` : ''}
+            ${timeInOut}
+            ${timeIn ? `<br><small>Time In: ${timeIn}</small>` : ''}
+            ${timeOut ? `<br><small>Time Out: ${timeOut}</small>` : ''}
         `;
     } else {
         statusElement.classList.add('time-in');
         statusElement.innerHTML = `
             <i class="fas fa-check-circle me-2"></i>
-            ${data.time_in_out || 'Attendance Recorded'}
+            ${timeInOut}
         `;
     }
 
     // Clear result message
     document.getElementById('result').innerHTML = '';
     
-    // Show modal
-    const modal = new bootstrap.Modal(document.getElementById('confirmationModal'));
+    // Show modal using Bootstrap 5
+    const modalElement = document.getElementById('confirmationModal');
+    const modal = new bootstrap.Modal(modalElement);
+    
+    // Show the modal
     modal.show();
+    console.log("Modal show() called");
+    
+    // Re-enable input
+    reenableInput();
     
     // Play success sound
     playAlertSound();
     
     // Speak confirmation message
-    if (data.voice) {
-        speakErrorMessage(data.voice);
-    }
+    speakErrorMessage(voice);
 }
 
 // Show error message
@@ -809,28 +870,6 @@ function playAlertSound() {
     }
 }
 
-// Restart scanner function
-function restartScanner() {
-    setTimeout(() => {
-        if (scanner) {
-            scanner.clear().then(() => {
-                initScanner();
-                document.querySelector('.scanner-overlay').style.display = 'flex';
-            }).catch(error => {
-                console.log("Error restarting scanner:", error);
-                initScanner();
-            });
-        } else {
-            initScanner();
-        }
-        
-        // Clear result message after a delay
-        setTimeout(() => {
-            document.getElementById('result').innerHTML = '';
-        }, 3000);
-    }, 2000);
-}
-
 // ========= MANUAL ATTENDANCE FEATURES =========
 function processManualInput() {
     const idNumber = document.getElementById('manualIdInput').value.trim();
@@ -841,36 +880,7 @@ function processManualInput() {
         return;
     }
     
-    // Show processing state
-    document.getElementById('result').innerHTML = `
-        <div class="d-flex justify-content-center align-items-center">
-            <div class="spinner-border text-primary me-2" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-            <span>Processing manual input...</span>
-        </div>
-    `;
-    
-    // Disable input during processing
-    const manualInput = document.getElementById('manualIdInput');
-    const submitBtn = document.getElementById('manualSubmitBtn');
-    
-    manualInput.disabled = true;
-    submitBtn.disabled = true;
-    
-    // Hide scanner overlay
-    document.querySelector('.scanner-overlay').style.display = 'none';
-    
-    // Process the attendance
     processBarcode(idNumber);
-    
-    // Re-enable input after processing
-    setTimeout(() => {
-        manualInput.value = '';
-        manualInput.disabled = false;
-        submitBtn.disabled = false;
-        manualInput.focus();
-    }, 2000);
 }
 
 // Text-to-speech function
@@ -882,7 +892,7 @@ function speakErrorMessage(message) {
         const speech = new SpeechSynthesisUtterance();
         speech.text = message;
         speech.volume = 1;
-        speech.rate = 0.8;  // Slower rate for clarity
+        speech.rate = 0.8;
         speech.pitch = 1;
         
         window.speechSynthesis.speak(speech);
@@ -899,7 +909,7 @@ function startTime() {
     
     // Convert to 12-hour format
     h = h % 12;
-    h = h ? h : 12; // the hour '0' should be '12'
+    h = h ? h : 12;
     
     m = checkTime(m);
     s = checkTime(s);
@@ -913,61 +923,41 @@ function startTime() {
 }
 
 function checkTime(i) {
-    if (i < 10) {i = "0" + i};  // add zero in front of numbers < 10
+    if (i < 10) {i = "0" + i};
     return i;
 }
 
-// Close modal and refresh page
+// Close modal and restart scanner
 function closeAndRefresh() {
-    const modal = bootstrap.Modal.getInstance(document.getElementById('confirmationModal'));
+    console.log("Closing modal and focusing input");
+    const modalElement = document.getElementById('confirmationModal');
+    const modal = bootstrap.Modal.getInstance(modalElement);
     if (modal) {
         modal.hide();
     }
     
-    // Restart scanner after modal closes
+    // Focus back on input field
     setTimeout(() => {
-        restartScanner();
+        document.getElementById('manualIdInput').focus();
     }, 500);
 }
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
+    console.log("DOM loaded, initializing barcode scanner...");
+    
     // Initialize scanner
     initScanner();
     
-    // Set up event listeners for manual input
+    // Set up event listeners for manual submit button
+    document.getElementById('manualSubmitBtn').addEventListener('click', processManualInput);
+    
+    // Also listen for Enter key in manual input
     document.getElementById('manualIdInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             processManualInput();
         }
     });
-    
-    // Focus on manual input field
-    document.getElementById('manualIdInput').focus();
-    
-    // Handle page visibility changes
-    document.addEventListener('visibilitychange', function() {
-        if (document.hidden) {
-            // Page is hidden, stop scanner to conserve resources
-            if (scanner) {
-                scanner.clear().catch(error => {
-                    console.log("Error stopping scanner:", error);
-                });
-            }
-        } else {
-            // Page is visible again, restart scanner
-            initScanner();
-        }
-    });
-});
-
-// Clean up when leaving page
-window.addEventListener('beforeunload', function() {
-    if (scanner) {
-        scanner.clear().catch(error => {
-            console.log("Error cleaning up scanner:", error);
-        });
-    }
 });
 </script>
 
