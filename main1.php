@@ -759,46 +759,71 @@ function showScannerOverlay() {
     }
 }
 
-// Barcode Processing
-function processBarcode(barcode) {
-    console.log('Processing barcode:', barcode);
-    
-    $.ajax({
-        type: "POST",
-        url: "process_barcode.php",
-        data: { 
-            barcode: barcode,
-            department: "<?php echo $department; ?>",
-            location: "<?php echo $location; ?>"
-        },
-        success: function(response) {
-            console.log('Server response:', response);
+
+        // Barcode Processing - IMPROVED VERSION
+        function processBarcode(barcode) {
+            console.log('Processing barcode:', barcode);
             
-            try {
-                const data = typeof response === 'string' ? JSON.parse(response) : response;
-                
-                if (data.error) {
-                    showErrorMessage(data.error);
-                    return;
+            // Show processing message
+            updateResultMessage(`Processing: ${barcode}`, 'info');
+            
+            $.ajax({
+                type: "POST",
+                url: "process_barcode.php",
+                data: { 
+                    barcode: barcode,
+                    department: "<?php echo $department; ?>",
+                    location: "<?php echo $location; ?>"
+                },
+                dataType: 'json', // Explicitly expect JSON
+                success: function(response) {
+                    console.log('Server response:', response);
+                    
+                    // Response is already parsed as JSON due to dataType: 'json'
+                    if (response.error) {
+                        showErrorMessage(response.error);
+                        return;
+                    }
+                    
+                    // Update UI first
+                    updateGateUI(response);
+                    
+                    // Then show confirmation modal
+                    showConfirmationModal(response);
+                    
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX error:', status, error);
+                    console.log('Raw response:', xhr.responseText);
+                    
+                    // Try to parse response even if there's an error
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.error) {
+                            showErrorMessage(response.error);
+                        } else {
+                            updateGateUI(response);
+                            showConfirmationModal(response);
+                        }
+                    } catch (e) {
+                        // If JSON parsing fails, show generic error but continue
+                        showErrorMessage('Server communication error, but attendance may have been recorded');
+                        
+                        // Still try to update UI with basic info
+                        const fallbackData = {
+                            full_name: 'Unknown',
+                            id_number: barcode,
+                            department: 'N/A',
+                            photo: 'uploads/students/default.png',
+                            time_in_out: 'Recorded',
+                            role: 'Student'
+                        };
+                        updateGateUI(fallbackData);
+                        showConfirmationModal(fallbackData);
+                    }
                 }
-                
-                // Update UI first
-                updateGateUI(data);
-                
-                // Then show confirmation modal
-                showConfirmationModal(data);
-                
-            } catch (e) {
-                console.error('Error parsing response:', e, response);
-                showErrorMessage('Invalid server response format');
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('AJAX error:', status, error);
-            showErrorMessage('Server error: ' + error);
+            });
         }
-    });
-}
 
 // Update gate UI
 function updateGateUI(data) {
@@ -846,53 +871,64 @@ function updatePhoto(data) {
     photoElement.src = photoPath + "?t=" + new Date().getTime();
 }
 
-// CORRECTED: Show confirmation modal - FIXED VERSION
-function showConfirmationModal(data) {
-    console.log('Showing confirmation modal with data:', data);
     
-    // Get current time and date
-    const now = new Date();
-    const timeString = now.toLocaleTimeString([], { 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit' 
-    });
-    const dateString = now.toLocaleDateString([], { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-    });
+    // CORRECTED: Show confirmation modal - ROBUST VERSION
+    function showConfirmationModal(data) {
+        console.log('Showing confirmation modal with data:', data);
+        
+        // Get current time and date
+        const now = new Date();
+        const timeString = now.toLocaleTimeString([], { 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            second: '2-digit' 
+        });
+        const dateString = now.toLocaleDateString([], { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        });
 
-    // Update modal content with safe fallbacks
-    setElementText('modalPersonName', data.full_name || 'Unknown Person');
-    setElementText('modalPersonId', data.id_number || 'N/A');
-    setElementText('modalPersonRole', data.role || 'Visitor');
-    setElementText('modalPersonDept', data.department || 'N/A');
-    setElementText('modalTimeDisplay', timeString);
-    setElementText('modalDateDisplay', dateString);
+        // Safe data access with fallbacks
+        const safeData = {
+            full_name: data.full_name || 'Unknown Person',
+            id_number: data.id_number || 'N/A',
+            role: data.role || 'Visitor',
+            department: data.department || 'N/A',
+            photo: data.photo || 'uploads/students/default.png',
+            time_in_out: data.time_in_out || 'Access Recorded'
+        };
 
-    // Set person photo with cache busting
-    updateModalPhoto(data);
+        // Update modal content with safe data
+        setElementText('modalPersonName', safeData.full_name);
+        setElementText('modalPersonId', safeData.id_number);
+        setElementText('modalPersonRole', safeData.role);
+        setElementText('modalPersonDept', safeData.department);
+        setElementText('modalTimeDisplay', timeString);
+        setElementText('modalDateDisplay', dateString);
 
-    // Update access status
-    updateModalAccessStatus(data);
+        // Set person photo with cache busting
+        updateModalPhoto(safeData);
 
-    // Show the modal using Bootstrap
-    showBootstrapModal();
-    
-    // Speak confirmation message
-    speakConfirmationMessage(data);
-}
+        // Update access status
+        updateModalAccessStatus(safeData);
 
-function setElementText(elementId, text) {
-    const element = document.getElementById(elementId);
-    if (element) {
-        element.textContent = text;
-    } else {
-        console.error('Element not found:', elementId);
+        // Show the modal using Bootstrap
+        showBootstrapModal();
+        
+        // Speak confirmation message
+        speakConfirmationMessage(safeData);
     }
-}
+
+        function setElementText(elementId, text) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = text || 'N/A'; // Fallback to 'N/A' if text is empty
+            } else {
+                console.warn('Element not found:', elementId);
+            }
+        }
 
 function updateModalPhoto(data) {
     const modalPhoto = document.getElementById("modalPersonPhoto");

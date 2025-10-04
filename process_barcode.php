@@ -4,8 +4,8 @@ include 'connection.php';
 
 // Get POST data
 $barcode = $_POST['barcode'] ?? '';
-$current_department = $_POST['department'] ?? ''; // Fixed parameter name
-$current_location = $_POST['location'] ?? ''; // Fixed parameter name
+$current_department = $_POST['department'] ?? '';
+$current_location = $_POST['location'] ?? '';
 $today = date('Y-m-d');
 $now = date('Y-m-d H:i:s');
 
@@ -31,7 +31,7 @@ if ($student_result->num_rows === 0) {
 $student = $student_result->fetch_assoc();
 $stmt->close();
 
-// Get photo path using the same function as students.php
+// Get photo path function
 function getStudentPhoto($photo) {
     $basePath = 'uploads/students/';
     $defaultPhoto = 'assets/img/2601828.png';
@@ -90,22 +90,12 @@ $log_stmt->execute();
 $log_result = $log_stmt->get_result();
 $existing_log = $log_result->fetch_assoc();
 
-// In process_barcode.php, update the photo path section:
-
-// Get the actual photo path - ensure it's relative to your main1.php
-$photo_path = getStudentPhoto($student['photo']);
-
-// If the photo path starts with '../', remove it for the scanner
-if (strpos($photo_path, '../') === 0) {
-    $photo_path = substr($photo_path, 3); // Remove the '../' part
-}
-
 // Prepare response
 $response = [
     'full_name' => $student['fullname'],
     'id_number' => $student['id_number'],
     'department' => $student['department'] ?? 'N/A',
-    'photo' => $photo_path, // Now using consistent file path
+    'photo' => $photo_path,
     'section' => $student['section'],
     'year_level' => $student['year'],
     'role' => $student['role'] ?? 'Student',
@@ -166,6 +156,8 @@ if ($existing_log) {
 // Close statements
 $log_stmt->close();
 
+// Set proper JSON header and output
+header('Content-Type: application/json');
 echo json_encode($response);
 exit;
 ?>
