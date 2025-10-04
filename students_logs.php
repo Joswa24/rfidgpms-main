@@ -48,8 +48,8 @@ function getClassmatesByYearSection($db, $year, $section) {
     return $classmates;
 }
 
-// NEW FUNCTION: Save classmates data to instructor attendance records
-function saveClassmatesToInstructorAttendance($db, $classmates, $instructor_id, $year, $section, $subject = null) {
+// NEW FUNCTION: Save classmates data to instructor attendance records WITH DEPARTMENT AND LOCATION
+function saveClassmatesToInstructorAttendance($db, $classmates, $instructor_id, $year, $section, $subject = null, $department = null, $location = null) {
     $today = date('Y-m-d');
     
     foreach ($classmates as $student) {
@@ -67,23 +67,28 @@ function saveClassmatesToInstructorAttendance($db, $classmates, $instructor_id, 
         $check_result = $check_stmt->get_result();
         
         if ($check_result->num_rows == 0) {
-            // Insert new record
+            // Insert new record with department and location
             $insert_query = "INSERT INTO instructor_attendance_records 
                            (instructor_id, student_id_number, student_name, section, year, 
-                            department, status, date, subject, created_at) 
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                            department, location, status, date, subject, created_at) 
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
             
             $insert_stmt = $db->prepare($insert_query);
             $status = ($student['attendance_count'] > 0) ? 'Present' : 'Absent';
             
+            // Use provided department/location or fallback to student's department
+            $record_department = $department ?: $student['department_name'];
+            $record_location = $location ?: 'Classroom'; // Default location if not provided
+            
             $insert_stmt->bind_param(
-                "issssssss", 
+                "isssssssss", 
                 $instructor_id, 
                 $student['id_number'],
                 $student['fullname'],
                 $section,
                 $year,
-                $student['department_name'],
+                $record_department,
+                $record_location,
                 $status,
                 $today,
                 $subject
@@ -92,9 +97,9 @@ function saveClassmatesToInstructorAttendance($db, $classmates, $instructor_id, 
             $insert_stmt->execute();
             $insert_stmt->close();
         } else {
-            // Update existing record
+            // Update existing record with department and location
             $update_query = "UPDATE instructor_attendance_records 
-                           SET status = ?, updated_at = NOW() 
+                           SET status = ?, department = ?, location = ?, updated_at = NOW() 
                            WHERE instructor_id = ? 
                            AND student_id_number = ? 
                            AND date = ? 
@@ -104,9 +109,15 @@ function saveClassmatesToInstructorAttendance($db, $classmates, $instructor_id, 
             $update_stmt = $db->prepare($update_query);
             $status = ($student['attendance_count'] > 0) ? 'Present' : 'Absent';
             
+            // Use provided department/location or fallback to student's department
+            $record_department = $department ?: $student['department_name'];
+            $record_location = $location ?: 'Classroom';
+            
             $update_stmt->bind_param(
-                "sissss", 
+                "sssissss", 
                 $status,
+                $record_department,
+                $record_location,
                 $instructor_id, 
                 $student['id_number'],
                 $today,
@@ -181,6 +192,10 @@ function getFirstStudentDetails($db) {
     return null;
 }
 
+// Get department and location from session
+$department = isset($_SESSION['access']['room']['department']) ? $_SESSION['access']['room']['department'] : 'Department';
+$location = isset($_SESSION['access']['room']['room']) ? $_SESSION['access']['room']['room'] : 'Location';
+
 // Get the first student's section and year if available
 $first_student_section = isset($_SESSION['first_student_section']) ? $_SESSION['first_student_section'] : null;
 $first_student_year = isset($_SESSION['first_student_year']) ? $_SESSION['first_student_year'] : null;
@@ -210,8 +225,6 @@ $logo1 = "";
 $nameo = "";
 $address = "";
 $logo2 = "";
-$department = isset($_SESSION['access']['room']['department']) ? $_SESSION['access']['room']['department'] : 'Department';
-$location = isset($_SESSION['access']['room']['room']) ? $_SESSION['access']['room']['room'] : 'Location';
 
 // Fetch data from the about table
 $sql = "SELECT * FROM about LIMIT 1";
@@ -225,7 +238,7 @@ if ($result->num_rows > 0) {
     $logo2 = $row['logo2'];
 }
 
-// Record instructor attendance automatically when they access this page
+// Record instructor attendance automatically when they access this page WITH DEPARTMENT AND LOCATION
 if (isset($_SESSION['access']['instructor']['id'])) {
     $instructor_id = $_SESSION['access']['instructor']['id'];
     $id_number = $_SESSION['access']['instructor']['id_number'];
@@ -246,7 +259,7 @@ if (isset($_SESSION['access']['instructor']['id'])) {
     $check_result = $check_stmt->get_result();
     
     if ($check_result->num_rows == 0) {
-        // Record time_in
+        // Record time_in WITH DEPARTMENT AND LOCATION
         $insert_sql = "INSERT INTO instructor_logs 
                       (instructor_id, id_number, time_in, department, location) 
                       VALUES (?, ?, NOW(), ?, ?)";
@@ -267,10 +280,14 @@ if (isset($_SESSION['access']['instructor']['id'])) {
         if (!$insert_stmt->execute()) {
             die("Error executing insert statement: " . $insert_stmt->error);
         }
+        
+        $insert_stmt->close();
     }
+    
+    $check_stmt->close();
 }
 
-// Handle Save Attendance action - FIXED ARCHIVING PROCESS
+// Handle Save Attendance action - FIXED ARCHIVING PROCESS WITH DEPARTMENT AND LOCATION
 if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
     $instructor_id = $_SESSION['access']['instructor']['id'];
     $currentDate = date('Y-m-d');
@@ -289,64 +306,88 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
     try {
         $db->begin_transaction();
 
-        // NEW: Save classmates data before archiving
+        // NEW: Save classmates data before archiving WITH DEPARTMENT AND LOCATION
         if ($first_student_section && $first_student_year) {
             $classmates = getClassmatesByYearSection($db, $first_student_year, $first_student_section);
             $subject = $_SESSION['access']['subject']['name'] ?? null;
-            saveClassmatesToInstructorAttendance($db, $classmates, $instructor_id, $first_student_year, $first_student_section, $subject);
+            
+            // Save with department and location
+            saveClassmatesToInstructorAttendance(
+                $db, 
+                $classmates, 
+                $instructor_id, 
+                $first_student_year, 
+                $first_student_section, 
+                $subject,
+                $department, // Pass department
+                $location    // Pass location
+            );
         }
 
-        // 1. Record time-out for instructor
+        // 1. Record time-out for instructor WITH DEPARTMENT AND LOCATION PRESERVED
         $update_instructor = $db->prepare("UPDATE instructor_logs 
                                          SET time_out = NOW(), 
-                                             status = 'saved' 
+                                             status = 'saved',
+                                             department = ?,
+                                             location = ?
                                          WHERE instructor_id = ? 
                                          AND DATE(time_in) = ? 
                                          AND time_out IS NULL");
         if (!$update_instructor) {
             throw new Exception("Error preparing instructor update: " . $db->error);
         }
-        $update_instructor->bind_param("is", $instructor_id, $currentDate);
+        $update_instructor->bind_param("ssis", $department, $location, $instructor_id, $currentDate);
         if (!$update_instructor->execute()) {
             throw new Exception("Error executing instructor update: " . $update_instructor->error);
         }
 
-        // 2. Mark all student records as saved
+        // 2. Mark all student records as saved WITH DEPARTMENT AND LOCATION
         $update_students = $db->prepare("UPDATE attendance_logs 
-                                       SET status = 'saved'
+                                       SET status = 'saved',
+                                           department = ?,
+                                           location = ?
                                        WHERE instructor_id = ?
                                        AND DATE(time_in) = ?");
         if (!$update_students) {
             throw new Exception("Error preparing student update: " . $db->error);
         }
-        $update_students->bind_param("is", $instructor_id, $currentDate);
+        $update_students->bind_param("ssis", $department, $location, $instructor_id, $currentDate);
         if (!$update_students->execute()) {
             throw new Exception("Error executing student update: " . $update_students->error);
         }
 
         // DEBUG: Check current data before archiving
         error_log("=== DEBUG: Checking data before archiving ===");
+        error_log("Department: $department, Location: $location");
         
         // Check student records that will be archived
         $student_check = $db->query("SELECT COUNT(*) as total, 
-                                    SUM(CASE WHEN instructor_id IS NULL THEN 1 ELSE 0 END) as missing_instructor 
+                                    SUM(CASE WHEN instructor_id IS NULL THEN 1 ELSE 0 END) as missing_instructor,
+                                    SUM(CASE WHEN department IS NULL THEN 1 ELSE 0 END) as missing_department,
+                                    SUM(CASE WHEN location IS NULL THEN 1 ELSE 0 END) as missing_location 
                                     FROM attendance_logs 
                                     WHERE DATE(time_in) = CURDATE()");
         if ($student_check) {
             $student_stats = $student_check->fetch_assoc();
-            error_log("Student records to archive: " . $student_stats['total'] . ", Missing instructor_id: " . $student_stats['missing_instructor']);
+            error_log("Student records to archive: " . $student_stats['total'] . 
+                     ", Missing instructor_id: " . $student_stats['missing_instructor'] .
+                     ", Missing department: " . $student_stats['missing_department'] .
+                     ", Missing location: " . $student_stats['missing_location']);
         }
 
         // Check instructor records that will be archived
-        $instructor_check = $db->query("SELECT COUNT(*) as total, instructor_id 
+        $instructor_check = $db->query("SELECT COUNT(*) as total, instructor_id, department, location
                                        FROM instructor_logs 
                                        WHERE DATE(time_in) = CURDATE()");
         if ($instructor_check) {
             $instructor_stats = $instructor_check->fetch_assoc();
-            error_log("Instructor records to archive: " . $instructor_stats['total'] . ", Instructor ID: " . $instructor_stats['instructor_id']);
+            error_log("Instructor records to archive: " . $instructor_stats['total'] . 
+                     ", Instructor ID: " . $instructor_stats['instructor_id'] .
+                     ", Department: " . $instructor_stats['department'] .
+                     ", Location: " . $instructor_stats['location']);
         }
 
-        // 3. Archive student logs - ENSURING INSTRUCTOR_ID IS PRESERVED
+        // 3. Archive student logs - ENSURING DEPARTMENT AND LOCATION ARE PRESERVED
         $db->query("CREATE TABLE IF NOT EXISTS archived_attendance_logs LIKE attendance_logs");
         
         // Verify table structures match
@@ -380,17 +421,20 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
         $archived_count = $db->affected_rows;
         error_log("Successfully archived " . $archived_count . " student records");
 
-        // Verify archived data has instructor_id
+        // Verify archived data has department and location
         $verify_archive = $db->query("SELECT COUNT(*) as total, 
-                                     SUM(CASE WHEN instructor_id IS NULL THEN 1 ELSE 0 END) as missing_instructor 
+                                     SUM(CASE WHEN department IS NULL THEN 1 ELSE 0 END) as missing_department,
+                                     SUM(CASE WHEN location IS NULL THEN 1 ELSE 0 END) as missing_location 
                                      FROM archived_attendance_logs 
                                      WHERE DATE(time_in) = CURDATE()");
         if ($verify_archive) {
             $verify_stats = $verify_archive->fetch_assoc();
-            error_log("Archived verification - Total: " . $verify_stats['total'] . ", Missing instructor_id: " . $verify_stats['missing_instructor']);
+            error_log("Archived verification - Total: " . $verify_stats['total'] . 
+                     ", Missing department: " . $verify_stats['missing_department'] .
+                     ", Missing location: " . $verify_stats['missing_location']);
         }
 
-        // 4. Archive instructor logs
+        // 4. Archive instructor logs WITH DEPARTMENT AND LOCATION
         $db->query("CREATE TABLE IF NOT EXISTS archived_instructor_logs LIKE instructor_logs");
         
         $instructor_archive_result = $db->query("INSERT INTO archived_instructor_logs 
@@ -417,8 +461,8 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
 
         error_log("Successfully cleared original records");
 
-        // 6. Get the exact time-out time
-        $time_query = "SELECT time_out FROM archived_instructor_logs 
+        // 6. Get the exact time-out time with department and location info
+        $time_query = "SELECT time_out, department, location FROM archived_instructor_logs 
                       WHERE instructor_id = ? 
                       AND DATE(time_in) = ? 
                       ORDER BY time_out DESC LIMIT 1";
@@ -433,22 +477,29 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
         $time_result = $time_stmt->get_result();
         $time_row = $time_result->fetch_assoc();
         $exact_time_out = $time_row['time_out'] ?? date('Y-m-d H:i:s');
+        $saved_department = $time_row['department'] ?? $department;
+        $saved_location = $time_row['location'] ?? $location;
 
         $db->commit();
 
         error_log("=== ARCHIVE PROCESS COMPLETED SUCCESSFULLY ===");
+        error_log("Saved with Department: $saved_department, Location: $saved_location");
 
         // Return success response
         if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
             echo json_encode([
                 'success' => true,
                 'timeout_time' => date('h:i A', strtotime($exact_time_out)),
+                'department' => $saved_department,
+                'location' => $saved_location,
                 'message' => 'Attendance saved and archived successfully'
             ]);
             exit();
         }
         
         $_SESSION['timeout_time'] = date('h:i A', strtotime($exact_time_out));
+        $_SESSION['saved_department'] = $saved_department;
+        $_SESSION['saved_location'] = $saved_location;
         $_SESSION['attendance_saved'] = true;
         $_SESSION['archive_message'] = 'Attendance saved and archived successfully';
         header("Location: students_logs.php");
@@ -479,7 +530,11 @@ $archive_message = isset($_SESSION['archive_message']) ? $_SESSION['archive_mess
 
 if ($show_timeout_message) {
     $timeout_time = $_SESSION['timeout_time'];
+    $saved_department = $_SESSION['saved_department'] ?? $department;
+    $saved_location = $_SESSION['saved_location'] ?? $location;
     unset($_SESSION['timeout_time']);
+    unset($_SESSION['saved_department']);
+    unset($_SESSION['saved_location']);
     unset($_SESSION['attendance_saved']);
     unset($_SESSION['archive_message']);
 }
@@ -569,6 +624,12 @@ if ($show_timeout_message) {
             text-align: center;
             border: 1px solid #dee2e6;
         }
+        .location-info {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
         .badge {
             font-size: 0.85em;
         }
@@ -640,12 +701,25 @@ if ($show_timeout_message) {
                 </button>
             </div>
 
+            <!-- Location Information -->
+            <div class="location-info">
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Department:</strong> <?php echo htmlspecialchars($department); ?>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Location:</strong> <?php echo htmlspecialchars($location); ?>
+                    </div>
+                </div>
+            </div>
+
             <?php if ($attendance_saved): ?>
                 <div class="archived-message">
                     <h4>Attendance Records Archived</h4>
                     <p><?php echo htmlspecialchars($archive_message); ?></p>
                     <p>Your time-out was recorded at <strong><?php echo htmlspecialchars($timeout_time); ?></strong></p>
-                    <p class="text-success"><i class="fas fa-check-circle me-2"></i>Classmates data has been saved to your instructor panel.</p>
+                    <p><strong>Location:</strong> <?php echo htmlspecialchars($saved_department); ?> - <?php echo htmlspecialchars($saved_location); ?></p>
+                    <p class="text-success"><i class="fas fa-check-circle me-2"></i>Classmates data has been saved to your instructor panel with department and location information.</p>
                 </div>
             <?php else: ?>
                 <div class="instructor-header">
@@ -694,6 +768,8 @@ if ($show_timeout_message) {
                                 <th>Name</th>
                                 <th>Section</th>
                                 <th>Year</th>
+                                <th>Department</th>
+                                <th>Location</th>
                                 <th>Time In</th>
                                 <th>Time Out</th>
                                 <th>Status</th>
@@ -723,6 +799,8 @@ if ($show_timeout_message) {
                                     echo '<td>'.htmlspecialchars($row['fullname']).'</td>';
                                     echo '<td>'.htmlspecialchars($row['section']).'</td>';
                                     echo '<td>'.htmlspecialchars($row['year']).'</td>';
+                                    echo '<td>'.htmlspecialchars($row['department'] ?? $department).'</td>';
+                                    echo '<td>'.htmlspecialchars($row['location'] ?? $location).'</td>';
                                     echo '<td>'.($row['time_in'] ? date('m/d/Y h:i A', strtotime($row['time_in'])) : 'N/A').'</td>';
                                     echo '<td>'.($row['time_out'] ? date('m/d/Y h:i A', strtotime($row['time_out'])) : 'N/A').'</td>';
                                     echo '<td>'.(!empty($row['status']) ? 
@@ -735,7 +813,7 @@ if ($show_timeout_message) {
                                     $stmt->close();
                                 }
                             } else {
-                                echo '<tr><td colspan="7" class="text-center py-4">No attendance records found</td></tr>';
+                                echo '<tr><td colspan="9" class="text-center py-4">No attendance records found</td></tr>';
                             }
                             ?>
                         </tbody>
@@ -745,6 +823,20 @@ if ($show_timeout_message) {
                 <!-- Classmates Section -->
                 <?php if ($first_student_section && $first_student_year): ?>
                     <div class="classmates-section">
+                        <div class="location-info mb-3">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <strong>Department:</strong> <?php echo htmlspecialchars($department); ?>
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>Location:</strong> <?php echo htmlspecialchars($location); ?>
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>Class:</strong> <?php echo htmlspecialchars($first_student_year . ' - ' . $first_student_section); ?>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <?php if (!empty($_SESSION['access']['subject']['name'])): ?>
                             <div>
                                 <span class="detail-label">Subject:</span>
@@ -758,6 +850,7 @@ if ($show_timeout_message) {
                                 <span class="detail-value"><?php echo htmlspecialchars($_SESSION['access']['subject']['time']); ?></span>
                             </div>
                             <?php endif; ?>
+                            
                         <?php
                         // Get classmates
                         $classmates = getClassmatesByYearSection($db, $first_student_year, $first_student_section);
@@ -787,6 +880,9 @@ if ($show_timeout_message) {
                     <div class="text-center mb-3">
                         <h5>Verifying: <?php echo htmlspecialchars($_SESSION['access']['instructor']['fullname'] ?? 'Instructor'); ?></h5>
                         <p class="text-muted">Scan your ID barcode or enter manually</p>
+                        <div class="location-info">
+                            <small><strong>Location:</strong> <?php echo htmlspecialchars($department); ?> - <?php echo htmlspecialchars($location); ?></small>
+                        </div>
                     </div>
                     <form id="verifyForm" method="post">
                         <div class="mb-3">
@@ -859,7 +955,11 @@ if ($show_timeout_message) {
             function confirmAttendanceSave() {
                 Swal.fire({
                     title: 'Confirm Save Attendance',
-                    text: 'This will record your time-out and save classmates data to your instructor panel. Continue?',
+                    html: `<div class="text-start">
+                              <p>This will record your time-out and save classmates data to your instructor panel.</p>
+                              <p><strong>Location:</strong> <?php echo htmlspecialchars($department); ?> - <?php echo htmlspecialchars($location); ?></p>
+                              <p>Continue?</p>
+                           </div>`,
                     icon: 'warning',
                     showCancelButton: true,
                     confirmButtonColor: '#3085d6',
@@ -892,8 +992,9 @@ if ($show_timeout_message) {
                 html: `<div class="text-center">
                           <h5>Your time-out has been recorded</h5>
                           <div class="timeout-display"><?php echo $timeout_time; ?></div>
+                          <p><strong>Location:</strong> <?php echo htmlspecialchars($saved_department); ?> - <?php echo htmlspecialchars($saved_location); ?></p>
                           <p><?php echo $archive_message; ?></p>
-                          <p class="text-success"><i class="fas fa-check-circle me-2"></i>Classmates data has been saved to your instructor panel.</p>
+                          <p class="text-success"><i class="fas fa-check-circle me-2"></i>Classmates data has been saved to your instructor panel with department and location information.</p>
                        </div>`,
                 confirmButtonText: 'OK',
                 allowOutsideClick: false
