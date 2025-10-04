@@ -1112,7 +1112,7 @@ function speakMessage(message) {
         const speech = new SpeechSynthesisUtterance();
         speech.text = message;
         speech.volume = 3;
-        speech.rate = .6;
+        speech.rate = .9;
         speech.pitch = 1.1;
         
         const voices = window.speechSynthesis.getVoices();
