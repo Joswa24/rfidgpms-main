@@ -930,12 +930,11 @@ function onScanError(error) {
             department: "<?php echo $department; ?>",
             location: "<?php echo $location; ?>"
         },
-        dataType: 'json', // Explicitly expect JSON
-        timeout: 10000, // 10 second timeout
+        dataType: 'json',
+        timeout: 10000,
         success: function(response) {
             console.log("✅ SUCCESS - Raw response:", response);
             
-            // No need to parse JSON since we used dataType: 'json'
             if (response.error) {
                 console.log("❌ Server error:", response.error);
                 showErrorMessage(response.error);
@@ -971,6 +970,13 @@ function onScanError(error) {
                 // Even if AJAX fails, show success since attendance was likely recorded
                 showSuccessFallback(barcode);
             }
+        },
+        complete: function() {
+            // ✅ RE-ENABLE INPUTS HERE for both success and error cases
+            document.getElementById('manualIdInput').disabled = false;
+            document.getElementById('manualSubmitBtn').disabled = false;
+            document.getElementById('manualIdInput').value = '';
+            document.getElementById('manualIdInput').focus();
         }
     });
 }
@@ -1195,9 +1201,6 @@ function playAlertSound() {
 }
 
 // ========= MANUAL ATTENDANCE FEATURES =========
-
-// Process manual input
-// ========= MANUAL ATTENDANCE FEATURES =========
 function processManualInput() {
     const idNumber = document.getElementById('manualIdInput').value.trim();
     
@@ -1221,70 +1224,10 @@ function processManualInput() {
     document.getElementById('manualIdInput').disabled = true;
     document.getElementById('manualSubmitBtn').disabled = true;
     
-    // Process the barcode (same as scanner)
+    // ✅ FIXED: Only call processBarcode once - remove the duplicate AJAX call below
     processBarcode(idNumber);
     
-    // Re-enable input after processing
-    setTimeout(() => {
-        document.getElementById('manualIdInput').disabled = false;
-        document.getElementById('manualSubmitBtn').disabled = false;
-    }, 2000);
-    // Process the attendance
-    $.ajax({
-        type: "POST",
-        url: "process_barcode.php",
-        data: { 
-            barcode: idNumber,
-            current_department: "<?php echo $department; ?>",
-            current_location: "<?php echo $location; ?>",
-            is_first_student: isFirstStudent
-        },
-        success: function(response) {
-            try {
-                const data = typeof response === 'string' ? JSON.parse(response) : response;
-
-                if (data.error) {
-                    showErrorMessage(data.error);
-                    speakErrorMessage(data.error);
-                    return;
-                }
-
-                // Update UI immediately
-                updateAttendanceUI(data);
-                
-                // Update student photo
-                document.getElementById('pic').src = data.photo ? 'uploads' + data.photo : 'temporary.png';
-                
-                // Show confirmation modal
-                showConfirmationModal(data);
-                
-                // If this is the first student, set allowed section/year
-                if (isFirstStudent && data.section && data.year_level) {
-                    allowedSection = data.section;
-                    allowedYear = data.year_level;
-                    isFirstStudent = false;
-                }
-
-            } catch (e) {
-                console.error("Error processing response:", e, response);
-                
-                
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error("AJAX error:", status, error);
-            const msg = "Connection error. Please try again.";
-            showErrorMessage(msg);
-            speakErrorMessage(msg);
-        },
-        complete: function() {
-            // Re-enable input
-            document.getElementById('manualIdInput').value = '';
-            document.getElementById('manualIdInput').disabled = false;
-            document.getElementById('manualSubmitBtn').disabled = false;
-            document.getElementById('manualIdInput').focus();
-        }
-    });
+    // Re-enable input after processing (moved to AJAX complete callback)
 }
 
 // Add this new function to speak error messages
