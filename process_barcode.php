@@ -17,7 +17,7 @@ if (empty($barcode)) {
 }
 
 // Fetch student data including photo BLOB
-$student_query = "SELECT *, photo as photo_blob FROM students WHERE id_number = ?";
+$student_query = "SELECT *, photo FROM students WHERE id_number = ?";
 $stmt = $db->prepare($student_query);
 $stmt->bind_param("s", $barcode);
 $stmt->execute();
@@ -76,17 +76,14 @@ $log_result = $log_stmt->get_result();
 $existing_log = $log_result->fetch_assoc();
 
 // Convert photo BLOB to base64 if it exists
-$photo_base64 = '';
-if (!empty($student['photo_blob'])) {
-    $photo_base64 = 'data:image/jpeg;base64,' . base64_encode($student['photo_blob']);
-}
+$photo_path = '';
 
 // Prepare response
 $response = [
     'full_name' => $student['fullname'],
     'id_number' => $student['id_number'],
     'department' => $student['department'] ?? 'N/A',
-    'photo' => $photo_base64, // Now using base64 instead of file path
+    'photo' => $photo_path, // Now using base64 instead of file path
     'section' => $student['section'],
     'year_level' => $student['year'],  // Matches your 'year' column
     'role' => $student['role'] ?? 'Student', // Added default value
