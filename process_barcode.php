@@ -15,8 +15,17 @@ if (empty($barcode)) {
     exit;
 }
 
-// Fetch student data including photo path
-$student_query = "SELECT s.*, d.department_name 
+// Fetch complete student data including department name
+$student_query = "SELECT 
+                    s.id,
+                    s.id_number, 
+                    s.fullname, 
+                    s.photo, 
+                    s.section, 
+                    s.year, 
+                    s.role,
+                    s.department_id,
+                    d.department_name 
                   FROM students s 
                   LEFT JOIN department d ON s.department_id = d.department_id 
                   WHERE s.id_number = ?";
@@ -103,7 +112,7 @@ $existing_log = $log_result->fetch_assoc();
 $response = [
     'full_name' => $student['fullname'],
     'id_number' => $student['id_number'],
-    'department' => $current_department, // Use department_name from join
+    'department' => $student['department_name'], // Use department_name from join
     'photo' => $photo_path,
     'section' => $student['section'],
     'year_level' => $student['year'],

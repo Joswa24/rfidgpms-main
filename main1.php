@@ -603,7 +603,7 @@ mysqli_close($db);
         function loadStudentPhotos() {
             $.ajax({
                 type: "GET",
-                url: "get_student_photos.php",
+                url: "get_student_photo.php",
                 dataType: 'json',
                 success: function(response) {
                     if (response.success) {
@@ -762,7 +762,7 @@ mysqli_close($db);
             });
         }
 
-        // Update gate UI
+        // Update the updateGateUI function to handle all student data properly
         function updateGateUI(data) {
             const alertElement = document.getElementById('alert');
             if (!alertElement) return;
@@ -785,31 +785,34 @@ mysqli_close($db);
                 document.getElementById('in_out').innerHTML = '<i class="fas fa-id-card me-2"></i>Scan Your ID Card for Attendance';
             }
             
-            // Update photo
+            // Update photo with all available data
             updatePhoto(data);
         }
 
+        // Enhanced photo update function
         function updatePhoto(data) {
             const photoElement = document.getElementById('pic');
             if (!photoElement) return;
             
-            let photoPath = "uploads/students/default.png";
+            let photoPath = "assets/img/default.png";
             
-            if (data.photo) {
-                // If photo path is provided in response, use it directly
+            // Priority 1: Use photo from server response
+            if (data.photo && data.photo !== 'assets/img/default.png') {
                 photoPath = data.photo;
-            } else if (data.id_number && studentPhotos[data.id_number]) {
-                // Use from our dynamically loaded student photos
+            } 
+            // Priority 2: Use from dynamically loaded student photos
+            else if (data.id_number && studentPhotos[data.id_number]) {
                 photoPath = studentPhotos[data.id_number];
             }
             
             // Add cache busting and ensure correct path
             photoElement.src = photoPath + "?t=" + new Date().getTime();
+            console.log('Setting photo to:', photoElement.src);
         }
 
-        // Show confirmation modal
+        // Enhanced confirmation modal with all student data
         function showConfirmationModal(data) {
-            console.log('Showing confirmation modal with data:', data);
+            console.log('Showing confirmation modal with complete data:', data);
             
             // Get current time and date
             const now = new Date();
@@ -825,7 +828,7 @@ mysqli_close($db);
                 day: 'numeric' 
             });
 
-            // Update modal content with safe fallbacks
+            // Update modal content with all available student data
             setElementText('modalPersonName', data.full_name || 'Unknown Student');
             setElementText('modalPersonId', data.id_number || 'N/A');
             setElementText('modalPersonRole', data.role || 'Student');
@@ -836,25 +839,17 @@ mysqli_close($db);
             // Set person photo with cache busting
             updateModalPhoto(data);
 
-            // Update access status
+            // Update access status with complete information
             updateModalAccessStatus(data);
 
             // Show the modal using Bootstrap
             showBootstrapModal();
             
-            // Speak confirmation message
+            // Speak confirmation message with student name
             speakConfirmationMessage(data);
         }
 
-        function setElementText(elementId, text) {
-            const element = document.getElementById(elementId);
-            if (element) {
-                element.textContent = text;
-            } else {
-                console.error('Element not found:', elementId);
-            }
-        }
-
+        // Enhanced modal photo update
         function updateModalPhoto(data) {
             const modalPhoto = document.getElementById("modalPersonPhoto");
             if (!modalPhoto) {
@@ -862,13 +857,14 @@ mysqli_close($db);
                 return;
             }
             
-            let photoPath = "uploads/students/default.png";
+            let photoPath = "assets/img/default.png";
             
-            if (data.photo) {
-                // Use the photo path from the server response
+            // Priority 1: Use photo from server response
+            if (data.photo && data.photo !== 'assets/img/default.png') {
                 photoPath = data.photo;
-            } else if (data.id_number && studentPhotos[data.id_number]) {
-                // Use from our dynamically loaded student photos
+            } 
+            // Priority 2: Use from dynamically loaded student photos
+            else if (data.id_number && studentPhotos[data.id_number]) {
                 photoPath = studentPhotos[data.id_number];
             }
             
@@ -877,6 +873,7 @@ mysqli_close($db);
             console.log('Setting modal photo to:', modalPhoto.src);
         }
 
+        // Enhanced access status with section and year information
         function updateModalAccessStatus(data) {
             const statusElement = document.getElementById('modalAccessStatus');
             if (!statusElement) {
@@ -885,33 +882,45 @@ mysqli_close($db);
             }
             
             // Reset classes
-            statusElement.className = 'access-status';
+            statusElement.className = 'access-status mb-3';
             
             // Add appropriate styling based on response
             if (data.time_in_out === 'Time In Recorded' || data.time_in_out === 'TIME IN') {
-                statusElement.classList.add('time-in');
+                statusElement.classList.add('time-in', 'p-3', 'rounded');
                 statusElement.innerHTML = `
                     <i class="fas fa-sign-in-alt me-2"></i>
-                    TIME IN RECORDED
+                    <strong>TIME IN RECORDED</strong>
+                    ${data.section ? `<br><small>Section: ${data.section} | Year: ${data.year_level}</small>` : ''}
                 `;
             } else if (data.time_in_out === 'Time Out Recorded' || data.time_in_out === 'TIME OUT') {
-                statusElement.classList.add('time-out');
+                statusElement.classList.add('time-out', 'p-3', 'rounded');
                 statusElement.innerHTML = `
                     <i class="fas fa-sign-out-alt me-2"></i>
-                    TIME OUT RECORDED
+                    <strong>TIME OUT RECORDED</strong>
+                    ${data.section ? `<br><small>Section: ${data.section} | Year: ${data.year_level}</small>` : ''}
                 `;
             } else if (data.error) {
-                statusElement.classList.add('access-denied');
+                statusElement.classList.add('access-denied', 'p-3', 'rounded');
                 statusElement.innerHTML = `
                     <i class="fas fa-exclamation-triangle me-2"></i>
-                    ${data.error}
+                    <strong>${data.error}</strong>
                 `;
             } else {
-                statusElement.classList.add('time-in');
+                statusElement.classList.add('time-in', 'p-3', 'rounded');
                 statusElement.innerHTML = `
                     <i class="fas fa-check-circle me-2"></i>
-                    ATTENDANCE RECORDED
+                    <strong>ATTENDANCE RECORDED</strong>
+                    ${data.section ? `<br><small>Section: ${data.section} | Year: ${data.year_level}</small>` : ''}
                 `;
+            }
+        }
+
+        function setElementText(elementId, text) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = text;
+            } else {
+                console.error('Element not found:', elementId);
             }
         }
 
