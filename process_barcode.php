@@ -3,7 +3,7 @@ session_start();
 include 'connection.php';
 
 // Get POST data
-$barcode = $_POST['barcode'] ?? '';
+$barcode = $_POST['id_number'] ?? '';
 $current_department = $_POST['department'] ?? '';
 $current_location = $_POST['location'] ?? '';
 $today = date('Y-m-d');
