@@ -217,7 +217,6 @@ if ($view == 'archived') {
                                     <th>Department</th>
                                     <th>Location</th>
                                     <th>Date</th>
-                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -329,21 +328,6 @@ if ($view == 'archived') {
                                         
                                         echo '<td>'.date('m/d/Y', strtotime($row['time_in'])).'</td>';
                                         
-                                        // Actions column
-                                        echo '<td>';
-                                        echo '<div class="btn-group btn-group-sm">';
-                                        echo '<button class="btn btn-info btn-sm view-details" data-bs-toggle="tooltip" title="View Details" data-id="'.$row['id'].'">';
-                                        echo '<i class="fa fa-eye"></i>';
-                                        echo '</button>';
-                                        if ($view == 'current' && empty($row['time_out'])) {
-                                            echo '<button class="btn btn-warning btn-sm force-timeout" data-bs-toggle="tooltip" title="Force Time Out" data-id="'.$row['id'].'">';
-                                            echo '<i class="fa fa-clock"></i>';
-                                            echo '</button>';
-                                        }
-                                        echo '</div>';
-                                        echo '</td>';
-                                        
-                                        echo '</tr>';
                                     }
                                 } else {
                                     echo '<tr><td colspan="10" class="text-center py-4">';
