@@ -2,6 +2,25 @@
 include 'connection.php';
 session_start();
 
+function getStudentPhotoForScanner($photo) {
+    $basePath = 'uploads/students/';
+    $defaultPhoto = 'assets/img/2601828.png';
+
+    if (empty($photo) || !file_exists($basePath . $photo)) {
+        return $defaultPhoto;
+    }
+
+    return $basePath . $photo;
+}
+
+$photos_query = "SELECT id_number, photo FROM students WHERE photo IS NOT NULL AND photo != ''";
+$photos_result = mysqli_query($db, $photos_query);
+$student_photos_js = [];
+
+while ($row = mysqli_fetch_assoc($photos_result)) {
+    $photo_path = getStudentPhotoForScanner($row['photo']);
+    $student_photos_js[$row['id_number']] = $photo_path;
+}
 // Initialize session variables with proper checks
 $_SESSION['allowed_section'] = $_SESSION['allowed_section'] ?? null;
 $_SESSION['allowed_year'] = $_SESSION['allowed_year'] ?? null;
@@ -563,545 +582,574 @@ mysqli_close($db);
     </div>
 </section>
 
-<script>
-// Global variables
-let scanner = null;
-let lastScanTime = 0;
-const scanCooldown = 1000;
+        <script>
+        // Global variables
+        let scanner = null;
+        let lastScanTime = 0;
+        const scanCooldown = 1000;
 
-// Student photo mapping
-const studentPhotos = {
-    "2024-0380": "uploads/students/68b703dcdff49_1232-1232.jpg",
-    "2024-1570": "uploads/students/c9c9ed00-ab5c-4c3e-b197-56559ab7ca61.jpg",
-    "2024-0117": "uploads/students/68b703dcdff49_1232-1232.jpg",
-    "2024-1697": "uploads/students/68b75972d9975_5555-7777.jpg"
-};
+        // Dynamic student photos object - will be populated from database
+        let studentPhotos = {};
 
-// Initialize when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    initializeScanner();
-    setupEventListeners();
-    startTime();
-});
-
-function setupEventListeners() {
-    // Manual input event listeners
-    const manualInput = document.getElementById('manualIdInput');
-    const manualSubmitBtn = document.getElementById('manualSubmitBtn');
-    
-    if (manualInput) {
-        manualInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                processManualInput();
-            }
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeScanner();
+            setupEventListeners();
+            startTime();
+            loadStudentPhotos(); // Load all student photos on page load
         });
-    }
-    
-    if (manualSubmitBtn) {
-        manualSubmitBtn.addEventListener('click', processManualInput);
-    }
-    
-    // Focus on manual input field
-    if (manualInput) {
-        manualInput.focus();
-    }
-}
 
-// Scanner Functions
-function initializeScanner() {
-    // Clear existing scanner
-    if (scanner) {
-        scanner.clear().catch(console.error);
-    }
-    
-    // Check camera permissions first
-    navigator.mediaDevices.getUserMedia({ video: true })
-        .then(() => {
-            // Initialize scanner with configuration
-            scanner = new Html5QrcodeScanner('largeReader', { 
-                qrbox: { width: 250, height: 250 },
-                fps: 10,
-                rememberLastUsedCamera: true,
-                supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
+        // Function to fetch all student photos from the database
+        function loadStudentPhotos() {
+            $.ajax({
+                type: "GET",
+                url: "get_student_photos.php",
+                dataType: 'json',
+                success: function(response) {
+                    if (response.success) {
+                        studentPhotos = response.photos;
+                        console.log('Loaded student photos:', Object.keys(studentPhotos).length + ' photos loaded');
+                    } else {
+                        console.error('Failed to load student photos:', response.error);
+                        // Initialize empty object as fallback
+                        studentPhotos = {};
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error loading student photos:', error);
+                    // Initialize empty object as fallback
+                    studentPhotos = {};
+                }
             });
+        }
+
+        function setupEventListeners() {
+            // Manual input event listeners
+            const manualInput = document.getElementById('manualIdInput');
+            const manualSubmitBtn = document.getElementById('manualSubmitBtn');
             
-            scanner.render(onScanSuccess, onScanError);
-        })
-        .catch(err => {
-            console.error("Camera permission denied:", err);
-            showErrorMessage("Tap Your ID Card to the Scanner or Use Manual Input");
-        });
-}
+            if (manualInput) {
+                manualInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        processManualInput();
+                    }
+                });
+            }
+            
+            if (manualSubmitBtn) {
+                manualSubmitBtn.addEventListener('click', processManualInput);
+            }
+            
+            // Focus on manual input field
+            if (manualInput) {
+                manualInput.focus();
+            }
+        }
 
-function onScanSuccess(decodedText) {
-    const now = Date.now();
-    
-    // Implement scan cooldown
-    if (now - lastScanTime < scanCooldown) {
-        console.log("Scan cooldown active - ignoring scan");
-        return;
-    }
-    
-    lastScanTime = now;
-    
-    // Show processing message
-    updateResultMessage(`Processing: ${decodedText}`, 'info');
-    
-    // Hide scanner overlay during processing
-    hideScannerOverlay();
-    
-    // Process the scanned barcode
-    processBarcode(decodedText);
-}
+        // Scanner Functions
+        function initializeScanner() {
+            // Clear existing scanner
+            if (scanner) {
+                scanner.clear().catch(console.error);
+            }
+            
+            // Check camera permissions first
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(() => {
+                    // Initialize scanner with configuration
+                    scanner = new Html5QrcodeScanner('largeReader', { 
+                        qrbox: { width: 250, height: 250 },
+                        fps: 10,
+                        rememberLastUsedCamera: true,
+                        supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
+                    });
+                    
+                    scanner.render(onScanSuccess, onScanError);
+                })
+                .catch(err => {
+                    console.error("Camera permission denied:", err);
+                    showErrorMessage("Tap Your ID Card to the Scanner or Use Manual Input");
+                });
+        }
 
-function onScanError(error) {
-    // Ignore common scanner errors
-    if (error.includes('NotFoundException') || error.includes('No MultiFormat Readers')) {
-        return;
-    }
-    console.error('Scanner error:', error);
-}
+        function onScanSuccess(decodedText) {
+            const now = Date.now();
+            
+            // Implement scan cooldown
+            if (now - lastScanTime < scanCooldown) {
+                console.log("Scan cooldown active - ignoring scan");
+                return;
+            }
+            
+            lastScanTime = now;
+            
+            // Show processing message
+            updateResultMessage(`Processing: ${decodedText}`, 'info');
+            
+            // Hide scanner overlay during processing
+            hideScannerOverlay();
+            
+            // Process the scanned barcode
+            processBarcode(decodedText);
+        }
 
-function hideScannerOverlay() {
-    const overlay = document.querySelector('.scanner-overlay');
-    if (overlay) {
-        overlay.style.display = 'none';
-    }
-}
+        function onScanError(error) {
+            // Ignore common scanner errors
+            if (error.includes('NotFoundException') || error.includes('No MultiFormat Readers')) {
+                return;
+            }
+            console.error('Scanner error:', error);
+        }
 
-function showScannerOverlay() {
-    const overlay = document.querySelector('.scanner-overlay');
-    if (overlay) {
-        overlay.style.display = 'flex';
-    }
-}
+        function hideScannerOverlay() {
+            const overlay = document.querySelector('.scanner-overlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        }
 
-// Barcode Processing
-function processBarcode(barcode) {
-    console.log('Processing barcode:', barcode);
-    
-    $.ajax({
-        type: "POST",
-        url: "process_barcode.php",
-        data: { 
-            barcode: barcode,
-            department: "<?php echo $department; ?>",
-            location: "<?php echo $location; ?>"
-        },
-        success: function(response) {
-            console.log('Server response:', response);
+        function showScannerOverlay() {
+            const overlay = document.querySelector('.scanner-overlay');
+            if (overlay) {
+                overlay.style.display = 'flex';
+            }
+        }
+
+        // Barcode Processing
+        function processBarcode(barcode) {
+            console.log('Processing barcode:', barcode);
+            
+            $.ajax({
+                type: "POST",
+                url: "process_barcode.php",
+                data: { 
+                    barcode: barcode,
+                    department: "<?php echo $department; ?>",
+                    location: "<?php echo $location; ?>"
+                },
+                dataType: 'json',
+                success: function(response) {
+                    console.log('Server response:', response);
+                    
+                    if (response.error) {
+                        showErrorMessage(response.error);
+                        return;
+                    }
+                    
+                    // Update UI first
+                    updateGateUI(response);
+                    
+                    // Then show confirmation modal
+                    showConfirmationModal(response);
+                    
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX error:', status, error);
+                    
+                    // Even if there's an AJAX error, try to show the modal with available data
+                    const fallbackData = {
+                        full_name: 'Student',
+                        id_number: barcode,
+                        department: 'N/A',
+                        photo: 'uploads/students/default.png',
+                        time_in_out: 'Recorded',
+                        role: 'Student'
+                    };
+                    
+                    updateGateUI(fallbackData);
+                    showConfirmationModal(fallbackData);
+                }
+            });
+        }
+
+        // Update gate UI
+        function updateGateUI(data) {
+            const alertElement = document.getElementById('alert');
+            if (!alertElement) return;
+            
+            // Reset classes
+            alertElement.classList.remove('alert-primary', 'alert-success', 'alert-warning', 'alert-danger', 'alert-info');
+            
+            // Set appropriate alert class based on response
+            if (data.time_in_out === 'Time In Recorded' || data.time_in_out === 'TIME IN') {
+                alertElement.classList.add('alert-success');
+                document.getElementById('in_out').innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>ENTRY GRANTED - TIME IN RECORDED';
+            } else if (data.time_in_out === 'Time Out Recorded' || data.time_in_out === 'TIME OUT') {
+                alertElement.classList.add('alert-warning');
+                document.getElementById('in_out').innerHTML = '<i class="fas fa-sign-out-alt me-2"></i>EXIT RECORDED - TIME OUT RECORDED';
+            } else if (data.error) {
+                alertElement.classList.add('alert-danger');
+                document.getElementById('in_out').innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i>${data.error}`;
+            } else {
+                alertElement.classList.add('alert-primary');
+                document.getElementById('in_out').innerHTML = '<i class="fas fa-id-card me-2"></i>Scan Your ID Card for Attendance';
+            }
+            
+            // Update photo
+            updatePhoto(data);
+        }
+
+        function updatePhoto(data) {
+            const photoElement = document.getElementById('pic');
+            if (!photoElement) return;
+            
+            let photoPath = "uploads/students/default.png";
+            
+            if (data.photo) {
+                // If photo path is provided in response, use it directly
+                photoPath = data.photo;
+            } else if (data.id_number && studentPhotos[data.id_number]) {
+                // Use from our dynamically loaded student photos
+                photoPath = studentPhotos[data.id_number];
+            }
+            
+            // Add cache busting and ensure correct path
+            photoElement.src = photoPath + "?t=" + new Date().getTime();
+        }
+
+        // Show confirmation modal
+        function showConfirmationModal(data) {
+            console.log('Showing confirmation modal with data:', data);
+            
+            // Get current time and date
+            const now = new Date();
+            const timeString = now.toLocaleTimeString([], { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit' 
+            });
+            const dateString = now.toLocaleDateString([], { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+
+            // Update modal content with safe fallbacks
+            setElementText('modalPersonName', data.full_name || 'Unknown Student');
+            setElementText('modalPersonId', data.id_number || 'N/A');
+            setElementText('modalPersonRole', data.role || 'Student');
+            setElementText('modalPersonDept', data.department || 'N/A');
+            setElementText('modalTimeDisplay', timeString);
+            setElementText('modalDateDisplay', dateString);
+
+            // Set person photo with cache busting
+            updateModalPhoto(data);
+
+            // Update access status
+            updateModalAccessStatus(data);
+
+            // Show the modal using Bootstrap
+            showBootstrapModal();
+            
+            // Speak confirmation message
+            speakConfirmationMessage(data);
+        }
+
+        function setElementText(elementId, text) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = text;
+            } else {
+                console.error('Element not found:', elementId);
+            }
+        }
+
+        function updateModalPhoto(data) {
+            const modalPhoto = document.getElementById("modalPersonPhoto");
+            if (!modalPhoto) {
+                console.error('Modal photo element not found');
+                return;
+            }
+            
+            let photoPath = "uploads/students/default.png";
+            
+            if (data.photo) {
+                // Use the photo path from the server response
+                photoPath = data.photo;
+            } else if (data.id_number && studentPhotos[data.id_number]) {
+                // Use from our dynamically loaded student photos
+                photoPath = studentPhotos[data.id_number];
+            }
+            
+            // Add cache busting to prevent cached images
+            modalPhoto.src = photoPath + "?t=" + new Date().getTime();
+            console.log('Setting modal photo to:', modalPhoto.src);
+        }
+
+        function updateModalAccessStatus(data) {
+            const statusElement = document.getElementById('modalAccessStatus');
+            if (!statusElement) {
+                console.error('Modal access status element not found');
+                return;
+            }
+            
+            // Reset classes
+            statusElement.className = 'access-status';
+            
+            // Add appropriate styling based on response
+            if (data.time_in_out === 'Time In Recorded' || data.time_in_out === 'TIME IN') {
+                statusElement.classList.add('time-in');
+                statusElement.innerHTML = `
+                    <i class="fas fa-sign-in-alt me-2"></i>
+                    TIME IN RECORDED
+                `;
+            } else if (data.time_in_out === 'Time Out Recorded' || data.time_in_out === 'TIME OUT') {
+                statusElement.classList.add('time-out');
+                statusElement.innerHTML = `
+                    <i class="fas fa-sign-out-alt me-2"></i>
+                    TIME OUT RECORDED
+                `;
+            } else if (data.error) {
+                statusElement.classList.add('access-denied');
+                statusElement.innerHTML = `
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    ${data.error}
+                `;
+            } else {
+                statusElement.classList.add('time-in');
+                statusElement.innerHTML = `
+                    <i class="fas fa-check-circle me-2"></i>
+                    ATTENDANCE RECORDED
+                `;
+            }
+        }
+
+        function showBootstrapModal() {
+            const modalElement = document.getElementById('confirmationModal');
+            if (!modalElement) {
+                console.error('Confirmation modal element not found');
+                showErrorMessage('Modal element not found');
+                return;
+            }
+            
+            // Check if Bootstrap is available
+            if (typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+                console.error('Bootstrap not loaded');
+                showErrorMessage('Bootstrap not loaded');
+                return;
+            }
             
             try {
-                const data = typeof response === 'string' ? JSON.parse(response) : response;
+                const modal = new bootstrap.Modal(modalElement);
+                modal.show();
                 
-                if (data.error) {
-                    showErrorMessage(data.error);
-                    return;
+                console.log('Modal shown successfully');
+            } catch (error) {
+                console.error('Error showing modal:', error);
+                showErrorMessage('Error showing confirmation: ' + error.message);
+            }
+        }
+
+        function closeModalAndContinue() {
+            const modalElement = document.getElementById('confirmationModal');
+            if (!modalElement) return;
+            
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+            }
+            
+            // Restart scanner after modal closes
+            restartScanner();
+        }
+
+        function restartScanner() {
+            // Clear result message
+            clearResultMessage();
+            
+            // Show scanner overlay
+            showScannerOverlay();
+            
+            // Re-focus on manual input
+            const manualInput = document.getElementById('manualIdInput');
+            if (manualInput) {
+                manualInput.focus();
+            }
+        }
+
+        function speakConfirmationMessage(data) {
+            let message = '';
+            
+            if (data.time_in_out === 'Time In Recorded' || data.time_in_out === 'TIME IN') {
+                message = `Welcome ${data.full_name || ''}. Time in recorded.`;
+            } else if (data.time_in_out === 'Time Out Recorded' || data.time_in_out === 'TIME OUT') {
+                message = `Goodbye ${data.full_name || ''}. Time out recorded.`;
+            } else if (data.error) {
+                message = data.error;
+            } else {
+                message = "Attendance recorded";
+            }
+            
+            speakMessage(message);
+        }
+
+        // Manual Input Processing
+        function processManualInput() {
+            const manualInput = document.getElementById('manualIdInput');
+            const idNumber = manualInput ? manualInput.value.trim() : '';
+            
+            if (!idNumber) {
+                showErrorMessage("Please enter ID number");
+                return;
+            }
+            
+            // Show processing state
+            updateResultMessage(`Processing manual input: ${idNumber}`, 'info');
+            
+            // Disable inputs during processing
+            setManualInputsDisabled(true);
+            
+            // Process the ID
+            processBarcode(idNumber);
+            
+            // Re-enable inputs after a delay
+            setTimeout(() => {
+                setManualInputsDisabled(false);
+                if (manualInput) {
+                    manualInput.value = '';
+                    manualInput.focus();
+                }
+            }, 2000);
+        }
+
+        function setManualInputsDisabled(disabled) {
+            const manualInput = document.getElementById('manualIdInput');
+            const manualSubmitBtn = document.getElementById('manualSubmitBtn');
+            
+            if (manualInput) manualInput.disabled = disabled;
+            if (manualSubmitBtn) manualSubmitBtn.disabled = disabled;
+        }
+
+        // UI Helper Functions
+        function updateResultMessage(message, type = 'info') {
+            const resultElement = document.getElementById('result');
+            if (!resultElement) return;
+            
+            const alertClass = type === 'error' ? 'alert-danger' : 'alert-info';
+            const iconClass = type === 'error' ? 'fa-exclamation-triangle' : 'fa-spinner fa-spin';
+            
+            resultElement.innerHTML = `
+                <div class="alert ${alertClass} d-flex align-items-center">
+                    <i class="fas ${iconClass} me-2"></i>
+                    <div>${message}</div>
+                </div>
+            `;
+        }
+
+        function clearResultMessage() {
+            const resultElement = document.getElementById('result');
+            if (resultElement) {
+                resultElement.innerHTML = '';
+            }
+        }
+
+        function showErrorMessage(message) {
+            updateResultMessage(message, 'error');
+            playAlertSound();
+            
+            // Don't speak the error message if it's just a display issue
+            if (!message.includes('display error')) {
+                speakMessage(message);
+            }
+            
+            // Auto-clear error after 3 seconds and restart scanner
+            setTimeout(() => {
+                clearResultMessage();
+                showScannerOverlay();
+            }, 3000);
+        }
+
+        function playAlertSound() {
+            const audio = document.getElementById('myAudio');
+            if (audio) {
+                audio.currentTime = 0;
+                audio.play().catch(error => {
+                    console.log('Audio playback failed:', error);
+                });
+            }
+        }
+
+        function speakMessage(message) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                
+                const speech = new SpeechSynthesisUtterance();
+                speech.text = message;
+                speech.volume = 1;
+                speech.rate = 1;
+                speech.pitch = 1.1;
+                
+                const voices = window.speechSynthesis.getVoices();
+                if (voices.length > 0) {
+                    const voice = voices.find(v => v.lang.includes('en')) || voices[0];
+                    speech.voice = voice;
                 }
                 
-                // Update UI first
-                updateGateUI(data);
-                
-                // Then show confirmation modal
-                showConfirmationModal(data);
-                
-            } catch (e) {
-                console.error('Error parsing response:', e, response);
-                showErrorMessage('Invalid server response format');
+                window.speechSynthesis.speak(speech);
             }
-        },
-        error: function(xhr, status, error) {
-            console.error('AJAX error:', status, error);
-            showErrorMessage('Server error: ' + error);
         }
-    });
-}
 
-// Update gate UI
-function updateGateUI(data) {
-    const alertElement = document.getElementById('alert');
-    if (!alertElement) return;
-    
-    // Reset classes
-    alertElement.classList.remove('alert-primary', 'alert-success', 'alert-warning', 'alert-danger', 'alert-info');
-    
-    // Set appropriate alert class based on response
-    if (data.time_in_out === 'Time In Recorded' || data.time_in_out === 'TIME IN') {
-        alertElement.classList.add('alert-success');
-        document.getElementById('in_out').innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>ENTRY GRANTED - TIME IN RECORDED';
-    } else if (data.time_in_out === 'Time Out Recorded' || data.time_in_out === 'TIME OUT') {
-        alertElement.classList.add('alert-warning');
-        document.getElementById('in_out').innerHTML = '<i class="fas fa-sign-out-alt me-2"></i>EXIT RECORDED - TIME OUT RECORDED';
-    } else if (data.error) {
-        alertElement.classList.add('alert-danger');
-        document.getElementById('in_out').innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i>${data.error}`;
-    } else {
-        alertElement.classList.add('alert-primary');
-        document.getElementById('in_out').innerHTML = '<i class="fas fa-id-card me-2"></i>Scan Your ID Card for Gate Access';
-    }
-    
-    // Update photo
-    updatePhoto(data);
-}
-
-function updatePhoto(data) {
-    const photoElement = document.getElementById('pic');
-    if (!photoElement) return;
-    
-    let photoPath = "uploads/students/default.png";
-    
-    if (data.photo) {
-        if (data.photo.startsWith('data:image')) {
-            photoPath = data.photo;
-        } else {
-            photoPath = data.photo;
+        // Time and Date Functions
+        function startTime() {
+            const today = new Date();
+            let h = today.getHours();
+            let m = today.getMinutes();
+            let s = today.getSeconds();
+            let period = h >= 12 ? 'PM' : 'AM';
+            
+            // Convert to 12-hour format
+            h = h % 12;
+            h = h ? h : 12;
+            
+            m = formatTimeUnit(m);
+            s = formatTimeUnit(s);
+            
+            // Update clock display
+            const clockElement = document.getElementById('clock');
+            if (clockElement) {
+                clockElement.innerHTML = `${h}:${m}:${s} ${period}`;
+            }
+            
+            // Update date display
+            const dateElement = document.getElementById('currentDate');
+            if (dateElement) {
+                const options = { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                };
+                dateElement.innerHTML = today.toLocaleDateString('en-US', options);
+            }
+            
+            setTimeout(startTime, 1000);
         }
-    } else if (personPhotos[data.id_number]) {
-        photoPath = personPhotos[data.id_number];
-    }
-    
-    photoElement.src = photoPath + "?t=" + new Date().getTime();
-}
 
-// CORRECTED: Show confirmation modal - FIXED VERSION
-function showConfirmationModal(data) {
-    console.log('Showing confirmation modal with data:', data);
-    
-    // Get current time and date
-    const now = new Date();
-    const timeString = now.toLocaleTimeString([], { 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit' 
-    });
-    const dateString = now.toLocaleDateString([], { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-    });
-
-    // Update modal content with safe fallbacks
-    setElementText('modalPersonName', data.full_name || 'Unknown Person');
-    setElementText('modalPersonId', data.id_number || 'N/A');
-    setElementText('modalPersonRole', data.role || 'Visitor');
-    setElementText('modalPersonDept', data.department || 'N/A');
-    setElementText('modalTimeDisplay', timeString);
-    setElementText('modalDateDisplay', dateString);
-
-    // Set person photo with cache busting
-    updateModalPhoto(data);
-
-    // Update access status
-    updateModalAccessStatus(data);
-
-    // Show the modal using Bootstrap
-    showBootstrapModal();
-    
-    // Speak confirmation message
-    speakConfirmationMessage(data);
-}
-
-function setElementText(elementId, text) {
-    const element = document.getElementById(elementId);
-    if (element) {
-        element.textContent = text;
-    } else {
-        console.error('Element not found:', elementId);
-    }
-}
-
-function updateModalPhoto(data) {
-    const modalPhoto = document.getElementById("modalPersonPhoto");
-    if (!modalPhoto) {
-        console.error('Modal photo element not found');
-        return;
-    }
-    
-    let photoPath = "uploads/students/default.png";
-    
-    if (data.photo) {
-        if (data.photo.startsWith('data:image')) {
-            photoPath = data.photo;
-        } else {
-            photoPath = data.photo;
+        function formatTimeUnit(unit) {
+            return unit < 10 ? "0" + unit : unit;
         }
-    } else if (personPhotos[data.id_number]) {
-        photoPath = personPhotos[data.id_number];
-    }
-    
-    modalPhoto.src = photoPath + "?t=" + new Date().getTime();
-}
 
-function updateModalAccessStatus(data) {
-    const statusElement = document.getElementById('modalAccessStatus');
-    if (!statusElement) {
-        console.error('Modal access status element not found');
-        return;
-    }
-    
-    // Reset classes
-    statusElement.className = 'access-status';
-    
-    // Add appropriate styling based on response
-    if (data.time_in_out === 'Time In Recorded' || data.time_in_out === 'TIME IN') {
-        statusElement.classList.add('time-in');
-        statusElement.innerHTML = `
-            <i class="fas fa-sign-in-alt me-2"></i>
-            TIME IN RECORDED
-        `;
-    } else if (data.time_in_out === 'Time Out Recorded' || data.time_in_out === 'TIME OUT') {
-        statusElement.classList.add('time-out');
-        statusElement.innerHTML = `
-            <i class="fas fa-sign-out-alt me-2"></i>
-            TIME OUT RECORDED
-        `;
-    } else if (data.error) {
-        statusElement.classList.add('access-denied');
-        statusElement.innerHTML = `
-            <i class="fas fa-exclamation-triangle me-2"></i>
-            ${data.error}
-        `;
-    } else {
-        statusElement.classList.add('access-denied');
-        statusElement.innerHTML = `
-            <i class="fas fa-exclamation-triangle me-2"></i>
-            ACCESS DENIED
-        `;
-    }
-}
-
-function showBootstrapModal() {
-    const modalElement = document.getElementById('confirmationModal');
-    if (!modalElement) {
-        console.error('Confirmation modal element not found');
-        showErrorMessage('Modal element not found');
-        return;
-    }
-    
-    // Check if Bootstrap is available
-    if (typeof bootstrap === 'undefined' || !bootstrap.Modal) {
-        console.error('Bootstrap not loaded');
-        showErrorMessage('Bootstrap not loaded');
-        return;
-    }
-    
-    try {
-        const modal = new bootstrap.Modal(modalElement);
-        modal.show();
-        
-        console.log('Modal shown successfully');
-    } catch (error) {
-        console.error('Error showing modal:', error);
-        showErrorMessage('Error showing confirmation: ' + error.message);
-    }
-}
-
-function closeModalAndContinue() {
-    const modalElement = document.getElementById('confirmationModal');
-    if (!modalElement) return;
-    
-    const modal = bootstrap.Modal.getInstance(modalElement);
-    if (modal) {
-        modal.hide();
-    }
-    
-    // Restart scanner after modal closes
-    restartScanner();
-}
-
-function restartScanner() {
-    // Clear result message
-    clearResultMessage();
-    
-    // Show scanner overlay
-    showScannerOverlay();
-    
-    // Re-focus on manual input
-    const manualInput = document.getElementById('manualIdInput');
-    if (manualInput) {
-        manualInput.focus();
-    }
-}
-
-function speakConfirmationMessage(data) {
-    let message = '';
-    
-    if (data.time_in_out === 'Time In Recorded' || data.time_in_out === 'TIME IN') {
-        message = `Welcome ${data.full_name || ''}. Time in recorded.`;
-    } else if (data.time_in_out === 'Time Out Recorded' || data.time_in_out === 'TIME OUT') {
-        message = `Goodbye ${data.full_name || ''}. Time out recorded.`;
-    } else if (data.error) {
-        message = data.error;
-    } else {
-        message = "Access recorded";
-    }
-    
-    speakMessage(message);
-}
-
-// Manual Input Processing
-function processManualInput() {
-    const manualInput = document.getElementById('manualIdInput');
-    const idNumber = manualInput ? manualInput.value.trim() : '';
-    
-    if (!idNumber) {
-        showErrorMessage("Please enter ID number");
-        return;
-    }
-    
-    // Show processing state
-    updateResultMessage(`Processing manual input: ${idNumber}`, 'info');
-    
-    // Disable inputs during processing
-    setManualInputsDisabled(true);
-    
-    // Process the ID
-    processBarcode(idNumber);
-    
-    // Re-enable inputs after a delay
-    setTimeout(() => {
-        setManualInputsDisabled(false);
-        if (manualInput) {
-            manualInput.value = '';
-            manualInput.focus();
-        }
-    }, 2000);
-}
-
-function setManualInputsDisabled(disabled) {
-    const manualInput = document.getElementById('manualIdInput');
-    const manualSubmitBtn = document.getElementById('manualSubmitBtn');
-    
-    if (manualInput) manualInput.disabled = disabled;
-    if (manualSubmitBtn) manualSubmitBtn.disabled = disabled;
-}
-
-// UI Helper Functions
-function updateResultMessage(message, type = 'info') {
-    const resultElement = document.getElementById('result');
-    if (!resultElement) return;
-    
-    const alertClass = type === 'error' ? 'alert-danger' : 'alert-info';
-    const iconClass = type === 'error' ? 'fa-exclamation-triangle' : 'fa-spinner fa-spin';
-    
-    resultElement.innerHTML = `
-        <div class="alert ${alertClass} d-flex align-items-center">
-            <i class="fas ${iconClass} me-2"></i>
-            <div>${message}</div>
-        </div>
-    `;
-}
-
-function clearResultMessage() {
-    const resultElement = document.getElementById('result');
-    if (resultElement) {
-        resultElement.innerHTML = '';
-    }
-}
-
-function showErrorMessage(message) {
-    updateResultMessage(message, 'error');
-    playAlertSound();
-    speakMessage(message);
-    
-    // Auto-clear error after 3 seconds and restart scanner
-    setTimeout(() => {
-        clearResultMessage();
-        showScannerOverlay();
-    }, 3000);
-}
-
-function playAlertSound() {
-    const audio = document.getElementById('myAudio');
-    if (audio) {
-        audio.currentTime = 0;
-        audio.play().catch(error => {
-            console.log('Audio playback failed:', error);
+        // Page Visibility Handling
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                // Page is hidden, stop scanner to conserve resources
+                if (scanner) {
+                    scanner.clear().catch(console.error);
+                }
+            } else {
+                // Page is visible again, restart scanner
+                initializeScanner();
+            }
         });
-    }
-}
 
-function speakMessage(message) {
-    if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        
-        const speech = new SpeechSynthesisUtterance();
-        speech.text = message;
-        speech.volume = 1;
-        speech.rate = 1;
-        speech.pitch = 1.1;
-        
-        const voices = window.speechSynthesis.getVoices();
-        if (voices.length > 0) {
-            const voice = voices.find(v => v.lang.includes('en')) || voices[0];
-            speech.voice = voice;
-        }
-        
-        window.speechSynthesis.speak(speech);
-    }
-}
-
-// Time and Date Functions
-function startTime() {
-    const today = new Date();
-    let h = today.getHours();
-    let m = today.getMinutes();
-    let s = today.getSeconds();
-    let period = h >= 12 ? 'PM' : 'AM';
-    
-    // Convert to 12-hour format
-    h = h % 12;
-    h = h ? h : 12;
-    
-    m = formatTimeUnit(m);
-    s = formatTimeUnit(s);
-    
-    // Update clock display
-    const clockElement = document.getElementById('clock');
-    if (clockElement) {
-        clockElement.innerHTML = `${h}:${m}:${s} ${period}`;
-    }
-    
-    // Update date display
-    const dateElement = document.getElementById('currentDate');
-    if (dateElement) {
-        const options = { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-        };
-        dateElement.innerHTML = today.toLocaleDateString('en-US', options);
-    }
-    
-    setTimeout(startTime, 1000);
-}
-
-function formatTimeUnit(unit) {
-    return unit < 10 ? "0" + unit : unit;
-}
-
-// Page Visibility Handling
-document.addEventListener('visibilitychange', function() {
-    if (document.hidden) {
-        // Page is hidden, stop scanner to conserve resources
-        if (scanner) {
-            scanner.clear().catch(console.error);
-        }
-    } else {
-        // Page is visible again, restart scanner
-        initializeScanner();
-    }
-});
-
-// Clean up when leaving page
-window.addEventListener('beforeunload', function() {
-    if (scanner) {
-        scanner.clear().catch(console.error);
-    }
-});
-</script>
+        // Clean up when leaving page
+        window.addEventListener('beforeunload', function() {
+            if (scanner) {
+                scanner.clear().catch(console.error);
+            }
+        });
+        </script>
 
 <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
