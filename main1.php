@@ -705,22 +705,17 @@ function processBarcode(barcode) {
             showConfirmationModal(data);
             
         },
-        error: function(xhr, status, error) {
+        aerror: function(xhr, status, error) {
             console.error("AJAX error:", status, error);
-            console.error("Status:", xhr.status);
             console.error("Response text:", xhr.responseText);
             
-            let errorMessage = "Server error occurred";
-            
-            if (xhr.status === 500) {
-                errorMessage = "Server internal error (500) - Check server logs";
-            } else if (xhr.responseText) {
+            let errorMessage = "Server connection error";
+            if (xhr.responseText) {
                 try {
                     const errorResponse = JSON.parse(xhr.responseText);
                     errorMessage = errorResponse.error || errorMessage;
                 } catch (e) {
-                    // If not JSON, show the raw response for debugging
-                    errorMessage = "Server response: " + xhr.responseText.substring(0, 200);
+                    errorMessage = "Server error: " + xhr.status;
                 }
             }
             
