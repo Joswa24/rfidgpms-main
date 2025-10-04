@@ -17,7 +17,7 @@ if ($result && $result->num_rows > 0) {
 
 // Determine if we're viewing current or archived logs
 $view = isset($_GET['view']) ? $_GET['view'] : 'current';
-$instructor_table = ($view == 'current') ? 'archived_instructor_logs' : 'instructor_logs';
+$instructor_table = ($view == 'archived') ? 'archived_instructor_logs' : 'instructor_logs';
 
 // Date filter logic
 if (isset($_GET['date']) && $_GET['date'] !== '') {
