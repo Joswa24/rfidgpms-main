@@ -1,30 +1,14 @@
 <?php
+// Start output buffering and session at the very top
 ob_start();
-include '../connection.php';
-include '../security-headers.php';
 session_start();
-// Additional security headers
-header("X-Frame-Options: DENY"); // Prevent clickjacking
-header("X-Content-Type-Options: nosniff"); // Prevent MIME type sniffing
-header("X-XSS-Protection: 1; mode=block"); // Enable XSS protection
-header("Referrer-Policy: strict-origin-when-cross-origin"); // Control referrer information
-header("Permissions-Policy: geolocation=(), microphone=(), camera=()"); // Restrict browser features
-// Strict Transport Security (HSTS) - Enable if using HTTPS
-// header("Strict-Transport-Security: max-age=31536000; includeSubDomains; preload");
-header("X-Permitted-Cross-Domain-Policies: none"); // Restrict Adobe Flash/Acrobat
-header("Cross-Origin-Embedder-Policy: require-corp"); // Control cross-origin embedding
-header("Cross-Origin-Opener-Policy: same-origin"); // Control cross-origin window opening
-header("Cross-Origin-Resource-Policy: same-origin"); // Control cross-origin resource loading
 
-// Cache control for sensitive pages
-header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-header("Pragma: no-cache");
-header("Expires: 0");
+include '../connection.php';
 
-// Regenerate session ID to prevent fixation
-if (!isset($_SESSION['initiated'])) {
-    session_regenerate_id(true);
-    $_SESSION['initiated'] = true;
+// Initialize session variables for login attempts
+if (!isset($_SESSION['login_attempts'])) {
+    $_SESSION['login_attempts'] = 0;
+    $_SESSION['lockout_time'] = 0;
 }
 
 // Generate CSRF token if not exists
@@ -32,16 +16,19 @@ if (!isset($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// Initialize variables for login attempts
+// Security headers - placed after session_start()
+header("X-Frame-Options: DENY");
+header("X-Content-Type-Options: nosniff");
+header("X-XSS-Protection: 1; mode=block");
+header("Referrer-Policy: strict-origin-when-cross-origin");
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+header("Expires: 0");
+
+// Login configuration
 $maxAttempts = 5;
 $lockoutTime = 300; // 5 minutes
 $errorMessage = '';
-
-// Initialize session variables if not set
-if (!isset($_SESSION['login_attempts'])) {
-    $_SESSION['login_attempts'] = 0;
-    $_SESSION['lockout_time'] = 0;
-}
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
@@ -67,8 +54,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             if (!$db) {
                 $errorMessage = "Database connection error. Please try again later.";
             } else {
-                // ✅ Match your schema
-                $stmt = $db->prepare("SELECT * FROM instructor_accounts WHERE username = ?");
+                // FIXED QUERY: Join with instructor table to get fullname and department
+                $stmt = $db->prepare("
+                    SELECT ia.*, i.fullname, i.department_id, d.department_name 
+                    FROM instructor_accounts ia 
+                    INNER JOIN instructor i ON ia.instructor_id = i.id 
+                    LEFT JOIN department d ON i.department_id = d.department_id 
+                    WHERE ia.username = ?
+                ");
+                
                 if ($stmt) {
                     $stmt->bind_param("s", $username);
                     $stmt->execute();
@@ -86,7 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                             $_SESSION['username'] = htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8');
                             $_SESSION['instructor_id'] = (int)$user['instructor_id'];
                             $_SESSION['fullname'] = htmlspecialchars($user['fullname'], ENT_QUOTES, 'UTF-8');
-                            $_SESSION['department'] = htmlspecialchars($user['department'], ENT_QUOTES, 'UTF-8');
+                            $_SESSION['department'] = htmlspecialchars($user['department_name'] ?? 'N/A', ENT_QUOTES, 'UTF-8');
                             $_SESSION['role'] = 'instructor';
                             $_SESSION['logged_in'] = true;
                             $_SESSION['last_activity'] = time();
@@ -112,6 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                     $stmt->close();
                 } else {
                     $errorMessage = "Database error. Please try again later.";
+                    error_log("Login prepare failed: " . $db->error);
                 }
             }
 
@@ -137,9 +132,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <meta name="description" content="Gate and Personnel Management System">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <style>
-         :root {
+        /* Your existing CSS styles remain the same */
+        :root {
             --primary-color: #e1e7f0ff;
             --secondary-color: #b0caf0ff;
             --accent-color: #4e73df;
@@ -302,20 +297,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             transform: translateY(0);
         }
         
-        .form-check-input:checked {
-            background-color: var(--accent-color);
-            border-color: var(--accent-color);
-        }
-        
-        .system-info {
-            text-align: center;
-            margin-top: 25px;
-            padding-top: 20px;
-            border-top: 1px solid #e3e6f0;
-            font-size: 0.85rem;
-            color: var(--dark-text);
-        }
-        
         .alert {
             border-radius: 8px;
             border: none;
@@ -388,7 +369,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                     <label for="username" class="form-label"><i class="fas fa-user"></i>Username</label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="fas fa-user"></i></span>
-                        <input type="text" class="form-control" id="username" name="username" required autocomplete="off">
+                        <input type="text" class="form-control" id="username" name="username" required autocomplete="off" value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : ''; ?>">
                     </div>
                 </div>
 
@@ -412,5 +393,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             </form>
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function togglePassword() {
+            const passwordField = document.getElementById('password');
+            const toggleIcon = document.querySelector('.password-toggle i');
+            
+            if (passwordField.type === 'password') {
+                passwordField.type = 'text';
+                toggleIcon.classList.remove('fa-eye');
+                toggleIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordField.type = 'password';
+                toggleIcon.classList.remove('fa-eye-slash');
+                toggleIcon.classList.add('fa-eye');
+            }
+        }
+    </script>
 </body>
 </html>
