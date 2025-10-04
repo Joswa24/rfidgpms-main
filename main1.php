@@ -404,6 +404,71 @@ mysqli_close($db);
             text-align: center;
             font-weight: bold;
         }
+        /* Confirmation modal styling */
+.confirmation-modal .modal-dialog {
+    max-width: 500px;
+}
+
+.confirmation-modal .modal-content {
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.confirmation-modal .modal-header {
+    background-color: #084298;
+    color: white;
+    border-bottom: none;
+}
+
+.confirmation-modal .modal-body {
+    padding: 30px;
+    text-align: center;
+}
+
+.confirmation-modal .student-photo {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin: 0 auto 20px;
+    border: 3px solid #084298;
+}
+
+.confirmation-modal .student-info {
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+}
+
+.confirmation-modal .attendance-status {
+    font-size: 1.3rem;
+    font-weight: bold;
+    margin: 20px 0;
+    padding: 10px;
+    border-radius: 10px;
+}
+
+.confirmation-modal .time-in {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border: 2px solid #0f5132;
+}
+
+.confirmation-modal .time-out {
+    background-color: #f8d7da;
+    color: #842029;
+    border: 2px solid #842029;
+}
+
+.confirmation-modal .modal-footer {
+    border-top: none;
+    justify-content: center;
+}
+
+.confirmation-modal .time-display {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+}
     </style>
 </head>
 
@@ -845,60 +910,144 @@ function onScanError(error) {
 }
 
     function processBarcode(barcode) {
-        $.ajax({
-            type: "POST",
-            url: "process_barcode.php",
-            data: { 
-                barcode: barcode,
-                department: "<?php echo $department; ?>",
-                location: "<?php echo $location; ?>"
-            },
-            success: function(response) {
-                console.log("Raw response:", response);
-                
-                try {
-                    const data = typeof response === 'string' ? JSON.parse(response) : response;
-                    console.log("Parsed data:", data);
+    $.ajax({
+        type: "POST",
+        url: "process_barcode.php",
+        data: { 
+            barcode: barcode,
+            department: "<?php echo $department; ?>",
+            location: "<?php echo $location; ?>"
+        },
+        success: function(response) {
+            console.log("Raw response:", response);
+            
+            try {
+                const data = typeof response === 'string' ? JSON.parse(response) : response;
+                console.log("Parsed data:", data);
 
-                    if (data.error) {
-                        showErrorMessage(data.error);
-                        speakErrorMessage(data.error);
-                        document.querySelector('.scanner-overlay').style.display = 'flex';
-                        return;
-                    }
-
-                    // Update UI
-                    updateAttendanceUI(data);
-                    
-                    // Update photo
-                    if (data.photo) {
-                        document.getElementById('pic').src = data.photo;
-                    }
-                    
-                    // Show confirmation modal with all data
-                    showConfirmationModal(data);
-                    
-                    // Clear result after showing modal
-                    setTimeout(() => {
-                        document.getElementById('result').innerHTML = "";
-                        document.querySelector('.scanner-overlay').style.display = 'flex';
-                    }, 1000);
-                    
-                } catch (e) {
-                    console.error("Error parsing response:", e);
-                    console.error("Response was:", response);
-                    showErrorMessage("Error processing barcode: " + e.message);
+                if (data.error) {
+                    showErrorMessage(data.error);
+                    speakErrorMessage(data.error);
                     document.querySelector('.scanner-overlay').style.display = 'flex';
+                    return;
                 }
-            },
-            error: function(xhr, status, error) {
-                console.error("AJAX error:", status, error);
-                console.log("Response text:", xhr.responseText);
-                showErrorMessage("Server error: " + error);
+
+                // Update UI
+                updateAttendanceUI(data);
+                
+                // Update photo in the main display
+                if (data.photo) {
+                    document.getElementById('pic').src = data.photo;
+                }
+                
+                // Show confirmation modal with all data
+                showConfirmationModal(data);
+                
+                // Clear result after showing modal
+                setTimeout(() => {
+                    document.getElementById('result').innerHTML = "";
+                }, 1000);
+                
+            } catch (e) {
+                console.error("Error parsing response:", e);
+                console.error("Response was:", response);
+                showErrorMessage("Error processing barcode: " + e.message);
                 document.querySelector('.scanner-overlay').style.display = 'flex';
             }
-        });
+        },
+        error: function(xhr, status, error) {
+            console.error("AJAX error:", status, error);
+            console.log("Response text:", xhr.responseText);
+            showErrorMessage("Server error: " + error);
+            document.querySelector('.scanner-overlay').style.display = 'flex';
+        }
+    });
+}
+
+// Show confirmation modal with complete student data
+function showConfirmationModal(data) {
+    // Get current time and date
+    const now = new Date();
+    const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const dateString = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    // Update modal content
+    document.getElementById('modalStudentName').textContent = data.full_name || 'Unknown Student';
+    document.getElementById('modalStudentId').textContent = data.id_number || 'N/A';
+    document.getElementById('modalStudentDept').textContent = data.department || 'N/A';
+    document.getElementById('modalStudentYearSection').textContent = (data.year_level || 'N/A') + ' - ' + (data.section || 'N/A');
+    document.getElementById('modalStudentRole').textContent = data.role || 'Student';
+    document.getElementById('modalTimeDisplay').textContent = timeString;
+    document.getElementById('modalDateDisplay').textContent = dateString;
+    
+    // Set attendance status
+    const statusElement = document.getElementById('modalTimeInOut');
+    const statusContainer = document.getElementById('modalAttendanceStatus');
+    
+    if (data.time_in_out === 'Time In Recorded') {
+        statusElement.textContent = 'Time In Recorded';
+        statusContainer.className = 'attendance-status mb-3 time-in';
+    } else if (data.time_in_out === 'Time Out Recorded') {
+        statusElement.textContent = 'Time Out Recorded';
+        statusContainer.className = 'attendance-status mb-3 time-out';
+    } else {
+        statusElement.textContent = data.time_in_out || 'Attendance Recorded';
+        statusContainer.className = 'attendance-status mb-3';
     }
+    
+    // Update student photo in modal
+    if (data.photo) {
+        document.getElementById('modalStudentPhoto').src = data.photo + '?t=' + new Date().getTime();
+    }
+
+    // Show modal using Bootstrap
+    const modalElement = document.getElementById('confirmationModal');
+    const modal = new bootstrap.Modal(modalElement);
+    modal.show();
+    
+    // Hide scanner overlay while modal is open
+    document.querySelector('.scanner-overlay').style.display = 'none';
+}
+
+// Function to restart scanner after modal is closed
+function restartScanner() {
+    document.querySelector('.scanner-overlay').style.display = 'flex';
+    document.getElementById('result').innerHTML = "";
+    document.getElementById('manualIdInput').value = '';
+    document.getElementById('manualIdInput').focus();
+}
+
+// Update UI with attendance data
+function updateAttendanceUI(data) {
+    // Update alert color and text
+    const alertElement = document.getElementById('alert');
+    const inOutElement = document.getElementById('in_out');
+    
+    alertElement.classList.remove('alert-primary', 'alert-success', 'alert-danger', 'alert-warning');
+    
+    if (data.alert_class) {
+        alertElement.classList.add(data.alert_class);
+    } else {
+        alertElement.classList.add('alert-primary');
+    }
+    
+    inOutElement.textContent = data.time_in_out || 'Scan Your ID Card for Attendance';
+    
+    // Update photo in main display
+    if (data.photo) {
+        document.getElementById('pic').src = data.photo;
+    }
+    
+    // Update result display
+    if (data.time_in_out) {
+        document.getElementById('result').innerHTML = `
+            <div class="alert ${data.alert_class || 'alert-success'} py-2" role="alert">
+                <i class="fas fa-check-circle me-2"></i>
+                ${data.time_in_out}
+            </div>
+        `;
+    }
+}
 
 // Show preview modal in the scanner frame
 function showScannerPreviewModal(data) {
@@ -987,41 +1136,6 @@ function showErrorMessage(message) {
     playAlertSound();
 }
 
-// Show confirmation modal with complete student data
-// Updated function to show confirmation modal with the new design
-function showConfirmationModal(data) {
-    // Get current time and date
-    const now = new Date();
-    const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const dateString = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-
-    // Update modal content
-    document.getElementById('modalStudentName').textContent = data.full_name || 'Unknown Student';
-    document.getElementById('modalStudentId').textContent = data.id_number || 'N/A';
-    document.getElementById('modalStudentDept').textContent = data.department || 'N/A';
-    document.getElementById('modalStudentRole').textContent = data.role || 'Student';
-    document.getElementById('modalTimeDisplay').textContent = timeString;
-    document.getElementById('modalDateDisplay').textContent = dateString;
-
-    // Show modal
-    const modal = new bootstrap.Modal(document.getElementById('confirmationModal'));
-    modal.show();
-}
-
-
-// Update UI with attendance data
-function updateAttendanceUI(data) {
-    // Update alert color and text
-    const alertElement = document.getElementById('alert');
-    alertElement.classList.remove('alert-primary', 'alert-success', 'alert-danger', 'alert-warning');
-    alertElement.classList.add(data.alert_class || 'alert-primary');
-    document.getElementById('in_out').textContent = data.time_in_out || 'Scan Your ID Barcode';
-    
-    // Update photo
-    if (data.photo) {
-        document.getElementById('pic').src = 'admin/uploads/' + data.photo;
-    }
-}
 
 // Play alert sound
 function playAlertSound() {
@@ -1047,11 +1161,11 @@ function processManualInput() {
     
     // Show processing state
     document.getElementById('result').innerHTML = `
-        <div class="d-flex justify-content-center">
-            <div class="spinner-border text-primary" role="status">
+        <div class="d-flex justify-content-center align-items-center">
+            <div class="spinner-border text-primary me-2" role="status" style="width: 1rem; height: 1rem;">
                 <span class="visually-hidden">Loading...</span>
             </div>
-            <span class="ms-2">Processing...</span>
+            <span>Processing...</span>
         </div>
     `;
     
@@ -1059,6 +1173,14 @@ function processManualInput() {
     document.getElementById('manualIdInput').disabled = true;
     document.getElementById('manualSubmitBtn').disabled = true;
     
+    // Process the barcode (same as scanner)
+    processBarcode(idNumber);
+    
+    // Re-enable input after processing
+    setTimeout(() => {
+        document.getElementById('manualIdInput').disabled = false;
+        document.getElementById('manualSubmitBtn').disabled = false;
+    }, 2000);
     // Process the attendance
     $.ajax({
         type: "POST",
