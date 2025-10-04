@@ -657,11 +657,11 @@ function processBarcode(barcode) {
             type: "POST",
             url: "process_barcode.php",
             data: { 
-                    barcode: barcode,
-                    department: "<?php echo $department; ?>",
-                    location: "<?php echo $location; ?>", 
-                    is_first_student: isFirstStudent
-                },
+                barcode: barcode,
+                department: "<?php echo $department; ?>",  // Changed from current_department
+                location: "<?php echo $location; ?>",      // Changed from current_location
+                is_first_student: isFirstStudent
+            },
         success: function(response) {
             console.log("Raw server response:", response);
             
