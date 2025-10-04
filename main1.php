@@ -847,47 +847,56 @@ function onScanError(error) {
     // console.error('Scanner error:', error);
 }
 
-function processBarcode(barcode) {
-    $.ajax({
-        type: "POST",
-        url: "process_barcode.php",
-        data: { 
-            barcode: barcode,
-            current_department: "<?php echo $department; ?>",
-            current_location: "<?php echo $location; ?>",
-            is_first_student: <?php echo $_SESSION['is_first_student'] ? 'true' : 'false'; ?>,
-            allowed_section: "<?php echo $_SESSION['allowed_section'] ?? ''; ?>",
-            allowed_year: "<?php echo $_SESSION['allowed_year'] ?? ''; ?>"
-        },
-        success: function(response) {
-            const data = typeof response === 'string' ? JSON.parse(response) : response;
+    function processBarcode(barcode) {
+        $.ajax({
+            type: "POST",
+            url: "process_barcode.php",
+            data: { 
+                barcode: barcode,
+                current_department: "<?php echo $department; ?>",
+                current_location: "<?php echo $location; ?>",
+                is_first_student: <?php echo $_SESSION['is_first_student'] ? 'true' : 'false'; ?>,
+                allowed_section: "<?php echo $_SESSION['allowed_section'] ?? ''; ?>",
+                allowed_year: "<?php echo $_SESSION['allowed_year'] ?? ''; ?>"
+            },
+            success: function(response) {
+                try {
+                    const data = typeof response === 'string' ? JSON.parse(response) : response;
 
-            if (data.error) {
-                showErrorMessage(data.error);
-                return;
+                    if (data.error) {
+                        showErrorMessage(data.error);
+                        return;
+                    }
+
+                    // If first student, set allowed section/year
+                    if (<?php echo $_SESSION['is_first_student'] ? 'true' : 'false'; ?> && data.section && data.year_level) {
+                        // Store in session via AJAX
+                        $.post('set_session.php', {
+                            allowed_section: data.section,
+                            allowed_year: data.year_level,
+                            is_first_student: false
+                        });
+                        
+                        // Update local variables
+                        allowedSection = data.section;
+                        allowedYear = data.year_level;
+                        isFirstStudent = false;
+                    }
+
+                    // ✅ FIX: Now record the attendance and show modal
+                    recordAttendance(data.id_number, data);
+                    
+                } catch (e) {
+                    console.error("Error parsing response:", e);
+                    showErrorMessage("Error processing barcode");
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error("AJAX error:", status, error);
+                showErrorMessage("Server error: " + error);
             }
-
-            // If first student, set allowed section/year
-            if (<?php echo $_SESSION['is_first_student'] ? 'true' : 'false'; ?> && data.section && data.year_level) {
-                // Store in session via AJAX
-                $.post('set_session.php', {
-                    allowed_section: data.section,
-                    allowed_year: data.year_level,
-                    is_first_student: false
-                });
-                
-                // Update local variables
-                allowedSection = data.section;
-                allowedYear = data.year_level;
-                isFirstStudent = false;
-            }
-
-            // Show confirmation modal
-            showConfirmationModal(data);
-            
-        }
-    });
-}
+        });
+    }
 
 // Show preview modal in the scanner frame
 function showScannerPreviewModal(data) {
@@ -923,7 +932,7 @@ function showScannerPreviewModal(data) {
 function recordAttendance(idNumber, studentData) {
     $.ajax({
         type: "POST",
-        url: "student_logs.php",
+        url: "students_logs.php",
         data: { 
             id_number: idNumber,
             department: "<?php echo $department; ?>",
