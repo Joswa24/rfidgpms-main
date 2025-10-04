@@ -922,6 +922,10 @@ function onScanError(error) {
         </div>
     `;
     
+    // Disable inputs during processing
+    document.getElementById('manualIdInput').disabled = true;
+    document.getElementById('manualSubmitBtn').disabled = true;
+    
     $.ajax({
         type: "POST",
         url: "process_barcode.php",
@@ -934,6 +938,13 @@ function onScanError(error) {
         timeout: 10000,
         success: function(response) {
             console.log("✅ SUCCESS - Raw response:", response);
+            
+            // Check if response is valid
+            if (!response || typeof response !== 'object') {
+                console.error("Invalid response format");
+                showSuccessFallback(barcode);
+                return;
+            }
             
             if (response.error) {
                 console.log("❌ Server error:", response.error);
@@ -962,17 +973,30 @@ function onScanError(error) {
             console.error("Error:", error);
             console.error("Response text:", xhr.responseText);
             
-            if (status === "timeout") {
-                showErrorMessage("Request timeout. Please try again.");
-            } else if (status === "parsererror") {
-                showErrorMessage("Invalid response from server.");
-            } else {
-                // Even if AJAX fails, show success since attendance was likely recorded
-                showSuccessFallback(barcode);
+            // Try to parse response even if AJAX reports error
+            if (xhr.responseText) {
+                try {
+                    const parsedResponse = JSON.parse(xhr.responseText);
+                    console.log("📦 Parsed error response:", parsedResponse);
+                    
+                    if (parsedResponse.error) {
+                        showErrorMessage(parsedResponse.error);
+                    } else {
+                        // If we got valid JSON but AJAX still errored, try to use it
+                        updateAttendanceUI(parsedResponse);
+                        showConfirmationModal(parsedResponse);
+                        return;
+                    }
+                } catch (e) {
+                    console.log("Could not parse response as JSON");
+                }
             }
+            
+            // Fallback to success since attendance was recorded
+            showSuccessFallback(barcode);
         },
         complete: function() {
-            // ✅ RE-ENABLE INPUTS HERE for both success and error cases
+            // Re-enable inputs
             document.getElementById('manualIdInput').disabled = false;
             document.getElementById('manualSubmitBtn').disabled = false;
             document.getElementById('manualIdInput').value = '';

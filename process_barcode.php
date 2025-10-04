@@ -9,8 +9,11 @@ include 'connection.php';
 // Set JSON header at the very top
 header('Content-Type: application/json; charset=utf-8');
 
-// Prevent any other output
+// Start output buffering to catch any stray output
 ob_start();
+
+// Initialize response array
+$response = [];
 
 try {
     // Get POST data
@@ -42,7 +45,11 @@ try {
     }
 
     $stmt->bind_param("s", $barcode);
-    $stmt->execute();
+    
+    if (!$stmt->execute()) {
+        throw new Exception('Failed to execute student query');
+    }
+    
     $student_result = $stmt->get_result();
 
     if ($student_result->num_rows === 0) {
@@ -54,19 +61,24 @@ try {
 
     // Get photo path
     function getStudentPhoto($photo) {
-        $basePath = 'uploads/students/';
-        $defaultPhoto = 'assets/img/2601828.png';
-
-        if (empty($photo) || !file_exists($basePath . $photo)) {
-            return $defaultPhoto;
+        if (empty($photo)) {
+            return 'assets/img/2601828.png';
         }
-
-        return $basePath . $photo;
+        
+        $basePath = 'uploads/students/';
+        $fullPath = $basePath . $photo;
+        
+        // Check if file exists
+        if (file_exists($fullPath)) {
+            return $fullPath;
+        } else {
+            return 'assets/img/2601828.png';
+        }
     }
 
-    $photo_path = getStudentPhoto($student['photo']);
+    $photo_path = getStudentPhoto($student['photo'] ?? '');
 
-    // Prepare response
+    // Prepare base response
     $response = [
         'full_name' => $student['fullname'] ?? 'Unknown Student',
         'id_number' => $student['id_number'] ?? $barcode,
@@ -93,11 +105,15 @@ try {
     $log_stmt = $db->prepare($log_query);
 
     if (!$log_stmt) {
-        throw new Exception('Failed to check attendance logs');
+        throw new Exception('Failed to prepare log query');
     }
 
     $log_stmt->bind_param("isss", $student['id'], $today, $current_department, $current_location);
-    $log_stmt->execute();
+    
+    if (!$log_stmt->execute()) {
+        throw new Exception('Failed to execute log query');
+    }
+    
     $log_result = $log_stmt->get_result();
     $existing_log = $log_result->fetch_assoc();
 
@@ -113,6 +129,9 @@ try {
                 $response['time_in'] = date('h:i A', strtotime($existing_log['time_in']));
                 $response['time_in_out'] = 'Time Out Recorded';
                 $response['alert_class'] = 'alert-warning';
+                $response['voice'] = "Time out recorded for {$student['fullname']}";
+            } else {
+                throw new Exception('Failed to record time out');
             }
             if ($update_stmt) $update_stmt->close();
         } else {
@@ -135,23 +154,34 @@ try {
             $response['time_in'] = date('h:i A', strtotime($now));
             $response['time_in_out'] = 'Time In Recorded';
             $response['alert_class'] = 'alert-success';
+            $response['voice'] = "Time in recorded for {$student['fullname']}";
+        } else {
+            throw new Exception('Failed to record time in');
         }
         if ($insert_stmt) $insert_stmt->close();
     }
 
     $log_stmt->close();
-    mysqli_close($db);
 
-    // Clean output and send success response
-    ob_clean();
-    echo json_encode($response);
-    
 } catch (Exception $e) {
-    // Clean output and send error response
-    ob_clean();
-    echo json_encode(['error' => $e->getMessage()]);
+    $response['error'] = $e->getMessage();
 }
 
-ob_end_flush();
+// Close database connection
+if (isset($db)) {
+    mysqli_close($db);
+}
+
+// Clean any output and send JSON response
+$ob_contents = ob_get_contents();
+ob_end_clean();
+
+// If there was any unexpected output, log it but still send JSON
+if (!empty($ob_contents)) {
+    error_log("Unexpected output in process_barcode.php: " . $ob_contents);
+}
+
+// Ensure we only output JSON
+echo json_encode($response);
 exit;
 ?>
