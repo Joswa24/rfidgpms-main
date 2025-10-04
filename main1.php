@@ -1111,8 +1111,8 @@ function speakMessage(message) {
         
         const speech = new SpeechSynthesisUtterance();
         speech.text = message;
-        speech.volume = 1;
-        speech.rate = 1;
+        speech.volume = 3;
+        speech.rate = 3;
         speech.pitch = 1.1;
         
         const voices = window.speechSynthesis.getVoices();
@@ -1121,7 +1121,7 @@ function speakMessage(message) {
             speech.voice = voice;
         }
         
-        
+        window.speechSynthesis.speak(speech);
     }
 }
 
