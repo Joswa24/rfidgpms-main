@@ -16,8 +16,11 @@ if (empty($barcode)) {
     exit;
 }
 
-// Fetch student data
-$student_query = "SELECT * FROM students WHERE id_number = ?";
+// Fetch student data including department name and photo path
+$student_query = "SELECT s.*, d.department_name 
+                  FROM students s 
+                  LEFT JOIN department d ON s.department_id = d.department_id 
+                  WHERE s.id_number = ?";
 $stmt = $db->prepare($student_query);
 $stmt->bind_param("s", $barcode);
 $stmt->execute();
@@ -75,23 +78,55 @@ $log_stmt->execute();
 $log_result = $log_stmt->get_result();
 $existing_log = $log_result->fetch_assoc();
 
+// Get student photo path (compatible with your students.php system)
+function getStudentPhoto($photo) {
+    $basePath = '../uploads/students/';
+    $defaultPhoto = '../assets/img/2601828.png';
+
+    // If no photo or file does not exist → return default
+    if (empty($photo) || !file_exists($basePath . $photo)) {
+        return $defaultPhoto;
+    }
+
+    return $basePath . $photo;
+}
+
+// Get photo path and convert to base64 if file exists
+$photo_path = getStudentPhoto($student['photo']);
+$photo_base64 = '';
+
+if (file_exists($photo_path)) {
+    $image_data = file_get_contents($photo_path);
+    if ($image_data !== false) {
+        $photo_base64 = 'data:image/jpeg;base64,' . base64_encode($image_data);
+    }
+}
+
+// If base64 conversion failed, use default photo
+if (empty($photo_base64)) {
+    $default_photo_path = '../assets/img/2601828.png';
+    if (file_exists($default_photo_path)) {
+        $image_data = file_get_contents($default_photo_path);
+        $photo_base64 = 'data:image/jpeg;base64,' . base64_encode($image_data);
+    }
+}
+
 // Prepare response
 $response = [
     'full_name' => $student['fullname'],
     'id_number' => $student['id_number'],
-    'department' => $student['department'] ?? 'N/A',
-    'photo' => $student['photo'] ?? '',
+    'department' => $student['department_name'] ?? 'N/A', // Use department_name from join
+    'photo' => $photo_base64,
     'section' => $student['section'],
-    'year_level' => $student['year'],  // Matches your 'year' column
-    'role' => $student['role'] ?? 'Student', // Added default value
+    'year_level' => $student['year'],
+    'role' => $student['role'] ?? 'Student',
     'time_in' => '',
     'time_out' => '',
-    'time_in_out' => '',
     'alert_class' => 'alert-primary',
     'voice' => ''
 ];
-// Check if there's an existing log for today
 
+// Check if there's an existing log for today
 if ($existing_log) {
     if (empty($existing_log['time_out'])) {
         // Record time out
