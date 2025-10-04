@@ -636,44 +636,6 @@ function updatePhoto(data) {
     photoElement.src = photoPath + "?t=" + new Date().getTime();
 }
 
-// CORRECTED: Show confirmation modal - FIXED VERSION
-function showConfirmationModal(data) {
-    console.log('Showing confirmation modal with data:', data);
-    
-    // Get current time and date
-    const now = new Date();
-    const timeString = now.toLocaleTimeString([], { 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit' 
-    });
-    const dateString = now.toLocaleDateString([], { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-    });
-
-    // Update modal content with safe fallbacks
-    setElementText('modalPersonName', data.full_name || 'Unknown Person');
-    setElementText('modalPersonId', data.id_number || 'N/A');
-    setElementText('modalPersonRole', data.role || 'Visitor');
-    setElementText('modalPersonDept', data.department || 'N/A');
-    setElementText('modalTimeDisplay', timeString);
-    setElementText('modalDateDisplay', dateString);
-
-    // CORRECTED: Set person photo
-    updateModalPhoto(data);
-
-    // Update access status
-    updateModalAccessStatus(data);
-
-    // Show the modal using Bootstrap
-    showBootstrapModal();
-    
-    // Speak confirmation message
-    speakConfirmationMessage(data);
-}
 
 // CORRECTED: Update modal photo function
 function updateModalPhoto(data) {
