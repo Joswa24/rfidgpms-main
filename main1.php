@@ -1,7 +1,8 @@
 <?php
 include 'connection.php';
 session_start();
-
+// In your login process or at the top of main1.php
+$_SESSION['instructor_id'] = 1; // Replace with actual instructor ID from your login system
 // Initialize session variables with proper checks
 $_SESSION['allowed_section'] = $_SESSION['allowed_section'] ?? null;
 $_SESSION['allowed_year'] = $_SESSION['allowed_year'] ?? null;
@@ -453,7 +454,7 @@ mysqli_close($db);
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title">
-                    <i class="fas fa-door-open me-2"></i>Gate Access Recorded
+                    <i class="fas fa-clipboard-check me-2"></i>Attendance Recorded
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -759,13 +760,39 @@ function showScannerOverlay() {
     }
 }
 
-
-        // Barcode Processing - IMPROVED VERSION
+    // Update classroom UI for attendance records
+    function updateClassroomUI(data) {
+        const alertElement = document.getElementById('alert');
+        if (!alertElement) return;
+        
+        // Reset classes
+        alertElement.classList.remove('alert-primary', 'alert-success', 'alert-warning', 'alert-danger', 'alert-info');
+        
+        // Set appropriate alert class based on attendance status
+        if (data.attendance_status === 'PRESENT RECORDED') {
+            alertElement.classList.add('alert-success');
+            document.getElementById('in_out').innerHTML = '<i class="fas fa-check-circle me-2"></i>ATTENDANCE RECORDED - PRESENT';
+        } else if (data.attendance_status === 'ALREADY RECORDED') {
+            alertElement.classList.add('alert-warning');
+            document.getElementById('in_out').innerHTML = '<i class="fas fa-info-circle me-2"></i>ATTENDANCE ALREADY RECORDED';
+        } else if (data.error) {
+            alertElement.classList.add('alert-danger');
+            document.getElementById('in_out').innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i>${data.error}`;
+        } else {
+            alertElement.classList.add('alert-primary');
+            document.getElementById('in_out').innerHTML = '<i class="fas fa-id-card me-2"></i>Scan Student ID for Attendance';
+        }
+        
+        // Update student photo
+        updatePhoto(data);
+    }
+        
+        // Classroom Attendance Processing with Instructor Records
         function processBarcode(barcode) {
-            console.log('Processing barcode:', barcode);
+            console.log('Processing student ID:', barcode);
             
             // Show processing message
-            updateResultMessage(`Processing: ${barcode}`, 'info');
+            updateResultMessage(`Processing Student ID: ${barcode}`, 'info');
             
             $.ajax({
                 type: "POST",
@@ -775,18 +802,17 @@ function showScannerOverlay() {
                     department: "<?php echo $department; ?>",
                     location: "<?php echo $location; ?>"
                 },
-                dataType: 'json', // Explicitly expect JSON
+                dataType: 'json',
                 success: function(response) {
                     console.log('Server response:', response);
                     
-                    // Response is already parsed as JSON due to dataType: 'json'
                     if (response.error) {
                         showErrorMessage(response.error);
                         return;
                     }
                     
                     // Update UI first
-                    updateGateUI(response);
+                    updateClassroomUI(response);
                     
                     // Then show confirmation modal
                     showConfirmationModal(response);
@@ -794,31 +820,27 @@ function showScannerOverlay() {
                 },
                 error: function(xhr, status, error) {
                     console.error('AJAX error:', status, error);
-                    console.log('Raw response:', xhr.responseText);
                     
-                    // Try to parse response even if there's an error
                     try {
                         const response = JSON.parse(xhr.responseText);
                         if (response.error) {
                             showErrorMessage(response.error);
                         } else {
-                            updateGateUI(response);
+                            updateClassroomUI(response);
                             showConfirmationModal(response);
                         }
                     } catch (e) {
-                        // If JSON parsing fails, show generic error but continue
-                        showErrorMessage('Server communication error, but attendance may have been recorded');
+                        showErrorMessage('System error, but attendance may have been recorded');
                         
-                        // Still try to update UI with basic info
                         const fallbackData = {
-                            full_name: 'Unknown',
+                            full_name: 'Student',
                             id_number: barcode,
                             department: 'N/A',
                             photo: 'uploads/students/default.png',
-                            time_in_out: 'Recorded',
+                            attendance_status: 'RECORDED',
                             role: 'Student'
                         };
-                        updateGateUI(fallbackData);
+                        updateClassroomUI(fallbackData);
                         showConfirmationModal(fallbackData);
                     }
                 }
@@ -952,43 +974,43 @@ function updateModalPhoto(data) {
     modalPhoto.src = photoPath + "?t=" + new Date().getTime();
 }
 
-function updateModalAccessStatus(data) {
-    const statusElement = document.getElementById('modalAccessStatus');
-    if (!statusElement) {
-        console.error('Modal access status element not found');
-        return;
+    function updateModalAccessStatus(data) {
+        const statusElement = document.getElementById('modalAccessStatus');
+        if (!statusElement) {
+            console.error('Modal access status element not found');
+            return;
+        }
+        
+        // Reset classes
+        statusElement.className = 'access-status';
+        
+        // Add appropriate styling based on attendance status
+        if (data.attendance_status === 'PRESENT RECORDED') {
+            statusElement.classList.add('time-in');
+            statusElement.innerHTML = `
+                <i class="fas fa-check-circle me-2"></i>
+                ATTENDANCE RECORDED - PRESENT
+            `;
+        } else if (data.attendance_status === 'ALREADY RECORDED') {
+            statusElement.classList.add('time-out');
+            statusElement.innerHTML = `
+                <i class="fas fa-info-circle me-2"></i>
+                ALREADY MARKED PRESENT
+            `;
+        } else if (data.error) {
+            statusElement.classList.add('access-denied');
+            statusElement.innerHTML = `
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                ${data.error}
+            `;
+        } else {
+            statusElement.classList.add('time-in');
+            statusElement.innerHTML = `
+                <i class="fas fa-check-circle me-2"></i>
+                ATTENDANCE RECORDED
+            `;
+        }
     }
-    
-    // Reset classes
-    statusElement.className = 'access-status';
-    
-    // Add appropriate styling based on response
-    if (data.time_in_out === 'Time In Recorded' || data.time_in_out === 'TIME IN') {
-        statusElement.classList.add('time-in');
-        statusElement.innerHTML = `
-            <i class="fas fa-sign-in-alt me-2"></i>
-            TIME IN RECORDED
-        `;
-    } else if (data.time_in_out === 'Time Out Recorded' || data.time_in_out === 'TIME OUT') {
-        statusElement.classList.add('time-out');
-        statusElement.innerHTML = `
-            <i class="fas fa-sign-out-alt me-2"></i>
-            TIME OUT RECORDED
-        `;
-    } else if (data.error) {
-        statusElement.classList.add('access-denied');
-        statusElement.innerHTML = `
-            <i class="fas fa-exclamation-triangle me-2"></i>
-            ${data.error}
-        `;
-    } else {
-        statusElement.classList.add('access-denied');
-        statusElement.innerHTML = `
-            <i class="fas fa-exclamation-triangle me-2"></i>
-            ACCESS DENIED
-        `;
-    }
-}
 
 function showBootstrapModal() {
     const modalElement = document.getElementById('confirmationModal');
@@ -1043,21 +1065,21 @@ function restartScanner() {
     }
 }
 
-function speakConfirmationMessage(data) {
-    let message = '';
-    
-    if (data.time_in_out === 'Time In Recorded' || data.time_in_out === 'TIME IN') {
-        message = `Welcome ${data.full_name || ''}. Time in recorded.`;
-    } else if (data.time_in_out === 'Time Out Recorded' || data.time_in_out === 'TIME OUT') {
-        message = `Goodbye ${data.full_name || ''}. Time out recorded.`;
-    } else if (data.error) {
-        message = data.error;
-    } else {
-        message = "Access recorded";
+    function speakConfirmationMessage(data) {
+        let message = '';
+        
+        if (data.attendance_status === 'PRESENT RECORDED') {
+            message = `Attendance recorded for ${data.full_name || 'student'}. Marked present.`;
+        } else if (data.attendance_status === 'ALREADY RECORDED') {
+            message = `Attendance already recorded for ${data.full_name || 'student'}`;
+        } else if (data.error) {
+            message = data.error;
+        } else {
+            message = "Attendance recorded";
+        }
+        
+        speakMessage(message);
     }
-    
-    speakMessage(message);
-}
 
 // Manual Input Processing
 function processManualInput() {
