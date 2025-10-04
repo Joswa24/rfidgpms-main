@@ -66,12 +66,12 @@ $existing_attendance = $attendance_result->fetch_assoc();
 $response = [
     'full_name' => $student['fullname'],
     'id_number' => $student['id_number'],
-    'department' => $student['department'] ?? 'N/A',
+    'department' => $student['department_name'] ?? $student['department'] ?? 'N/A',
     'photo' => $photo_path,
     'section' => $student['section'],
     'year_level' => $student['year'],
     'role' => $student['role'] ?? 'Student',
-    'status' => '',
+    'attendance_status' => 'PRESENT',
     'alert_class' => 'alert-primary',
     'voice' => ''
 ];

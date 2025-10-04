@@ -437,6 +437,53 @@ mysqli_close($db);
     border-radius: 20px;
     font-weight: bold;
 }
+.student-info .badge {
+    font-size: 0.8rem;
+    padding: 0.5rem 0.75rem;
+    margin-top: 0.25rem;
+    display: inline-block;
+    min-width: 80px;
+}
+
+.student-info .row {
+    margin-bottom: 0.5rem;
+}
+
+.student-info strong {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.access-status .time-in {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    padding: 10px 20px;
+    border-radius: 25px;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.access-status .time-out {
+    background-color: #fff3cd;
+    color: #856404;
+    padding: 10px 20px;
+    border-radius: 25px;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.access-status .access-denied {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 10px 20px;
+    border-radius: 25px;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.time-display {
+    border: 2px solid #e9ecef;
+}
     </style>
 </head>
 
@@ -459,34 +506,59 @@ mysqli_close($db);
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body text-center">
-                <!-- Person Photo -->
+                <!-- Student Photo -->
                 <div class="mb-3">
                     <img id="modalPersonPhoto"
                          src="uploads/students/default.png"
-                         alt="Person Photo"
+                         alt="Student Photo"
                          class="person-photo"
                          style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 3px solid #084298;">
                 </div>
 
-                <h4 id="modalPersonName" class="mb-3">Person Name</h4>
+                <h4 id="modalPersonName" class="mb-3">Student Name</h4>
                 
-                <div class="person-info mb-3">
-                    <div class="mb-2"><strong>ID:</strong> <span id="modalPersonId">N/A</span></div>
-                    <div class="mb-2"><strong>Role:</strong> <span id="modalPersonRole">N/A</span></div>
-                    <div class="mb-2"><strong>Department:</strong> <span id="modalPersonDept">N/A</span></div>
+                <div class="student-info mb-3">
+                    <div class="row">
+                        <div class="col-6 mb-2">
+                            <strong>ID Number:</strong><br>
+                            <span id="modalPersonId" class="badge bg-secondary">N/A</span>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <strong>Department:</strong><br>
+                            <span id="modalPersonDept" class="badge bg-info">N/A</span>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-2">
+                            <strong>Year Level:</strong><br>
+                            <span id="modalPersonYear" class="badge bg-warning">N/A</span>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <strong>Section:</strong><br>
+                            <span id="modalPersonSection" class="badge bg-success">N/A</span>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 mb-2">
+                            <strong>Role:</strong><br>
+                            <span id="modalPersonRole" class="badge bg-primary">Student</span>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="access-status mb-3" id="modalAccessStatus">
-                    <span id="modalAccessType" class="badge bg-success">Access Recorded</span>
+                    <span id="modalAccessType" class="badge bg-success">Attendance Recorded</span>
                 </div>
                 
-                <div class="time-display">
-                    <div id="modalTimeDisplay" class="fw-bold fs-5"></div>
-                    <div id="modalDateDisplay" class="text-muted"></div>
+                <div class="time-display bg-light p-3 rounded">
+                    <div id="modalTimeDisplay" class="fw-bold fs-5 text-primary"></div>
+                    <div id="modalDateDisplay" class="text-muted small"></div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-primary" onclick="closeModalAndContinue()">Continue Scanning</button>
+                <button type="button" class="btn btn-primary" onclick="closeModalAndContinue()">
+                    <i class="fas fa-qrcode me-2"></i>Continue Scanning
+                </button>
             </div>
         </div>
     </div>
@@ -895,122 +967,110 @@ function updatePhoto(data) {
 
     
     // CORRECTED: Show confirmation modal - ROBUST VERSION
-    function showConfirmationModal(data) {
-        console.log('Showing confirmation modal with data:', data);
-        
-        // Get current time and date
-        const now = new Date();
-        const timeString = now.toLocaleTimeString([], { 
-            hour: '2-digit', 
-            minute: '2-digit', 
-            second: '2-digit' 
-        });
-        const dateString = now.toLocaleDateString([], { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-        });
+    // CORRECTED: Show confirmation modal - COMPLETE STUDENT DATA VERSION
+function showConfirmationModal(data) {
+    console.log('Showing confirmation modal with student data:', data);
+    
+    // Get current time and date
+    const now = new Date();
+    const timeString = now.toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit' 
+    });
+    const dateString = now.toLocaleDateString([], { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    });
 
-        // Safe data access with fallbacks
-        const safeData = {
-            full_name: data.full_name || 'Unknown Person',
-            id_number: data.id_number || 'N/A',
-            role: data.role || 'Visitor',
-            department: data.department || 'N/A',
-            photo: data.photo || 'uploads/students/default.png',
-            time_in_out: data.time_in_out || 'Access Recorded'
-        };
+    // Safe data access with fallbacks - using all student fields from students.php
+    const safeData = {
+        full_name: data.full_name || 'Unknown Student',
+        id_number: data.id_number || 'N/A',
+        role: data.role || 'Student',
+        department: data.department || 'N/A',
+        year_level: data.year_level || data.year || 'N/A',
+        section: data.section || 'N/A',
+        photo: data.photo || 'uploads/students/default.png',
+        attendance_status: data.attendance_status || 'RECORDED',
+        time_in_out: data.time_in_out || 'Attendance Recorded'
+    };
 
-        // Update modal content with safe data
-        setElementText('modalPersonName', safeData.full_name);
-        setElementText('modalPersonId', safeData.id_number);
-        setElementText('modalPersonRole', safeData.role);
-        setElementText('modalPersonDept', safeData.department);
-        setElementText('modalTimeDisplay', timeString);
-        setElementText('modalDateDisplay', dateString);
+    // Update modal content with complete student data
+    setElementText('modalPersonName', safeData.full_name);
+    setElementText('modalPersonId', safeData.id_number);
+    setElementText('modalPersonRole', safeData.role);
+    setElementText('modalPersonDept', safeData.department);
+    setElementText('modalPersonYear', safeData.year_level);
+    setElementText('modalPersonSection', safeData.section);
+    setElementText('modalTimeDisplay', timeString);
+    setElementText('modalDateDisplay', dateString);
 
-        // Set person photo with cache busting
-        updateModalPhoto(safeData);
+    // Set student photo with cache busting
+    updateModalPhoto(safeData);
 
-        // Update access status
-        updateModalAccessStatus(safeData);
+    // Update attendance status
+    updateModalAccessStatus(safeData);
 
-        // Show the modal using Bootstrap
-        showBootstrapModal();
-        
-        // Speak confirmation message
-        speakConfirmationMessage(safeData);
-    }
+    // Show the modal using Bootstrap
+    showBootstrapModal();
+    
+    // Speak confirmation message
+    speakConfirmationMessage(safeData);
+}
 
-        function setElementText(elementId, text) {
-            const element = document.getElementById(elementId);
-            if (element) {
-                element.textContent = text || 'N/A'; // Fallback to 'N/A' if text is empty
-            } else {
-                console.warn('Element not found:', elementId);
-            }
-        }
 
-function updateModalPhoto(data) {
-    const modalPhoto = document.getElementById("modalPersonPhoto");
-    if (!modalPhoto) {
-        console.error('Modal photo element not found');
+
+// Update modal access status for classroom attendance
+function updateModalAccessStatus(data) {
+    const statusElement = document.getElementById('modalAccessStatus');
+    if (!statusElement) {
+        console.error('Modal access status element not found');
         return;
     }
     
-    let photoPath = "uploads/students/default.png";
+    // Reset classes
+    statusElement.className = 'access-status';
     
-    if (data.photo) {
-        if (data.photo.startsWith('data:image')) {
-            photoPath = data.photo;
-        } else {
-            photoPath = data.photo;
-        }
-    } else if (personPhotos[data.id_number]) {
-        photoPath = personPhotos[data.id_number];
+    // Add appropriate styling based on attendance status
+    if (data.attendance_status === 'PRESENT RECORDED' || data.time_in_out === 'Time In Recorded') {
+        statusElement.classList.add('time-in');
+        statusElement.innerHTML = `
+            <i class="fas fa-check-circle me-2"></i>
+            ATTENDANCE RECORDED - PRESENT
+        `;
+    } else if (data.attendance_status === 'ALREADY RECORDED' || data.time_in_out === 'Time Out Recorded') {
+        statusElement.classList.add('time-out');
+        statusElement.innerHTML = `
+            <i class="fas fa-info-circle me-2"></i>
+            ALREADY MARKED PRESENT
+        `;
+    } else if (data.error) {
+        statusElement.classList.add('access-denied');
+        statusElement.innerHTML = `
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            ${data.error}
+        `;
+    } else {
+        statusElement.classList.add('time-in');
+        statusElement.innerHTML = `
+            <i class="fas fa-check-circle me-2"></i>
+            ATTENDANCE RECORDED
+        `;
     }
-    
-    modalPhoto.src = photoPath + "?t=" + new Date().getTime();
 }
 
-    function updateModalAccessStatus(data) {
-        const statusElement = document.getElementById('modalAccessStatus');
-        if (!statusElement) {
-            console.error('Modal access status element not found');
-            return;
-        }
-        
-        // Reset classes
-        statusElement.className = 'access-status';
-        
-        // Add appropriate styling based on attendance status
-        if (data.attendance_status === 'PRESENT RECORDED') {
-            statusElement.classList.add('time-in');
-            statusElement.innerHTML = `
-                <i class="fas fa-check-circle me-2"></i>
-                ATTENDANCE RECORDED - PRESENT
-            `;
-        } else if (data.attendance_status === 'ALREADY RECORDED') {
-            statusElement.classList.add('time-out');
-            statusElement.innerHTML = `
-                <i class="fas fa-info-circle me-2"></i>
-                ALREADY MARKED PRESENT
-            `;
-        } else if (data.error) {
-            statusElement.classList.add('access-denied');
-            statusElement.innerHTML = `
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                ${data.error}
-            `;
-        } else {
-            statusElement.classList.add('time-in');
-            statusElement.innerHTML = `
-                <i class="fas fa-check-circle me-2"></i>
-                ATTENDANCE RECORDED
-            `;
-        }
+// Helper function to safely set element text
+function setElementText(elementId, text) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.textContent = text || 'N/A';
+    } else {
+        console.warn('Element not found:', elementId);
     }
+}
 
 function showBootstrapModal() {
     const modalElement = document.getElementById('confirmationModal');
