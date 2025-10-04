@@ -850,11 +850,8 @@ function onScanError(error) {
             url: "process_barcode.php",
             data: { 
                 barcode: barcode,
-                current_department: "<?php echo $department; ?>",
-                current_location: "<?php echo $location; ?>",
-                is_first_student: <?php echo $_SESSION['is_first_student'] ? 'true' : 'false'; ?>,
-                allowed_section: "<?php echo $_SESSION['allowed_section'] ?? ''; ?>",
-                allowed_year: "<?php echo $_SESSION['allowed_year'] ?? ''; ?>"
+                department: "<?php echo $department; ?>",
+                location: "<?php echo $location; ?>"
             },
             success: function(response) {
                 try {
@@ -862,35 +859,39 @@ function onScanError(error) {
 
                     if (data.error) {
                         showErrorMessage(data.error);
+                        speakErrorMessage(data.error);
+                        document.querySelector('.scanner-overlay').style.display = 'flex';
                         return;
                     }
 
-                    // If first student, set allowed section/year
-                    if (<?php echo $_SESSION['is_first_student'] ? 'true' : 'false'; ?> && data.section && data.year_level) {
-                        // Store in session via AJAX
-                        $.post('set_session.php', {
-                            allowed_section: data.section,
-                            allowed_year: data.year_level,
-                            is_first_student: false
-                        });
-                        
-                        // Update local variables
-                        allowedSection = data.section;
-                        allowedYear = data.year_level;
-                        isFirstStudent = false;
+                    // Update UI
+                    updateAttendanceUI(data);
+                    
+                    // Update photo
+                    if (data.photo) {
+                        document.getElementById('pic').src = data.photo;
                     }
-
-                    // ✅ FIX: Now record the attendance and show modal
-                    recordAttendance(data.id_number, data);
+                    
+                    // Show confirmation modal with all data
+                    showConfirmationModal(data);
+                    
+                    // Clear result after showing modal
+                    setTimeout(() => {
+                        document.getElementById('result').innerHTML = "";
+                        document.querySelector('.scanner-overlay').style.display = 'flex';
+                    }, 1000);
                     
                 } catch (e) {
-                    console.error("Error parsing response:", e);
+                    console.error("Error parsing response:", e, response);
                     showErrorMessage("Error processing barcode");
+                    document.querySelector('.scanner-overlay').style.display = 'flex';
                 }
             },
             error: function(xhr, status, error) {
                 console.error("AJAX error:", status, error);
+                console.log("Response text:", xhr.responseText);
                 showErrorMessage("Server error: " + error);
+                document.querySelector('.scanner-overlay').style.display = 'flex';
             }
         });
     }
