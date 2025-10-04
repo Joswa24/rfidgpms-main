@@ -414,46 +414,47 @@ mysqli_close($db);
 <div id="message"></div>
 
 <img src="uploads/Head.png" style="width: 100%; height: 150px; margin-left: 10px; padding=10px; margin-top=20px;S">
-        <!-- Confirmation Modal -->
-        <div class="modal fade confirmation-modal" id="confirmationModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Attendance Recorded</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body text-center">
-                        <!-- ✅ Student Photo - Fixed -->
-                        <img id="modalStudentPhoto" 
-                            src="assets/img/2601828.png" 
-                            alt="Student Photo" 
-                            class="modal-student-photo">
-                        
-                        <h4 id="modalStudentName" class="mb-3"></h4>
-                        
-                        <div class="student-info mb-3">
-                            <div class="mb-2"><strong>ID:</strong> <span id="modalStudentId"></span></div>
-                            <div class="mb-2"><strong>Department:</strong> <span id="modalStudentDept"></span></div>
-                            <div class="mb-2"><strong>Year & Section:</strong> <span id="modalStudentYearSection"></span></div>
-                            <div><strong>Role:</strong> <span id="modalStudentRole"></span></div>
-                        </div>
-                        
-                        <div class="attendance-status mb-3" id="modalAttendanceStatus">
-                            <span id="modalTimeInOut"></span>
-                        </div>
-                        
-                        <div class="time-display bg-light p-3 rounded">
-                            <div id="modalTimeDisplay" class="fw-bold fs-5"></div>
-                            <div id="modalDateDisplay" class="text-muted"></div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-primary" style="background-color: #87abe0ff" onclick="closeAndRefresh()">OK</button>
-                    </div>
+<!-- Confirmation Modal -->
+<div class="modal fade confirmation-modal" id="confirmationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Attendance Recorded</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+
+                <!-- ✅ Student Photo -->
+                <div class="mb-3">
+                    <img id="modalStudentPhoto"
+                         src="uploads/students/default.png"
+                         alt="Student Photo"
+                         style="width:150px;height:150px;object-fit:cover;border-radius:50%;border:3px solid #084298;">
+                </div>
+
+                <h4 id="modalStudentName"></h4>
+                
+                <div class="student-info">
+                    <div>ID: <span id="modalStudentId"></span></div>
+                    <div>Department: <span id="modalStudentDept"></span></div>
+                    <div>Role: <span id="modalStudentRole"></span></div>
+                </div>
+                
+                <div class="attendance-status" id="modalAttendanceStatus">
+                    <span id="modalTimeInOut"></span>
+                </div>
+                
+                <div class="time-display">
+                    <div id="modalTimeDisplay"></div>
+                    <div id="modalDateDisplay"></div>
                 </div>
             </div>
+            <div class="modal-footer">
+                 <button type="button" class="btn btn-primary" style="background-color: #87abe0ff" onclick="window.location.href='main1.php'">OK</button>
+            </div>
         </div>
-
+    </div>
+</div>
 
 
 <!-- Scanner Preview Modal (shown within scanner frame) -->
@@ -844,61 +845,47 @@ function onScanError(error) {
     // console.error('Scanner error:', error);
 }
 
-    function processBarcode(barcode) {
-        $.ajax({
-            type: "POST",
-            url: "process_barcode.php",
-            data: { 
-                barcode: barcode,
-                department: "<?php echo $department; ?>",
-                location: "<?php echo $location; ?>"
-            },
-            success: function(response) {
-                console.log("Raw response:", response);
-                
-                try {
-                    const data = typeof response === 'string' ? JSON.parse(response) : response;
-                    console.log("Parsed data:", data);
+function processBarcode(barcode) {
+    $.ajax({
+        type: "POST",
+        url: "process_barcode.php",
+        data: { 
+            barcode: barcode,
+            current_department: "<?php echo $department; ?>",
+            current_location: "<?php echo $location; ?>",
+            is_first_student: <?php echo $_SESSION['is_first_student'] ? 'true' : 'false'; ?>,
+            allowed_section: "<?php echo $_SESSION['allowed_section'] ?? ''; ?>",
+            allowed_year: "<?php echo $_SESSION['allowed_year'] ?? ''; ?>"
+        },
+        success: function(response) {
+            const data = typeof response === 'string' ? JSON.parse(response) : response;
 
-                    if (data.error) {
-                        showErrorMessage(data.error);
-                        speakErrorMessage(data.error);
-                        document.querySelector('.scanner-overlay').style.display = 'flex';
-                        return;
-                    }
-
-                    // Update UI
-                    updateAttendanceUI(data);
-                    
-                    // Update photo
-                    if (data.photo) {
-                        document.getElementById('pic').src = data.photo;
-                    }
-                    
-                    // Show confirmation modal with all data
-                    showConfirmationModal(data);
-                    
-                    // Clear result after showing modal
-                    setTimeout(() => {
-                        document.getElementById('result').innerHTML = "";
-                        document.querySelector('.scanner-overlay').style.display = 'flex';
-                    }, 1000);
-                    
-                } catch (e) {
-                    console.error("Error parsing response:", e);
-                    console.error("Response was:", response);
-                    showErrorMessage("Error processing barcode: " + e.message);
-                    document.querySelector('.scanner-overlay').style.display = 'flex';
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error("AJAX error:", status, error);
-                console.log("Response text:", xhr.responseText);
-                showErrorMessage("Server error: " + error);
-                document.querySelector('.scanner-overlay').style.display = 'flex';
+            if (data.error) {
+                showErrorMessage(data.error);
+                return;
             }
-        });
-    }
+
+            // If first student, set allowed section/year
+            if (<?php echo $_SESSION['is_first_student'] ? 'true' : 'false'; ?> && data.section && data.year_level) {
+                // Store in session via AJAX
+                $.post('set_session.php', {
+                    allowed_section: data.section,
+                    allowed_year: data.year_level,
+                    is_first_student: false
+                });
+                
+                // Update local variables
+                allowedSection = data.section;
+                allowedYear = data.year_level;
+                isFirstStudent = false;
+            }
+
+            // Show confirmation modal
+            showConfirmationModal(data);
+            
+        }
+    });
+}
 
 // Show preview modal in the scanner frame
 function showScannerPreviewModal(data) {
@@ -934,7 +921,7 @@ function showScannerPreviewModal(data) {
 function recordAttendance(idNumber, studentData) {
     $.ajax({
         type: "POST",
-        url: "students_logs.php",
+        url: "student_logs.php",
         data: { 
             id_number: idNumber,
             department: "<?php echo $department; ?>",
@@ -988,20 +975,60 @@ function showErrorMessage(message) {
 }
 
 // Show confirmation modal with complete student data
-// Updated function to show confirmation modal with the new design
 function showConfirmationModal(data) {
     // Get current time and date
     const now = new Date();
     const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const dateString = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-    // Update modal content
-    document.getElementById('modalStudentName').textContent = data.full_name || 'Unknown Student';
-    document.getElementById('modalStudentId').textContent = data.id_number || 'N/A';
-    document.getElementById('modalStudentDept').textContent = data.department || 'N/A';
-    document.getElementById('modalStudentRole').textContent = data.role || 'Student';
+    // Student details
+    document.getElementById('modalStudentName').textContent = 
+        data.full_name || 'Unknown Student';
+        
+    document.getElementById('modalStudentId').textContent = 
+        data.id_number || 'N/A';
+        
+    document.getElementById('modalStudentDept').textContent = 
+        "<?php echo $department; ?>" || 'N/A';
+        
+    document.getElementById('modalStudentRole').textContent = 
+        data.role || 'N/A';
+        
+    document.getElementById('modalTimeInOut').textContent = 
+        data.time_in_out || 'Attendance Recorded';
+        
     document.getElementById('modalTimeDisplay').textContent = timeString;
     document.getElementById('modalDateDisplay').textContent = dateString;
+
+    // ✅ Student Photo Mapping
+    const studentPhotos = {
+   
+    "2024-1570": "uploads/students/c9c9ed00-ab5c-4c3e-b197-56559ab7ca61.jpg", //JOhn cyrus
+   
+    "2024-1697": "uploads/students/68b75972d9975_5555-7777.jpg", //Rose Ann
+        // add more ID-photo pairs here...
+    };
+
+    let photoPath = studentPhotos[data.id_number] || "uploads/students/default.png";
+    document.getElementById("modalStudentPhoto").src = photoPath + "?t=" + new Date().getTime();
+
+    // Update status color and icon
+    const statusElement = document.getElementById('modalAttendanceStatus');
+    statusElement.className = 'attendance-status';
+    
+    if (data.alert_class === 'alert-success') {
+        statusElement.classList.add('time-in');
+        statusElement.innerHTML = `
+            <i class="fas fa-sign-in-alt me-2"></i>
+            ${data.time_in_out || 'Time In Recorded'}
+        `;
+    } else {
+        statusElement.classList.add('time-out');
+        statusElement.innerHTML = `
+            <i class="fas fa-sign-out-alt me-2"></i>
+            ${data.time_in_out || 'Time Out Recorded'}
+        `;
+    }
 
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('confirmationModal'));
