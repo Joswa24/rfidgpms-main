@@ -47,12 +47,10 @@ mysqli_close($db);
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/css/all.min.css" rel="stylesheet">
     
-    <!-- QR Code Scanner Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
-    
     <title>Classroom Attendance Scanner</title>
     <link rel="icon" href="uploads/scanner.webp" type="image/webp">
     <style>
+        /* Updated styles for barcode scanner interface */
         .scanner-display-area {
             background-color: #f8f9fa;
             border: 2px dashed #084298;
@@ -67,7 +65,7 @@ mysqli_close($db);
             align-items: center;
         }
 
-        .scanned-id-display {
+         .scanned-id-display {
             background-color: #f8f9fa;
             border: 2px solid #084298;
             border-radius: 8px;
@@ -94,12 +92,12 @@ mysqli_close($db);
             word-break: break-all;
         }
 
-        .processing-text {
-            color: #084298;
-            font-style: italic;
-            margin-top: 10px;
-        }
 
+.processing-text {
+    color: #084298;
+    font-style: italic;
+    margin-top: 10px;
+}
         .preview-1 {
             width: 140px!important;
             height: 130px!important;
@@ -146,7 +144,7 @@ mysqli_close($db);
         #reader {
             width: 50%;
             max-width: 250px;
-            margin: 0 auto;
+            margin: 0 auto; /* Centered horizontally */
             border: 2px solid #084298;
             border-radius: 10px;
             overflow: hidden;
@@ -163,7 +161,7 @@ mysqli_close($db);
         .scanner-container {
             position: relative;
             display: flex;
-            justify-content: center;
+            justify-content: center; /* Center the scanner */
             align-items: center;
             flex-direction: column;
         }
@@ -222,12 +220,15 @@ mysqli_close($db);
             padding: 10px;
             border: 1px solid #dee2e6;
             height: 20px;
+            
+                
         }
         
         .manual-input-section h4 {
             color: #084298;
             margin-bottom: 10px;
             text-align: center;
+
         }
         
         .input-group {
@@ -244,6 +245,7 @@ mysqli_close($db);
         #manualSubmitBtn {
             height: 50px;
             font-size: 1.1rem;
+           
         }
         
         /* Confirmation modal styling */
@@ -304,6 +306,7 @@ mysqli_close($db);
             justify-content: center;
         }
         
+        /* Add new styles for larger scanner */
         .large-scanner-container {
             position: relative;
             height: 60vh;
@@ -312,11 +315,13 @@ mysqli_close($db);
         }
         
         #largeReader {
+            
             border: 2px solid #084298;
             border-radius: 10px;
             overflow: hidden;
         }
         
+        /* Adjust the layout for the columns */
         .scanner-column {
             flex: 1;
             padding: 15px;
@@ -336,6 +341,50 @@ mysqli_close($db);
             border: 2px solid #084298;
             border-radius: 10px;
             margin-bottom: 20px;
+        }
+        
+        /* Scanner preview modal styles */
+        .scanner-preview-modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+            z-index: 1000;
+            width: 300px;
+            max-width: 90%;
+            text-align: center;
+        }
+        
+        .scanner-preview-modal img {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #084298;
+            margin-bottom: 15px;
+        }
+        
+        .scanner-preview-modal h5 {
+            margin-bottom: 10px;
+            color: #084298;
+        }
+        
+        .scanner-preview-modal p {
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        .scanner-preview-modal .btn-group {
+            margin-top: 15px;
+        }
+        
+        .scanner-preview-modal .btn {
+            padding: 5px 15px;
+            margin: 0 5px;
         }
         
         .blink {
@@ -364,47 +413,64 @@ mysqli_close($db);
 </audio> 
 <div id="message"></div>
 
-<img src="uploads/Head.png" style="width: 100%; height: 150px; margin-left: 10px; padding=10px; margin-top=20px;">
-
-<!-- Confirmation Modal -->
-<div class="modal fade confirmation-modal" id="confirmationModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Attendance Recorded</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body text-center">
-                <!-- Student Photo -->
-                <img id="modalStudentPhoto" 
-                    src="assets/img/2601828.png" 
-                    alt="Student Photo" 
-                    class="student-photo mb-3">
-                
-                <h4 id="modalStudentName" class="mb-3"></h4>
-                
-                <div class="student-info mb-3">
-                    <div class="mb-2"><strong>ID:</strong> <span id="modalStudentId"></span></div>
-                    <div class="mb-2"><strong>Department:</strong> <span id="modalStudentDept"></span></div>
-                    <div class="mb-2"><strong>Year & Section:</strong> <span id="modalStudentYearSection"></span></div>
-                    <div><strong>Role:</strong> <span id="modalStudentRole"></span></div>
+<img src="uploads/Head.png" style="width: 100%; height: 150px; margin-left: 10px; padding=10px; margin-top=20px;S">
+        <!-- Confirmation Modal -->
+        <div class="modal fade confirmation-modal" id="confirmationModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Attendance Recorded</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-center">
+                        <!-- ✅ Student Photo - Fixed -->
+                        <img id="modalStudentPhoto" 
+                            src="assets/img/2601828.png" 
+                            alt="Student Photo" 
+                            class="modal-student-photo">
+                        
+                        <h4 id="modalStudentName" class="mb-3"></h4>
+                        
+                        <div class="student-info mb-3">
+                            <div class="mb-2"><strong>ID:</strong> <span id="modalStudentId"></span></div>
+                            <div class="mb-2"><strong>Department:</strong> <span id="modalStudentDept"></span></div>
+                            <div class="mb-2"><strong>Year & Section:</strong> <span id="modalStudentYearSection"></span></div>
+                            <div><strong>Role:</strong> <span id="modalStudentRole"></span></div>
+                        </div>
+                        
+                        <div class="attendance-status mb-3" id="modalAttendanceStatus">
+                            <span id="modalTimeInOut"></span>
+                        </div>
+                        
+                        <div class="time-display bg-light p-3 rounded">
+                            <div id="modalTimeDisplay" class="fw-bold fs-5"></div>
+                            <div id="modalDateDisplay" class="text-muted"></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary" style="background-color: #87abe0ff" onclick="closeAndRefresh()">OK</button>
+                    </div>
                 </div>
-                
-                <div class="attendance-status mb-3" id="modalAttendanceStatus">
-                    <span id="modalTimeInOut"></span>
-                </div>
-                
-                <div class="time-display bg-light p-3 rounded">
-                    <div id="modalTimeDisplay" class="fw-bold fs-5"></div>
-                    <div id="modalDateDisplay" class="text-muted"></div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" style="background-color: #87abe0ff" data-bs-dismiss="modal">OK</button>
             </div>
         </div>
+
+
+
+<!-- Scanner Preview Modal (shown within scanner frame) -->
+<div id="ScannerPreviewModal" class="Scanner-preview-modal" style="display: none;">
+    <img id="previewPhoto" src="uploads/temporary.png" alt="Student Photo" type="image/png">
+    <h5 id="previewName"></h5>
+    <p>ID: <span id="previewId"></span></p>
+    <p>Department: <span id="previewDept"></span></p>
+    <p>Section: <span id="previewSection"></span></p>
+    <p>Year: <span id="previewYear"></span></p>
+    
+    <div class="btn-group">
+        <button id="previewConfirmBtn" class="btn btn-success">Confirm</button>
+        <button id="previewCancelBtn" class="btn btn-secondary">Cancel</button>
     </div>
 </div>
+
 
 <!-- Navigation Tabs -->
 <div class="container mt-3">
@@ -412,15 +478,14 @@ mysqli_close($db);
         <li class="nav-item">
             <a class="nav-link active active-tab" aria-current="page" href="#">Scanner</a>
         </li>
-        <li class="nav-item">
-            <a class="nav-link" href="students_logs.php?from_scanner=1">Attendance Log</a>
-        </li>
+       <li class="nav-item">
+    <a class="nav-link" href="students_logs.php?from_scanner=1">Attendance Log</a>
+</li>
     </ul>
 </div>
-
 <section class="hero" style="margin-top: 0; height: calc(100vh - 140px);">
     <div class="container h-100">
-        <!-- Department/Location Info Display -->
+        <!-- Department/Location Info Display - Made more compact -->
         <div class="dept-location-info mb-2 py-1">
             <h3 class="mb-1" style="font-size: 1rem;">Department: <?php echo $department; ?></h3>
             <h3 class="mb-1" style="font-size: 1rem;">Room: <?php echo $location; ?></h3>
@@ -436,17 +501,19 @@ mysqli_close($db);
             </div>
         </center>
         
-        <!-- Main Content Row -->
+        <!-- Main Content Row - Adjusted heights -->
         <div class="row" style="height: calc(100% - 120px);">
             <!-- Scanner Column (70% width) -->
             <div class="col-md-8 h-100" style="padding-right: 5px;">
                 <div class="alert alert-primary py-1 mb-2" role="alert" id="alert">
+                    <div class="alert alert-primary py-1 mb-2" role="alert" id="alert">
                     <center><h3 id="in_out" class="mb-0" style="font-size: 1rem;">
                         <i class="fas fa-id-card me-2"></i>Scan Your ID Card for Attendance
                     </h3></center>
                 </div>
+                </div>
 
-                <!-- Scanner Container -->
+                <!-- Scanner Container - Adjusted size -->
                 <div class="large-scanner-container" style="height: calc(100% - 60px);">
                     <div id="largeReader" style="height: 100%;"></div>
                     <div class="scanner-overlay">
@@ -460,12 +527,12 @@ mysqli_close($db);
             
             <!-- Photo/Manual Input Column (30% width) -->
             <div class="col-md-4 h-100 d-flex flex-column" style="padding-left: 5px;">
-                <!-- Student Photo -->
-                <img id="pic" class="mb-2" alt="" 
+                <!-- Student Photo - Made smaller -->
+                <img id="pic" class="mb-2" alt=""; 
                      src="assets/img/section/type.jpg"
                      style="margin-top: .5px; width: 100%; height: 200px; object-fit: cover; border: 2px solid #084298; border-radius: 3px;">
                 
-                <!-- Manual Input Section -->
+                <!-- Manual Input Section - Made more compact -->
                 <div class="manual-input-section flex-grow-1" style="padding: 10px; margin-bottom:60px;">
                     <h4 class="mb-1" style="font-size: 1rem;"><i class="fas fa-keyboard"></i> Manual Attendance</h4>
                     <p class="text-center mb-2" style="font-size: 0.8rem;">For students who forgot their ID</p>
@@ -495,53 +562,35 @@ mysqli_close($db);
 
 <script>
 // Global variables
-let scanner = null;
 let barcodeBuffer = '';
 let lastScanTime = 0;
-const scanCooldown = 1000;
+const scanCooldown = 1000; // 1 second cooldown between scans
 let allowedSection = null;
 let allowedYear = null;
 let isFirstStudent = true;
 
-// Time and Date Functions
-function startTime() {
-    const today = new Date();
-    let h = today.getHours();
-    let m = today.getMinutes();
-    let s = today.getSeconds();
-    let period = h >= 12 ? 'PM' : 'AM';
-    
-    h = h % 12;
-    h = h ? h : 12;
-    
-    m = checkTime(m);
-    s = checkTime(s);
-    
-    document.getElementById('clock').innerHTML = h + ":" + m + ":" + s + " " + period;
-    
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    document.getElementById('currentDate').innerHTML = today.toLocaleDateString('en-US', options);
-    
-    setTimeout(startTime, 1000);
+// Student photo mapping
+const studentPhotos = {
+    "2024-0380": "uploads/students/68b703dcdff49_1232-1232.jpg",
+    "2024-1570": "uploads/students/68b703dcdff49_1232-1232.jpg",
+    "2024-0117": "uploads/students/68b703dcdff49_1232-1232.jpg",
+    "2024-1697": "uploads/students/68b703dcdff49_1232-1232.jpg",
+    // ✅ add more here...
+};
+
+function setStudentPhoto(idNumber) {
+    let photoPath = studentPhotos[idNumber] || "uploads/students/default.png";
+    document.getElementById("modalStudentPhoto").src = photoPath + "?t=" + new Date().getTime();
 }
 
-function checkTime(i) {
-    if (i < 10) {i = "0" + i};
-    return i;
-}
-
-// Scanner Initialization
+// Scanner Initialization and Control Functions
 function initScanner() {
-    if (typeof Html5QrcodeScanner === 'undefined') {
-        console.error("Html5QrcodeScanner library not loaded!");
-        showErrorMessage("Scanner library not loaded. Please refresh the page.");
-        return;
-    }
-    
+    // Clear any existing scanner instance
     if (scanner) {
-        scanner.clear().catch(err => console.log("Clear error:", err));
+        scanner.clear();
     }
     
+    // Create new scanner instance with configuration
     scanner = new Html5QrcodeScanner('largeReader', { 
         qrbox: {
             width: 300,
@@ -553,6 +602,7 @@ function initScanner() {
         showTorchButtonIfSupported: true
     });
     
+    // Render the scanner with success and error callbacks
     scanner.render(onScanSuccess, onScanError);
 }
 
@@ -566,13 +616,218 @@ function stopScanner() {
     }
 }
 
+
+function restartScanner() {
+    stopScanner();
+    initScanner();
+    document.querySelector('.scanner-overlay').style.display = 'flex';
+}
+
+// Scanner Event Handlers
 function onScanSuccess(decodedText) {
     const now = Date.now();
     
+    // Implement scan cooldown to prevent duplicate scans
     if (now - lastScanTime < scanCooldown) {
         console.log("Scan cooldown active - ignoring scan");
         return;
     }
+    
+    lastScanTime = now;
+    
+    
+    
+    // Hide scanner overlay during processing
+    document.querySelector('.scanner-overlay').style.display = 'none';
+    
+    // Process the scanned barcode
+    processBarcode(decodedText);
+}
+
+function onScanError(error) {
+    // Handle different types of scanner errors
+    if (error.includes('No MultiFormat Readers were able to detect the code')) {
+        console.log("No barcode detected - continuing scan");
+        return;
+    }
+    
+    console.error('Scanner error:', error);
+    
+    // Show error to user if it's not a benign error
+    if (!error.includes('NotFoundException') && !error.includes('No MultiFormat Readers')) {
+        showErrorMessage(`Scanner error: ${error}`);
+    }
+}
+
+// Camera Control Functions
+function getCameraDevices() {
+    return Html5Qrcode.getCameras().then(devices => {
+        if (devices && devices.length) {
+            return devices;
+        }
+        throw "No cameras found";
+    });
+}
+
+function switchCamera(deviceId) {
+    if (!scanner) return;
+    
+    stopScanner();
+    
+    // Reinitialize with new camera
+    scanner = new Html5QrcodeScanner('largeReader', { 
+        qrbox: { width: 300, height: 300 },
+        fps: 20,
+        deviceId: { exact: deviceId }
+    });
+    
+    scanner.render(onScanSuccess, onScanError);
+}
+
+// Scanner UI Helpers
+function showScannerOverlay() {
+    document.querySelector('.scanner-overlay').style.display = 'flex';
+}
+
+function hideScannerOverlay() {
+    document.querySelector('.scanner-overlay').style.display = 'none';
+}
+
+// Scanner State Management
+let scannerState = {
+    isScanning: false,
+    currentCamera: null,
+    torchEnabled: false
+};
+
+function toggleTorch() {
+    if (!scanner || !scanner.getState().scanning) return;
+    
+    scannerState.torchEnabled = !scannerState.torchEnabled;
+    
+    scanner.applyVideoConstraints({
+        advanced: [{ torch: scannerState.torchEnabled }]
+    }).then(() => {
+        console.log(`Torch ${scannerState.torchEnabled ? 'enabled' : 'disabled'}`);
+    }).catch(err => {
+        console.error("Failed to toggle torch:", err);
+    });
+}
+function setStudentPhoto(idNumber) {
+    let photoPath = "uploads/students/default.png"; // default fallback
+
+    if (idNumber === "2024-1697") {
+        photoPath = "uploads/students/68b6d200ec51d_1117-8547.png";
+    } else if (idNumber === "2024-1698") {
+        photoPath = "uploads/students/68b6d200ec51d_1117-8547.png";
+    } else if (idNumber === "2024-1699") {
+        photoPath = "uploads/students/03.jpg";
+    }
+    // ✅ add more as needed...
+
+    // Update modal photo with cache busting
+    document.getElementById("modalStudentPhoto").src = photoPath + "?t=" + new Date().getTime();
+}
+
+// Initialize scanner when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // First check for camera permissions
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(() => {
+            // If permission granted, initialize scanner
+            initScanner();
+            
+            // Set up camera switching if multiple cameras available
+            getCameraDevices().then(devices => {
+                if (devices.length > 1) {
+                    // Add UI for camera switching if needed
+                    console.log("Multiple cameras available:", devices);
+                }
+            });
+        })
+        .catch(err => {
+            console.error("Scanner permission denied:", err);
+            showErrorMessage("Tap Your ID to the Scanner.");
+        });
+    
+    // Set up event listeners for manual controls
+    document.getElementById('manualIdInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            processManualInput();
+        }
+    });
+    
+    document.getElementById('manualSubmitBtn').addEventListener('click', processManualInput);
+    
+    // Focus on manual input field by default
+    document.getElementById('manualIdInput').focus();
+});
+
+// Handle page visibility changes to conserve resources
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        // Page is hidden, stop scanner to conserve resources
+        stopScanner();
+    } else {
+        // Page is visible again, restart scanner
+        initScanner();
+    }
+});
+
+// Clean up scanner when leaving page
+window.addEventListener('beforeunload', function() {
+    stopScanner();
+});
+
+// Time and Date Functions
+function startTime() {
+    const today = new Date();
+    let h = today.getHours();
+    let m = today.getMinutes();
+    let s = today.getSeconds();
+    let period = h >= 12 ? 'PM' : 'AM';
+    
+    // Convert to 12-hour format
+    h = h % 12;
+    h = h ? h : 12; // the hour '0' should be '12'
+    
+    m = checkTime(m);
+    s = checkTime(s);
+    
+    document.getElementById('clock').innerHTML = h + ":" + m + ":" + s + " " + period;
+    
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    document.getElementById('currentDate').innerHTML = today.toLocaleDateString('en-US', options);
+    
+    setTimeout(startTime, 1000);
+}
+
+function checkTime(i) {
+    if (i < 10) {i = "0" + i};  // add zero in front of numbers < 10
+    return i;
+}
+
+// Initialize scanner
+function initScanner() {
+    if (scanner) {
+        scanner.clear();
+    }
+    
+    scanner = new Html5QrcodeScanner('largeReader', { 
+        qrbox: {
+            width: 300,
+            height: 300,
+        },
+        fps: 20,
+    });
+    
+    scanner.render(onScanSuccess, onScanError);
+}
+
+// Scanner success callback
+function onScanSuccess(decodedText) {
+    const now = Date.now();
+    if (now - lastScanTime < scanCooldown) return;
     
     lastScanTime = now;
     
@@ -584,167 +839,144 @@ function onScanSuccess(decodedText) {
     processBarcode(decodedText);
 }
 
+// Scanner error callback
 function onScanError(error) {
-    if (error.includes('No MultiFormat Readers were able to detect the code')) {
-        return;
-    }
+    // console.error('Scanner error:', error);
 }
 
-// Process Barcode
-function processBarcode(barcode) {
+    function processBarcode(barcode) {
+        $.ajax({
+            type: "POST",
+            url: "process_barcode.php",
+            data: { 
+                barcode: barcode,
+                department: "<?php echo $department; ?>",
+                location: "<?php echo $location; ?>"
+            },
+            success: function(response) {
+                console.log("Raw response:", response);
+                
+                try {
+                    const data = typeof response === 'string' ? JSON.parse(response) : response;
+                    console.log("Parsed data:", data);
+
+                    if (data.error) {
+                        showErrorMessage(data.error);
+                        speakErrorMessage(data.error);
+                        document.querySelector('.scanner-overlay').style.display = 'flex';
+                        return;
+                    }
+
+                    // Update UI
+                    updateAttendanceUI(data);
+                    
+                    // Update photo
+                    if (data.photo) {
+                        document.getElementById('pic').src = data.photo;
+                    }
+                    
+                    // Show confirmation modal with all data
+                    showConfirmationModal(data);
+                    
+                    // Clear result after showing modal
+                    setTimeout(() => {
+                        document.getElementById('result').innerHTML = "";
+                        document.querySelector('.scanner-overlay').style.display = 'flex';
+                    }, 1000);
+                    
+                } catch (e) {
+                    console.error("Error parsing response:", e);
+                    console.error("Response was:", response);
+                    showErrorMessage("Error processing barcode: " + e.message);
+                    document.querySelector('.scanner-overlay').style.display = 'flex';
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error("AJAX error:", status, error);
+                console.log("Response text:", xhr.responseText);
+                showErrorMessage("Server error: " + error);
+                document.querySelector('.scanner-overlay').style.display = 'flex';
+            }
+        });
+    }
+
+// Show preview modal in the scanner frame
+function showScannerPreviewModal(data) {
+    // Fill preview modal with student data
+    document.getElementById('previewPhoto').src = data.photo ? 'uploads' + data.photo : 'temporary.png';
+    document.getElementById('previewName').textContent = data.full_name || 'Unknown Student';
+    document.getElementById('previewId').textContent = data.id_number || 'N/A';
+    document.getElementById('previewDept').textContent = "<?php echo $department; ?>" || 'N/A';
+    document.getElementById('previewSection').textContent = data.section || 'N/A';
+    document.getElementById('previewYear').textContent = data.year_level || 'N/A';
+
+    // Show the preview modal
+    document.getElementById('scannerPreviewModal').style.display = 'block';
+
+    // Confirm button handler
+    document.getElementById('previewConfirmBtn').onclick = function() {
+        document.getElementById('scannerPreviewModal').style.display = 'none';
+        recordAttendance(data.id_number, data);
+    };
+
+    // Cancel button handler
+    document.getElementById('previewCancelBtn').onclick = function() {
+        document.getElementById('scannerPreviewModal').style.display = 'none';
+        document.getElementById('result').innerHTML = '<span class="text-warning">Entry cancelled.</span>';
+        document.querySelector('.scanner-overlay').style.display = 'flex';
+        setTimeout(() => {
+            document.getElementById('result').innerHTML = "";
+        }, 2000);
+    };
+}
+
+// Record attendance after confirmation
+function recordAttendance(idNumber, studentData) {
     $.ajax({
         type: "POST",
-        url: "process_barcode.php",
-        dataType: "json",
+        url: "students_logs.php",
         data: { 
-            barcode: barcode,
+            id_number: idNumber,
             department: "<?php echo $department; ?>",
             location: "<?php echo $location; ?>"
         },
         success: function(response) {
-            const data = typeof response === 'string' ? JSON.parse(response) : response;
+            try {
+                const data = typeof response === 'string' ? JSON.parse(response) : response;
 
-            if (data.error) {
-                showErrorMessage(data.error);
-                speakErrorMessage(data.error);
-                document.querySelector('.scanner-overlay').style.display = 'flex';
-                return;
-            }
+                if (data.error) {
+                    showErrorMessage(data.error);
+                    return;
+                }
 
-            updateAttendanceUI(data);
-            
-            if (data.photo) {
-                document.getElementById('pic').src = data.photo;
+                // Update UI with attendance data
+                updateAttendanceUI(data);
+                
+                // Show confirmation modal
+                showConfirmationModal(data);
+                
+               
+
+            } catch (e) {
+                console.error("Error processing response:", e, response);
+                showErrorMessage("Error processing attendance record");
             }
-            
-            showConfirmationModal(data);
-            
-            setTimeout(() => {
-                document.getElementById('result').innerHTML = "";
-                document.querySelector('.scanner-overlay').style.display = 'flex';
-            }, 1000);
         },
         error: function(xhr, status, error) {
             console.error("AJAX error:", status, error);
             showErrorMessage("Server error: " + error);
-            document.querySelector('.scanner-overlay').style.display = 'flex';
-        }
-    });
-}
-
-// Process Manual Input
-function processManualInput() {
-    const idNumber = document.getElementById('manualIdInput').value.trim();
-    
-    if (!idNumber) {
-        showErrorMessage("Please enter ID number");
-        speakErrorMessage("Please enter ID number");
-        return;
-    }
-    
-    document.getElementById('result').innerHTML = `
-        <div class="d-flex justify-content-center">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-            <span class="ms-2">Processing...</span>
-        </div>
-    `;
-    
-    document.getElementById('manualIdInput').disabled = true;
-    document.getElementById('manualSubmitBtn').disabled = true;
-    
-    $.ajax({
-        type: "POST",
-        url: "process_barcode.php",
-        dataType: "json",
-        data: { 
-            barcode: idNumber,
-            department: "<?php echo $department; ?>",
-            location: "<?php echo $location; ?>"
-        },
-        success: function(response) {
-            const data = typeof response === 'string' ? JSON.parse(response) : response;
-
-            if (data.error) {
-                showErrorMessage(data.error);
-                speakErrorMessage(data.error);
-                return;
-            }
-
-            updateAttendanceUI(data);
-            
-            if (data.photo) {
-                document.getElementById('pic').src = data.photo;
-            }
-            
-            showConfirmationModal(data);
-            
-            setTimeout(() => {
-                document.getElementById('result').innerHTML = "";
-            }, 1000);
-        },
-        error: function(xhr, status, error) {
-            console.error("AJAX error:", status, error);
-            showErrorMessage("Connection error. Please try again.");
-            speakErrorMessage("Connection error. Please try again.");
         },
         complete: function() {
-            document.getElementById('manualIdInput').value = '';
-            document.getElementById('manualIdInput').disabled = false;
-            document.getElementById('manualSubmitBtn').disabled = false;
-            document.getElementById('manualIdInput').focus();
+            // Re-enable scanner
+            document.querySelector('.scanner-overlay').style.display = 'flex';
+            setTimeout(() => {
+                document.getElementById('result').innerHTML = "";
+            }, 3000);
         }
     });
 }
 
-// Show Confirmation Modal
-function showConfirmationModal(data) {
-    const now = new Date();
-    const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const dateString = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-
-    document.getElementById('modalStudentName').textContent = data.full_name || 'Unknown Student';
-    document.getElementById('modalStudentId').textContent = data.id_number || 'N/A';
-    document.getElementById('modalStudentDept').textContent = data.department || "<?php echo $department; ?>";
-    document.getElementById('modalStudentYearSection').textContent = (data.year_level || 'N/A') + ' - ' + (data.section || 'N/A');
-    document.getElementById('modalStudentRole').textContent = data.role || 'Student';
-    document.getElementById('modalTimeDisplay').textContent = timeString;
-    document.getElementById('modalDateDisplay').textContent = dateString;
-
-    let photoPath = data.photo || "assets/img/default.png";
-    document.getElementById("modalStudentPhoto").src = photoPath + "?t=" + new Date().getTime();
-
-    const statusElement = document.getElementById('modalAttendanceStatus');
-    statusElement.className = 'attendance-status mb-3';
-    
-    if (data.alert_class === 'alert-success') {
-        statusElement.classList.add('time-in');
-        statusElement.innerHTML = `<i class="fas fa-sign-in-alt me-2"></i>${data.time_in_out || 'Time In Recorded'}`;
-    } else if (data.alert_class === 'alert-warning') {
-        statusElement.classList.add('time-out');
-        statusElement.innerHTML = `<i class="fas fa-sign-out-alt me-2"></i>${data.time_in_out || 'Time Out Recorded'}`;
-    } else {
-        statusElement.innerHTML = `<i class="fas fa-check-circle me-2"></i>${data.time_in_out || 'Attendance Recorded'}`;
-    }
-
-    const modal = new bootstrap.Modal(document.getElementById('confirmationModal'));
-    modal.show();
-}
-
-// Update Attendance UI
-function updateAttendanceUI(data) {
-    const alertElement = document.getElementById('alert');
-    alertElement.classList.remove('alert-primary', 'alert-success', 'alert-danger', 'alert-warning');
-    alertElement.classList.add(data.alert_class || 'alert-primary');
-    document.getElementById('in_out').textContent = data.time_in_out || 'Scan Your ID Barcode';
-    
-    if (data.photo) {
-        document.getElementById('pic').src = data.photo;
-    }
-}
-
-// Show Error Message
+// Show error message
 function showErrorMessage(message) {
     document.getElementById('result').innerHTML = `
         <div class="alert alert-danger d-flex align-items-center" role="alert">
@@ -755,7 +987,83 @@ function showErrorMessage(message) {
     playAlertSound();
 }
 
-// Play Alert Sound
+// Show confirmation modal with complete student data
+function showConfirmationModal(data) {
+    // Get current time and date
+    const now = new Date();
+    const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const dateString = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    // Student details
+    document.getElementById('modalStudentName').textContent = 
+        data.full_name || 'Unknown Student';
+        
+    document.getElementById('modalStudentId').textContent = 
+        data.id_number || 'N/A';
+        
+    document.getElementById('modalStudentDept').textContent = 
+        "<?php echo $department; ?>" || 'N/A';
+        
+    document.getElementById('modalStudentRole').textContent = 
+        data.role || 'N/A';
+        
+    document.getElementById('modalTimeInOut').textContent = 
+        data.time_in_out || 'Attendance Recorded';
+        
+    document.getElementById('modalTimeDisplay').textContent = timeString;
+    document.getElementById('modalDateDisplay').textContent = dateString;
+
+    // ✅ Student Photo Mapping
+    const studentPhotos = {
+   
+    "2024-1570": "uploads/students/c9c9ed00-ab5c-4c3e-b197-56559ab7ca61.jpg", //JOhn cyrus
+   
+    "2024-1697": "uploads/students/68b75972d9975_5555-7777.jpg", //Rose Ann
+        // add more ID-photo pairs here...
+    };
+
+    let photoPath = studentPhotos[data.id_number] || "uploads/students/default.png";
+    document.getElementById("modalStudentPhoto").src = photoPath + "?t=" + new Date().getTime();
+
+    // Update status color and icon
+    const statusElement = document.getElementById('modalAttendanceStatus');
+    statusElement.className = 'attendance-status';
+    
+    if (data.alert_class === 'alert-success') {
+        statusElement.classList.add('time-in');
+        statusElement.innerHTML = `
+            <i class="fas fa-sign-in-alt me-2"></i>
+            ${data.time_in_out || 'Time In Recorded'}
+        `;
+    } else {
+        statusElement.classList.add('time-out');
+        statusElement.innerHTML = `
+            <i class="fas fa-sign-out-alt me-2"></i>
+            ${data.time_in_out || 'Time Out Recorded'}
+        `;
+    }
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('confirmationModal'));
+    modal.show();
+}
+
+
+// Update UI with attendance data
+function updateAttendanceUI(data) {
+    // Update alert color and text
+    const alertElement = document.getElementById('alert');
+    alertElement.classList.remove('alert-primary', 'alert-success', 'alert-danger', 'alert-warning');
+    alertElement.classList.add(data.alert_class || 'alert-primary');
+    document.getElementById('in_out').textContent = data.time_in_out || 'Scan Your ID Barcode';
+    
+    // Update photo
+    if (data.photo) {
+        document.getElementById('pic').src = 'admin/uploads/' + data.photo;
+    }
+}
+
+// Play alert sound
 function playAlertSound() {
     const audio = document.getElementById('myAudio');
     audio.currentTime = 0;
@@ -764,23 +1072,117 @@ function playAlertSound() {
     });
 }
 
-// Speak Error Message
+// ========= MANUAL ATTENDANCE FEATURES =========
+
+// Process manual input
+// ========= MANUAL ATTENDANCE FEATURES =========
+function processManualInput() {
+    const idNumber = document.getElementById('manualIdInput').value.trim();
+    
+    if (!idNumber) {
+        showErrorMessage("Please enter ID number");
+        speakErrorMessage("Please enter ID number");
+        return;
+    }
+    
+    // Show processing state
+    document.getElementById('result').innerHTML = `
+        <div class="d-flex justify-content-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <span class="ms-2">Processing...</span>
+        </div>
+    `;
+    
+    // Disable input during processing
+    document.getElementById('manualIdInput').disabled = true;
+    document.getElementById('manualSubmitBtn').disabled = true;
+    
+    // Process the attendance
+    $.ajax({
+        type: "POST",
+        url: "process_barcode.php",
+        data: { 
+            barcode: idNumber,
+            current_department: "<?php echo $department; ?>",
+            current_location: "<?php echo $location; ?>",
+            is_first_student: isFirstStudent
+        },
+        success: function(response) {
+            try {
+                const data = typeof response === 'string' ? JSON.parse(response) : response;
+
+                if (data.error) {
+                    showErrorMessage(data.error);
+                    speakErrorMessage(data.error);
+                    return;
+                }
+
+                // Update UI immediately
+                updateAttendanceUI(data);
+                
+                // Update student photo
+                document.getElementById('pic').src = data.photo ? 'uploads' + data.photo : 'temporary.png';
+                
+                // Show confirmation modal
+                showConfirmationModal(data);
+                
+                // If this is the first student, set allowed section/year
+                if (isFirstStudent && data.section && data.year_level) {
+                    allowedSection = data.section;
+                    allowedYear = data.year_level;
+                    isFirstStudent = false;
+                }
+
+            } catch (e) {
+                console.error("Error processing response:", e, response);
+                
+                
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error("AJAX error:", status, error);
+            const msg = "Connection error. Please try again.";
+            showErrorMessage(msg);
+            speakErrorMessage(msg);
+        },
+        complete: function() {
+            // Re-enable input
+            document.getElementById('manualIdInput').value = '';
+            document.getElementById('manualIdInput').disabled = false;
+            document.getElementById('manualSubmitBtn').disabled = false;
+            document.getElementById('manualIdInput').focus();
+        }
+    });
+}
+
+// Add this new function to speak error messages
 function speakErrorMessage(message) {
     if ('speechSynthesis' in window) {
+        // Cancel any ongoing speech
         window.speechSynthesis.cancel();
         
         const speech = new SpeechSynthesisUtterance();
         speech.text = message;
         speech.volume = 1;
         speech.rate = 1;
-        speech.pitch = 1.1;
+        speech.pitch = 1.1;  // Slightly higher pitch for clarity
         
+        // Set voice if available
         const voices = window.speechSynthesis.getVoices();
         if (voices.length > 0) {
-            const preferredVoices = ['Google UK English Female', 'Microsoft Zira Desktop', 'Karen'];
+            // Prefer natural-sounding voices
+            const preferredVoices = [
+                'Google UK English Female',
+                'Microsoft Zira Desktop',
+                'Karen'
+            ];
+            
             const voice = voices.find(v => preferredVoices.includes(v.name)) || 
                           voices.find(v => v.lang.includes('en')) || 
                           voices[0];
+            
             speech.voice = voice;
         }
         
@@ -788,9 +1190,11 @@ function speakErrorMessage(message) {
     }
 }
 
-// Initialize
+// Initialize speech synthesis when page loads
 document.addEventListener('DOMContentLoaded', function() {
+    // Chrome requires voices to be loaded first
     if ('speechSynthesis' in window) {
+        // Load voices
         let voices = window.speechSynthesis.getVoices();
         if (voices.length === 0) {
             window.speechSynthesis.onvoiceschanged = function() {
@@ -799,38 +1203,35 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    navigator.mediaDevices.getUserMedia({ video: true })
-        .then(() => {
-            initScanner();
-        })
-        .catch(err => {
-            console.error("Scanner permission denied:", err);
-            showErrorMessage("Camera permission required for scanning.");
-        });
+    // Initialize scanner
+    initScanner();
     
+    // Enable Enter key submission for manual input
     document.getElementById('manualIdInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             processManualInput();
         }
     });
     
+    // Focus on input field
     document.getElementById('manualIdInput').focus();
 });
-
-document.addEventListener('visibilitychange', function() {
-    if (document.hidden) {
-        stopScanner();
-    } else {
-        initScanner();
-    }
-});
-
-window.addEventListener('beforeunload', function() {
-    stopScanner();
-});
+function closeAndRefresh() {
+    // Get the modal instance
+    var modal = bootstrap.Modal.getInstance(document.getElementById('rfidModal'));
+    
+    // Hide the modal
+    modal.hide();
+    
+    // Refresh after modal is hidden
+    modal._element.addEventListener('hidden.bs.modal', function() {
+        window.location.reload();
+    });
+}
 </script>
 
 <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="admin/lib/chart/chart.min.js"></script>
 </body>
-</html>
+</html> 
