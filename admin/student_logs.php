@@ -212,7 +212,6 @@ if ($view == 'archived') {
                                     <th>Name</th>
                                     <th>Time In</th>
                                     <th>Time Out</th>
-                                    <th>Duration</th>
                                     <th>Status</th>
                                     <th>Department</th>
                                     <th>Location</th>
@@ -284,21 +283,6 @@ if ($view == 'archived') {
                                         echo '<td>'.htmlspecialchars($row['instructor_name']).'</td>';
                                         echo '<td>'.($row['time_in'] ? date('h:i A', strtotime($row['time_in'])) : 'N/A').'</td>';
                                         echo '<td>'.($row['time_out'] ? date('h:i A', strtotime($row['time_out'])) : 'N/A').'</td>';
-                                        
-                                        // Display duration
-                                        echo '<td>';
-                                        if ($row['time_out'] && $row['duration']) {
-                                            // Format duration to show hours and minutes only
-                                            $duration_parts = explode(':', $row['duration']);
-                                            if (count($duration_parts) >= 2) {
-                                                echo $duration_parts[0] . 'h ' . $duration_parts[1] . 'm';
-                                            } else {
-                                                echo $row['duration'];
-                                            }
-                                        } else {
-                                            echo 'N/A';
-                                        }
-                                        echo '</td>';
                                         
                                         echo '<td>';
                                         if ($row['save_status'] == 'Saved') {
