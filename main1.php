@@ -572,36 +572,52 @@ mysqli_close($db);
 <script>
 // Global variables
 let scanner = null;
-let barcodeBuffer = '';
 let lastScanTime = 0;
-const scanCooldown = 1000; // 1 second cooldown between scans
+const scanCooldown = 1000;
 let allowedSection = null;
 let allowedYear = null;
-let isFirstStudent = true;
+let isFirstStudent = <?php echo $_SESSION['is_first_student'] ? 'true' : 'false'; ?>;
 
 // Initialize scanner when page loads
 function initScanner() {
+    console.log("Initializing scanner...");
+    
     // Clear any existing scanner instance
     if (scanner) {
-        scanner.clear().catch(error => {
-            console.log("Scanner clear error:", error);
-        });
+        try {
+            scanner.clear().catch(error => {
+                console.log("Scanner clear warning:", error);
+            });
+        } catch (e) {
+            console.log("Scanner clear exception:", e);
+        }
     }
     
     // Create new scanner instance
-    scanner = new Html5QrcodeScanner('largeReader', { 
-        qrbox: {
-            width: 250,
-            height: 250,
-        },
-        fps: 20,
-        rememberLastUsedCamera: true,
-        supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-        showTorchButtonIfSupported: true
-    });
-    
-    // Render the scanner
-    scanner.render(onScanSuccess, onScanError);
+    try {
+        scanner = new Html5QrcodeScanner(
+            'largeReader', 
+            { 
+                qrbox: {
+                    width: 250,
+                    height: 250,
+                },
+                fps: 10,
+                rememberLastUsedCamera: true,
+                supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
+                showTorchButtonIfSupported: true
+            },
+            false // verbose = false
+        );
+        
+        // Render the scanner
+        scanner.render(onScanSuccess, onScanError);
+        console.log("Scanner initialized successfully");
+        
+    } catch (error) {
+        console.error("Scanner initialization failed:", error);
+        showErrorMessage("Scanner initialization failed: " + error.message);
+    }
 }
 
 // Scanner success callback
@@ -615,6 +631,8 @@ function onScanSuccess(decodedText) {
     }
     
     lastScanTime = now;
+    
+    console.log("Scanned barcode:", decodedText);
     
     // Show processing state
     document.getElementById('result').innerHTML = `
@@ -632,15 +650,27 @@ function onScanSuccess(decodedText) {
 
 // Scanner error callback
 function onScanError(error) {
-    // Only show actual errors, not "no barcode found" messages
-    if (!error.includes('NotFoundException') && !error.includes('No MultiFormat Readers')) {
-        console.error('Scanner error:', error);
+    // Only log actual errors, not "no barcode found" messages
+    if (!error.includes('NotFoundException') && 
+        !error.includes('No MultiFormat Readers') &&
+        !error.includes('QR code parse error')) {
+        console.warn('Scanner warning:', error);
     }
 }
 
 // Process barcode function
 function processBarcode(barcode) {
     console.log("Processing barcode:", barcode);
+    
+    // Show loading state
+    document.getElementById('result').innerHTML = `
+        <div class="d-flex justify-content-center align-items-center">
+            <div class="spinner-border text-primary me-2" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <span>Processing attendance...</span>
+        </div>
+    `;
     
     $.ajax({
         type: "POST",
@@ -664,6 +694,7 @@ function processBarcode(barcode) {
 
             // If first student, set allowed section/year
             if (isFirstStudent && response.section && response.year_level) {
+                console.log("Setting first student restrictions:", response.section, response.year_level);
                 // Store in session via AJAX
                 $.post('set_session.php', {
                     allowed_section: response.section,
@@ -686,7 +717,19 @@ function processBarcode(barcode) {
         },
         error: function(xhr, status, error) {
             console.error("AJAX error:", status, error);
-            showErrorMessage("Server error: " + error);
+            console.error("Response text:", xhr.responseText);
+            
+            let errorMessage = "Server error occurred";
+            if (xhr.responseText) {
+                try {
+                    const errorResponse = JSON.parse(xhr.responseText);
+                    errorMessage = errorResponse.error || errorMessage;
+                } catch (e) {
+                    errorMessage = xhr.responseText.substring(0, 100);
+                }
+            }
+            
+            showErrorMessage(errorMessage);
             speakErrorMessage("Server error occurred");
             restartScanner();
         }
@@ -698,6 +741,7 @@ function updatePreviewPhoto(data) {
     const previewImg = document.getElementById('pic');
     if (data.photo && data.photo !== '') {
         previewImg.src = data.photo;
+        console.log("Updated preview photo:", data.photo);
     } else {
         previewImg.src = "assets/img/2601828.png";
     }
@@ -734,14 +778,14 @@ function showConfirmationModal(data) {
     document.getElementById('modalTimeDisplay').textContent = timeString;
     document.getElementById('modalDateDisplay').textContent = dateString;
 
-    // ✅ Student Photo - Use the base64 photo from process_barcode.php
+    // Student Photo - Use the base64 photo from process_barcode.php
     const modalPhoto = document.getElementById('modalStudentPhoto');
     if (data.photo && data.photo.startsWith('data:image')) {
-        // Use the base64 photo directly from the response
         modalPhoto.src = data.photo;
+        console.log("Set modal photo to base64 image");
     } else {
-        // Fallback to default photo
         modalPhoto.src = "assets/img/2601828.png";
+        console.log("Set modal photo to default image");
     }
 
     // Update status color and icon
@@ -775,8 +819,11 @@ function showConfirmationModal(data) {
     document.getElementById('result').innerHTML = '';
     
     // Show modal
-    const modal = new bootstrap.Modal(document.getElementById('confirmationModal'));
+    const modalElement = document.getElementById('confirmationModal');
+    const modal = new bootstrap.Modal(modalElement);
     modal.show();
+    
+    console.log("Confirmation modal shown");
     
     // Play success sound
     playAlertSound();
@@ -811,16 +858,23 @@ function playAlertSound() {
 
 // Restart scanner function
 function restartScanner() {
+    console.log("Restarting scanner...");
     setTimeout(() => {
-        if (scanner) {
-            scanner.clear().then(() => {
+        try {
+            if (scanner) {
+                scanner.clear().then(() => {
+                    console.log("Scanner cleared, reinitializing...");
+                    initScanner();
+                    document.querySelector('.scanner-overlay').style.display = 'flex';
+                }).catch(error => {
+                    console.log("Error clearing scanner:", error);
+                    initScanner();
+                });
+            } else {
                 initScanner();
-                document.querySelector('.scanner-overlay').style.display = 'flex';
-            }).catch(error => {
-                console.log("Error restarting scanner:", error);
-                initScanner();
-            });
-        } else {
+            }
+        } catch (error) {
+            console.error("Error in restartScanner:", error);
             initScanner();
         }
         
@@ -882,7 +936,7 @@ function speakErrorMessage(message) {
         const speech = new SpeechSynthesisUtterance();
         speech.text = message;
         speech.volume = 1;
-        speech.rate = 0.8;  // Slower rate for clarity
+        speech.rate = 0.8;
         speech.pitch = 1;
         
         window.speechSynthesis.speak(speech);
@@ -899,7 +953,7 @@ function startTime() {
     
     // Convert to 12-hour format
     h = h % 12;
-    h = h ? h : 12; // the hour '0' should be '12'
+    h = h ? h : 12;
     
     m = checkTime(m);
     s = checkTime(s);
@@ -913,13 +967,15 @@ function startTime() {
 }
 
 function checkTime(i) {
-    if (i < 10) {i = "0" + i};  // add zero in front of numbers < 10
+    if (i < 10) {i = "0" + i};
     return i;
 }
 
-// Close modal and refresh page
+// Close modal and restart scanner
 function closeAndRefresh() {
-    const modal = bootstrap.Modal.getInstance(document.getElementById('confirmationModal'));
+    console.log("Closing modal and restarting scanner");
+    const modalElement = document.getElementById('confirmationModal');
+    const modal = bootstrap.Modal.getInstance(modalElement);
     if (modal) {
         modal.hide();
     }
@@ -932,8 +988,12 @@ function closeAndRefresh() {
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
+    console.log("DOM loaded, initializing scanner...");
+    
     // Initialize scanner
-    initScanner();
+    setTimeout(() => {
+        initScanner();
+    }, 1000);
     
     // Set up event listeners for manual input
     document.getElementById('manualIdInput').addEventListener('keypress', function(e) {
@@ -948,25 +1008,36 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle page visibility changes
     document.addEventListener('visibilitychange', function() {
         if (document.hidden) {
-            // Page is hidden, stop scanner to conserve resources
+            console.log("Page hidden, stopping scanner");
             if (scanner) {
-                scanner.clear().catch(error => {
-                    console.log("Error stopping scanner:", error);
-                });
+                try {
+                    scanner.clear().catch(error => {
+                        console.log("Error stopping scanner:", error);
+                    });
+                } catch (e) {
+                    console.log("Exception stopping scanner:", e);
+                }
             }
         } else {
-            // Page is visible again, restart scanner
-            initScanner();
+            console.log("Page visible, restarting scanner");
+            setTimeout(() => {
+                initScanner();
+            }, 500);
         }
     });
 });
 
 // Clean up when leaving page
 window.addEventListener('beforeunload', function() {
+    console.log("Page unloading, cleaning up scanner");
     if (scanner) {
-        scanner.clear().catch(error => {
-            console.log("Error cleaning up scanner:", error);
-        });
+        try {
+            scanner.clear().catch(error => {
+                console.log("Error cleaning up scanner:", error);
+            });
+        } catch (e) {
+            console.log("Exception cleaning up scanner:", e);
+        }
     }
 });
 </script>
