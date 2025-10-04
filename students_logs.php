@@ -727,7 +727,7 @@ if ($show_timeout_message) {
                                     echo '<td>'.($row['time_out'] ? date('m/d/Y h:i A', strtotime($row['time_out'])) : 'N/A').'</td>';
                                     echo '<td>'.(!empty($row['status']) ? 
                                         '<span class="badge bg-success">Saved</span>' : 
-                                        '<span class="badge bg-warning">Pending</span>').'</td>';
+                                        '<span class="badge bg-warning">Present</span>').'</td>';
                                     echo '</tr>';
                                 }
                                 
