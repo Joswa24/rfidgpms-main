@@ -653,15 +653,15 @@ function processBarcode(barcode) {
     manualInput.disabled = true;
     submitBtn.disabled = true;
     
-    $.ajax({
-        type: "POST",
-        url: "process_barcode.php",
-        data: { 
-            barcode: barcode,
-            current_department: "<?php echo $department; ?>",
-            current_location: "<?php echo $location; ?>",
-            is_first_student: isFirstStudent
-        },
+         $.ajax({
+            type: "POST",
+            url: "process_barcode.php",
+            data: { 
+                barcode: barcode,
+                department: "<?php echo $department; ?>",  // Changed from current_department
+                location: "<?php echo $location; ?>",      // Changed from current_location
+                is_first_student: isFirstStudent
+            },
         success: function(response) {
             console.log("Raw server response:", response);
             
@@ -707,15 +707,20 @@ function processBarcode(barcode) {
         },
         error: function(xhr, status, error) {
             console.error("AJAX error:", status, error);
+            console.error("Status:", xhr.status);
             console.error("Response text:", xhr.responseText);
             
-            let errorMessage = "Server connection error";
-            if (xhr.responseText) {
+            let errorMessage = "Server error occurred";
+            
+            if (xhr.status === 500) {
+                errorMessage = "Server internal error (500) - Check server logs";
+            } else if (xhr.responseText) {
                 try {
                     const errorResponse = JSON.parse(xhr.responseText);
                     errorMessage = errorResponse.error || errorMessage;
                 } catch (e) {
-                    errorMessage = "Server error: " + xhr.status;
+                    // If not JSON, show the raw response for debugging
+                    errorMessage = "Server response: " + xhr.responseText.substring(0, 200);
                 }
             }
             
