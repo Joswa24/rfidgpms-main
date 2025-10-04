@@ -41,39 +41,47 @@ try {
     $stmt = $db->prepare($student_query);
 
     if (!$stmt) {
-        throw new Exception('Database query preparation failed');
+        throw new Exception('Database query preparation failed: ' . $db->error);
     }
 
     $stmt->bind_param("s", $barcode);
     
     if (!$stmt->execute()) {
-        throw new Exception('Failed to execute student query');
+        throw new Exception('Failed to execute student query: ' . $stmt->error);
     }
     
     $student_result = $stmt->get_result();
 
     if ($student_result->num_rows === 0) {
-        throw new Exception('Student not found');
+        throw new Exception('Student not found with ID: ' . $barcode);
     }
 
     $student = $student_result->fetch_assoc();
     $stmt->close();
 
     // Get photo path (same function as in students.php)
-    function getStudentPhoto($photo) {
+    function getStudentPhoto($photo, $basePath = 'uploads/students/') {
+        $defaultPhoto = 'assets/img/2601828.png';
+        
+        // If no photo provided, return default
         if (empty($photo)) {
-            return 'assets/img/2601828.png';
+            return $defaultPhoto;
         }
         
-        $basePath = 'uploads/students/';
+        // Check if file exists in the uploads directory
         $fullPath = $basePath . $photo;
-        
-        // Check if file exists
         if (file_exists($fullPath)) {
             return $fullPath;
-        } else {
-            return 'assets/img/2601828.png';
         }
+        
+        // Also check in admin/uploads/students/ directory
+        $adminPath = 'admin/uploads/students/' . $photo;
+        if (file_exists($adminPath)) {
+            return $adminPath;
+        }
+        
+        // Return default if file doesn't exist
+        return $defaultPhoto;
     }
 
     $photo_path = getStudentPhoto($student['photo'] ?? '');
@@ -106,7 +114,7 @@ try {
         'scan_time' => $now
     ];
 
-    // Check existing logs
+    // Check existing logs for today
     $log_query = "SELECT * FROM attendance_logs 
                   WHERE student_id = ? 
                   AND DATE(time_in) = ?
@@ -117,13 +125,13 @@ try {
     $log_stmt = $db->prepare($log_query);
 
     if (!$log_stmt) {
-        throw new Exception('Failed to prepare log query');
+        throw new Exception('Failed to prepare log query: ' . $db->error);
     }
 
     $log_stmt->bind_param("isss", $student['id'], $today, $current_department, $current_location);
     
     if (!$log_stmt->execute()) {
-        throw new Exception('Failed to execute log query');
+        throw new Exception('Failed to execute log query: ' . $log_stmt->error);
     }
     
     $log_result = $log_stmt->get_result();
@@ -143,8 +151,11 @@ try {
                 $response['alert_class'] = 'alert-warning';
                 $response['voice'] = "Time out recorded for {$student['fullname']}";
                 $response['attendance_type'] = 'time_out';
+                
+                // Log the action
+                error_log("Time Out recorded for student: {$student['fullname']} ({$student['id_number']})");
             } else {
-                throw new Exception('Failed to record time out');
+                throw new Exception('Failed to record time out: ' . ($update_stmt ? $update_stmt->error : 'Statement preparation failed'));
             }
             if ($update_stmt) $update_stmt->close();
         } else {
@@ -169,8 +180,11 @@ try {
             $response['alert_class'] = 'alert-success';
             $response['voice'] = "Time in recorded for {$student['fullname']}";
             $response['attendance_type'] = 'time_in';
+            
+            // Log the action
+            error_log("Time In recorded for student: {$student['fullname']} ({$student['id_number']})");
         } else {
-            throw new Exception('Failed to record time in');
+            throw new Exception('Failed to record time in: ' . ($insert_stmt ? $insert_stmt->error : 'Statement preparation failed'));
         }
         if ($insert_stmt) $insert_stmt->close();
     }
@@ -179,6 +193,7 @@ try {
 
 } catch (Exception $e) {
     $response['error'] = $e->getMessage();
+    error_log("Error in process_barcode.php: " . $e->getMessage());
 }
 
 // Close database connection
@@ -193,6 +208,7 @@ ob_end_clean();
 // If there was any unexpected output, log it but still send JSON
 if (!empty($ob_contents)) {
     error_log("Unexpected output in process_barcode.php: " . $ob_contents);
+    // Don't include unexpected output in response
 }
 
 // Ensure we only output JSON
