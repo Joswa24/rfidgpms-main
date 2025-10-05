@@ -1,35 +1,19 @@
 <?php
-// Start output buffering with maximum level
-while (ob_get_level()) {
-    ob_end_clean();
-}
-ob_start();
+// Start session first
+session_start();
 
-// Add error reporting for debugging (remove in production)
+// Simple error reporting
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-session_start();
-// include 'security-headers.php';
-// // Additional security headers
-// header("X-Frame-Options: DENY"); // Prevent clickjacking
-// header("X-Content-Type-Options: nosniff"); // Prevent MIME type sniffing
-// header("X-XSS-Protection: 1; mode=block"); // Enable XSS protection
-// header("Referrer-Policy: strict-origin-when-cross-origin"); // Control referrer information
-// header("Permissions-Policy: geolocation=(), microphone=(), camera=()"); // Restrict browser features
-// // Strict Transport Security (HSTS) - Enable if using HTTPS
-// // header("Strict-Transport-Security: max-age=31536000; includeSubDomains; preload");
-// header("X-Permitted-Cross-Domain-Policies: none"); // Restrict Adobe Flash/Acrobat
-// header("Cross-Origin-Embedder-Policy: require-corp"); // Control cross-origin embedding
-// header("Cross-Origin-Opener-Policy: same-origin"); // Control cross-origin window opening
-// header("Cross-Origin-Resource-Policy: same-origin"); // Control cross-origin resource loading
-
-// // Cache control for sensitive pages
-// header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-// header("Pragma: no-cache");
-// header("Expires: 0");
-
+// Include required files
+include 'security-headers.php';
 include 'connection.php';
+
+// Clear any existing output
+if (ob_get_level() > 0) {
+    ob_clean();
+}
 
 // =====================================================================
 // MAINTENANCE TASKS - Improved with prepared statements
