@@ -71,13 +71,13 @@ function sendLoginNotification($email) {
         $mail->isSMTP();
         $mail->Host = 'smtp.gmail.com'; // Replace with your SMTP server
         $mail->SMTPAuth = true;
-        $mail->Username = 'kyebejeanu@gmail.com';
-        $mail->Password = 'krwr vqdj vzmq fiby'; // Use App Password if 2FA is enabled
+        $mail->Username = 'joshuapastorpide10@gmail.com';
+        $mail->Password = 'kik@i_2424';//'krwr vqdj vzmq fiby'; // Use App Password if 2FA is enabled
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port = 587;
 
         // Sender and recipient settings
-        $mail->setFrom('kyebejeanu@gmail.com', 'RFID GPMS');
+        $mail->setFrom('joshuapastorpide10@gmail.com', 'RFID GPMS');
         $mail->addAddress($email);
 
         $mail->isHTML(true);
