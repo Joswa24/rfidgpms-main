@@ -71,10 +71,10 @@ $instructors_result = $db->query("
 
 // Fetch all instructor accounts with instructor details
 $accounts_query = "
-    SELECT ia.*, i.fullname, i.id_number, d.department_name 
-    FROM instructor_accounts ia 
+    SELECT ia.*, i.fullname, i.id_number, d.department_id 
+    FROM instructor ia 
     INNER JOIN instructor i ON ia.instructor_id = i.id 
-    LEFT JOIN department d ON i.department_id = d.department_id 
+    LEFT JOIN department d ON i.department_id = d.department_name 
     ORDER BY i.fullname
 ";
 $accounts_result = $db->query($accounts_query);
