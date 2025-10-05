@@ -224,7 +224,7 @@ $accounts_result = $db->query($accounts_query);
                         <form method="POST" id="addAccountForm">
                             <div class="modal-body">
                                 <div class="mb-3">
-                                    <label for="instructor_id" class="form-label">Select Instructor</label>
+                                    <label for="instructor_id" class="form-label">Choose an Instructor</label>
                                     <select class="form-select" id="instructor_id" name="instructor_id" required>
                                         <option value="">Choose an instructor...</option>
                                         <?php if ($instructors_result && $instructors_result->num_rows > 0): ?>
