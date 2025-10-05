@@ -3,7 +3,7 @@ include 'header.php';
 include '../connection.php';
 
 // Check if user is logged in and has admin privileges
-
+// Add your admin authentication here
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -15,7 +15,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         $stmt = $db->prepare("INSERT INTO instructor_accounts (instructor_id, username, password) VALUES (?, ?, ?)");
         $stmt->bind_param("iss", $instructor_id, $username, $password);
-        $stmt->execute();
+        
+        if ($stmt->execute()) {
+            $success_message = "Account created successfully!";
+        } else {
+            $error_message = "Error creating account: " . $db->error;
+        }
+        $stmt->close();
         
     } elseif (isset($_POST['update_account'])) {
         // Update existing account
@@ -30,7 +36,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $stmt = $db->prepare("UPDATE instructor_accounts SET username = ? WHERE id = ?");
             $stmt->bind_param("si", $username, $account_id);
         }
-        $stmt->execute();
+        
+        if ($stmt->execute()) {
+            $success_message = "Account updated successfully!";
+        } else {
+            $error_message = "Error updating account: " . $db->error;
+        }
+        $stmt->close();
         
     } elseif (isset($_POST['delete_account'])) {
         // Delete account
@@ -38,12 +50,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         $stmt = $db->prepare("DELETE FROM instructor_accounts WHERE id = ?");
         $stmt->bind_param("i", $account_id);
-        $stmt->execute();
+        
+        if ($stmt->execute()) {
+            $success_message = "Account deleted successfully!";
+        } else {
+            $error_message = "Error deleting account: " . $db->error;
+        }
+        $stmt->close();
     }
 }
 
-// Fetch all instructors for dropdown
-$instructors_result = $db->query("SELECT * FROM instructor ORDER BY fullname");
+// Fetch all instructors for dropdown (only those without accounts)
+$instructors_result = $db->query("
+    SELECT i.*, d.department_name 
+    FROM instructor i 
+    LEFT JOIN department d ON i.department_id = d.department_id 
+    WHERE i.id NOT IN (SELECT instructor_id FROM instructor_accounts)
+    ORDER BY i.fullname
+");
 
 // Fetch all instructor accounts with instructor details
 $accounts_query = "
@@ -82,6 +106,9 @@ $accounts_result = $db->query($accounts_query);
             font-size: 0.8rem;
             padding: 0.35em 0.65em;
         }
+        .alert {
+            border-radius: 8px;
+        }
     </style>
 </head>
 <body>
@@ -103,6 +130,21 @@ $accounts_result = $db->query($accounts_query);
                             </button>
                         </div>
                         
+                        <!-- Success/Error Messages -->
+                        <?php if (isset($success_message)): ?>
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                <i class="fas fa-check-circle me-2"></i><?php echo $success_message; ?>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <?php if (isset($error_message)): ?>
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                <i class="fas fa-exclamation-circle me-2"></i><?php echo $error_message; ?>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        <?php endif; ?>
+                        
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle me-2"></i>
                             Manage instructor login accounts here. Each instructor can have one account to access the system.
@@ -116,6 +158,7 @@ $accounts_result = $db->query($accounts_query);
                                         <th>ID Number</th>
                                         <th>Department</th>
                                         <th>Username</th>
+                                        <th>Last Login</th>
                                         <th>Status</th>
                                         <th>Actions</th>
                                     </tr>
@@ -124,10 +167,15 @@ $accounts_result = $db->query($accounts_query);
                                     <?php if ($accounts_result && $accounts_result->num_rows > 0): ?>
                                         <?php while ($account = $accounts_result->fetch_assoc()): ?>
                                             <tr>
-                                                <td><?php echo htmlspecialchars($account['fullname']); ?></td>
+                                                <td>
+                                                    <strong><?php echo htmlspecialchars($account['fullname']); ?></strong>
+                                                </td>
                                                 <td><?php echo htmlspecialchars($account['id_number']); ?></td>
                                                 <td><?php echo htmlspecialchars($account['department_name'] ?? 'N/A'); ?></td>
                                                 <td><?php echo htmlspecialchars($account['username']); ?></td>
+                                                <td>
+                                                    <?php echo $account['last_login'] ? date('M j, Y g:i A', strtotime($account['last_login'])) : 'Never'; ?>
+                                                </td>
                                                 <td>
                                                     <span class="badge bg-success status-badge">Active</span>
                                                 </td>
@@ -135,7 +183,8 @@ $accounts_result = $db->query($accounts_query);
                                                     <button class="btn btn-sm btn-warning edit-btn" 
                                                             data-id="<?php echo $account['id']; ?>"
                                                             data-instructor-id="<?php echo $account['instructor_id']; ?>"
-                                                            data-username="<?php echo htmlspecialchars($account['username']); ?>">
+                                                            data-username="<?php echo htmlspecialchars($account['username']); ?>"
+                                                            data-fullname="<?php echo htmlspecialchars($account['fullname']); ?>">
                                                         <i class="fas fa-edit me-1"></i>Edit
                                                     </button>
                                                     <button class="btn btn-sm btn-danger delete-btn" 
@@ -149,7 +198,7 @@ $accounts_result = $db->query($accounts_query);
                                         <?php endwhile; ?>
                                     <?php else: ?>
                                         <tr>
-                                            <td colspan="6" class="text-center py-4">
+                                            <td colspan="7" class="text-center py-4">
                                                 <div class="d-flex flex-column align-items-center">
                                                     <i class="fas fa-user-slash text-muted mb-2" style="font-size: 2rem;"></i>
                                                     <p class="text-muted">No instructor accounts found. Click "Add New Account" to create one.</p>
@@ -175,30 +224,54 @@ $accounts_result = $db->query($accounts_query);
                         <form method="POST" id="addAccountForm">
                             <div class="modal-body">
                                 <div class="mb-3">
-                                    <label for="instructor_id" class="form-label">Instructor</label>
+                                    <label for="instructor_id" class="form-label">Select Instructor</label>
                                     <select class="form-select" id="instructor_id" name="instructor_id" required>
-                                        <option value="">Select Instructor</option>
-                                        <?php while ($instructor = $instructors_result->fetch_assoc()): ?>
-                                            <option value="<?php echo $instructor['id']; ?>">
-                                                <?php echo htmlspecialchars($instructor['fullname'] . ' (' . $instructor['id_number'] . ')'); ?>
-                                            </option>
-                                        <?php endwhile; ?>
+                                        <option value="">Choose an instructor...</option>
+                                        <?php if ($instructors_result && $instructors_result->num_rows > 0): ?>
+                                            <?php while ($instructor = $instructors_result->fetch_assoc()): ?>
+                                                <option value="<?php echo $instructor['id']; ?>" 
+                                                        data-fullname="<?php echo htmlspecialchars($instructor['fullname']); ?>"
+                                                        data-department="<?php echo htmlspecialchars($instructor['department_name'] ?? 'N/A'); ?>">
+                                                    <?php echo htmlspecialchars($instructor['fullname'] . ' - ' . $instructor['id_number'] . ' (' . ($instructor['department_name'] ?? 'No Department') . ')'); ?>
+                                                </option>
+                                            <?php endwhile; ?>
+                                        <?php else: ?>
+                                            <option value="" disabled>No available instructors without accounts</option>
+                                        <?php endif; ?>
                                     </select>
+                                    <div class="form-text">Only instructors without existing accounts are shown.</div>
                                 </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Selected Instructor Info</label>
+                                    <div class="card bg-light">
+                                        <div class="card-body py-2">
+                                            <small>
+                                                <strong>Name:</strong> <span id="selectedFullname">-</span><br>
+                                                <strong>Department:</strong> <span id="selectedDepartment">-</span>
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                                
                                 <div class="mb-3">
                                     <label for="username" class="form-label">Username</label>
-                                    <input type="text" class="form-control" id="username" name="username" required>
+                                    <input type="text" class="form-control" id="username" name="username" required 
+                                           placeholder="Enter username for login">
+                                    <div class="form-text">This will be used for logging into the system.</div>
                                 </div>
                                 <div class="mb-3 password-field">
                                     <label for="password" class="form-label">Password</label>
-                                    <input type="password" class="form-control" id="password" name="password" required>
+                                    <input type="password" class="form-control" id="password" name="password" required 
+                                           placeholder="Enter password">
                                     <span class="toggle-password" onclick="togglePassword('password')">
                                         <i class="fas fa-eye"></i>
                                     </span>
                                 </div>
                                 <div class="mb-3 password-field">
                                     <label for="confirm_password" class="form-label">Confirm Password</label>
-                                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required 
+                                           placeholder="Confirm password">
                                     <span class="toggle-password" onclick="togglePassword('confirm_password')">
                                         <i class="fas fa-eye"></i>
                                     </span>
@@ -223,11 +296,15 @@ $accounts_result = $db->query($accounts_query);
                         </div>
                         <form method="POST" id="editAccountForm">
                             <input type="hidden" id="edit_account_id" name="account_id">
+                            <input type="hidden" id="edit_instructor_id" name="instructor_id">
                             <div class="modal-body">
                                 <div class="mb-3">
                                     <label class="form-label">Instructor</label>
-                                    <input type="text" class="form-control" id="edit_instructor_name" readonly>
-                                    <input type="hidden" id="edit_instructor_id" name="instructor_id">
+                                    <div class="card bg-light">
+                                        <div class="card-body py-2">
+                                            <strong id="edit_instructor_name">-</strong>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_username" class="form-label">Username</label>
@@ -235,14 +312,16 @@ $accounts_result = $db->query($accounts_query);
                                 </div>
                                 <div class="mb-3 password-field">
                                     <label for="edit_password" class="form-label">New Password (leave blank to keep current)</label>
-                                    <input type="password" class="form-control" id="edit_password" name="password">
+                                    <input type="password" class="form-control" id="edit_password" name="password" 
+                                           placeholder="Enter new password to change">
                                     <span class="toggle-password" onclick="togglePassword('edit_password')">
                                         <i class="fas fa-eye"></i>
                                     </span>
                                 </div>
                                 <div class="mb-3 password-field">
                                     <label for="edit_confirm_password" class="form-label">Confirm New Password</label>
-                                    <input type="password" class="form-control" id="edit_confirm_password" name="confirm_password">
+                                    <input type="password" class="form-control" id="edit_confirm_password" name="confirm_password" 
+                                           placeholder="Confirm new password">
                                     <span class="toggle-password" onclick="togglePassword('edit_confirm_password')">
                                         <i class="fas fa-eye"></i>
                                     </span>
@@ -269,11 +348,16 @@ $accounts_result = $db->query($accounts_query);
                             <input type="hidden" id="delete_account_id" name="account_id">
                             <div class="modal-body">
                                 <p>Are you sure you want to delete the account for <strong id="delete_instructor_name"></strong>?</p>
-                                <p class="text-danger">This action cannot be undone. The instructor will no longer be able to access the system.</p>
+                                <p class="text-danger">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    This action cannot be undone. The instructor will no longer be able to access the system.
+                                </p>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                <button type="submit" class="btn btn-danger" name="delete_account">Delete Account</button>
+                                <button type="submit" class="btn btn-danger" name="delete_account">
+                                    <i class="fas fa-trash me-1"></i>Delete Account
+                                </button>
                             </div>
                         </form>
                     </div>
@@ -305,6 +389,16 @@ $accounts_result = $db->query($accounts_query);
                 icon.classList.add('fa-eye');
             }
         }
+
+        // Update selected instructor info in add modal
+        document.getElementById('instructor_id').addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const fullname = selectedOption.getAttribute('data-fullname') || '-';
+            const department = selectedOption.getAttribute('data-department') || '-';
+            
+            document.getElementById('selectedFullname').textContent = fullname;
+            document.getElementById('selectedDepartment').textContent = department;
+        });
 
         // Form validation
         document.getElementById('addAccountForm').addEventListener('submit', function(e) {
@@ -341,13 +435,11 @@ $accounts_result = $db->query($accounts_query);
                 const accountId = this.getAttribute('data-id');
                 const instructorId = this.getAttribute('data-instructor-id');
                 const username = this.getAttribute('data-username');
-                
-                // Find the instructor name from the table row
-                const instructorName = this.closest('tr').querySelector('td:first-child').textContent;
+                const fullname = this.getAttribute('data-fullname');
                 
                 document.getElementById('edit_account_id').value = accountId;
                 document.getElementById('edit_instructor_id').value = instructorId;
-                document.getElementById('edit_instructor_name').value = instructorName;
+                document.getElementById('edit_instructor_name').textContent = fullname;
                 document.getElementById('edit_username').value = username;
                 
                 // Clear password fields
@@ -380,8 +472,9 @@ $accounts_result = $db->query($accounts_query);
                 $('#accountsTable').DataTable({
                     responsive: true,
                     columnDefs: [
-                        { orderable: false, targets: 5 } // Disable sorting on actions column
-                    ]
+                        { orderable: false, targets: [6] } // Disable sorting on actions column
+                    ],
+                    order: [[0, 'asc']] // Sort by instructor name
                 });
             });
         <?php endif; ?>
