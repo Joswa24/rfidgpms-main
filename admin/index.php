@@ -1,6 +1,6 @@
 <?php
 // admin/index.php
-include '../connection.php';
+include 'connection.php';
 include '../security-headers.php';
 session_start();
 
