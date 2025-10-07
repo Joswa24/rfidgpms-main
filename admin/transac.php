@@ -62,7 +62,7 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
 }
 
         // Check if this is an AJAX request for specific operations
-        $validAjaxActions = [
+       $validAjaxActions = [
     'add_department', 'update_department', 'delete_department', 
     'add_room', 'update_room', 'delete_room',
     'add_role', 'update_role', 'delete_role',
@@ -70,8 +70,9 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
     'add_student', 'update_student', 'delete_student',
     'add_instructor', 'update_instructor', 'delete_instructor',
     'add_subject', 'update_subject', 'delete_subject',
-    'add_schedule', 'update_schedule', 'delete_schedule'  
-            ];
+    'add_schedule', 'update_schedule', 'delete_schedule',
+    'add_visitor', 'update_visitor', 'delete_visitor'  
+        ];
         $isAjaxRequest = isset($_GET['action']) && in_array($_GET['action'], $validAjaxActions);
 
     if ($isAjaxRequest) {
@@ -1582,6 +1583,155 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
                             jsonResponse('error', 'Failed to delete room schedule: ' . $stmt->error);
                         }
                         break;
+                        // ========================
+                        // VISITOR CRUD OPERATIONS
+                        // ========================
+                    case 'add_visitor':
+                            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                                jsonResponse('error', 'Invalid request method');
+                            }
+
+                            // Validate required field
+                            if (!isset($_POST['rfid_number']) || empty(trim($_POST['rfid_number']))) {
+                                jsonResponse('error', 'ID number is required');
+                            }
+
+                            // Sanitize input
+                            $id_number = sanitizeInput($db, trim($_POST['rfid_number']));
+
+                            // Validate ID number format (0000-000)
+                            if (!preg_match('/^\d{4}-\d{3}$/', $rfid_number)) {
+                                jsonResponse('error', 'ID number must be in format: 0000-000');
+                            }
+
+                            // Check if visitor ID already exists
+                            $check = $db->prepare("SELECT COUNT(*) FROM visitor WHERE rfid_number = ?");
+                            $check->bind_param("s", $rfid_number);
+                            $check->execute();
+                            $check->bind_result($count);
+                            $check->fetch();
+                            $check->close();
+
+                            if ($count > 0) {
+                                jsonResponse('error', 'Visitor ID number already exists');
+                            }
+
+                            // Insert new visitor
+                            $stmt = $db->prepare("INSERT INTO visitor (rfid_number) VALUES (?)");
+                            $stmt->bind_param("s", $rfid_number);
+
+                            if ($stmt->execute()) {
+                                jsonResponse('success', 'Visitor card added successfully');
+                            } else {
+                                jsonResponse('error', 'Failed to add visitor card: ' . $db->error);
+                            }
+                            break;
+
+                        case 'update_visitor':
+                            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                                jsonResponse('error', 'Invalid request method');
+                            }
+
+                            // Validate required fields
+                            if (!isset($_POST['id']) || empty($_POST['id'])) {
+                                jsonResponse('error', 'Visitor ID is required');
+                            }
+                            if (!isset($_POST['rfid_number']) || empty(trim($_POST['rfid_number']))) {
+                                jsonResponse('error', 'ID number is required');
+                            }
+
+                            // Sanitize inputs
+                            $id = intval($_POST['id']);
+                            $rfid_number = sanitizeInput($db, trim($_POST['rfid_number']));
+
+                            // Validate ID
+                            if ($id <= 0) {
+                                jsonResponse('error', 'Invalid visitor ID');
+                            }
+
+                            // Validate ID number format (0000-000)
+                            if (!preg_match('/^\d{4}-\d{3}$/', $id_number)) {
+                                jsonResponse('error', 'ID number must be in format: 0000-000');
+                            }
+
+                            // Check if visitor ID exists for other visitors
+                            $check = $db->prepare("SELECT COUNT(*) FROM visitor WHERE rfid_number = ? AND id != ?");
+                            $check->bind_param("si", $rfid_number, $id);
+                            $check->execute();
+                            $check->bind_result($count);
+                            $check->fetch();
+                            $check->close();
+
+                            if ($count > 0) {
+                                jsonResponse('error', 'ID number already assigned to another visitor');
+                            }
+
+                            // Update visitor
+                            $stmt = $db->prepare("UPDATE visitor SET rfid_number = ? WHERE id = ?");
+                            $stmt->bind_param("si", $rfid_number, $id);
+
+                            if ($stmt->execute()) {
+                                jsonResponse('success', 'Visitor card updated successfully');
+                            } else {
+                                jsonResponse('error', 'Failed to update visitor card: ' . $db->error);
+                            }
+                            break;
+
+                        case 'delete_visitor':
+                            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                                jsonResponse('error', 'Invalid request method');
+                            }
+
+                            // Validate required field
+                            if (!isset($_POST['id']) || empty($_POST['id'])) {
+                                jsonResponse('error', 'Visitor ID is required');
+                            }
+
+                            // Sanitize input
+                            $id = intval($_POST['id']);
+
+                            if ($id <= 0) {
+                                jsonResponse('error', 'Invalid visitor ID');
+                            }
+
+                            // Check if visitor exists
+                            $checkVisitor = $db->prepare("SELECT id FROM visitor WHERE id = ?");
+                            $checkVisitor->bind_param("i", $id);
+                            $checkVisitor->execute();
+                            $checkVisitor->store_result();
+                            
+                            if ($checkVisitor->num_rows === 0) {
+                                jsonResponse('error', 'Visitor not found');
+                            }
+                            $checkVisitor->close();
+
+                            // Check for visitor dependencies (attendance logs, etc.)
+                            // Add any dependency checks based on your database schema
+                            
+                            /*
+                            // Example: Check if visitor has attendance records
+                            $checkAttendance = $db->prepare("SELECT COUNT(*) FROM attendance_logs WHERE visitor_id = ?");
+                            $checkAttendance->bind_param("i", $id);
+                            $checkAttendance->execute();
+                            $checkAttendance->bind_result($attendanceCount);
+                            $checkAttendance->fetch();
+                            $checkAttendance->close();
+
+                            if ($attendanceCount > 0) {
+                                jsonResponse('error', 'Cannot delete visitor with attendance records');
+                            }
+                            */
+
+                            // Delete visitor
+                            $stmt = $db->prepare("DELETE FROM visitor WHERE id = ?");
+                            $stmt->bind_param("i", $id);
+                            
+                            if ($stmt->execute()) {
+                                jsonResponse('success', 'Visitor card deleted successfully');
+                            } else {
+                                jsonResponse('error', 'Failed to delete visitor card: ' . $stmt->error);
+                            }
+                            break;
 
         default:
             jsonResponse('error', 'Invalid action');
