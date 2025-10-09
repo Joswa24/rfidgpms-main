@@ -392,7 +392,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     </style>
 </head>
 <body>
-    <img src="uploads\it.png" alt="Instructor Portal Logo" class="logo-img" onerror="this.style.display='none'">
+    <img src="uploads\it.png" alt="Instructor Portal Logo" class="logo-png" onerror="this.style.display='none'">
     <div class="login-container">
         <div class="login-header">
             <div class="logo-container">
