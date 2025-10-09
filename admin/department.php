@@ -105,114 +105,115 @@ if (isset($_SESSION['error_message'])) {
                         </div>
                     </div>
                 </div>
-            </div>
+                </div>
 
-            <!-- Add Department Modal -->
-            <div class="modal fade" id="departmentModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="exampleModalLabel">
-                                <i class="fas fa-plus-circle"></i> New Department
-                            </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <!-- Add Department Modal -->
+                <div class="modal fade" id="departmentModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="exampleModalLabel">
+                                    <i class="fas fa-plus-circle"></i> New Department
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="col-lg-11 mb-2 mt-1" id="mgs-dept" style="margin-left: 4%"></div>
+                            <form id="departmentForm">
+                                <div class="modal-body">
+                                    <div class="col-lg-12 mb-1">
+                                        <div class="form-group">
+                                            <label for="inputTime"><b>Department Name:</b></label>
+                                            <input name="department_name" type="text" id="department_name" class="form-control" autocomplete="off">
+                                            <span class="deptname-error" id="deptname-error" style="color:red;font-size:10px;"></span>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-12">
+                                        <div class="form-group">
+                                            <label for="inputTime"><b>Department Description: </b></label>
+                                            <textarea name="department_desc" type="text" id="department_description" class="form-control" autocomplete="off"></textarea>
+                                            <span class="deptname-desc" id="deptname-desc" style="color:red;font-size:10px;"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
+                                    <button type="submit" class="btn btn-outline-warning" id="btn-department">Save</button>
+                                </div>
+                            </form>
                         </div>
-                        <div class="col-lg-11 mb-2 mt-1" id="mgs-dept" style="margin-left: 4%"></div>
-                        <form id="departmentForm">
+                    </div>
+                </div>
+
+                <!-- Edit Department Modal -->
+                <div class="modal fade" id="editdepartment-modal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-edit"></i> Edit Department
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
                             <div class="modal-body">
+                                <div class="col-lg-12 mt-1" id="mgs-editdept"></div>
                                 <div class="col-lg-12 mb-1">
                                     <div class="form-group">
                                         <label for="inputTime"><b>Department Name:</b></label>
-                                        <input name="department_name" type="text" id="department_name" class="form-control" autocomplete="off">
-                                        <span class="deptname-error" id="deptname-error" style="color:red;font-size:10px;"></span>
+                                        <input name="department_name" type="text" id="edit_departmentname" class="form-control edit-name" autocomplete="off">
+                                        <span class="deptname-error" id="edeptname-error" style="color:red;font-size:10px;"></span>
                                     </div>
                                 </div>
                                 <div class="col-lg-12">
                                     <div class="form-group">
                                         <label for="inputTime"><b>Department Description: </b></label>
-                                        <textarea name="department_desc" type="text" id="department_description" class="form-control" autocomplete="off"></textarea>
-                                        <span class="deptname-desc" id="deptname-desc" style="color:red;font-size:10px;"></span>
+                                        <textarea name="department_desc" type="text" id="edit_departmentdescription" class="form-control edit-desc" autocomplete="off"></textarea>
+                                        <span class="deptname-error" id="edeptname-desc" style="color:red;font-size:10px;"></span>
                                     </div>
                                 </div>
                             </div>
                             <div class="modal-footer">
+                                <input type="hidden" name="" id="edit_departmentid">
                                 <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                                <button type="submit" class="btn btn-outline-warning" id="btn-department">Save</button>
+                                <button type="submit" class="btn btn-outline-primary" id="btn-editdepartment">Update</button>
                             </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Edit Department Modal -->
-            <div class="modal fade" id="editdepartment-modal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">
-                                <i class="fas fa-edit"></i> Edit Department
-                            </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="col-lg-12 mt-1" id="mgs-editdept"></div>
-                            <div class="col-lg-12 mb-1">
-                                <div class="form-group">
-                                    <label for="inputTime"><b>Department Name:</b></label>
-                                    <input name="department_name" type="text" id="edit_departmentname" class="form-control edit-name" autocomplete="off">
-                                    <span class="deptname-error" id="edeptname-error" style="color:red;font-size:10px;"></span>
-                                </div>
-                            </div>
-                            <div class="col-lg-12">
-                                <div class="form-group">
-                                    <label for="inputTime"><b>Department Description: </b></label>
-                                    <textarea name="department_desc" type="text" id="edit_departmentdescription" class="form-control edit-desc" autocomplete="off"></textarea>
-                                    <span class="deptname-error" id="edeptname-desc" style="color:red;font-size:10px;"></span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <input type="hidden" name="" id="edit_departmentid">
-                            <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                            <button type="submit" class="btn btn-outline-primary" id="btn-editdepartment">Update</button>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Delete Department Modal -->
-            <div class="modal fade" id="deldepartment-modal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">
-                                <i class="fas fa-trash"></i> Delete Department
-                            </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <form method="POST" id="delete-form">
-                            <div class="modal-body">
-                                <div class="col-lg-12 mt-1" id="mgs-deldept"></div>
-                                <div class="col-lg-12 mb-1">
-                                    <div class="form-group">
-                                        <label for="inputTime"><b>Department Name:</b></label>
-                                        <input type="text" id="delete_departmentname" class="form-control d-dpt" autocomplete="off" readonly="">
-                                        <span class="deptname-error"></span>
+                <!-- Delete Department Modal -->
+                <div class="modal fade" id="deldepartment-modal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-trash"></i> Delete Department
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <form method="POST" id="delete-form">
+                                <div class="modal-body">
+                                    <div class="col-lg-12 mt-1" id="mgs-deldept"></div>
+                                    <div class="col-lg-12 mb-1">
+                                        <div class="form-group">
+                                            <label for="inputTime"><b>Department Name:</b></label>
+                                            <input type="text" id="delete_departmentname" class="form-control d-dpt" autocomplete="off" readonly="">
+                                            <span class="deptname-error"></span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="modal-footer">
-                                <input type="hidden" name="" id="delete_departmentid">
-                                <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">No</button>
-                                <button type="button" class="btn btn-outline-primary remove_id" id="btn-deldepartment">Yes</button>
-                            </div>
-                        </form>
+                                <div class="modal-footer">
+                                    <input type="hidden" name="" id="delete_departmentid">
+                                    <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">No</button>
+                                    <button type="button" class="btn btn-outline-primary remove_id" id="btn-deldepartment">Yes</button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </div>
             </div>
 
             <?php include 'footer.php'; ?>
         </div>
+
          <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top" style="background-color: #87abe0ff"><i class="bi bi-arrow-up" style="background-color: #87abe0ff"></i></a>
     </div>
 
@@ -477,7 +478,7 @@ if (isset($_SESSION['error_message'])) {
     $('#departmentModal').on('hidden.bs.modal', function () {
         resetForm();
     });
-});
+    });
     </script>
 </body>
 </html>
