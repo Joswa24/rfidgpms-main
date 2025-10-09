@@ -1,60 +1,50 @@
 <?php
-// captcha.php
 session_start();
+header('Content-Type: image/png');
 
-// Security headers
-header("Content-Type: image/png");
-header("X-Content-Type-Options: nosniff");
-header("Cache-Control: no-cache, no-store, must-revalidate");
-header("Pragma: no-cache");
-header("Expires: 0");
+// Generate a random CAPTCHA code
+$captcha_code = substr(str_shuffle("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"), 0, 6);
+$_SESSION['captcha_code'] = $captcha_code;
 
-// Generate random CAPTCHA code
-$chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-$captcha_code = '';
-for ($i = 0; $i < 6; $i++) {
-    $captcha_code .= $chars[rand(0, strlen($chars) - 1)];
-}
-
-// Store CAPTCHA in session
-$_SESSION['captcha'] = $captcha_code;
-
-// Create image
-$width = 150;
-$height = 50;
-$image = imagecreate($width, $height);
+// Create an image (150x50 pixels)
+$image = imagecreate(150, 50);
 
 // Colors
-$bg_color = imagecolorallocate($image, 248, 249, 252); // Light background
-$text_color = imagecolorallocate($image, 78, 115, 223); // Primary color
-$line_color = imagecolorallocate($image, 176, 202, 240); // Secondary color
-$noise_color = imagecolorallocate($image, 225, 231, 240); // Very light color
+$background_color = imagecolorallocate($image, 255, 255, 255);  // White background
+$text_color = imagecolorallocate($image, 0, 0, 0);  // Black text color
+$line_color = imagecolorallocate($image, 64, 64, 64);  // Line color for noise
+$pixel_color = imagecolorallocate($image, 100, 100, 100);  // Pixel color for noise
 
-// Fill background
-imagefill($image, 0, 0, $bg_color);
-
-// Add noise (dots)
-for ($i = 0; $i < 100; $i++) {
-    imagesetpixel($image, rand(0, $width), rand(0, $height), $noise_color);
+// Add noise to the image (random pixels)
+for ($i = 0; $i < 1000; $i++) {
+    imagesetpixel($image, rand(0, 150), rand(0, 50), $pixel_color);
 }
 
-// Add lines
+// Add noise (random lines)
 for ($i = 0; $i < 5; $i++) {
-    imageline($image, rand(0, $width), rand(0, $height), rand(0, $width), rand(0, $height), $line_color);
+    imageline($image, rand(0, 150), rand(0, 50), rand(0, 150), rand(0, 50), $line_color);
 }
 
-// Add text
-$font_size = 20;
-$x = 10;
-$y = 30;
+// Font file path - Make sure this points to a valid .ttf font file on your server
+$font_path = __DIR__ . '/fonts/CourierPrime-Bold.ttf';  // Change this to the actual path of your font file
 
-for ($i = 0; $i < strlen($captcha_code); $i++) {
-    $angle = rand(-10, 10);
-    imagettftext($image, $font_size, $angle, $x, $y, $text_color, __DIR__ . '/arial.ttf', $captcha_code[$i]);
-    $x += 22;
+// Check if the font exists
+if (!file_exists($font_path)) {
+    die('Font file not found!');
 }
 
-// Output image
+// Add the CAPTCHA code to the image
+$font_size = 20; // Font size
+$angle = 0;  // Angle of the text (0 means straight)
+$x = rand(10, 40);  // X position of the text
+$y = rand(30, 40);  // Y position of the text
+
+// Use imagettftext to render the CAPTCHA text
+imagettftext($image, $font_size, $angle, $x, $y, $text_color, $font_path, $captcha_code);
+
+// Output the image as PNG
 imagepng($image);
+
+// Clean up
 imagedestroy($image);
 ?>
