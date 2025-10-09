@@ -168,7 +168,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         
         .login-header {
             background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
-            padding: 20px 25px;
+            padding: 25px;
             text-align: center;
             color: white;
             position: relative;
@@ -186,50 +186,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             transform: rotate(45deg);
         }
         
-        .logo-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-            margin-bottom: 15px;
-            position: relative;
-            z-index: 1;
-        }
-        
-        .logo-img {
-            height: 60px;
-            width: auto;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-        }
-        
-        .logo-text {
-            text-align: left;
-        }
-        
-        .logo-text h3 {
+        .login-header h3 {
             margin: 0;
             font-weight: 700;
-            font-size: 1.5rem;
-            line-height: 1.2;
-        }
-        
-        .logo-text p {
-            margin: 2px 0 0;
-            opacity: 0.9;
-            font-size: 0.85rem;
-        }
-        
-        .login-header .system-title {
+            font-size: 1.8rem;
             position: relative;
             z-index: 1;
-            margin: 0;
-            font-size: 0.95rem;
+        }
+        
+        .login-header p {
+            margin: 5px 0 0;
             opacity: 0.9;
-            border-top: 1px solid rgba(255, 255, 255, 0.3);
-            padding-top: 10px;
-            margin-top: 10px;
+            font-size: 0.95rem;
+            position: relative;
+            z-index: 1;
         }
         
         .login-body {
@@ -369,80 +339,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             }
             
             .login-header {
-                padding: 15px 20px;
+                padding: 20px;
             }
             
-            .logo-container {
-                flex-direction: column;
-                gap: 10px;
-            }
-            
-            .logo-text {
-                text-align: center;
-            }
-            
-            .logo-text h3 {
-                font-size: 1.3rem;
-            }
-            
-            .logo-img {
-                height: 50px;
+            .login-header h3 {
+                font-size: 1.5rem;
             }
         }
     </style>
 </head>
 <body>
-    <img src="uploads\it.png" alt="Instructor Portal Logo" class="logo-png" onerror="this.style.display='none'">
     <div class="login-container">
-        <div class="login-header">
-            <div class="logo-container">
-                <img src="uploads\it.png" alt="Instructor Portal Logo" class="logo-img" onerror="this.style.display='none'">
-                <div class="logo-text">
-                    <h3><i class="fas fa-chalkboard-teacher me-2"></i>INSTRUCTOR LOGIN</h3>
-                    
+    <!-- Logo Section at the Top -->
+    <div class="logo-section text-center py-3" style="background: white; border-bottom: 1px solid #e3e6f0;">
+        <img src="uploads/it.png" alt="Institution Logo" class="logo-img" 
+             style="height: 80px; width: auto; max-width: 200px;"
+             onerror="this.style.display='none'">
+    </div>
+    
+    <div class="login-header">
+        <h3><i class="fas fa-chalkboard-teacher me-2"></i>INSTRUCTOR LOGIN</h3>
+    </div>
+    
+    <div class="login-body">
+        <?php if (!empty($errorMessage)): ?>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-circle me-2"></i><?php echo htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8'); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        <?php endif; ?>
+
+        <form method="POST" id="loginForm">
+            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+
+            <div class="form-group">
+                <label for="username" class="form-label"><i class="fas fa-user"></i>Username</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-user"></i></span>
+                    <input type="text" class="form-control" id="username" name="username" required autocomplete="off" value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : ''; ?>">
                 </div>
             </div>
-        </div>
-        
-        <div class="login-body">
-            <?php if (!empty($errorMessage)): ?>
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="fas fa-exclamation-circle me-2"></i><?php echo htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8'); ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+
+            <div class="form-group">
+                <label for="password" class="form-label"><i class="fas fa-lock"></i>Password</label>
+                <div class="input-group password-field">
+                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                    <input type="password" class="form-control" id="password" name="password" required>
+                    <span class="password-toggle" onclick="togglePassword()"><i class="fas fa-eye"></i></span>
                 </div>
-            <?php endif; ?>
+            </div>
 
-            <form method="POST" id="loginForm">
-                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+            <button type="submit" name="login" class="btn btn-login mb-3">
+                <i class="fas fa-sign-in-alt me-2"></i>Login
+            </button>
 
-                <div class="form-group">
-                    <label for="username" class="form-label"><i class="fas fa-user"></i>Username</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="fas fa-user"></i></span>
-                        <input type="text" class="form-control" id="username" name="username" required autocomplete="off" value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : ''; ?>">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="password" class="form-label"><i class="fas fa-lock"></i>Password</label>
-                    <div class="input-group password-field">
-                        <span class="input-group-text"><i class="fas fa-lock"></i></span>
-                        <input type="password" class="form-control" id="password" name="password" required>
-                        <span class="password-toggle" onclick="togglePassword()"><i class="fas fa-eye"></i></span>
-                    </div>
-                </div>
-
-                <button type="submit" name="login" class="btn btn-login mb-3">
-                    <i class="fas fa-sign-in-alt me-2"></i>Login
-                </button>
-
-                <div class="login-footer">
-                    <a href="forgot_password.php" class="forgot-link">Forgot Password?</a>
-                    <div class="text-muted">© <?php echo date('Y'); ?></div>
-                </div>
-            </form>
-        </div>
+            <div class="login-footer">
+                <a href="forgot_password.php" class="forgot-link">Forgot Password?</a>
+                <div class="text-muted">© <?php echo date('Y'); ?></div>
+            </div>
+        </form>
     </div>
+</div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
