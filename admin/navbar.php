@@ -26,6 +26,7 @@ if ($result1->num_rows > 0) {
  <!-- Navbar Start -->
  <nav class="navbar navbar-expand  navbar-light sticky-top px-4 py-0" style="background-color: #87abe0ff">
                 <a href="index.html" class="navbar-brand d-flex d-lg-none me-4">
+                
                     <h2 class="text-warning mb-0"></h2>
                 </a>
                 <a href="#" class="sidebar-toggler flex-shrink-0">
