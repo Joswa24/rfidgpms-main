@@ -504,7 +504,7 @@ include 'header.php';
             document.getElementById('current-date').textContent = dateString;
         }
 
-        // Update time immediately and then every second
+        // Update time immediately and every second
         updateCurrentTime();
         setInterval(updateCurrentTime, 1000);
     </script>
