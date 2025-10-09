@@ -384,7 +384,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             <!-- Logo and Title Wrapped Together -->
             <div class="header-content">
                 <div class="logo-title-wrapper">
-                    <img src="../uploads/it.png" alt="Institution Logo" class="header-logo" style="height: 70px; width: auto;">
+                    <img src="../uploads/it.png" alt="Institution Logo" class="header-logo" style="height: 100px; width: 50px;">
                     <h3><i class="fas fa-chalkboard-teacher me-2"></i>INSTRUCTOR LOGIN</h3>
                 </div>
             </div>
