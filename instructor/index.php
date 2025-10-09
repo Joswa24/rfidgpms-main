@@ -168,7 +168,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         
         .login-header {
             background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
-            padding: 25px;
+            padding: 20px 25px;
             text-align: center;
             color: white;
             position: relative;
@@ -186,20 +186,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             transform: rotate(45deg);
         }
         
-        .login-header h3 {
-            margin: 0;
-            font-weight: 700;
-            font-size: 1.8rem;
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 15px;
             position: relative;
             z-index: 1;
         }
         
-        .login-header p {
-            margin: 5px 0 0;
+        .logo-img {
+            height: 60px;
+            width: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .logo-text {
+            text-align: left;
+        }
+        
+        .logo-text h3 {
+            margin: 0;
+            font-weight: 700;
+            font-size: 1.5rem;
+            line-height: 1.2;
+        }
+        
+        .logo-text p {
+            margin: 2px 0 0;
             opacity: 0.9;
-            font-size: 0.95rem;
+            font-size: 0.85rem;
+        }
+        
+        .login-header .system-title {
             position: relative;
             z-index: 1;
+            margin: 0;
+            font-size: 0.95rem;
+            opacity: 0.9;
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
+            padding-top: 10px;
+            margin-top: 10px;
         }
         
         .login-body {
@@ -339,11 +369,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             }
             
             .login-header {
-                padding: 20px;
+                padding: 15px 20px;
             }
             
-            .login-header h3 {
-                font-size: 1.5rem;
+            .logo-container {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .logo-text {
+                text-align: center;
+            }
+            
+            .logo-text h3 {
+                font-size: 1.3rem;
+            }
+            
+            .logo-img {
+                height: 50px;
             }
         }
     </style>
@@ -351,9 +394,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
 <body>
     <div class="login-container">
         <div class="login-header">
-            <h3><i class="fas fa-chalkboard-teacher me-2"></i>INSTRUCTOR LOGIN</h3>
-            <p>RFID Attendance System V2.0</p>
+            <div class="logo-container">
+                <img src="uploads/it.png" alt="Instructor Portal Logo" class="logo-img" onerror="this.style.display='none'">
+                <div class="logo-text">
+                    <h3><i class="fas fa-chalkboard-teacher me-2"></i>INSTRUCTOR LOGIN</h3>
+                    
+                </div>
+            </div>
         </div>
+        
         <div class="login-body">
             <?php if (!empty($errorMessage)): ?>
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
