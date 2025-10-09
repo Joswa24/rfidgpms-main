@@ -89,13 +89,14 @@ function sendPasswordResetEmail($email, $token, $username) {
     $smtp_port = 587;
     $smtp_username = 'joshuapastorpide10@gmail.com'; // Your Gmail address
     $smtp_password = 'bmnvognbjqcpxcyf'; // Your Gmail app password
-    $from_email = 'your-email@gmail.com';
+    $from_email = 'joshuapastorpide10@gmail.com';
     $from_name = 'RFID GPMS Admin';
     
-    // Reset link
-    $reset_link = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
-    $reset_link = str_replace('forgot_password.php', 'reset_password.php', $reset_link);
-    $reset_link .= "?token=" . $token;
+    
+    // Create reset link
+    $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
+    $domain = $_SERVER['HTTP_HOST'];
+    $reset_link = "$protocol://$domain/admin/reset_password.php?token=$token";
     
     // Email content
     $subject = "Password Reset Request - RFID GPMS Admin";
@@ -135,13 +136,15 @@ function sendPasswordResetEmail($email, $token, $username) {
     </html>
     ";
     
-    // For production, use PHPMailer or similar library
-    // For simplicity, using basic mail() function - consider upgrading to PHPMailer
+    // Email headers
     $headers = "MIME-Version: 1.0" . "\r\n";
     $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
     $headers .= "From: $from_name <$from_email>" . "\r\n";
     $headers .= "Reply-To: $from_email" . "\r\n";
+    $headers .= "X-Mailer: PHP/" . phpversion();
     
+    // For better reliability, use PHPMailer (recommended)
+    // But for quick testing, use the basic mail() function:
     return mail($email, $subject, $message, $headers);
 }
 ?>
