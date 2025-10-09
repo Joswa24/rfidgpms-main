@@ -542,15 +542,15 @@ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lock
     </style>
 </head>
 <body>
-    <div class="login-container">
-    <div class="login-header">
-        <div class="header-content">
-            <div class="logo-title-wrapper">
-                <img src="../uploads/it.png" alt="Institution Logo" class="header-logo" style="height: 35px; width: auto;">
-                <h3 style="font-size: 1.4rem; margin: 0;"><i class="fas fa-user-shield me-2"></i>ADMIN LOGIN</h3>
+        <div class="login-container">
+        <div class="login-header">
+            <!-- Logo and Title Wrapped Together -->
+            <div class="header-content">
+                <div class="logo-title-wrapper">
+                    <img src="../uploads/it.png" alt="Institution Logo" class="header-logo" style="height: 120px; width: 150px;">
+                    <h3><i class="fas fa-user-shield me-2"></i>ADMIN LOGIN</h3>
+                </div>
             </div>
-        </div>
-    </div>
         </div>
         
         <div class="login-body">
@@ -584,9 +584,9 @@ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lock
                     <div class="input-group">
                         <span class="input-group-text"><i class="fas fa-user"></i></span>
                         <input type="text" class="form-control" id="username" name="username" 
-                               placeholder="Enter your username" required autocomplete="username"
-                               value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : 'joshua'; ?>"
-                               <?php echo $isLockedOut ? 'disabled' : ''; ?>>
+                            placeholder="Enter your username" required autocomplete="username"
+                            value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : 'joshua'; ?>"
+                            <?php echo $isLockedOut ? 'disabled' : ''; ?>>
                     </div>
                 </div>
 
@@ -595,9 +595,9 @@ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lock
                     <div class="input-group password-field">
                         <span class="input-group-text"><i class="fas fa-lock"></i></span>
                         <input type="password" class="form-control" id="password" name="password" 
-                               placeholder="Enter your password" required value="joshua@123"
-                               autocomplete="current-password"
-                               <?php echo $isLockedOut ? 'disabled' : ''; ?>>
+                            placeholder="Enter your password" required value="joshua@123"
+                            autocomplete="current-password"
+                            <?php echo $isLockedOut ? 'disabled' : ''; ?>>
                         <span class="password-toggle" onclick="togglePassword()">
                             <i class="fas fa-eye"></i>
                         </span>
@@ -628,6 +628,8 @@ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lock
             </div>
         </div>
     </div>
+
+
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
