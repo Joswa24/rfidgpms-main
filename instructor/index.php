@@ -345,61 +345,106 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             .login-header h3 {
                 font-size: 1.5rem;
             }
+            .header-content {
+            position: relative;
+            z-index: 1;
+            }
+
+            .logo-title-wrapper {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 15px;
+                flex-wrap: wrap;
+            }
+
+            .header-logo {
+                height: 50px;
+                width: auto;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+                border: 2px solid rgba(255, 255, 255, 0.5);
+                background: rgba(255, 255, 255, 0.9);
+                padding: 3px;
+            }
+
+            /* Ensure the logo displays even if there are path issues */
+            .header-logo[src=""],
+            .header-logo:not([src]) {
+                display: none;
+            }
+
+            /* Mobile responsiveness */
+            @media (max-width: 576px) {
+                .logo-title-wrapper {
+                    flex-direction: column;
+                    gap: 10px;
+                    text-align: center;
+                }
+                
+                .header-logo {
+                    height: 45px;
+                }
+                
+                .login-header h3 {
+                    font-size: 1.4rem;
+                }
+            }
         }
     </style>
 </head>
 <body>
     <div class="login-container">
-    <!-- Logo Section at the Top -->
-    <div class="logo-section text-center py-3" style="background: white; border-bottom: 1px solid #e3e6f0;">
-        <img src="uploads/it.png" alt="Institution Logo" class="logo-img" 
-             style="height: 80px; width: auto; max-width: 200px;"
-             onerror="this.style.display='none'">
-    </div>
-    
-    <div class="login-header">
-        <h3><i class="fas fa-chalkboard-teacher me-2"></i>INSTRUCTOR LOGIN</h3>
-    </div>
-    
-    <div class="login-body">
-        <?php if (!empty($errorMessage)): ?>
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <i class="fas fa-exclamation-circle me-2"></i><?php echo htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8'); ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        <?php endif; ?>
-
-        <form method="POST" id="loginForm">
-            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-
-            <div class="form-group">
-                <label for="username" class="form-label"><i class="fas fa-user"></i>Username</label>
-                <div class="input-group">
-                    <span class="input-group-text"><i class="fas fa-user"></i></span>
-                    <input type="text" class="form-control" id="username" name="username" required autocomplete="off" value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : ''; ?>">
+        <div class="login-header">
+            <!-- Logo and Title Wrapped Together -->
+            <div class="header-content">
+                <div class="logo-title-wrapper">
+                    <img src="uploads/it.png" alt="Institution Logo" class="header-logo">
+                    <h3><i class="fas fa-chalkboard-teacher me-2"></i>INSTRUCTOR LOGIN</h3>
                 </div>
             </div>
-
-            <div class="form-group">
-                <label for="password" class="form-label"><i class="fas fa-lock"></i>Password</label>
-                <div class="input-group password-field">
-                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
-                    <input type="password" class="form-control" id="password" name="password" required>
-                    <span class="password-toggle" onclick="togglePassword()"><i class="fas fa-eye"></i></span>
+        </div>
+        
+        <div class="login-body">
+            <?php if (!empty($errorMessage)): ?>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-circle me-2"></i><?php echo htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8'); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
-            </div>
+            <?php endif; ?>
 
-            <button type="submit" name="login" class="btn btn-login mb-3">
-                <i class="fas fa-sign-in-alt me-2"></i>Login
-            </button>
+            <form method="POST" id="loginForm">
+                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
 
-            <div class="login-footer">
-                <a href="forgot_password.php" class="forgot-link">Forgot Password?</a>
-                <div class="text-muted">© <?php echo date('Y'); ?></div>
-            </div>
-        </form>
+                <div class="form-group">
+                    <label for="username" class="form-label"><i class="fas fa-user"></i>Username</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-user"></i></span>
+                        <input type="text" class="form-control" id="username" name="username" required autocomplete="off" value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : ''; ?>">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password" class="form-label"><i class="fas fa-lock"></i>Password</label>
+                    <div class="input-group password-field">
+                        <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                        <span class="password-toggle" onclick="togglePassword()"><i class="fas fa-eye"></i></span>
+                    </div>
+                </div>
+
+                <button type="submit" name="login" class="btn btn-login mb-3">
+                    <i class="fas fa-sign-in-alt me-2"></i>Login
+                </button>
+
+                <div class="login-footer">
+                    <a href="forgot_password.php" class="forgot-link">Forgot Password?</a>
+                    <div class="text-muted">© <?php echo date('Y'); ?></div>
+                </div>
+            </form>
+        </div>
     </div>
-</div>
+
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
