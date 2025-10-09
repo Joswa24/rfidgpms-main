@@ -304,6 +304,7 @@ if (isset($_SESSION['error_message'])) {
 
             <?php include 'footer.php'; ?>
         </div>
+         <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top" style="background-color: #87abe0ff"><i class="bi bi-arrow-up" style="background-color: #87abe0ff"></i></a>
     </div>
 
     <!-- JavaScript Libraries -->
