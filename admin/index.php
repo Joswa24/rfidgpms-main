@@ -507,13 +507,50 @@ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lock
             .login-header h3 {
                 font-size: 1.5rem;
             }
+            .logo-title-wrapper {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 12px;
+            }
+
+            .header-logo {
+                height: 35px;
+                width: auto;
+                border-radius: 6px;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+                border: 2px solid rgba(255, 255, 255, 0.4);
+                background: rgba(255, 255, 255, 0.9);
+                padding: 2px;
+            }
+
+            /* Mobile responsiveness */
+            @media (max-width: 576px) {
+                .logo-title-wrapper {
+                    gap: 10px;
+                }
+                
+                .header-logo {
+                    height: 30px;
+                }
+                
+                .login-header h3 {
+                    font-size: 1.2rem;
+                }
+            }
         }
     </style>
 </head>
 <body>
     <div class="login-container">
-        <div class="login-header">
-            <h3><i class="fas fa-user-shield me-2"></i>ADMIN LOGIN</h3>
+    <div class="login-header">
+        <div class="header-content">
+            <div class="logo-title-wrapper">
+                <img src="../uploads/it.png" alt="Institution Logo" class="header-logo" style="height: 35px; width: auto;">
+                <h3 style="font-size: 1.4rem; margin: 0;"><i class="fas fa-user-shield me-2"></i>ADMIN LOGIN</h3>
+            </div>
+        </div>
+    </div>
         </div>
         
         <div class="login-body">
