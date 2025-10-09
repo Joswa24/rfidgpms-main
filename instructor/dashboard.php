@@ -56,8 +56,8 @@ if ($stmt) {
         $_SESSION['fullname'] = $instructor_info['fullname'];
         $_SESSION['department'] = $instructor_info['department_name'] ?? 'Not Assigned';
         $_SESSION['id_number'] = $instructor_info['id_number'] ?? '';
-        $_SESSION['email'] = $instructor_info['email'] ?? '';
-        $_SESSION['contact_number'] = $instructor_info['contact_number'] ?? '';
+        // $_SESSION['email'] = $instructor_info['email'] ?? '';
+        // $_SESSION['contact_number'] = $instructor_info['contact_number'] ?? '';
     } else {
         // Instructor not found in database - logout user
         session_unset();
