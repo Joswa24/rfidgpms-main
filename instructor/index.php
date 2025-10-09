@@ -374,22 +374,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                 display: none;
             }
 
-            /* Mobile responsiveness */
-            @media (max-width: 10px) {
-                .logo-title-wrapper {
-                    flex-direction: column;
-                    gap: 10px;
-                    text-align: center;
-                }
-                
-                .header-logo {
-                    height: 10px;
-                }
-                
-                .login-header h3 {
-                    font-size: 1.4rem;
-                }
-            }
+            
         }
     </style>
 </head>
@@ -399,7 +384,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             <!-- Logo and Title Wrapped Together -->
             <div class="header-content">
                 <div class="logo-title-wrapper">
-                    <img src="../uploads/it.png" alt="Institution Logo" class="header-logo" style="height: 35px; width: auto;">>
+                    <img src="../uploads/it.png" alt="Institution Logo" class="header-logo" style="height: 70px; width: auto;">
                     <h3><i class="fas fa-chalkboard-teacher me-2"></i>INSTRUCTOR LOGIN</h3>
                 </div>
             </div>
