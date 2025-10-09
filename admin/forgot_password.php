@@ -1,6 +1,24 @@
 <?php
-// forgot_password.php
-session_start();
+// forgot_password.php - UPDATED VERSION
+
+// Start session at the VERY TOP with proper configuration
+if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'domain' => $_SERVER['HTTP_HOST'],
+        'secure' => isset($_SERVER['HTTPS']),
+        'httponly' => true,
+        'samesite' => 'Strict'
+    ]);
+    session_start();
+}
+
+// Regenerate session ID to prevent fixation
+if (empty($_SESSION['forgot_csrf_token'])) {
+    session_regenerate_id(true);
+}
+
 include '../connection.php';
 include '../security-headers.php';
 
@@ -13,6 +31,7 @@ header("Referrer-Policy: strict-origin-when-cross-origin");
 // Generate CSRF token
 if (empty($_SESSION['forgot_csrf_token'])) {
     $_SESSION['forgot_csrf_token'] = bin2hex(random_bytes(32));
+    $_SESSION['forgot_csrf_time'] = time();
 }
 
 $error = '';
@@ -20,10 +39,21 @@ $success = '';
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Validate CSRF token
-    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['forgot_csrf_token']) {
-        $error = "Security token invalid. Please refresh the page.";
+    // Debug: Log what we received
+    error_log("CSRF Debug: POST token = " . ($_POST['csrf_token'] ?? 'NOT SET'));
+    error_log("CSRF Debug: SESSION token = " . ($_SESSION['forgot_csrf_token'] ?? 'NOT SET'));
+    
+    // Validate CSRF token with better error handling
+    if (!isset($_POST['csrf_token']) || !isset($_SESSION['forgot_csrf_token'])) {
+        $error = "Security token missing. Please refresh the page and try again.";
+    } elseif ($_POST['csrf_token'] !== $_SESSION['forgot_csrf_token']) {
+        $error = "Security token invalid or expired. Please refresh the page and try again.";
+        
+        // Regenerate token for security
+        $_SESSION['forgot_csrf_token'] = bin2hex(random_bytes(32));
+        $_SESSION['forgot_csrf_time'] = time();
     } else {
+        // Token is valid - process the form
         $email = trim($_POST['email']);
         $captcha = trim($_POST['captcha']);
         
@@ -35,11 +65,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (strlen($email) > 255) {
             $error = "Email address is too long.";
         } else {
-            // Verify CAPTCHA
-            if (!isset($_SESSION['captcha']) || strtolower($captcha) !== strtolower($_SESSION['captcha'])) {
+            // Verify CAPTCHA (case insensitive)
+            $session_captcha = isset($_SESSION['captcha']) ? strtolower(trim($_SESSION['captcha'])) : '';
+            $input_captcha = strtolower(trim($captcha));
+            
+            if (empty($session_captcha)) {
+                $error = "CAPTCHA session expired. Please refresh the CAPTCHA and try again.";
+            } elseif ($input_captcha !== $session_captcha) {
                 $error = "Invalid CAPTCHA code. Please try again.";
+                
+                // Clear the used CAPTCHA
+                unset($_SESSION['captcha']);
             } else {
-                // Check if email exists in database
+                // CAPTCHA is valid - check if email exists in database
                 try {
                     $stmt = $db->prepare("SELECT id, username FROM user WHERE email = ?");
                     $stmt->bind_param("s", $email);
@@ -58,6 +96,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $stmt->bind_param("iss", $user['id'], $token, $expires);
                         
                         if ($stmt->execute()) {
+                            // Clear the used CAPTCHA and CSRF token
+                            unset($_SESSION['captcha']);
+                            unset($_SESSION['forgot_csrf_token']);
+                            
                             // Send verification email
                             if (sendPasswordResetEmail($email, $token, $user['username'])) {
                                 $_SESSION['reset_email'] = $email;
