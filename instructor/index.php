@@ -375,7 +375,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             }
 
             /* Mobile responsiveness */
-            @media (max-width: 576px) {
+            @media (max-width: 10px) {
                 .logo-title-wrapper {
                     flex-direction: column;
                     gap: 10px;
