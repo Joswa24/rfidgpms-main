@@ -10,10 +10,10 @@ $_SESSION['captcha_code'] = $captcha_code;
 $image = imagecreate(150, 50);
 
 // Colors
-$background_color = imagecolorallocate($image, 255, 255, 255);  // White background
-$text_color = imagecolorallocate($image, 0, 0, 0);  // Black text color
-$line_color = imagecolorallocate($image, 64, 64, 64);  // Line color for noise
-$pixel_color = imagecolorallocate($image, 100, 100, 100);  // Pixel color for noise
+$bg_color = imagecolorallocate($image, 248, 249, 252); // Light background
+$text_color = imagecolorallocate($image, 78, 115, 223); // Primary color
+$line_color = imagecolorallocate($image, 176, 202, 240); // Secondary color
+$noise_color = imagecolorallocate($image, 225, 231, 240); // Very light color
 
 // Add noise to the image (random pixels)
 for ($i = 0; $i < 1000; $i++) {
