@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Oct 03, 2025 at 12:49 PM
+-- Generation Time: Oct 10, 2025 at 01:49 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -21,7 +21,7 @@ SET time_zone = "+00:00";
 -- Database: `gpassdb`
 --
 
--- -------------------------------------------------------
+-- --------------------------------------------------------
 
 --
 -- Table structure for table `about`
@@ -232,6 +232,13 @@ CREATE TABLE `attendance_logs` (
   `instructor_id` varchar(9) NOT NULL,
   `status` varchar(20) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `attendance_logs`
+--
+
+INSERT INTO `attendance_logs` (`id`, `student_id`, `id_number`, `time_in`, `time_out`, `department`, `location`, `instructor_id`, `status`) VALUES
+(322, 75, '2024-1570', '2025-10-04 14:19:59', NULL, 'Department', 'Location', '', NULL);
 
 -- --------------------------------------------------------
 
@@ -485,9 +492,15 @@ CREATE TABLE `instructor_attendance_records` (
   `section` varchar(50) NOT NULL,
   `year` varchar(50) NOT NULL,
   `department` varchar(255) DEFAULT NULL,
-  `status` enum('Present','Absent') NOT NULL,
+  `status` enum('Present','Absent','Late','Excused') NOT NULL,
   `date` date NOT NULL,
-  `subject` varchar(255) DEFAULT NULL,
+  `subject_id` int(11) DEFAULT NULL,
+  `room_id` int(11) DEFAULT NULL,
+  `semester` enum('1st Semester','2nd Semester','Summer') DEFAULT NULL,
+  `academic_year` varchar(20) DEFAULT NULL,
+  `time_in` time DEFAULT NULL,
+  `time_out` time DEFAULT NULL,
+  `remarks` text DEFAULT NULL,
   `created_at` datetime DEFAULT current_timestamp(),
   `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -624,6 +637,21 @@ CREATE TABLE `lost_found` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `password_reset_tokens`
+--
+
+CREATE TABLE `password_reset_tokens` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `token` varchar(64) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `used` tinyint(4) DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `personell`
 --
 
@@ -752,6 +780,35 @@ CREATE TABLE `rooms` (
 --
 
 INSERT INTO `rooms` (`id`, `room`, `department`, `password`, `desc`, `descr`, `authorized_personnel`) VALUES
+(150, 'BSHM 01', 'BSHRM', 'BSHM01', NULL, 'Kitchen Lab', 'Instructor'),
+(151, 'ComLab2', 'BSIT', 'comlab2', NULL, 'IT lab1', 'Instructor'),
+(152, 'ComLab1', 'BSIT', 'comlab1', NULL, 'comlab1', 'Instructor'),
+(153, 'Gate', 'Main', 'gate123', NULL, 'gilugewqe', 'Security Personnel'),
+(154, 'ComLab3', 'BSIT', 'comlab3', NULL, 'IT lab 3', 'Instructor'),
+(155, 'IT-LEC1', 'BSIT', 'itlec1', NULL, 'IT LECTURE 1', 'Instructor'),
+(156, 'IT-LEC2', 'BSIT', 'itlec2', NULL, 'IT Lecture 2', 'Instructor');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `rooms_backup`
+--
+
+CREATE TABLE `rooms_backup` (
+  `id` int(11) NOT NULL DEFAULT 0,
+  `room` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `department` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `desc` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `descr` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `authorized_personnel` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `rooms_backup`
+--
+
+INSERT INTO `rooms_backup` (`id`, `room`, `department`, `password`, `desc`, `descr`, `authorized_personnel`) VALUES
 (150, 'BSHM 01', 'BSHRM', 'BSHM01', NULL, 'Kitchen Lab', 'Instructor'),
 (151, 'ComLab2', 'BSIT', 'comlab2', NULL, 'IT lab1', 'Instructor'),
 (152, 'ComLab1', 'BSIT', 'comlab1', NULL, 'comlab1', 'Instructor'),
@@ -983,6 +1040,57 @@ INSERT INTO `subjects` (`id`, `subject_code`, `subject_name`, `year_level`) VALU
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `subjects_backup`
+--
+
+CREATE TABLE `subjects_backup` (
+  `id` int(11) NOT NULL DEFAULT 0,
+  `subject_code` varchar(50) NOT NULL,
+  `subject_name` varchar(255) NOT NULL,
+  `year_level` varchar(20) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `subjects_backup`
+--
+
+INSERT INTO `subjects_backup` (`id`, `subject_code`, `subject_name`, `year_level`) VALUES
+(1, '111', 'SUB1', '1st Year'),
+(2, '444', 'SUB4-01', '4th Year'),
+(3, '333', 'SUB3-01', '3rd Year'),
+(4, '222', 'SUB2-01', '2nd Year'),
+(5, 'PE 1', 'Movement Enhancement', '1st Year'),
+(6, 'NSTP 1', 'National Service Training Program 1', '1st Year'),
+(7, 'FIL110', 'Komunikasyon sa Akademikong Filipino', '1st Year'),
+(8, 'GE ELECT1', 'People and The Earths Ecosystem', '1st Year'),
+(9, 'MATH 110', 'Mathematics in the Modern Science', '1st Year'),
+(10, 'LIT 110', 'Contemporary World', '1st Year'),
+(11, 'ITE112', 'Program Logic Formulation', '1st Year'),
+(12, 'ITE111', 'Computer Assembly, Trblshting & Repair', '1st Year'),
+(13, 'ITE113', 'Introduction to Computing', '1st Year'),
+(14, 'BRIDGING1', 'Precalculus', '1st Year'),
+(15, 'BRIDGING2', 'General Biology', '1st Year'),
+(16, 'PATHFit3', 'Physical Activity towards Health and Fitness', '2nd Year'),
+(17, 'GE ELECT2', 'Philippine Popular Culture', '2nd Year'),
+(18, 'IT ELECT1', 'Fundamentals of Accounting', '2nd Year'),
+(19, 'ITE215', 'Platform Technologies', '2nd Year'),
+(20, 'ITE214', 'Digital Logic Design (Workshop 1)', '2nd Year'),
+(21, 'ITE212', 'Graphic Designing', '2nd Year'),
+(22, 'ITE211', 'Computer Programming 2', '2nd Year'),
+(23, 'ITE213', 'Information Management', '2nd Year'),
+(24, 'ITE311', 'Information Management', '3rd Year'),
+(25, 'ITE310', 'Platform Technologies', '3rd Year'),
+(26, 'ITE312', 'System Integration and Architecture', '3rd Year'),
+(27, 'MATH310', 'Linear Algebra', '3rd Year'),
+(28, 'AH310', 'Philippine Popular Culture', '3rd Year'),
+(29, 'ENGL310', 'Speech Improvement', '3rd Year'),
+(30, 'ITE410', 'ITE PROF ELECT 4', '4th Year'),
+(31, 'ITE411', 'Information Assurance and Security 2', '4th Year'),
+(32, 'ITE412', 'Capstone Project 2', '4th Year');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `swap_requests`
 --
 
@@ -1026,8 +1134,8 @@ CREATE TABLE `user` (
 
 INSERT INTO `user` (`id`, `contact`, `email`, `username`, `password`, `rfid_number`, `failed_attempts`, `last_attempt`, `last_login`, `login_count`, `is_active`, `created_at`) VALUES
 (2, '09560379350', 'kyebejeanu@gmail.com', 'admin', '$2y$10$jcAd4HtKBXyVxRRGNf39sOmX6FzsDb4hOcu6DGRnISwPGNSs6YM4.', '1234567899', 0, NULL, NULL, 0, 1, '2025-09-24 07:52:42'),
-(23, '09483733246', 'try@gmail.com', 'admin', '$2y$10$SVcfbC0I/jGhtwrU8ajneeKdEAPv7QpStuWCXXJeG7.r2ZrK5SOwa', '9876543211', 0, NULL, NULL, 0, 1, '2025-09-24 07:52:42'),
-(20240331, '', 'kyebejeanungon@gmail.com', 'rfidgpms', '$2y$10$NOm2di8hyRuWXbopq10XTunGgHflPyjE.g//WGND0hmuW/MBIIXb.', '1122334455', 0, NULL, NULL, 0, 1, '2025-09-24 07:52:42');
+(69, '09954716547', 'joshuapastorpide10@gmail.com', 'wawa123', '$2y$10$NW03M1sYgVI6AQMfLB1c7Oiy1GtHynjHByMrG4l5G0S/UJgj1prva', '', 0, NULL, NULL, 0, 1, '2025-10-09 22:40:36'),
+(2025, '09954716547', 'joshuapastorpide10@gmail.com', 'joshu@', '$2y$10$oB2ziqgEFL8mAn/y.y4cpuX/h4sV.K7vGiLGxmkBUzIzjnVCJhLoG', '', 0, NULL, NULL, 0, 1, '2025-10-09 18:48:27');
 
 -- --------------------------------------------------------
 
@@ -1044,7 +1152,6 @@ CREATE TABLE `visitor` (
   `purpose` varchar(225) NOT NULL,
   `sex` varchar(11) NOT NULL,
   `photo` varchar(225) NOT NULL,
-  `civil_status` varchar(100) NOT NULL,
   `rfid_number` varchar(100) NOT NULL,
   `v_code` varchar(100) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -1099,118 +1206,6 @@ CREATE TABLE `visitor_logs` (
   `time_out` varchar(255) DEFAULT NULL,
   `location` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `visitor_logs`
---
-
-INSERT INTO `visitor_logs` (`id`, `photo`, `v_code`, `rfid_number`, `date_logged`, `department`, `sex`, `contact_number`, `address`, `purpose`, `time_in_am`, `time_out_am`, `role`, `time_in_pm`, `time_out_pm`, `civil_status`, `name`, `time_in`, `time_out`, `location`) VALUES
-(1, 'Kyebe Jean.jpeg', 'Visitor001', '0009500932', '2024-09-07', '21', 'Male', '02342352524', 'asda', 'tes', '', '', 'Visitor', '13:37:06', '', 'Single', 'Kyebe Jean', '?', '13:42:11', ''),
-(2, 'Kathllen.jpeg', 'Visitor002', '0009669869', '2024-09-07', '22', 'Male', '02598249752', 'adfas', 'asdras', '', '', 'Visitor', '13:42:50', '', 'Single', 'Kathllen', '?', '13:42:59', ''),
-(3, 'Test.jpeg', '75', '35647657578', '2024-09-07', '22', '', '98868998897', 'kjbkjbkj', 'kjhkho', '', '', 'Visitor', '', '', 'Married', 'Test', '14:03:45', '?', ''),
-(4, 'Test.jpeg', '75', '35647657578', '2024-09-07', '22', '', '98868998897', 'kjbkjbkj', 'kjhkho', '', '', 'Visitor', '', '', 'Married', 'Test', '14:03:50', '?', ''),
-(5, 'Test.jpeg', '75', '35647657578', '2024-09-07', '22', '', '98868998897', 'kjbkjbkj', 'kjhkho', '', '', 'Visitor', '', '', 'Married', 'Test', '14:03:53', '?', ''),
-(6, 'Test this.jpeg', 'dsw', '3413423', '2024-09-07', '21', '', '09234342342', 'asas', 'dadasda', '', '', 'Visitor', '', '', 'Single', 'Test this', '14:12:18', '14:12:24', ''),
-(7, '.jpeg', '', '', '2024-09-07', '', '', '', '', '', '', '', 'Visitor', '', '', '', '', '14:17:36', '?', ''),
-(8, 'hay naku lageeeee.jpeg', '1211', '1231425323', '2024-09-07', '21', 'Male', '09342342342', 'asda', 'sfsd', '', '', 'Visitor', '', '', 'Widowed', 'hay naku lageeeee', '14:32:20', '?', ''),
-(9, 'madrodejps.jpeg', 'qwert', '123456', '2024-09-07', '21', '', '72934572903', 'skdhtaklsdjf', 'oshrkawejrps', '', '', 'Visitor', '', '', 'Single', 'madrodejps', '14:35:52', '20:29:00', ''),
-(10, 'try rhis.jpeg', '0987', '0980978968', '2024-09-07', '20', 'Male', '97459273942', 'sdfdf', 'asd', '', '', 'Visitor', '', '', 'Single', 'try rhis', '14:39:34', '?', ''),
-(11, 'try rhis.jpeg', '0987', '0980978968', '2024-09-07', '20', 'Male', '97459273942', 'sdfdf', 'asd', '', '', 'Visitor', '', '', 'Single', 'try rhis', '14:41:54', '?', ''),
-(12, 'Adik.jpeg', 'adfadfs', '235263634', '2024-09-07', '20', 'Male', '87985720934', 'kdghndfngidnf', 'ktjyiodrgmod', '', '', 'Visitor', '', '', 'Single', 'Adik', '14:42:24', '?', ''),
-(13, 'Adik version 2.jpeg', '4535353', '23542536365', '2024-09-07', '21', 'Male', '25394539745', 'dhgskodhf', 'aidurfoapsdj', '', '', 'Visitor', '', '', 'Married', 'Adik version 2', '14:54:05', '15:10:33', ''),
-(14, 'Adik version 2.jpeg', '4535353', '23542536365', '2024-09-07', '21', 'Male', '25394539745', 'dhgskodhf', 'aidurfoapsdj', '', '', 'Visitor', '', '', 'Married', 'Adik version 2', '14:54:14', '?', ''),
-(15, 'Adik version 2.jpeg', '4535353', '23542536365', '2024-09-07', '21', 'Male', '25394539745', 'dhgskodhf', 'aidurfoapsdj', '', '', 'Visitor', '', '', 'Married', 'Adik version 2', '14:54:54', '?', ''),
-(16, 'ang pangalan.jpeg', 'gjjgi', '89698798', '2024-09-07', '20', 'Male', '09342525234', 'asdfasd', 'stdf', '', '', 'Visitor', '', '', 'Married', 'ang pangalan', '14:55:34', '20:36:44', ''),
-(17, 'Amo ini iya pangalaan.jpeg', '76768767868', '97907908098', '2024-09-07', '20', 'Female', '87987298347', 'oahsfkoahskla', 'aksdaksj', '', '', 'Visitor', '', '', 'Single', 'Amo ini iya pangalaan', '15:04:24', '?', ''),
-(18, 'iya panagaln2.jpeg', '76768767868', '97907908098', '2024-09-07', '20', 'Male', '87658769897', 'bjklbnlk', 'okohp', '', '', 'Visitor', '', '', 'Single', 'iya panagaln2', '15:06:27', '?', ''),
-(19, 'iya panagalan3.jpeg', '76768767868', '97907908098', '2024-09-07', '20', 'Male', '89869889798', 'jbkl', 'oiho', '', '', 'Visitor', '', '', 'Married', 'iya panagalan3', '15:07:19', '?', ''),
-(20, 'planagn453.jpeg', '76768767868', '97907908098', '2024-09-07', '20', '', '89875290347', 'kjbkjbjkbijbi', 'hjvijgbiuhoi', '', '', 'Visitor', '', '', 'Single', 'planagn453', '15:11:59', '?', ''),
-(21, 'sdngos.jpeg', '76768767868', '97907908098', '2024-09-07', '19', 'Male', '52523423423', 'sdfjaosda', 'sjdoad', '', '', 'Visitor', '', '', 'Married', 'sdngos', '15:16:48', '?', ''),
-(22, 'Kyebe Jean Ungon.jpeg', 'sdgsdsedfg', '34534534534', '2024-09-07', '21', 'Female', '36345345345', 'Conception Street', 'retwe', '', '', 'Visitor', '', '', 'Married', 'Kyebe Jean Ungon', '20:17:31', '20:34:36', ''),
-(23, 'Ktahe;lee.jpeg', 'gertwertwe', '234235425', '2024-09-07', '22', 'Male', '09245245231', 'sdgtasr', 'dtgwqerwe', '', '', 'Visitor', '', '', 'Married', 'Ktahe;lee', '20:21:47', '20:21:55', ''),
-(24, 'cegjdghdf.jpeg', 'ertsdf', '3643564', '2024-09-07', '22', 'Male', '35634563453', 'dfas', 'adfgsdf', '', '', 'Visitor', '', '', 'Single', 'cegjdghdf', '20:35:23', '20:35:31', ''),
-(25, 'eryeryer.jpeg', 'cgxsdgfsd', '78998899898', '2024-09-07', '22', 'Female', '34535345345', 'yryrty', 'sdhdt', '', '', 'Visitor', '', '', 'Married', 'eryeryer', '20:38:17', '?', ''),
-(26, 'tryyyyyyyy.jpeg', 'sdfgf', '769899799', '2024-09-07', '22', 'Male', '09796785674', 'sdfsdf', 'fgsdg', '', '', 'Visitor', '', '', 'Single', 'tryyyyyyyy', '22:40:09', '22:40:17', ''),
-(27, 'kyebe jean.jpeg', 'cgxsdgfsd', '78998899898', '2024-09-14', '22', 'Female', '09089797887', 'afddf', 'eras', '', '', 'Visitor', '', '', 'Single', 'kyebe jean', '08:43:52', '?', ''),
-(28, 'hellooo.jpeg', 'ertsdf', '3643564', '2024-09-14', '22', 'Male', '09907924234', 'kjjkgkh', 'ugiuoo', '', '', 'Visitor', '', '', 'Married', 'hellooo', '09:15:20', '09:15:27', ''),
-(29, 'tiaw.jpeg', 'gertwertwe', '234235425', '2024-09-14', '22', 'Female', '98896986898', 'kjk', 'lhklj', '', '', 'Visitor', '', '', 'Single', 'tiaw', '10:13:55', '10:13:59', ''),
-(30, 'visitorrrr.jpeg', 'cgxsdgfsd', '78998899898', '2024-09-19', '21', 'Male', '09234234232', 'dfsdfsdfs', 'sdgerytre', '', '', 'Visitor', '', '', 'Married', 'visitorrrr', '21:36:35', '?', ''),
-(31, 'visittt.jpeg', 'cgxsdgfsd', '78998899898', '2024-09-23', '14', 'Male', '08656746734', 'dfgdgsd', 'fadshdhdyyyyyyyyyyyy', '', '', 'Visitor', '', '', 'Widowed', 'visittt', '10:55:29', '?', ''),
-(32, 'visittry.jpeg', 'ertsdf', '3643564', '2024-09-23', '21', 'Male', '09645634534', 'sdfstgertsdg', 'tryyyyyy', '', '', 'Visitor', '', '', 'Single', 'visittry', '11:34:07', '11:34:10', ''),
-(33, 'thisss.jpeg', 'gertwertwe', '234235425', '2024-09-23', 'BSIT', 'Male', '09345233234', 'thisss', 'thisss', '', '', 'Visitor', '', '', 'Single', 'thisss', '11:36:44', '11:36:49', ''),
-(34, 'last.jpeg', 'sdfgf', '769899799', '2024-09-23', 'BEED', 'Male', '09345234234', 'last', 'last', '', '', 'Visitor', '', '', 'Married', 'last', '11:45:16', '11:45:25', ''),
-(35, 'ahmmm.jpeg', 'Visitor001', '0009500932', '2024-09-23', 'BEED', 'Female', '09235424234', 'ahmmm', 'ahmmm', '', '', 'Visitor', '', '', 'Single', 'ahmmm', '11:47:52', '?', ''),
-(36, 'hayyay.jpeg', 'Visitor002', '0009669869', '2024-09-23', 'BEED', 'Male', '06856456345', 'hayyay', 'hayyay', '', '', 'Visitor', '', '', 'Single', 'hayyay', '11:49:24', '?', ''),
-(37, 'visitwww.jpeg', 'gndf', '707989669', '2024-09-23', 'HD', 'Male', '06523523235', 'visitwww', 'visitwww', '', '', 'Visitor', '', '', 'Single', 'visitwww', '11:54:11', '?', ''),
-(38, 'kyebeee.jpeg', 'gjjgi', '89698798', '2024-09-23', 'FD', '', '95736345345', 'kyebeee', 'kyebeee', '', '', 'Visitor', '', '', 'Single', 'kyebeee', '11:57:30', '11:57:36', ''),
-(39, 'dsfsdsdfsd.jpeg', 'qwert', '123456', '2024-09-23', 'FD', 'Male', '45673452354', 'dsfsdsdfsd', 'dsfsdsdfsd', '', '', 'Visitor', '', '', 'Single', 'dsfsdsdfsd', '12:00:06', '12:01:32', ''),
-(40, 'vitiyt111.jpeg', 'vitiyt111', '123455555', '2024-09-23', 'HD', 'Male', '95674563454', 'vitiyt111', 'vitiyt111', '', '', 'Visitor', '', '', 'Married', 'vitiyt111', '12:02:08', '12:02:20', ''),
-(41, 'gertwertwe.jpeg', 'gertwertwe', '234235425', '2024-10-01', 'RGSTR', '', '09234242342', 'gertwertwe', 'gertwertwe', '', '', 'Visitor', '', '', 'Single', 'gertwertwe', '06:42:27', '06:42:40', ''),
-(42, 'gndf.jpeg', 'gndf', '707989669', '2024-10-01', 'HD', 'Male', '09243234234', 'gndf', 'gndf', '', '', 'Visitor', '', '', 'Married', 'gndf', '06:45:09', '06:45:13', ''),
-(43, 'sdfgf.jpeg', 'sdfgf', '769899799', '2024-10-01', 'HD', 'Male', '06654663453', 'sdfgf', 'sdfgf', '', '', 'Visitor', '', '', 'Single', 'sdfgf', '08:30:24', '08:30:51', ''),
-(44, 'Visitor002.jpeg', 'Visitor002', '0009669869', '2024-10-01', 'FD', 'Male', '09223423423', 'Visitor002', 'Visitor002', '', '', 'Visitor', '', '', 'Single', 'Visitor002', '08:32:44', '08:32:52', ''),
-(45, '.jpeg', '', '', '2024-10-03', '', '', '', '', '', '', '', 'Visitor', '', '', '', '', '10:11:26', '?', ''),
-(46, '.jpeg', '', '', '2024-10-03', '', '', '', '', '', '', '', 'Visitor', '', '', '', '', '10:12:09', '?', ''),
-(47, '.jpeg', '', '', '2024-10-03', '', '', '', '', '', '', '', 'Visitor', '', '', '', '', '10:12:43', '?', ''),
-(48, '.jpeg', '', '', '2024-10-03', '', '', '', '', '', '', '', 'Visitor', '', '', '', '', '10:15:56', '?', ''),
-(49, '.jpeg', '', '', '2024-10-03', '', '', '', '', '', '', '', 'Visitor', '', '', '', '', '10:17:49', '?', ''),
-(50, '.jpeg', '', '', '2024-10-03', '', '', '', '', '', '', '', 'Visitor', '', '', '', '', '10:57:55', '?', ''),
-(51, '.jpeg', '', '', '2024-10-03', '', '', '', '', '', '', '', 'Visitor', '', '', '', '', '10:59:02', '?', ''),
-(52, '.jpeg', '', '', '2024-10-03', '', '', '', '', '', '', '', 'Visitor', '', '', '', '', '11:19:20', '?', ''),
-(53, '.jpeg', '', '', '2024-10-03', '', '', '', '', '', '', '', 'Visitor', '', '', '', '', '12:54:29', '?', ''),
-(54, '.jpeg', '', '', '2024-10-03', '', '', '', '', '', '', '', 'Visitor', '', '', '', '', '14:59:01', '?', ''),
-(55, '.jpeg', '', '', '2024-10-03', '', '', '', '', '', '', '', 'Visitor', '', '', '', '', '18:38:27', '?', ''),
-(56, '.jpeg', '', '', '2024-10-03', '', '', '', '', '', '', '', 'Visitor', '', '', '', '', '18:43:23', '?', ''),
-(57, '.jpeg', '', '', '2024-10-03', '', '', '', '', '', '', '', 'Visitor', '', '', '', '', '18:44:02', '?', ''),
-(58, '.jpeg', '', '', '2024-10-03', '', '', '', '', '', '', '', 'Visitor', '', '', '', '', '18:49:20', '?', ''),
-(66, 'Kyebe Jean Ungon.jpeg', '', '769899799', '2024-10-20', 'HD', 'Male', '45645645646', 'Conception Street', 'sdfsdfsdfsd', '', '', 'Visitor', '', '', 'Single', 'Kyebe Jean Ungon', '12:45:25', '?', 'Gate'),
-(67, 'dfgdgsd.jpeg', '', '3453334343', '2024-10-20', 'HD', 'Male', '34563453453', 'dfgdgsd', 'dfgdgsd', '', '', 'Visitor', '', '', 'Single', 'dfgdgsd', '13:34:57', '?', 'Gate'),
-(68, 'Kyebe Jean Ungon.jpeg', '', '769899799', '2024-11-21', 'HD', '', '43534534534', 'Conception Street', 'sfdgsdfsdfsd', '', '', 'Visitor', '', '', '', 'Kyebe Jean Ungon', '10:25:36', '?', 'Gate'),
-(69, 'jhnjknjkn.jpeg', '', '3453334343', '2024-11-29', 'HD', '', '34567895678', 'gvghhjbnhj', 'fyvgbgnhnhj', '', '', 'Visitor', '', '', '', 'jhnjknjkn', '13:40:20', '?', 'Gate'),
-(70, 'Donna.jpeg', '', '1111111111', '2024-12-11', 'RGSTR', '', '09876545676', 'Poblacion', 'Get TOR', '', '', 'Visitor', '', '', '', 'Donna', '12:28:41', '?', 'Gate'),
-(71, 'Sharon.jpeg', '', '0987654321', '2024-12-11', 'BEED', '', '09677875566', 'Talangnan', 'May tuyo sa instructor', '', '', 'Visitor', '', '', '', 'Sharon', '12:32:11', '12:34:51', 'Gate'),
-(72, 'Juros.jpeg', '', '0009669869', '2024-12-11', 'HD', '', '09456785676', 'Santa Fe', 'Gepatawag', '', '', 'Visitor', '', '', '', 'Juros', '12:34:15', '?', 'Gate'),
-(73, 'Jonalyn.jpeg', '', '7698997991', '2024-12-11', 'BSIT', '', '09677446757', 'Malbago', 'To Apply', '', '', 'Visitor', '', '', '', 'Jonalyn', '12:36:04', '?', 'Gate'),
-(74, 'photo_35.jpg', '', '8462915688', '2025-01-10', 'Finance', '', '6349353249', 'Street 3, City 8', 'Visit purpose 5', '', '', 'Visitor', '', '', '', 'Oscar Martinez', '21:42:02', '03:48:30', 'Gate'),
-(75, 'photo_23.jpg', '', '6604314909', '2025-01-13', 'IT', '', '5006249821', 'Street 65, City 4', 'Visit purpose 3', '', '', 'Visitor', '', '', '', 'Charlie Wilson', '17:56:56', '06:30:14', 'Gate'),
-(76, 'photo_18.jpg', '', '0325614706', '2024-12-27', 'Operations', '', '9611117284', 'Street 95, City 6', 'Visit purpose 4', '', '', 'Visitor', '', '', '', 'Oscar Martinez', '19:42:28', '03:37:20', 'Gate'),
-(77, 'photo_18.jpg', '', '2085771360', '2024-12-29', 'Sales', '', '6147207273', 'Street 24, City 2', 'Visit purpose 1', '', '', 'Visitor', '', '', '', 'Alice Johnson', '21:31:21', '04:42:52', 'Gate'),
-(78, 'photo_25.jpg', '', '1067537789', '2024-12-17', 'HR', '', '1281831960', 'Street 33, City 8', 'Visit purpose 4', '', '', 'Visitor', '', '', '', 'Oscar Martinez', '23:55:45', '03:18:00', 'Gate'),
-(79, 'photo_60.jpg', '', '7666888684', '2024-12-15', 'HR', '', '2806207917', 'Street 61, City 7', 'Visit purpose 3', '', '', 'Visitor', '', '', '', 'Bob Brown', '21:56:37', '06:03:44', 'Gate'),
-(80, 'photo_49.jpg', '', '0009669869', '2025-01-04', 'IT', '', '7000287430', 'Street 8, City 4', 'Visit purpose 2', '', '', 'Visitor', '', '', '', 'Jane Smith', '18:10:51', '02:55:52', 'Gate'),
-(81, 'photo_48.jpg', '', '0556589801', '2024-12-21', 'Operations', '', '2086786109', 'Street 93, City 9', 'Visit purpose 2', '', '', 'Visitor', '', '', '', 'Grace Taylor', '17:45:31', '06:04:54', 'Gate'),
-(82, 'photo_93.jpg', '', '0239874705', '2024-12-21', 'IT', '', '4759107811', 'Street 18, City 9', 'Visit purpose 4', '', '', 'Visitor', '', '', '', 'Leo Rodriguez', '18:19:04', '04:13:42', 'Gate'),
-(83, 'photo_71.jpg', '', '1174443772', '2025-01-13', 'Finance', '', '4371364848', 'Street 76, City 2', 'Visit purpose 1', '', '', 'Visitor', '', '', '', 'Grace Taylor', '21:10:30', '02:28:58', 'Gate'),
-(84, 'photo_42.jpg', '', '0069598353', '2025-01-09', 'Operations', '', '1393114521', 'Street 78, City 4', 'Visit purpose 2', '', '', 'Visitor', '', '', '', 'Alice Johnson', '22:51:44', '07:39:25', 'Gate'),
-(85, 'photo_45.jpg', '', '7666888684', '2024-12-23', 'Operations', '', '6900929684', 'Street 22, City 5', 'Visit purpose 5', '', '', 'Visitor', '', '', '', 'Eve Davis', '23:45:42', '03:55:26', 'Gate'),
-(86, 'photo_70.jpg', '', '7698997991', '2025-01-08', 'IT', '', '7072094662', 'Street 67, City 2', 'Visit purpose 5', '', '', 'Visitor', '', '', '', 'Leo Rodriguez', '21:50:09', '06:13:24', 'Gate'),
-(87, 'photo_48.jpg', '', '4779904125', '2025-01-11', 'HR', '', '4152785206', 'Street 12, City 9', 'Visit purpose 1', '', '', 'Visitor', '', '', '', 'Eve Davis', '21:37:08', '04:38:22', 'Gate'),
-(88, 'photo_45.jpg', '', '7698997991', '2024-12-17', 'IT', '', '8592419079', 'Street 49, City 7', 'Visit purpose 5', '', '', 'Visitor', '', '', '', 'Alice Johnson', '20:27:17', '05:04:40', 'Gate'),
-(89, 'photo_15.jpg', '', '4407780893', '2024-12-30', 'Sales', '', '1899712405', 'Street 81, City 3', 'Visit purpose 2', '', '', 'Visitor', '', '', '', 'Leo Rodriguez', '21:31:26', '04:50:24', 'Gate'),
-(90, 'photo_80.jpg', '', '4639438742', '2024-12-19', 'HR', '', '2209707629', 'Street 57, City 1', 'Visit purpose 3', '', '', 'Visitor', '', '', '', 'Ivy Clark', '00:15:25', '07:38:33', 'Gate'),
-(91, 'photo_54.jpg', '', '4175833370', '2024-12-18', 'Operations', '', '7206204180', 'Street 66, City 9', 'Visit purpose 4', '', '', 'Visitor', '', '', '', 'Charlie Wilson', '00:08:06', '05:51:40', 'Gate'),
-(92, 'photo_8.jpg', '', '7250421127', '2025-01-08', 'Finance', '', '5153335802', 'Street 79, City 4', 'Visit purpose 2', '', '', 'Visitor', '', '', '', 'Grace Taylor', '19:48:17', '05:46:25', 'Gate'),
-(93, 'photo_91.jpg', '', '6806531704', '2024-12-26', 'Sales', '', '6409407260', 'Street 68, City 3', 'Visit purpose 3', '', '', 'Visitor', '', '', '', 'Charlie Wilson', '18:43:45', '07:47:22', 'Gate'),
-(94, 'photo_62.jpg', '', '1370533925', '2025-01-08', 'IT', '', '7210192862', 'Street 6, City 4', 'Visit purpose 4', '', '', 'Visitor', '', '', '', 'Eve Davis', '19:12:44', '05:55:52', 'Gate'),
-(95, 'photo_77.jpg', '', '7666888684', '2025-01-07', 'IT', '', '8298606839', 'Street 84, City 10', 'Visit purpose 1', '', '', 'Visitor', '', '', '', 'Ivy Clark', '00:15:04', '04:24:54', 'Gate'),
-(96, 'photo_1.jpg', '', '7486184439', '2025-01-13', 'HR', '', '1028980806', 'Street 11, City 7', 'Visit purpose 3', '', '', 'Visitor', '', '', '', 'John Doe', '20:44:40', '05:33:07', 'Gate'),
-(97, 'photo_44.jpg', '', '0043742223', '2024-12-24', 'Finance', '', '6127085299', 'Street 79, City 5', 'Visit purpose 1', '', '', 'Visitor', '', '', '', 'Grace Taylor', '00:23:14', '07:44:50', 'Gate'),
-(98, 'photo_16.jpg', '', '1840326393', '2024-12-28', 'Finance', '', '2433215480', 'Street 42, City 9', 'Visit purpose 4', '', '', 'Visitor', '', '', '', 'Bob Brown', '00:59:18', '07:17:26', 'Gate'),
-(99, 'photo_68.jpg', '', '2884576225', '2024-12-31', 'IT', '', '1281562593', 'Street 8, City 8', 'Visit purpose 5', '', '', 'Visitor', '', '', '', 'Grace Taylor', '00:48:38', '06:10:01', 'Gate'),
-(100, 'photo_20.jpg', '', '7474490588', '2024-12-27', 'Operations', '', '3266534050', 'Street 8, City 3', 'Visit purpose 2', '', '', 'Visitor', '', '', '', 'Bob Brown', '01:43:28', '03:19:05', 'Gate'),
-(101, 'photo_19.jpg', '', '7365324101', '2024-12-15', 'Operations', '', '4382238483', 'Street 96, City 9', 'Visit purpose 2', '', '', 'Visitor', '', '', '', 'Alice Johnson', '19:02:31', '07:17:34', 'Gate'),
-(102, 'photo_35.jpg', '', '4167105671', '2024-12-21', 'Sales', '', '2254042808', 'Street 42, City 9', 'Visit purpose 5', '', '', 'Visitor', '', '', '', 'Bob Brown', '21:25:00', '06:48:17', 'Gate'),
-(103, 'photo_87.jpg', '', '3240643840', '2024-12-29', 'IT', '', '7723506694', 'Street 74, City 9', 'Visit purpose 1', '', '', 'Visitor', '', '', '', 'Oscar Martinez', '19:06:45', '04:57:15', 'Gate'),
-(104, 'photo_73.jpg', '', '7698997991', '2025-01-09', 'Sales', '', '8907313958', 'Street 25, City 7', 'Visit purpose 5', '', '', 'Visitor', '', '', '', 'Jane Smith', '16:57:54', '05:48:02', 'Gate'),
-(105, 'photo_84.jpg', '', '0748519543', '2025-01-11', 'HR', '', '9949644972', 'Street 54, City 10', 'Visit purpose 5', '', '', 'Visitor', '', '', '', 'Oscar Martinez', '22:09:00', '06:53:14', 'Gate'),
-(106, 'photo_74.jpg', '', '6246485118', '2025-01-12', 'Finance', '', '8669500910', 'Street 72, City 1', 'Visit purpose 5', '', '', 'Visitor', '', '', '', 'John Doe', '01:09:29', '02:17:54', 'Gate'),
-(107, 'photo_10.jpg', '', '6806531704', '2024-12-22', 'Finance', '', '9822293533', 'Street 76, City 10', 'Visit purpose 4', '', '', 'Visitor', '', '', '', 'Oscar Martinez', '17:06:28', '04:21:23', 'Gate'),
-(108, 'photo_32.jpg', '', '7698997991', '2024-12-31', 'Operations', '', '8037228491', 'Street 72, City 6', 'Visit purpose 4', '', '', 'Visitor', '', '', '', 'Grace Taylor', '21:14:54', '02:01:34', 'Gate'),
-(109, 'photo_47.jpg', '', '3412143639', '2025-01-07', 'Sales', '', '7948420248', 'Street 34, City 2', 'Visit purpose 5', '', '', 'Visitor', '', '', '', 'Jane Smith', '19:50:48', '04:00:01', 'Gate'),
-(110, 'photo_66.jpg', '', '0914780959', '2024-12-19', 'Sales', '', '8921503542', 'Street 72, City 9', 'Visit purpose 4', '', '', 'Visitor', '', '', '', 'Grace Taylor', '21:16:16', '04:22:32', 'Gate'),
-(111, 'photo_95.jpg', '', '3482548405', '2024-12-27', 'IT', '', '4223059282', 'Street 44, City 1', 'Visit purpose 4', '', '', 'Visitor', '', '', '', 'Eve Davis', '16:48:02', '07:04:24', 'Gate'),
-(112, 'photo_54.jpg', '', '0556589801', '2025-01-04', 'IT', '', '8572901652', 'Street 34, City 10', 'Visit purpose 5', '', '', 'Visitor', '', '', '', 'Leo Rodriguez', '23:01:37', '05:34:35', 'Gate'),
-(113, 'photo_13.jpg', '', '2453068181', '2024-12-24', 'IT', '', '8758443990', 'Street 98, City 2', 'Visit purpose 4', '', '', 'Visitor', '', '', '', 'Alice Johnson', '20:08:23', '02:27:56', 'Gate');
 
 --
 -- Indexes for dumped tables
@@ -1333,9 +1328,12 @@ ALTER TABLE `instructor_attendance`
 --
 ALTER TABLE `instructor_attendance_records`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `unique_attendance` (`instructor_id`,`student_id_number`,`date`,`year`,`section`),
+  ADD UNIQUE KEY `unique_attendance` (`instructor_id`,`student_id_number`,`date`,`year`,`section`,`subject_id`),
   ADD KEY `idx_instructor_date` (`instructor_id`,`date`),
-  ADD KEY `idx_student_date` (`student_id_number`,`date`);
+  ADD KEY `idx_student_date` (`student_id_number`,`date`),
+  ADD KEY `idx_section_year` (`section`,`year`),
+  ADD KEY `subject_id` (`subject_id`),
+  ADD KEY `room_id` (`room_id`);
 
 --
 -- Indexes for table `instructor_glogs`
@@ -1374,6 +1372,16 @@ ALTER TABLE `lostcard`
 --
 ALTER TABLE `lost_found`
   ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `password_reset_tokens`
+--
+ALTER TABLE `password_reset_tokens`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `token` (`token`),
+  ADD KEY `user_id` (`user_id`),
+  ADD KEY `idx_token` (`token`),
+  ADD KEY `idx_expires` (`expires_at`);
 
 --
 -- Indexes for table `personell`
@@ -1545,7 +1553,7 @@ ALTER TABLE `archived_instructor_logs`
 -- AUTO_INCREMENT for table `attendance_logs`
 --
 ALTER TABLE `attendance_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=322;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=323;
 
 --
 -- AUTO_INCREMENT for table `department`
@@ -1635,6 +1643,12 @@ ALTER TABLE `lostcard`
 -- AUTO_INCREMENT for table `lost_found`
 --
 ALTER TABLE `lost_found`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `password_reset_tokens`
+--
+ALTER TABLE `password_reset_tokens`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
@@ -1756,10 +1770,23 @@ ALTER TABLE `instructor_accounts`
   ADD CONSTRAINT `instructor_accounts_ibfk_1` FOREIGN KEY (`instructor_id`) REFERENCES `instructor` (`id`) ON DELETE CASCADE;
 
 --
+-- Constraints for table `instructor_attendance_records`
+--
+ALTER TABLE `instructor_attendance_records`
+  ADD CONSTRAINT `instructor_attendance_records_ibfk_1` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `instructor_attendance_records_ibfk_2` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`id`) ON DELETE SET NULL;
+
+--
 -- Constraints for table `instructor_logs`
 --
 ALTER TABLE `instructor_logs`
   ADD CONSTRAINT `instructor_logs_ibfk_1` FOREIGN KEY (`instructor_id`) REFERENCES `instructor` (`id`);
+
+--
+-- Constraints for table `password_reset_tokens`
+--
+ALTER TABLE `password_reset_tokens`
+  ADD CONSTRAINT `password_reset_tokens_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
