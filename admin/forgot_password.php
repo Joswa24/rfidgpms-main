@@ -312,9 +312,6 @@ function sendPasswordResetEmail($email, $token, $username) {
                     </button>
                     <input type="text" class="form-control mt-3" name="captcha" placeholder="Enter CAPTCHA code" required maxlength="6" 
                         value="<?php echo isset($_POST['captcha']) ? htmlspecialchars($_POST['captcha']) : ''; ?>">
-                    
-                    <!-- Add this for better user experience -->
-                    <small class="text-muted">Enter the code shown in the image above (case insensitive)</small>
                 </div>
 
                 <button type="submit" class="btn btn-reset mb-3">
