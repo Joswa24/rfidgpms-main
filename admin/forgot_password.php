@@ -310,7 +310,11 @@ function sendPasswordResetEmail($email, $token, $username) {
                     <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="refreshCaptcha()">
                         <i class="fas fa-redo"></i> Refresh CAPTCHA
                     </button>
-                    <input type="text" class="form-control mt-3" name="captcha" placeholder="Enter CAPTCHA code" required maxlength="6">
+                    <input type="text" class="form-control mt-3" name="captcha" placeholder="Enter CAPTCHA code" required maxlength="6" 
+                        value="<?php echo isset($_POST['captcha']) ? htmlspecialchars($_POST['captcha']) : ''; ?>">
+                    
+                    <!-- Add this for better user experience -->
+                    <small class="text-muted">Enter the code shown in the image above (case insensitive)</small>
                 </div>
 
                 <button type="submit" class="btn btn-reset mb-3">
@@ -330,7 +334,17 @@ function sendPasswordResetEmail($email, $token, $username) {
     <script>
         function refreshCaptcha() {
             const captchaImage = document.getElementById('captchaImage');
+            // Add timestamp to prevent caching
             captchaImage.src = 'captcha.php?' + new Date().getTime();
+            
+            // Clear the CAPTCHA input field
+            document.querySelector('input[name="captcha"]').value = '';
+            
+            // Show loading state
+            captchaImage.style.opacity = '0.5';
+            setTimeout(() => {
+                captchaImage.style.opacity = '1';
+            }, 300);
         }
 
         document.getElementById('resetForm').addEventListener('submit', function() {
@@ -338,6 +352,7 @@ function sendPasswordResetEmail($email, $token, $username) {
             btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Sending...';
             btn.disabled = true;
         });
+
     </script>
 </body>
 </html>
