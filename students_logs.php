@@ -1,487 +1,114 @@
 <?php
-session_start();
-$filterSection = $_SESSION['allowed_section'] ?? '';
-$filterYear = $_SESSION['allowed_year'] ?? '';
-include 'connection.php';
+// Include the enhanced attendance handler
+include 'attendance_functions.php';
+$attendanceHandler = new AttendanceHandler($db);
 
-// Quick table structure verification
-function verifyTableStructures($db) {
-    $tables = ['attendance_logs', 'archived_attendance_logs', 'instructor_logs', 'archived_instructor_logs'];
-    
-    foreach ($tables as $table) {
-        $result = $db->query("SHOW CREATE TABLE $table");
-        if ($result) {
-            $row = $result->fetch_assoc();
-            error_log("Table structure for $table: " . substr($row['Create Table'], 0, 200));
-        }
-    }
-}
+// Get comprehensive attendance data
+$attendance_data = $attendanceHandler->getStudentAttendance([
+    'instructor_id' => $_SESSION['access']['instructor']['id'] ?? null,
+    'section' => $first_student_section,
+    'year' => $first_student_year,
+    'date' => date('Y-m-d')
+]);
 
-// Call this function to debug
-verifyTableStructures($db);
+// Get class summary
+$class_summary = $attendanceHandler->getClassSummary(
+    $_SESSION['access']['instructor']['id'] ?? null
+);
 
-// Function to get classmates by year and section
+// Enhanced function to get classmates with better performance
 function getClassmatesByYearSection($db, $year, $section) {
-    $classmates = array();
-    
-    $query = "SELECT s.id_number, s.fullname, s.section, s.year, d.department_name,
-              (SELECT COUNT(*) FROM attendance_logs al 
-               WHERE al.student_id = s.id AND DATE(al.time_in) = CURDATE()) as attendance_count
+    $query = "SELECT 
+                s.id_number, 
+                s.fullname, 
+                s.section, 
+                s.year, 
+                d.department_name,
+                s.photo,
+                (SELECT COUNT(*) FROM attendance_logs al 
+                 WHERE al.student_id = s.id 
+                 AND DATE(al.time_in) = CURDATE()
+                 AND al.instructor_id = ?) as attendance_count,
+                (SELECT time_in FROM attendance_logs al 
+                 WHERE al.student_id = s.id 
+                 AND DATE(al.time_in) = CURDATE()
+                 AND al.instructor_id = ?
+                 ORDER BY al.time_in DESC LIMIT 1) as last_time_in
               FROM students s
               LEFT JOIN department d ON s.department_id = d.department_id
               WHERE s.section = ? AND s.year = ?
               ORDER BY s.fullname";
     
     $stmt = $db->prepare($query);
+    $instructor_id = $_SESSION['access']['instructor']['id'] ?? null;
+    
     if ($stmt) {
-        $stmt->bind_param("ss", $section, $year);
+        $stmt->bind_param("iiss", $instructor_id, $instructor_id, $section, $year);
         $stmt->execute();
         $result = $stmt->get_result();
-        
-        while ($row = $result->fetch_assoc()) {
-            $classmates[] = $row;
-        }
-        
+        $classmates = $result->fetch_all(MYSQLI_ASSOC);
+        $stmt->close();
+        return $classmates;
+    }
+    
+    return [];
+}
+
+// Get additional statistics for enhanced display
+function getEnhancedClassStats($db, $year, $section, $instructor_id) {
+    $stats = [];
+    
+    // Get present students count with time details
+    $present_query = "SELECT 
+                        COUNT(DISTINCT al.student_id) as present_count,
+                        MIN(TIME(al.time_in)) as earliest_time,
+                        MAX(TIME(al.time_in)) as latest_time,
+                        AVG(TIME_TO_SEC(TIME(al.time_in))) as avg_time_sec
+                     FROM attendance_logs al
+                     JOIN students s ON al.student_id = s.id
+                     WHERE s.section = ? 
+                     AND s.year = ?
+                     AND DATE(al.time_in) = CURDATE()
+                     AND al.instructor_id = ?";
+    
+    $stmt = $db->prepare($present_query);
+    if ($stmt) {
+        $stmt->bind_param("ssi", $section, $year, $instructor_id);
+        $stmt->execute();
+        $stats['present'] = $stmt->get_result()->fetch_assoc();
         $stmt->close();
     }
     
-    return $classmates;
+    // Get total students in class
+    $total_query = "SELECT COUNT(*) as total_count 
+                   FROM students 
+                   WHERE section = ? AND year = ?";
+    
+    $stmt = $db->prepare($total_query);
+    if ($stmt) {
+        $stmt->bind_param("ss", $section, $year);
+        $stmt->execute();
+        $stats['total'] = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+    }
+    
+    // Calculate absent count
+    $stats['absent_count'] = $stats['total']['total_count'] - $stats['present']['present_count'];
+    
+    // Calculate attendance rate
+    if ($stats['total']['total_count'] > 0) {
+        $stats['attendance_rate'] = round(($stats['present']['present_count'] / $stats['total']['total_count']) * 100, 2);
+    } else {
+        $stats['attendance_rate'] = 0;
+    }
+    
+    return $stats;
 }
 
-// NEW FUNCTION: Save classmates data to instructor attendance records
-function saveClassmatesToInstructorAttendance($db, $classmates, $instructor_id, $year, $section, $subject = null) {
-    $today = date('Y-m-d');
-    
-    foreach ($classmates as $student) {
-        // Check if record already exists for today
-        $check_query = "SELECT id FROM instructor_attendance_records 
-                       WHERE instructor_id = ? 
-                       AND student_id_number = ? 
-                       AND date = ? 
-                       AND year = ? 
-                       AND section = ?";
-        
-        $check_stmt = $db->prepare($check_query);
-        $check_stmt->bind_param("issss", $instructor_id, $student['id_number'], $today, $year, $section);
-        $check_stmt->execute();
-        $check_result = $check_stmt->get_result();
-        
-        if ($check_result->num_rows == 0) {
-            // Insert new record
-            $insert_query = "INSERT INTO instructor_attendance_records 
-                           (instructor_id, student_id_number, student_name, section, year, 
-                            department, status, date, subject, created_at) 
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
-            
-            $insert_stmt = $db->prepare($insert_query);
-            $status = ($student['attendance_count'] > 0) ? 'Present' : 'Absent';
-            
-            $insert_stmt->bind_param(
-                "issssssss", 
-                $instructor_id, 
-                $student['id_number'],
-                $student['fullname'],
-                $section,
-                $year,
-                $student['department_name'],
-                $status,
-                $today,
-                $subject
-            );
-            
-            $insert_stmt->execute();
-            $insert_stmt->close();
-        } else {
-            // Update existing record
-            $update_query = "UPDATE instructor_attendance_records 
-                           SET status = ?, updated_at = NOW() 
-                           WHERE instructor_id = ? 
-                           AND student_id_number = ? 
-                           AND date = ? 
-                           AND year = ? 
-                           AND section = ?";
-            
-            $update_stmt = $db->prepare($update_query);
-            $status = ($student['attendance_count'] > 0) ? 'Present' : 'Absent';
-            
-            $update_stmt->bind_param(
-                "sissss", 
-                $status,
-                $instructor_id, 
-                $student['id_number'],
-                $today,
-                $year,
-                $section
-            );
-            
-            $update_stmt->execute();
-            $update_stmt->close();
-        }
-        
-        $check_stmt->close();
-    }
-    
-    return true;
-}
-
-// Function to display classmates table
-function displayClassmatesTable($classmates, $year, $section) {
-    if (empty($classmates)) {
-        echo '<div class="alert alert-info mt-4">No classmates found for ' . htmlspecialchars($year) . ' - ' . htmlspecialchars($section) . '</div>';
-        return;
-    }
-    
-    echo '<h5 class="mt-4">Class List (' . htmlspecialchars($year) . ' - ' . htmlspecialchars($section) . ')</h5>';
-    echo '<div class="table-responsive">';
-    echo '<table class="table table-striped table-hover">';
-    echo '<thead class="table-dark">';
-    echo '<tr>';
-    echo '<th>ID Number</th>';
-    echo '<th>Name</th>';
-    echo '<th>Section</th>';
-    echo '<th>Year</th>';
-    echo '<th>Department</th>';
-    echo '<th>Status</th>';
-    echo '</tr>';
-    echo '</thead>';
-    echo '<tbody>';
-    
-    foreach ($classmates as $student) {
-        echo '<tr>';
-        echo '<td>' . htmlspecialchars($student['id_number']) . '</td>';
-        echo '<td>' . htmlspecialchars($student['fullname']) . '</td>';
-        echo '<td>' . htmlspecialchars($student['section']) . '</td>';
-        echo '<td>' . htmlspecialchars($student['year']) . '</td>';
-        echo '<td>' . htmlspecialchars($student['department_name']) . '</td>';
-        echo '<td>' . ($student['attendance_count'] > 0 ? 
-             '<span class="badge bg-success">Present</span>' : 
-             '<span class="badge bg-danger">Absent</span>') . '</td>';
-        echo '</tr>';
-    }
-    
-    echo '</tbody>';
-    echo '</table>';
-    echo '</div>';
-}
-
-// Function to get first student details
-function getFirstStudentDetails($db) {
-    $query = "SELECT s.year, s.section 
-              FROM attendance_logs al
-              JOIN students s ON al.student_id = s.id
-              WHERE DATE(al.time_in) = CURDATE()
-              ORDER BY al.time_in ASC
-              LIMIT 1";
-    
-    $result = $db->query($query);
-    if ($result && $result->num_rows > 0) {
-        return $result->fetch_assoc();
-    }
-    
-    return null;
-}
-
-// Get the first student's section and year if available
-$first_student_section = isset($_SESSION['first_student_section']) ? $_SESSION['first_student_section'] : null;
-$first_student_year = isset($_SESSION['first_student_year']) ? $_SESSION['first_student_year'] : null;
-
-// If not in session, try to get from database
-if (!$first_student_section || !$first_student_year) {
-    $firstStudent = getFirstStudentDetails($db);
-    if ($firstStudent) {
-        $first_student_year = $firstStudent['year'];
-        $first_student_section = $firstStudent['section'];
-        
-        // Store in session for persistence
-        $_SESSION['first_student_section'] = $first_student_section;
-        $_SESSION['first_student_year'] = $first_student_year;
-    }
-}
-
-// Handle clear filter request
-if (isset($_GET['clear_filter'])) {
-    unset($_SESSION['first_student_section']);
-    unset($_SESSION['first_student_year']);
-    header("Location: students_logs.php");
-    exit();
-}
-
-$logo1 = "";
-$nameo = "";
-$address = "";
-$logo2 = "";
-$department = isset($_SESSION['access']['room']['department']) ? $_SESSION['access']['room']['department'] : 'Department';
-$location = isset($_SESSION['access']['room']['room']) ? $_SESSION['access']['room']['room'] : 'Location';
-
-// Fetch data from the about table
-$sql = "SELECT * FROM about LIMIT 1";
-$result = $db->query($sql);
-
-if ($result->num_rows > 0) {
-    $row = $result->fetch_assoc();
-    $logo1 = $row['logo1'];
-    $nameo = $row['name'];
-    $address = $row['address'];
-    $logo2 = $row['logo2'];
-}
-
-// Record instructor attendance automatically when they access this page
-if (isset($_SESSION['access']['instructor']['id'])) {
-    $instructor_id = $_SESSION['access']['instructor']['id'];
-    $id_number = $_SESSION['access']['instructor']['id_number'];
-    $today = date('Y-m-d');
-    
-    // Check if already logged in today
-    $check_sql = "SELECT id FROM instructor_logs WHERE instructor_id = ? AND DATE(time_in) = ?";
-    $check_stmt = $db->prepare($check_sql);
-    
-    if ($check_stmt === false) {
-        die("Error preparing check statement: " . $db->error);
-    }
-    
-    $check_stmt->bind_param("is", $instructor_id, $today);
-    if (!$check_stmt->execute()) {
-        die("Error executing check statement: " . $check_stmt->error);
-    }
-    $check_result = $check_stmt->get_result();
-    
-    if ($check_result->num_rows == 0) {
-        // Record time_in
-        $insert_sql = "INSERT INTO instructor_logs 
-                      (instructor_id, id_number, time_in, department, location) 
-                      VALUES (?, ?, NOW(), ?, ?)";
-        $insert_stmt = $db->prepare($insert_sql);
-        
-        if ($insert_stmt === false) {
-            die("Error preparing insert statement: " . $db->error);
-        }
-        
-        $insert_stmt->bind_param(
-            "isss",
-            $instructor_id, 
-            $id_number,
-            $department,
-            $location
-        );
-        
-        if (!$insert_stmt->execute()) {
-            die("Error executing insert statement: " . $insert_stmt->error);
-        }
-    }
-}
-
-// Handle Save Attendance action - FIXED ARCHIVING PROCESS
-if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
-    $instructor_id = $_SESSION['access']['instructor']['id'];
-    $currentDate = date('Y-m-d');
-    
-    // Verify ID matches logged-in instructor
-    if ($_POST['id_number'] != $_SESSION['access']['instructor']['id_number']) {
-        if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-            echo json_encode(['success' => false, 'message' => 'ID verification failed']);
-            exit();
-        }
-        $_SESSION['scanner_error'] = "ID verification failed";
-        header("Location: students_logs.php");
-        exit();
-    }
-
-    try {
-        $db->begin_transaction();
-
-        // NEW: Save classmates data before archiving
-        if ($first_student_section && $first_student_year) {
-            $classmates = getClassmatesByYearSection($db, $first_student_year, $first_student_section);
-            $subject = $_SESSION['access']['subject']['name'] ?? null;
-            saveClassmatesToInstructorAttendance($db, $classmates, $instructor_id, $first_student_year, $first_student_section, $subject);
-        }
-
-        // 1. Record time-out for instructor
-        $update_instructor = $db->prepare("UPDATE instructor_logs 
-                                         SET time_out = NOW(), 
-                                             status = 'saved' 
-                                         WHERE instructor_id = ? 
-                                         AND DATE(time_in) = ? 
-                                         AND time_out IS NULL");
-        if (!$update_instructor) {
-            throw new Exception("Error preparing instructor update: " . $db->error);
-        }
-        $update_instructor->bind_param("is", $instructor_id, $currentDate);
-        if (!$update_instructor->execute()) {
-            throw new Exception("Error executing instructor update: " . $update_instructor->error);
-        }
-
-        // 2. Mark all student records as saved
-        $update_students = $db->prepare("UPDATE attendance_logs 
-                                       SET status = 'saved'
-                                       WHERE instructor_id = ?
-                                       AND DATE(time_in) = ?");
-        if (!$update_students) {
-            throw new Exception("Error preparing student update: " . $db->error);
-        }
-        $update_students->bind_param("is", $instructor_id, $currentDate);
-        if (!$update_students->execute()) {
-            throw new Exception("Error executing student update: " . $update_students->error);
-        }
-
-        // DEBUG: Check current data before archiving
-        error_log("=== DEBUG: Checking data before archiving ===");
-        
-        // Check student records that will be archived
-        $student_check = $db->query("SELECT COUNT(*) as total, 
-                                    SUM(CASE WHEN instructor_id IS NULL THEN 1 ELSE 0 END) as missing_instructor 
-                                    FROM attendance_logs 
-                                    WHERE DATE(time_in) = CURDATE()");
-        if ($student_check) {
-            $student_stats = $student_check->fetch_assoc();
-            error_log("Student records to archive: " . $student_stats['total'] . ", Missing instructor_id: " . $student_stats['missing_instructor']);
-        }
-
-        // Check instructor records that will be archived
-        $instructor_check = $db->query("SELECT COUNT(*) as total, instructor_id 
-                                       FROM instructor_logs 
-                                       WHERE DATE(time_in) = CURDATE()");
-        if ($instructor_check) {
-            $instructor_stats = $instructor_check->fetch_assoc();
-            error_log("Instructor records to archive: " . $instructor_stats['total'] . ", Instructor ID: " . $instructor_stats['instructor_id']);
-        }
-
-        // 3. Archive student logs - ENSURING INSTRUCTOR_ID IS PRESERVED
-        $db->query("CREATE TABLE IF NOT EXISTS archived_attendance_logs LIKE attendance_logs");
-        
-        // Verify table structures match
-        $check_tables = $db->query("
-            SELECT 
-                (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'attendance_logs') as source_cols,
-                (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'archived_attendance_logs') as archive_cols
-        ");
-        if ($check_tables) {
-            $table_stats = $check_tables->fetch_assoc();
-            error_log("Table columns - Source: " . $table_stats['source_cols'] . ", Archive: " . $table_stats['archive_cols']);
-            
-            // If column counts don't match, drop and recreate archive table
-            if ($table_stats['source_cols'] != $table_stats['archive_cols']) {
-                error_log("Table structures don't match - recreating archive table");
-                $db->query("DROP TABLE IF EXISTS archived_attendance_logs");
-                $db->query("CREATE TABLE archived_attendance_logs LIKE attendance_logs");
-            }
-        }
-
-        // Archive with explicit verification
-        $archive_result = $db->query("INSERT INTO archived_attendance_logs 
-                                    SELECT * FROM attendance_logs 
-                                    WHERE DATE(time_in) = CURDATE()");
-        
-        if (!$archive_result) {
-            error_log("Archive error: " . $db->error);
-            throw new Exception("Error archiving student data: " . $db->error);
-        }
-        
-        $archived_count = $db->affected_rows;
-        error_log("Successfully archived " . $archived_count . " student records");
-
-        // Verify archived data has instructor_id
-        $verify_archive = $db->query("SELECT COUNT(*) as total, 
-                                     SUM(CASE WHEN instructor_id IS NULL THEN 1 ELSE 0 END) as missing_instructor 
-                                     FROM archived_attendance_logs 
-                                     WHERE DATE(time_in) = CURDATE()");
-        if ($verify_archive) {
-            $verify_stats = $verify_archive->fetch_assoc();
-            error_log("Archived verification - Total: " . $verify_stats['total'] . ", Missing instructor_id: " . $verify_stats['missing_instructor']);
-        }
-
-        // 4. Archive instructor logs
-        $db->query("CREATE TABLE IF NOT EXISTS archived_instructor_logs LIKE instructor_logs");
-        
-        $instructor_archive_result = $db->query("INSERT INTO archived_instructor_logs 
-                                               SELECT * FROM instructor_logs 
-                                               WHERE DATE(time_in) = CURDATE()");
-        
-        if (!$instructor_archive_result) {
-            throw new Exception("Error archiving instructor data: " . $db->error);
-        }
-        
-        $instructor_archived_count = $db->affected_rows;
-        error_log("Successfully archived " . $instructor_archived_count . " instructor records");
-
-        // 5. Clear current logs ONLY after successful archiving and verification
-        $delete_students = $db->query("DELETE FROM attendance_logs WHERE DATE(time_in) = CURDATE()");
-        if (!$delete_students) {
-            throw new Exception("Error clearing student data: " . $db->error);
-        }
-        
-        $delete_instructors = $db->query("DELETE FROM instructor_logs WHERE DATE(time_in) = CURDATE()");
-        if (!$delete_instructors) {
-            throw new Exception("Error clearing instructor data: " . $db->error);
-        }
-
-        error_log("Successfully cleared original records");
-
-        // 6. Get the exact time-out time
-        $time_query = "SELECT time_out FROM archived_instructor_logs 
-                      WHERE instructor_id = ? 
-                      AND DATE(time_in) = ? 
-                      ORDER BY time_out DESC LIMIT 1";
-        $time_stmt = $db->prepare($time_query);
-        if (!$time_stmt) {
-            throw new Exception("Error preparing time query: " . $db->error);
-        }
-        $time_stmt->bind_param("is", $instructor_id, $currentDate);
-        if (!$time_stmt->execute()) {
-            throw new Exception("Error executing time query: " . $time_stmt->error);
-        }
-        $time_result = $time_stmt->get_result();
-        $time_row = $time_result->fetch_assoc();
-        $exact_time_out = $time_row['time_out'] ?? date('Y-m-d H:i:s');
-
-        $db->commit();
-
-        error_log("=== ARCHIVE PROCESS COMPLETED SUCCESSFULLY ===");
-
-        // Return success response
-        if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-            echo json_encode([
-                'success' => true,
-                'timeout_time' => date('h:i A', strtotime($exact_time_out)),
-                'message' => 'Attendance saved and archived successfully'
-            ]);
-            exit();
-        }
-        
-        $_SESSION['timeout_time'] = date('h:i A', strtotime($exact_time_out));
-        $_SESSION['attendance_saved'] = true;
-        $_SESSION['archive_message'] = 'Attendance saved and archived successfully';
-        header("Location: students_logs.php");
-        exit();
-
-    } catch (Exception $e) {
-        $db->rollback();
-        error_log("Attendance save error: " . $e->getMessage());
-        
-        if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-            echo json_encode([
-                'success' => false,
-                'message' => 'Error saving attendance: ' . $e->getMessage()
-            ]);
-            exit();
-        }
-        
-        $_SESSION['scanner_error'] = "Error saving attendance: " . $e->getMessage();
-        header("Location: students_logs.php");
-        exit();
-    }
-}
-
-// Check if we're coming from a save action
-$show_timeout_message = isset($_SESSION['timeout_time']);
-$attendance_saved = isset($_SESSION['attendance_saved']) ? $_SESSION['attendance_saved'] : false;
-$archive_message = isset($_SESSION['archive_message']) ? $_SESSION['archive_message'] : '';
-
-if ($show_timeout_message) {
-    $timeout_time = $_SESSION['timeout_time'];
-    unset($_SESSION['timeout_time']);
-    unset($_SESSION['attendance_saved']);
-    unset($_SESSION['archive_message']);
+// Get enhanced stats if we have section and year
+$enhanced_stats = [];
+if ($first_student_section && $first_student_year && isset($_SESSION['access']['instructor']['id'])) {
+    $enhanced_stats = getEnhancedClassStats($db, $first_student_year, $first_student_section, $_SESSION['access']['instructor']['id']);
 }
 ?>
 <!DOCTYPE html>
@@ -587,6 +214,54 @@ if ($show_timeout_message) {
             border-radius: 8px;
             border: 1px solid #dee2e6;
         }
+        
+        /* Enhanced Statistics Styles */
+        .stats-card {
+            border-radius: 10px;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+            height: 100%;
+        }
+        .stats-card:hover {
+            transform: translateY(-5px);
+        }
+        .stats-card .card-body {
+            padding: 1.5rem;
+        }
+        .stats-icon {
+            font-size: 2.5rem;
+            opacity: 0.8;
+            margin-bottom: 15px;
+        }
+        .stats-number {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stats-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .stats-detail {
+            font-size: 0.8rem;
+            color: #495057;
+            margin-top: 10px;
+        }
+        .attendance-progress {
+            height: 8px;
+            margin-top: 10px;
+        }
+        .time-stats {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .time-stats .stats-detail {
+            color: rgba(255,255,255,0.8);
+        }
+        
         @media (max-width: 768px) {
             .instructor-info {
                 flex-direction: column;
@@ -602,6 +277,9 @@ if ($show_timeout_message) {
             }
             table {
                 font-size: 0.9rem;
+            }
+            .stats-number {
+                font-size: 1.5rem;
             }
         }
     </style>
@@ -648,6 +326,157 @@ if ($show_timeout_message) {
                     <p class="text-success"><i class="fas fa-check-circle me-2"></i>Classmates data has been saved to your instructor panel.</p>
                 </div>
             <?php else: ?>
+                <!-- Enhanced Statistics Section -->
+                <?php if (!empty($enhanced_stats) && $first_student_section && $first_student_year): ?>
+                <div class="class-summary mb-4">
+                    <h4 class="mb-3"><i class="fas fa-chart-bar me-2"></i>Class Attendance Summary</h4>
+                    <div class="row g-3">
+                        <!-- Total Students Card -->
+                        <div class="col-md-3 col-6">
+                            <div class="card stats-card border-primary">
+                                <div class="card-body text-center">
+                                    <div class="stats-icon text-primary">
+                                        <i class="fas fa-users"></i>
+                                    </div>
+                                    <div class="stats-number text-primary">
+                                        <?php echo $enhanced_stats['total']['total_count'] ?? 0; ?>
+                                    </div>
+                                    <div class="stats-label">Total Students</div>
+                                    <div class="stats-detail">
+                                        <?php echo htmlspecialchars($first_student_year . ' - ' . $first_student_section); ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Present Students Card -->
+                        <div class="col-md-3 col-6">
+                            <div class="card stats-card border-success">
+                                <div class="card-body text-center">
+                                    <div class="stats-icon text-success">
+                                        <i class="fas fa-user-check"></i>
+                                    </div>
+                                    <div class="stats-number text-success">
+                                        <?php echo $enhanced_stats['present']['present_count'] ?? 0; ?>
+                                    </div>
+                                    <div class="stats-label">Present Today</div>
+                                    <div class="stats-detail">
+                                        <?php 
+                                        $present_rate = $enhanced_stats['total']['total_count'] > 0 ? 
+                                            round(($enhanced_stats['present']['present_count'] / $enhanced_stats['total']['total_count']) * 100, 1) : 0;
+                                        echo $present_rate . '% of class';
+                                        ?>
+                                    </div>
+                                    <div class="progress attendance-progress">
+                                        <div class="progress-bar bg-success" 
+                                             style="width: <?php echo $present_rate; ?>%">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Absent Students Card -->
+                        <div class="col-md-3 col-6">
+                            <div class="card stats-card border-danger">
+                                <div class="card-body text-center">
+                                    <div class="stats-icon text-danger">
+                                        <i class="fas fa-user-times"></i>
+                                    </div>
+                                    <div class="stats-number text-danger">
+                                        <?php echo $enhanced_stats['absent_count'] ?? 0; ?>
+                                    </div>
+                                    <div class="stats-label">Absent Today</div>
+                                    <div class="stats-detail">
+                                        <?php 
+                                        $absent_rate = $enhanced_stats['total']['total_count'] > 0 ? 
+                                            round(($enhanced_stats['absent_count'] / $enhanced_stats['total']['total_count']) * 100, 1) : 0;
+                                        echo $absent_rate . '% of class';
+                                        ?>
+                                    </div>
+                                    <div class="progress attendance-progress">
+                                        <div class="progress-bar bg-danger" 
+                                             style="width: <?php echo $absent_rate; ?>%">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Time Statistics Card -->
+                        <div class="col-md-3 col-6">
+                            <div class="card stats-card time-stats">
+                                <div class="card-body text-center">
+                                    <div class="stats-icon text-white">
+                                        <i class="fas fa-clock"></i>
+                                    </div>
+                                    <div class="stats-number text-white">
+                                        <?php 
+                                        if (!empty($enhanced_stats['present']['earliest_time'])) {
+                                            echo date('g:i A', strtotime($enhanced_stats['present']['earliest_time']));
+                                        } else {
+                                            echo 'N/A';
+                                        }
+                                        ?>
+                                    </div>
+                                    <div class="stats-label">First Scan</div>
+                                    <div class="stats-detail">
+                                        <?php 
+                                        if (!empty($enhanced_stats['present']['latest_time'])) {
+                                            echo 'Last: ' . date('g:i A', strtotime($enhanced_stats['present']['latest_time']));
+                                        } else {
+                                            echo 'No scans yet';
+                                        }
+                                        ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Statistics Row -->
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="row text-center">
+                                        <div class="col-md-4 border-end">
+                                            <small class="text-muted">Attendance Rate</small>
+                                            <h5 class="mb-0 <?php echo ($enhanced_stats['attendance_rate'] >= 80) ? 'text-success' : (($enhanced_stats['attendance_rate'] >= 60) ? 'text-warning' : 'text-danger'); ?>">
+                                                <?php echo $enhanced_stats['attendance_rate'] ?? 0; ?>%
+                                            </h5>
+                                        </div>
+                                        <div class="col-md-4 border-end">
+                                            <small class="text-muted">Class Session</small>
+                                            <h5 class="mb-0 text-info">
+                                                <?php 
+                                                if (!empty($_SESSION['access']['subject']['time'])) {
+                                                    echo htmlspecialchars($_SESSION['access']['subject']['time']);
+                                                } else {
+                                                    echo 'Not Set';
+                                                }
+                                                ?>
+                                            </h5>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <small class="text-muted">Current Time</small>
+                                            <h5 class="mb-0 text-primary" id="currentTime">
+                                                <?php echo date('g:i A'); ?>
+                                            </h5>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <?php elseif ($first_student_section && $first_student_year): ?>
+                <div class="alert alert-info mb-4">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Waiting for student scans to display attendance statistics.
+                </div>
+                <?php endif; ?>
+
                 <div class="instructor-header">
                     <div class="instructor-info">
                         <div class="instructor-details">
@@ -685,7 +514,7 @@ if ($show_timeout_message) {
                 </div>
 
                 <!-- Attendance Records -->
-                <h5 class="mt-3">Attendance Records</h5>
+                <h5 class="mt-3"><i class="fas fa-list me-2"></i>Attendance Records</h5>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover">
                         <thead class="table-dark">
@@ -811,6 +640,21 @@ if ($show_timeout_message) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Update current time every minute
+        function updateCurrentTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const timeElement = document.getElementById('currentTime');
+            if (timeElement) {
+                timeElement.textContent = timeString;
+            }
+        }
+        
+        // Initial update
+        updateCurrentTime();
+        // Update every minute
+        setInterval(updateCurrentTime, 60000);
+
         // Handle logout confirmation
         document.querySelector('.btn-outline-danger').addEventListener('click', function(e) {
             if (!confirm('Are you sure you want to log out? This will clear today\'s attendance records.')) {
