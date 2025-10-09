@@ -359,7 +359,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             }
 
             .header-logo {
-                height: 50px;
+                height: 1px;
                 width: auto;
                 border-radius: 8px;
                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -383,7 +383,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                 }
                 
                 .header-logo {
-                    height: 45px;
+                    height: 10px;
                 }
                 
                 .login-header h3 {
