@@ -394,12 +394,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
 <body>
     <div class="login-container">
         <div class="login-header">
-            <div class="logo-section">
-                <img src="uploads/it.png" alt="Instructor Portal Logo" class="logo-img" 
-                     onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiByeD0iMTAiIGZpbGw9IiM0RTczREYiLz4KPHN2ZyB4PSIyMCIgeT0iMjAiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiPgo8cGF0aCBkPSJNMTIgMTNWMTVNMTIgNlY3TTQgMTJIMjBNMTcgMTJIMjBNNy41IDcuNUwxNi41IDE2LjVNMTYuNSA3LjVMNy41IDE2LjUiLz4KPC9zdmc+Cjwvc3ZnPg=='">
-                <h3 class="login-title">
-                    <i class="fas fa-chalkboard-teacher"></i>INSTRUCTOR LOGIN
-                </h3>
+            <div class="logo-container">
+                <img src="uploads\it.png" alt="Instructor Portal Logo" class="logo-img" onerror="this.style.display='none'">
+                <div class="logo-text">
+                    <h3><i class="fas fa-chalkboard-teacher me-2"></i>INSTRUCTOR LOGIN</h3>
+                    
                 </div>
             </div>
         </div>
