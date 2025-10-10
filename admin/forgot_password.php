@@ -1,22 +1,9 @@
 <?php
-// forgot_password.php - UPDATED VERSION
+// forgot_password.php - CORRECTED VERSION
 
-// Start session at the VERY TOP with proper configuration
+// Start session at the VERY TOP
 if (session_status() === PHP_SESSION_NONE) {
-    session_set_cookie_params([
-        'lifetime' => 0,
-        'path' => '/',
-        'domain' => $_SERVER['HTTP_HOST'],
-        'secure' => isset($_SERVER['HTTPS']),
-        'httponly' => true,
-        'samesite' => 'Strict'
-    ]);
     session_start();
-}
-
-// Regenerate session ID to prevent fixation
-if (empty($_SESSION['forgot_csrf_token'])) {
-    session_regenerate_id(true);
 }
 
 include '../connection.php';
@@ -28,7 +15,7 @@ header("X-Content-Type-Options: nosniff");
 header("X-XSS-Protection: 1; mode=block");
 header("Referrer-Policy: strict-origin-when-cross-origin");
 
-// Generate CSRF token
+// Generate CSRF token if not exists
 if (empty($_SESSION['forgot_csrf_token'])) {
     $_SESSION['forgot_csrf_token'] = bin2hex(random_bytes(32));
     $_SESSION['forgot_csrf_time'] = time();
@@ -39,17 +26,13 @@ $success = '';
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Debug: Log what we received
-    error_log("CSRF Debug: POST token = " . ($_POST['csrf_token'] ?? 'NOT SET'));
-    error_log("CSRF Debug: SESSION token = " . ($_SESSION['forgot_csrf_token'] ?? 'NOT SET'));
-    
-    // Validate CSRF token with better error handling
+    // Validate CSRF token
     if (!isset($_POST['csrf_token']) || !isset($_SESSION['forgot_csrf_token'])) {
         $error = "Security token missing. Please refresh the page and try again.";
     } elseif ($_POST['csrf_token'] !== $_SESSION['forgot_csrf_token']) {
         $error = "Security token invalid or expired. Please refresh the page and try again.";
         
-        // Regenerate token for security
+        // Regenerate token for security after failed attempt
         $_SESSION['forgot_csrf_token'] = bin2hex(random_bytes(32));
         $_SESSION['forgot_csrf_time'] = time();
     } else {
@@ -185,8 +168,6 @@ function sendPasswordResetEmail($email, $token, $username) {
     $headers .= "Reply-To: $from_email" . "\r\n";
     $headers .= "X-Mailer: PHP/" . phpversion();
     
-    // For better reliability, use PHPMailer (recommended)
-    // But for quick testing, use the basic mail() function:
     return mail($email, $subject, $message, $headers);
 }
 ?>
@@ -391,7 +372,6 @@ function sendPasswordResetEmail($email, $token, $username) {
             btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Sending...';
             btn.disabled = true;
         });
-
     </script>
 </body>
 </html>
