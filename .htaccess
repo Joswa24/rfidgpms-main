@@ -49,7 +49,11 @@ Header always set X-Content-Type-Options "nosniff"
 
 # Enable XSS protection
 Header always set X-XSS-Protection "1; mode=block"
-
+# Block direct access to recaptcha config files
+<Files "recaptcha.php">
+    Order Allow,Deny
+    Deny from all
+</Files>
 # Protect sensitive files
 <FilesMatch "\.(env|log|ini|conf|sql)$">
     Deny from all
