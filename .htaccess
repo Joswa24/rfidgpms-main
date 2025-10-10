@@ -38,6 +38,18 @@ RewriteRule ^(.*)$ - [F,L]
 RewriteCond %{QUERY_STRING} (\.\./|\.\.\\|\.\.%2f|\.\.%5c) [NC]
 RewriteRule ^(.*)$ - [F,L]
 
+# Disable server signature
+ServerSignature Off
+
+# Prevent clickjacking
+Header always set X-Frame-Options "SAMEORIGIN"
+
+# Prevent MIME type sniffing
+Header always set X-Content-Type-Options "nosniff"
+
+# Enable XSS protection
+Header always set X-XSS-Protection "1; mode=block"
+
 # Protect sensitive files
 <FilesMatch "\.(env|log|ini|conf|sql)$">
     Deny from all
