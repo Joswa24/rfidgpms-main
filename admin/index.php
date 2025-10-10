@@ -96,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                         error_log("Stored password: " . $user['password']);
                         error_log("Input password: " . $password);
                         
-                        // Check password (both hashed and plain text)
+                        // Check password (ONLY hashed - remove plain text check)
                         if (password_verify($password, $user['password'])) {
                             // Successful login with hashed password
                             $_SESSION['login_attempts'] = 0;
@@ -118,38 +118,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                                 'httponly' => true,
                                 'samesite' => 'Strict'
                             ]);
-                            
-                            header('Location: dashboard.php');
-                            exit();
-                        } elseif ($user['password'] === $password) {
-                            // Successful login with plain text password
-                            $_SESSION['login_attempts'] = 0;
-                            $_SESSION['lockout_time'] = 0;
-                            $_SESSION['user_id'] = $user['id'];
-                            $_SESSION['username'] = $user['username'];
-                            $_SESSION['email'] = $user['email'];
-                            $_SESSION['logged_in'] = true;
-                            
-                            // Regenerate session ID to prevent session fixation
-                            session_regenerate_id(true);
-                            
-                            // Set secure session cookie parameters
-                            session_set_cookie_params([
-                                'lifetime' => 0,
-                                'path' => '/',
-                                'domain' => $_SERVER['HTTP_HOST'],
-                                'secure' => isset($_SERVER['HTTPS']),
-                                'httponly' => true,
-                                'samesite' => 'Strict'
-                            ]);
-                            
-                            // Hash the plain text password for future use
-                            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-                            $updateStmt = $db->prepare("UPDATE user SET password = ? WHERE id = ?");
-                            if ($updateStmt) {
-                                $updateStmt->bind_param("si", $hashedPassword, $user['id']);
-                                $updateStmt->execute();
-                            }
                             
                             header('Location: dashboard.php');
                             exit();
