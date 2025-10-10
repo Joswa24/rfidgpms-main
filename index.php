@@ -9,49 +9,54 @@ include 'security-headers.php';
 include 'connection.php';
 include 'recaptcha.php';
 
-// =====================================================================
-// reCAPTCHA VERIFICATION FUNCTION
-// =====================================================================
-    function verifyRecaptcha($recaptchaResponse) {
+    // =====================================================================
+    // reCAPTCHA VERIFICATION FUNCTION
+    // =====================================================================
+        function verifyRecaptcha($recaptchaResponse) {
         $secret_key = '6Ld2w-QrAAAAAFeIvhKm5V6YBpIsiyHIyzHxeqm-';
         $url = 'https://www.google.com/recaptcha/api/siteverify';
         
         $data = [
             'secret' => $secret_key,
-            'response' => $recaptchaResponse,
-            'remoteip' => $_SERVER['REMOTE_ADDR']
+            'response' => $recaptchaResponse
+            // Remove remoteip for now to simplify
         ];
         
-        $options = [
-            'http' => [
-                'method' => 'POST',
-                'content' => http_build_query($data),
-                'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
-                'timeout' => 10 // Add timeout
-            ]
-        ];
+        // Use cURL instead of file_get_contents (more reliable)
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         
-        try {
-            $context = stream_context_create($options);
-            $result = file_get_contents($url, false, $context);
-            
-            if ($result === FALSE) {
-                error_log("reCAPTCHA API request failed - cannot connect to Google");
-                return (object)['success' => false, 'score' => 0];
-            }
-            
-            $response = json_decode($result);
-            
-            // Log for debugging (remove in production)
-            error_log("reCAPTCHA Response - Success: " . ($response->success ? 'true' : 'false') . 
-                    " - Score: " . ($response->score ?? 'unknown') . 
-                    " - Hostname: " . ($response->hostname ?? 'unknown'));
-            
-            return $response;
-        } catch (Exception $e) {
-            error_log("reCAPTCHA verification exception: " . $e->getMessage());
+        $result = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+        
+        // Log detailed information
+        error_log("reCAPTCHA Debug - HTTP Code: $httpCode, cURL Error: $curlError, Result: " . $result);
+        
+        if ($result === false) {
+            error_log("reCAPTCHA cURL failed: " . $curlError);
             return (object)['success' => false, 'score' => 0];
         }
+        
+        if ($httpCode !== 200) {
+            error_log("reCAPTCHA HTTP Error: $httpCode");
+            return (object)['success' => false, 'score' => 0];
+        }
+        
+        $response = json_decode($result);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            error_log("reCAPTCHA JSON parse error: " . json_last_error_msg());
+            return (object)['success' => false, 'score' => 0];
+        }
+        
+        return $response;
     }
 
 // Start session first
@@ -442,25 +447,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             background-color: #f8f9fa;
         }
         
-        /* Additional security styling */
-        body {
-            position: relative;
-        }
-        .grecaptcha-badge {
-        visibility: visible !important;
-         }
-    
-        .mb-3, .mb-4 {
-            transition: all 0.3s ease;
-        }
         
-        .gate-access-info {
-            background-color: #e3f2fd;
-            border-left: 4px solid #2196f3;
-            padding: 10px;
-            margin-bottom: 15px;
-            border-radius: 4px;
-        }
     </style>
 </head>
 <body class="bg-light">
