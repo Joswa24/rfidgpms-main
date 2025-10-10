@@ -7,8 +7,6 @@ ini_set('display_errors', 1);
 include '../connection.php';
 include 'functions.php';
 
-// Validate session
-validateSession();
 
 // Get dashboard statistics
 $stats = getDashboardStats($db);
