@@ -7,6 +7,7 @@ ini_set('display_errors', 1);
 // Include required files
 include 'security-headers.php';
 include 'connection.php';
+include 'recaptcha.php';
 
 // =====================================================================
 // reCAPTCHA VERIFICATION FUNCTION
