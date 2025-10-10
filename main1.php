@@ -50,223 +50,7 @@ mysqli_close($db);
     <title>Classroom Attendance Scanner</title>
     <link rel="icon" href="uploads/scanner.webp" type="image/webp">
     <style>
-        /* Enhanced Confirmation Modal Styles */
-        .confirmation-modal .modal-dialog {
-            max-width: 550px;
-        }
-
-        .confirmation-modal .modal-content {
-            border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            border: 3px solid #084298;
-        }
-
-        .confirmation-modal .modal-header {
-            background: linear-gradient(135deg, #084298 0%, #0d6efd 100%);
-            color: white;
-            border-bottom: none;
-            padding: 20px 30px;
-            position: relative;
-        }
-
-        .confirmation-modal .modal-header::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 5%;
-            width: 90%;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
-        }
-
-        .confirmation-modal .modal-title {
-            font-weight: 700;
-            font-size: 1.4rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .confirmation-modal .modal-body {
-            padding: 30px;
-            background: #f8f9fa;
-        }
-
-        .confirmation-modal .student-photo-container {
-            position: relative;
-            width: 140px;
-            height: 140px;
-            margin: 0 auto 20px;
-        }
-
-        .confirmation-modal .student-photo {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 4px solid #084298;
-            box-shadow: 0 8px 25px rgba(8, 66, 152, 0.3);
-            background: white;
-        }
-
-        .confirmation-modal .photo-frame {
-            position: absolute;
-            top: -5px;
-            left: -5px;
-            right: -5px;
-            bottom: -5px;
-            border: 2px solid #0d6efd;
-            border-radius: 50%;
-            pointer-events: none;
-        }
-
-        .confirmation-modal .student-name {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #084298;
-            margin-bottom: 5px;
-            text-align: center;
-        }
-
-        .confirmation-modal .student-id {
-            font-size: 1.1rem;
-            color: #6c757d;
-            text-align: center;
-            margin-bottom: 25px;
-            font-weight: 500;
-        }
-
-        .confirmation-modal .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-
-        .confirmation-modal .info-item {
-            background: white;
-            padding: 15px;
-            border-radius: 12px;
-            border-left: 4px solid #084298;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-            transition: transform 0.2s ease;
-        }
-
-        .confirmation-modal .info-item:hover {
-            transform: translateY(-2px);
-        }
-
-        .confirmation-modal .info-label {
-            font-size: 0.85rem;
-            color: #6c757d;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 5px;
-        }
-
-        .confirmation-modal .info-value {
-            font-size: 1rem;
-            font-weight: 600;
-            color: #212529;
-            word-break: break-word;
-        }
-
-        .confirmation-modal .attendance-status-container {
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            margin: 20px 0;
-            text-align: center;
-            border: 2px solid;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.1);
-        }
-
-        .confirmation-modal .time-in-status {
-            border-color: #198754;
-            background: linear-gradient(135deg, #d1e7dd 0%, #f8f9fa 100%);
-        }
-
-        .confirmation-modal .time-out-status {
-            border-color: #fd7e14;
-            background: linear-gradient(135deg, #ffe5d0 0%, #f8f9fa 100%);
-        }
-
-        .confirmation-modal .attendance-icon {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-        }
-
-        .confirmation-modal .time-in-icon {
-            color: #198754;
-        }
-
-        .confirmation-modal .time-out-icon {
-            color: #fd7e14;
-        }
-
-        .confirmation-modal .attendance-text {
-            font-size: 1.3rem;
-            font-weight: 700;
-            margin-bottom: 5px;
-        }
-
-        .confirmation-modal .time-in-text {
-            color: #198754;
-        }
-
-        .confirmation-modal .time-out-text {
-            color: #fd7e14;
-        }
-
-        .confirmation-modal .time-display {
-            background: linear-gradient(135deg, #084298 0%, #0d6efd 100%);
-            color: white;
-            border-radius: 12px;
-            padding: 20px;
-            margin-top: 20px;
-            text-align: center;
-            box-shadow: 0 8px 25px rgba(8, 66, 152, 0.3);
-        }
-
-        .confirmation-modal .time-value {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 5px;
-            font-family: 'Courier New', monospace;
-        }
-
-        .confirmation-modal .date-value {
-            font-size: 1rem;
-            opacity: 0.9;
-            font-weight: 500;
-        }
-
-        .confirmation-modal .modal-footer {
-            border-top: none;
-            padding: 20px 30px;
-            background: #f8f9fa;
-            justify-content: center;
-        }
-
-        .confirmation-modal .ok-button {
-            background: linear-gradient(135deg, #084298 0%, #0d6efd 100%);
-            border: none;
-            padding: 12px 40px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            border-radius: 50px;
-            box-shadow: 0 6px 20px rgba(8, 66, 152, 0.4);
-            transition: all 0.3s ease;
-        }
-
-        .confirmation-modal .ok-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(8, 66, 152, 0.5);
-        }
-
-        /* Scanner styles remain the same */
+        /* Updated styles for barcode scanner interface */
         .scanner-display-area {
             background-color: #f8f9fa;
             border: 2px dashed #084298;
@@ -281,7 +65,7 @@ mysqli_close($db);
             align-items: center;
         }
 
-        .scanned-id-display {
+         .scanned-id-display {
             background-color: #f8f9fa;
             border: 2px solid #084298;
             border-radius: 8px;
@@ -291,39 +75,97 @@ mysqli_close($db);
             width: 100%;
         }
 
-        /* Rest of your existing styles... */
-        .dept-location-info {
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
-            padding: 10px;
-            margin-bottom: 20px;
-            text-align: center;
+        .scanned-label {
             font-weight: bold;
             color: #084298;
+            margin-bottom: 5px;
         }
 
-        .manual-input-section {
-            margin-top: 20px;
-            background-color: #f8f9fa;
-            border-radius: 8px;
-            padding: 10px;
-            border: 1px solid #dee2e6;
+        .scanned-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #212529;
+            margin: 10px 0;
+            padding: 8px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            word-break: break-all;
         }
 
-        .large-scanner-container {
-            position: relative;
-            height: 60vh;
-            max-height: 300px;
-            margin: 20px auto;
-        }
 
-        #largeReader {
+.processing-text {
+    color: #084298;
+    font-style: italic;
+    margin-top: 10px;
+}
+        .preview-1 {
+            width: 140px!important;
+            height: 130px!important;
+            position: absolute;
+            border: 1px solid gray;
+            top: 15%;
+            cursor: pointer;
+        }
+        
+        .column {
+            flex: 1;
+            text-align: center;
+        }
+        
+        .column.wide {
+            flex: 2;
+        }
+        
+        .text {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+        }
+        
+        .text .row {
+            line-height: 1.5;
+            margin-bottom: 5px;
+        }
+        
+        .detail {
+            appearance: none;
+            border: none;
+            outline: none;
+            border-bottom: .2em solid #084298;
+            background: white;
+            border-radius: .2em .2em 0 0;
+            padding: .4em;
+            margin: 13px 0px;
+            height: 70px;
+        }
+        
+        #reader {
+            width: 50%;
+            max-width: 250px;
+            margin: 0 auto; /* Centered horizontally */
             border: 2px solid #084298;
             border-radius: 10px;
             overflow: hidden;
         }
-
+        
+        #result {
+            text-align: center;
+            font-size: 1.5rem;
+            margin: 20px 0;
+            color: #084298;
+            font-weight: bold;
+        }
+        
+        .scanner-container {
+            position: relative;
+            display: flex;
+            justify-content: center; /* Center the scanner */
+            align-items: center;
+            flex-direction: column;
+        }
+        
         .scanner-overlay {
             position: absolute;
             top: 0;
@@ -336,14 +178,14 @@ mysqli_close($db);
             background: rgba(0,0,0,0.7);
             z-index: 10;
         }
-
+        
         .scanner-frame {
             border: 3px solid #FBC257;
             width: 80%;
             height: 200px;
             position: relative;
         }
-
+        
         .scanner-laser {
             position: absolute;
             width: 100%;
@@ -353,37 +195,280 @@ mysqli_close($db);
             animation: scan 2s infinite;
             box-shadow: 0 0 10px #FBC257;
         }
-
+        
         @keyframes scan {
             0% { top: 0; }
             50% { top: 100%; }
             100% { top: 0; }
         }
+        
+        .dept-location-info {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+            color: #084298;
+        }
+        
+        .manual-input-section {
+            margin-top: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            height: 20px;
+            
+                
+        }
+        
+        .manual-input-section h4 {
+            color: #084298;
+            margin-bottom: 10px;
+            text-align: center;
 
+        }
+        
+        .input-group {
+            margin-bottom: 10px;
+        }
+        
+        #manualIdInput {
+            border: 2px solid #084298;
+            height: 50px;
+            font-size: 1.2rem;
+            text-align: center;
+        }
+        
+        #manualSubmitBtn {
+            height: 50px;
+            font-size: 1.1rem;
+           
+        }
+        
+        /* Confirmation modal styling */
+        .confirmation-modal .modal-dialog {
+            max-width: 500px;
+        }
+        
+        .confirmation-modal .modal-content {
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        
+        .confirmation-modal .modal-header {
+            background-color: #084298;
+            color: white;
+            border-bottom: none;
+        }
+        
+        .confirmation-modal .modal-body {
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .confirmation-modal .student-photo {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin: 0 auto 20px;
+            border: 3px solid #084298;
+        }
+        
+        .confirmation-modal .student-info {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+        
+        .confirmation-modal .attendance-status {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 10px;
+        }
+        
+        .confirmation-modal .time-in {
+            background-color: #d1e7dd;
+            color: #0f5132;
+        }
+        
+        .confirmation-modal .time-out {
+            background-color: #f8d7da;
+            color: #842029;
+        }
+        
+        .confirmation-modal .modal-footer {
+            border-top: none;
+            justify-content: center;
+        }
+        
+        /* Add new styles for larger scanner */
+        .large-scanner-container {
+            position: relative;
+            height: 60vh;
+            max-height: 300px;
+            margin: 20px auto;
+        }
+        
+        #largeReader {
+            
+            border: 2px solid #084298;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        /* Adjust the layout for the columns */
+        .scanner-column {
+            flex: 1;
+            padding: 15px;
+        }
+        
+        .photo-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .large-photo {
+            width: 100%;
+            max-width: 300px;
+            height: 300px;
+            object-fit: cover;
+            border: 2px solid #084298;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        /* Scanner preview modal styles */
+        .scanner-preview-modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+            z-index: 1000;
+            width: 300px;
+            max-width: 90%;
+            text-align: center;
+        }
+        
+        .scanner-preview-modal img {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #084298;
+            margin-bottom: 15px;
+        }
+        
+        .scanner-preview-modal h5 {
+            margin-bottom: 10px;
+            color: #084298;
+        }
+        
+        .scanner-preview-modal p {
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        .scanner-preview-modal .btn-group {
+            margin-top: 15px;
+        }
+        
+        .scanner-preview-modal .btn {
+            padding: 5px 15px;
+            margin: 0 5px;
+        }
+        
         .blink {
             animation: blink-animation 1s steps(5, start) infinite;
         }
-
+        
         @keyframes blink-animation {
             to { visibility: hidden; }
         }
-
-        /* Responsive adjustments */
-        @media (max-width: 768px) {
-            .confirmation-modal .info-grid {
-                grid-template-columns: 1fr;
-                gap: 10px;
-            }
-            
-            .confirmation-modal .modal-body {
-                padding: 20px;
-            }
-            
-            .confirmation-modal .student-photo-container {
-                width: 120px;
-                height: 120px;
-            }
+        
+        .restriction-message {
+            background-color: #f8d7da;
+            color: #842029;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
         }
+        /* Confirmation modal styling */
+.confirmation-modal .modal-dialog {
+    max-width: 500px;
+}
+
+.confirmation-modal .modal-content {
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.confirmation-modal .modal-header {
+    background-color: #084298;
+    color: white;
+    border-bottom: none;
+}
+
+.confirmation-modal .modal-body {
+    padding: 30px;
+    text-align: center;
+}
+
+.confirmation-modal .student-photo {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin: 0 auto 20px;
+    border: 3px solid #084298;
+}
+
+.confirmation-modal .student-info {
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+}
+
+.confirmation-modal .attendance-status {
+    font-size: 1.3rem;
+    font-weight: bold;
+    margin: 20px 0;
+    padding: 10px;
+    border-radius: 10px;
+}
+
+.confirmation-modal .time-in {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border: 2px solid #0f5132;
+}
+
+.confirmation-modal .time-out {
+    background-color: #f8d7da;
+    color: #842029;
+    border: 2px solid #842029;
+}
+
+.confirmation-modal .modal-footer {
+    border-top: none;
+    justify-content: center;
+}
+
+.confirmation-modal .time-display {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+}
     </style>
 </head>
 
@@ -391,102 +476,87 @@ mysqli_close($db);
 <audio id="myAudio" hidden>
     <source src="admin/audio/alert.mp3" type="audio/mpeg">
 </audio> 
-
 <div id="message"></div>
 
 <img src="uploads/Head.png" style="width: 100%; height: 150px; margin-left: 10px; padding=10px; margin-top=20px;S">
-
-<!-- Enhanced Confirmation Modal -->
-<div class="modal fade confirmation-modal" id="confirmationModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-check-circle me-2"></i>
-                    Attendance Recorded
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body text-center">
-                <!-- Student Photo with Frame -->
-                <div class="student-photo-container">
-                    <img id="modalStudentPhoto" 
-                         src="assets/img/2601828.png" 
-                         alt="Student Photo" 
-                         class="student-photo"
-                         onerror="this.src='assets/img/2601828.png'">
-                    <div class="photo-frame"></div>
-                </div>
-                
-                <!-- Student Name and ID -->
-                <h4 id="modalStudentName" class="student-name"></h4>
-                <div id="modalStudentId" class="student-id"></div>
-
-                <!-- Student Information Grid -->
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">Department</div>
-                        <div id="modalStudentDept" class="info-value"></div>
+        <!-- Confirmation Modal -->
+        <div class="modal fade confirmation-modal" id="confirmationModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Attendance Recorded</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                    <div class="info-item">
-                        <div class="info-label">Year & Section</div>
-                        <div id="modalStudentYearSection" class="info-value"></div>
+                    <div class="modal-body text-center">
+                        <!-- ✅ Student Photo - Fixed -->
+                        <img id="modalStudentPhoto" 
+                            src="assets/img/2601828.png" 
+                            alt="Student Photo" 
+                            class="modal-student-photo">
+                        
+                        <h4 id="modalStudentName" class="mb-3"></h4>
+                        
+                        <div class="student-info mb-3">
+                            <div class="mb-2"><strong>ID:</strong> <span id="modalStudentId"></span></div>
+                            <div class="mb-2"><strong>Department:</strong> <span id="modalStudentDept"></span></div>
+                            <div class="mb-2"><strong>Year & Section:</strong> <span id="modalStudentYearSection"></span></div>
+                            <div><strong>Role:</strong> <span id="modalStudentRole"></span></div>
+                        </div>
+                        
+                        <div class="attendance-status mb-3" id="modalAttendanceStatus">
+                            <span id="modalTimeInOut"></span>
+                        </div>
+                        
+                        <div class="time-display bg-light p-3 rounded">
+                            <div id="modalTimeDisplay" class="fw-bold fs-5"></div>
+                            <div id="modalDateDisplay" class="text-muted"></div>
+                        </div>
                     </div>
-                    <div class="info-item">
-                        <div class="info-label">Role</div>
-                        <div id="modalStudentRole" class="info-value"></div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Status</div>
-                        <div id="modalStudentStatus" class="info-value">Active</div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary" style="background-color: #87abe0ff" onclick="closeAndRefresh()">OK</button>
                     </div>
                 </div>
-
-                <!-- Attendance Status -->
-                <div class="attendance-status-container" id="modalAttendanceStatus">
-                    <div class="attendance-icon" id="modalAttendanceIcon">
-                        <i class="fas fa-sign-in-alt"></i>
-                    </div>
-                    <div class="attendance-text" id="modalTimeInOut"></div>
-                    <div class="attendance-subtext" id="modalAttendanceSubtext">Successfully recorded</div>
-                </div>
-
-                <!-- Time Display -->
-                <div class="time-display">
-                    <div id="modalTimeDisplay" class="time-value"></div>
-                    <div id="modalDateDisplay" class="date-value"></div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn ok-button" onclick="closeAndContinue()">
-                    <i class="fas fa-check me-2"></i>OK
-                </button>
             </div>
         </div>
+
+
+
+<!-- Scanner Preview Modal (shown within scanner frame) -->
+<div id="ScannerPreviewModal" class="Scanner-preview-modal" style="display: none;">
+    <img id="previewPhoto" src="uploads/temporary.png" alt="Student Photo" type="image/png">
+    <h5 id="previewName"></h5>
+    <p>ID: <span id="previewId"></span></p>
+    <p>Department: <span id="previewDept"></span></p>
+    <p>Section: <span id="previewSection"></span></p>
+    <p>Year: <span id="previewYear"></span></p>
+    
+    <div class="btn-group">
+        <button id="previewConfirmBtn" class="btn btn-success">Confirm</button>
+        <button id="previewCancelBtn" class="btn btn-secondary">Cancel</button>
     </div>
 </div>
 
-<!-- Rest of your HTML structure remains the same -->
+
+<!-- Navigation Tabs -->
 <div class="container mt-3">
     <ul class="nav nav-tabs">
         <li class="nav-item">
             <a class="nav-link active active-tab" aria-current="page" href="#">Scanner</a>
         </li>
-        <li class="nav-item">
-            <a class="nav-link" href="students_logs.php?from_scanner=1">Attendance Log</a>
-        </li>
+       <li class="nav-item">
+    <a class="nav-link" href="students_logs.php?from_scanner=1">Attendance Log</a>
+</li>
     </ul>
 </div>
-
 <section class="hero" style="margin-top: 0; height: calc(100vh - 140px);">
     <div class="container h-100">
-        <!-- Department/Location Info Display -->
+        <!-- Department/Location Info Display - Made more compact -->
         <div class="dept-location-info mb-2 py-1">
             <h3 class="mb-1" style="font-size: 1rem;">Department: <?php echo $department; ?></h3>
             <h3 class="mb-1" style="font-size: 1rem;">Room: <?php echo $location; ?></h3>
         </div>
         
-        <!-- Clock Display -->
+        <!-- Compact Clock Display -->
         <center>
             <div id="clockdate" style="border: 1px solid #084298; background-color: #084298; height: 70px; margin-bottom: 10px;">
                 <div class="clockdate-wrapper d-flex flex-column justify-content-center" style="height:100%;">
@@ -496,17 +566,19 @@ mysqli_close($db);
             </div>
         </center>
         
-        <!-- Main Content Row -->
+        <!-- Main Content Row - Adjusted heights -->
         <div class="row" style="height: calc(100% - 120px);">
-            <!-- Scanner Column -->
+            <!-- Scanner Column (70% width) -->
             <div class="col-md-8 h-100" style="padding-right: 5px;">
                 <div class="alert alert-primary py-1 mb-2" role="alert" id="alert">
+                    <div class="alert alert-primary py-1 mb-2" role="alert" id="alert">
                     <center><h3 id="in_out" class="mb-0" style="font-size: 1rem;">
                         <i class="fas fa-id-card me-2"></i>Scan Your ID Card for Attendance
                     </h3></center>
                 </div>
+                </div>
 
-                <!-- Scanner Container -->
+                <!-- Scanner Container - Adjusted size -->
                 <div class="large-scanner-container" style="height: calc(100% - 60px);">
                     <div id="largeReader" style="height: 100%;"></div>
                     <div class="scanner-overlay">
@@ -518,14 +590,14 @@ mysqli_close($db);
                 <div id="result" class="text-center" style="min-height: 40px; font-size: 0.9rem;"></div>
             </div>
             
-            <!-- Photo/Manual Input Column -->
+            <!-- Photo/Manual Input Column (30% width) -->
             <div class="col-md-4 h-100 d-flex flex-column" style="padding-left: 5px;">
-                <!-- Student Photo -->
+                <!-- Student Photo - Made smaller -->
                 <img id="pic" class="mb-2" alt=""; 
                      src="assets/img/section/type.jpg"
                      style="margin-top: .5px; width: 100%; height: 200px; object-fit: cover; border: 2px solid #084298; border-radius: 3px;">
                 
-                <!-- Manual Input Section -->
+                <!-- Manual Input Section - Made more compact -->
                 <div class="manual-input-section flex-grow-1" style="padding: 10px; margin-bottom:60px;">
                     <h4 class="mb-1" style="font-size: 1rem;"><i class="fas fa-keyboard"></i> Manual Attendance</h4>
                     <p class="text-center mb-2" style="font-size: 0.8rem;">For students who forgot their ID</p>
@@ -553,117 +625,291 @@ mysqli_close($db);
     </div>
 </section>
 
-<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="admin/lib/chart/chart.min.js"></script>
-
 <script>
 // Global variables
-let scanner = null;
+let barcodeBuffer = '';
 let lastScanTime = 0;
-const scanCooldown = 1000;
+const scanCooldown = 1000; // 1 second cooldown between scans
+let allowedSection = null;
+let allowedYear = null;
+let isFirstStudent = true;
 
-// Enhanced showConfirmationModal function
-function showConfirmationModal(data) {
-    console.log("🎯 Showing enhanced confirmation modal with data:", data);
-    
-    // Get current time and date
-    const now = new Date();
-    const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const dateString = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+// Student photo mapping
+const studentPhotos = {
+    "2024-0380": "uploads/students/68b703dcdff49_1232-1232.jpg",
+    "2024-1570": "uploads/students/68b703dcdff49_1232-1232.jpg",
+    "2024-0117": "uploads/students/68b703dcdff49_1232-1232.jpg",
+    "2024-1697": "uploads/students/68b703dcdff49_1232-1232.jpg",
+    // ✅ add more here...
+};
 
-    // Update student information
-    document.getElementById('modalStudentName').textContent = data.full_name || 'Student Name';
-    document.getElementById('modalStudentId').textContent = data.id_number || 'N/A';
-    document.getElementById('modalStudentDept').textContent = data.department || 'N/A';
-    document.getElementById('modalStudentYearSection').textContent = (data.year_level || 'N/A') + ' - ' + (data.section || 'N/A');
-    document.getElementById('modalStudentRole').textContent = data.role || 'Student';
-    document.getElementById('modalStudentStatus').textContent = data.status || 'Active';
-    
-    // Update time displays
-    document.getElementById('modalTimeDisplay').textContent = timeString;
-    document.getElementById('modalDateDisplay').textContent = dateString;
+function setStudentPhoto(idNumber) {
+    let photoPath = studentPhotos[idNumber] || "uploads/students/default.png";
+    document.getElementById("modalStudentPhoto").src = photoPath + "?t=" + new Date().getTime();
+}
 
-    // Update attendance status with enhanced styling
-    const statusContainer = document.getElementById('modalAttendanceStatus');
-    const statusIcon = document.getElementById('modalAttendanceIcon');
-    const statusText = document.getElementById('modalTimeInOut');
-    
-    if (data.attendance_type === 'time_in' || data.time_in_out === 'Time In Recorded') {
-        statusContainer.className = 'attendance-status-container time-in-status';
-        statusIcon.innerHTML = '<i class="fas fa-sign-in-alt time-in-icon"></i>';
-        statusText.className = 'attendance-text time-in-text';
-        statusText.textContent = '✓ Time In Recorded';
-        document.getElementById('modalAttendanceSubtext').textContent = 'Welcome to class!';
-    } else if (data.attendance_type === 'time_out' || data.time_in_out === 'Time Out Recorded') {
-        statusContainer.className = 'attendance-status-container time-out-status';
-        statusIcon.innerHTML = '<i class="fas fa-sign-out-alt time-out-icon"></i>';
-        statusText.className = 'attendance-text time-out-text';
-        statusText.textContent = '✓ Time Out Recorded';
-        document.getElementById('modalAttendanceSubtext').textContent = 'See you next time!';
-    } else {
-        statusContainer.className = 'attendance-status-container';
-        statusIcon.innerHTML = '<i class="fas fa-check-circle text-primary"></i>';
-        statusText.className = 'attendance-text text-primary';
-        statusText.textContent = data.time_in_out || '✓ Attendance Recorded';
-        document.getElementById('modalAttendanceSubtext').textContent = 'Successfully recorded';
+// Scanner Initialization and Control Functions
+function initScanner() {
+    // Clear any existing scanner instance
+    if (scanner) {
+        scanner.clear();
     }
-
-    // Update student photo with enhanced error handling
-    const modalPhoto = document.getElementById('modalStudentPhoto');
-    if (data.photo && data.photo !== 'assets/img/2601828.png') {
-        modalPhoto.src = data.photo + '?t=' + new Date().getTime();
-        modalPhoto.onerror = function() {
-            this.src = 'assets/img/2601828.png';
-            console.log("🖼️ Photo load failed, using default");
-        };
-    } else {
-        modalPhoto.src = 'assets/img/2601828.png';
-    }
-
-    // Show additional student info in console for debugging
-    console.log("📋 Enhanced Student Data:", {
-        name: data.full_name,
-        id: data.id_number,
-        department: data.department,
-        year: data.year_level,
-        section: data.section,
-        role: data.role,
-        status: data.status,
-        photo: data.photo,
-        attendance: data.time_in_out || data.attendance_type
+    
+    // Create new scanner instance with configuration
+    scanner = new Html5QrcodeScanner('largeReader', { 
+        qrbox: {
+            width: 300,
+            height: 300,
+        },
+        fps: 20,
+        rememberLastUsedCamera: true,
+        supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
+        showTorchButtonIfSupported: true
     });
+    
+    // Render the scanner with success and error callbacks
+    scanner.render(onScanSuccess, onScanError);
+}
 
-    // Show modal using Bootstrap
-    const modalElement = document.getElementById('confirmationModal');
-    const modal = new bootstrap.Modal(modalElement);
+function stopScanner() {
+    if (scanner) {
+        scanner.clear().then(() => {
+            console.log("Scanner stopped successfully");
+        }).catch(err => {
+            console.error("Failed to stop scanner:", err);
+        });
+    }
+}
+
+
+function restartScanner() {
+    stopScanner();
+    initScanner();
+    document.querySelector('.scanner-overlay').style.display = 'flex';
+}
+
+// Scanner Event Handlers
+function onScanSuccess(decodedText) {
+    const now = Date.now();
     
-    modal.show();
+    // Implement scan cooldown to prevent duplicate scans
+    if (now - lastScanTime < scanCooldown) {
+        console.log("Scan cooldown active - ignoring scan");
+        return;
+    }
     
-    // Hide scanner overlay while modal is open
+    lastScanTime = now;
+    
+    
+    
+    // Hide scanner overlay during processing
     document.querySelector('.scanner-overlay').style.display = 'none';
     
-    // Add event listener for when modal is hidden
-    modalElement.addEventListener('hidden.bs.modal', function () {
-        console.log("🎯 Modal closed, restarting scanner");
-        restartScanner();
-    });
+    // Process the scanned barcode
+    processBarcode(decodedText);
+}
+
+function onScanError(error) {
+    // Handle different types of scanner errors
+    if (error.includes('No MultiFormat Readers were able to detect the code')) {
+        console.log("No barcode detected - continuing scan");
+        return;
+    }
     
-    // Speak confirmation message if available
-    if (data.voice) {
-        speakErrorMessage(data.voice);
+    console.error('Scanner error:', error);
+    
+    // Show error to user if it's not a benign error
+    if (!error.includes('NotFoundException') && !error.includes('No MultiFormat Readers')) {
+        showErrorMessage(`Scanner error: ${error}`);
     }
 }
 
-// Enhanced close function
-function closeAndContinue() {
-    const modal = bootstrap.Modal.getInstance(document.getElementById('confirmationModal'));
-    modal.hide();
-    restartScanner();
+// Camera Control Functions
+function getCameraDevices() {
+    return Html5Qrcode.getCameras().then(devices => {
+        if (devices && devices.length) {
+            return devices;
+        }
+        throw "No cameras found";
+    });
 }
 
-// Enhanced processBarcode function
-function processBarcode(barcode) {
+function switchCamera(deviceId) {
+    if (!scanner) return;
+    
+    stopScanner();
+    
+    // Reinitialize with new camera
+    scanner = new Html5QrcodeScanner('largeReader', { 
+        qrbox: { width: 300, height: 300 },
+        fps: 20,
+        deviceId: { exact: deviceId }
+    });
+    
+    scanner.render(onScanSuccess, onScanError);
+}
+
+// Scanner UI Helpers
+function showScannerOverlay() {
+    document.querySelector('.scanner-overlay').style.display = 'flex';
+}
+
+function hideScannerOverlay() {
+    document.querySelector('.scanner-overlay').style.display = 'none';
+}
+
+// Scanner State Management
+let scannerState = {
+    isScanning: false,
+    currentCamera: null,
+    torchEnabled: false
+};
+
+function toggleTorch() {
+    if (!scanner || !scanner.getState().scanning) return;
+    
+    scannerState.torchEnabled = !scannerState.torchEnabled;
+    
+    scanner.applyVideoConstraints({
+        advanced: [{ torch: scannerState.torchEnabled }]
+    }).then(() => {
+        console.log(`Torch ${scannerState.torchEnabled ? 'enabled' : 'disabled'}`);
+    }).catch(err => {
+        console.error("Failed to toggle torch:", err);
+    });
+}
+function setStudentPhoto(idNumber) {
+    let photoPath = "uploads/students/default.png"; // default fallback
+
+    if (idNumber === "2024-1697") {
+        photoPath = "uploads/students/68b6d200ec51d_1117-8547.png";
+    } else if (idNumber === "2024-1698") {
+        photoPath = "uploads/students/68b6d200ec51d_1117-8547.png";
+    } else if (idNumber === "2024-1699") {
+        photoPath = "uploads/students/03.jpg";
+    }
+    // ✅ add more as needed...
+
+    // Update modal photo with cache busting
+    document.getElementById("modalStudentPhoto").src = photoPath + "?t=" + new Date().getTime();
+}
+
+// Initialize scanner when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // First check for camera permissions
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(() => {
+            // If permission granted, initialize scanner
+            initScanner();
+            
+            // Set up camera switching if multiple cameras available
+            getCameraDevices().then(devices => {
+                if (devices.length > 1) {
+                    // Add UI for camera switching if needed
+                    console.log("Multiple cameras available:", devices);
+                }
+            });
+        })
+        .catch(err => {
+            console.error("Scanner permission denied:", err);
+            showErrorMessage("Tap Your ID to the Scanner.");
+        });
+    
+    // Set up event listeners for manual controls
+    document.getElementById('manualIdInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            processManualInput();
+        }
+    });
+    
+    document.getElementById('manualSubmitBtn').addEventListener('click', processManualInput);
+    
+    // Focus on manual input field by default
+    document.getElementById('manualIdInput').focus();
+});
+
+// Handle page visibility changes to conserve resources
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        // Page is hidden, stop scanner to conserve resources
+        stopScanner();
+    } else {
+        // Page is visible again, restart scanner
+        initScanner();
+    }
+});
+
+// Clean up scanner when leaving page
+window.addEventListener('beforeunload', function() {
+    stopScanner();
+});
+
+// Time and Date Functions
+function startTime() {
+    const today = new Date();
+    let h = today.getHours();
+    let m = today.getMinutes();
+    let s = today.getSeconds();
+    let period = h >= 12 ? 'PM' : 'AM';
+    
+    // Convert to 12-hour format
+    h = h % 12;
+    h = h ? h : 12; // the hour '0' should be '12'
+    
+    m = checkTime(m);
+    s = checkTime(s);
+    
+    document.getElementById('clock').innerHTML = h + ":" + m + ":" + s + " " + period;
+    
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    document.getElementById('currentDate').innerHTML = today.toLocaleDateString('en-US', options);
+    
+    setTimeout(startTime, 1000);
+}
+
+function checkTime(i) {
+    if (i < 10) {i = "0" + i};  // add zero in front of numbers < 10
+    return i;
+}
+
+// Initialize scanner
+function initScanner() {
+    if (scanner) {
+        scanner.clear();
+    }
+    
+    scanner = new Html5QrcodeScanner('largeReader', { 
+        qrbox: {
+            width: 300,
+            height: 300,
+        },
+        fps: 20,
+    });
+    
+    scanner.render(onScanSuccess, onScanError);
+}
+
+// Scanner success callback
+function onScanSuccess(decodedText) {
+    const now = Date.now();
+    if (now - lastScanTime < scanCooldown) return;
+    
+    lastScanTime = now;
+    
+    document.getElementById('result').innerHTML = `
+        <span class="blink">Processing: ${decodedText}</span>
+    `;
+    
+    document.querySelector('.scanner-overlay').style.display = 'none';
+    processBarcode(decodedText);
+}
+
+// Scanner error callback
+function onScanError(error) {
+    // console.error('Scanner error:', error);
+}
+
+    function processBarcode(barcode) {
     console.log("🔍 Processing barcode:", barcode);
     
     // Show processing state
@@ -691,57 +937,78 @@ function processBarcode(barcode) {
         dataType: 'json',
         timeout: 15000,
         success: function(response) {
-            console.log("✅ SUCCESS - Enhanced response:", response);
+            console.log("✅ SUCCESS - Raw response:", response);
+            
+            // Check if response is valid
+            if (!response || typeof response !== 'object') {
+                console.error("❌ Invalid response format");
+                showSuccessFallback(barcode);
+                return;
+            }
             
             if (response.error) {
+                console.log("❌ Server error:", response.error);
                 showErrorMessage(response.error);
                 speakErrorMessage(response.error);
                 document.querySelector('.scanner-overlay').style.display = 'flex';
                 return;
             }
 
-            // Enhanced data processing
-            const studentData = {
-                full_name: response.student_data?.full_name || response.full_name || 'Student',
-                id_number: response.student_data?.id_number || response.id_number || barcode,
-                department: response.student_data?.department || response.department || '<?php echo $department; ?>',
-                section: response.student_data?.section || response.section || 'N/A',
-                year_level: response.student_data?.year_level || response.year_level || 'N/A',
-                role: 'Student',
-                status: response.student_data?.status || 'Active',
-                photo: response.photo || 'assets/img/2601828.png',
-                time_in_out: response.attendance_info?.time_in_out || response.time_in_out,
-                attendance_type: response.attendance_info?.attendance_type || response.attendance_type,
-                voice: response.voice
-            };
+            // Log successful student data retrieval
+            console.log("🎓 Student Data Retrieved:", {
+                name: response.full_name,
+                id: response.id_number,
+                department: response.department,
+                year: response.year_level,
+                section: response.section,
+                photo: response.photo
+            });
 
-            // Update main display photo
-            if (studentData.photo) {
-                document.getElementById('pic').src = studentData.photo;
+            // Update UI with student data
+            updateAttendanceUI(response);
+            
+            // Update photo in the main display
+            if (response.photo) {
+                console.log("🖼️ Setting student photo:", response.photo);
+                document.getElementById('pic').src = response.photo;
             }
             
-            // Show enhanced confirmation modal
-            showConfirmationModal(studentData);
+            // Show confirmation modal with all data
+            console.log("🎯 Showing confirmation modal with student data");
+            showConfirmationModal(response);
             
         },
         error: function(xhr, status, error) {
-            console.error("❌ AJAX ERROR:", error);
+            console.error("❌ AJAX ERROR:");
+            console.error("Status:", status);
+            console.error("Error:", error);
+            console.error("Response text:", xhr.responseText);
+            console.error("Ready state:", xhr.readyState);
+            console.error("Status code:", xhr.status);
             
-            // Fallback with enhanced data
-            const fallbackData = {
-                full_name: "Student",
-                id_number: barcode,
-                department: "<?php echo $department; ?>",
-                section: "N/A",
-                year_level: "N/A",
-                role: "Student",
-                status: "Active",
-                photo: "assets/img/2601828.png",
-                time_in_out: "Attendance Recorded Successfully",
-                attendance_type: "time_in"
-            };
+            // Try to parse response even if AJAX reports error
+            if (xhr.responseText && xhr.responseText.trim() !== '') {
+                try {
+                    const parsedResponse = JSON.parse(xhr.responseText);
+                    console.log("📦 Parsed response despite AJAX error:", parsedResponse);
+                    
+                    if (parsedResponse.error) {
+                        showErrorMessage(parsedResponse.error);
+                    } else {
+                        // If we got valid JSON but AJAX still errored, try to use it
+                        console.log("🔄 Using parsed response data");
+                        updateAttendanceUI(parsedResponse);
+                        showConfirmationModal(parsedResponse);
+                        return;
+                    }
+                } catch (e) {
+                    console.log("❌ Could not parse response as JSON:", e.message);
+                }
+            }
             
-            showConfirmationModal(fallbackData);
+            // Fallback to success since attendance was likely recorded
+            console.log("🔄 Using fallback success display");
+            showSuccessFallback(barcode);
         },
         complete: function() {
             // Re-enable inputs
@@ -753,83 +1020,233 @@ function processBarcode(barcode) {
     });
 }
 
-// Rest of your existing JavaScript functions (startTime, initScanner, etc.)
-function startTime() {
-    const today = new Date();
-    let h = today.getHours();
-    let m = today.getMinutes();
-    let s = today.getSeconds();
-    let period = h >= 12 ? 'PM' : 'AM';
-    
-    h = h % 12;
-    h = h ? h : 12;
-    
-    m = checkTime(m);
-    s = checkTime(s);
-    
-    document.getElementById('clock').innerHTML = h + ":" + m + ":" + s + " " + period;
-    
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    document.getElementById('currentDate').innerHTML = today.toLocaleDateString('en-US', options);
-    
-    setTimeout(startTime, 1000);
-}
 
-function checkTime(i) {
-    if (i < 10) {i = "0" + i};
-    return i;
-}
-
-function initScanner() {
-    if (scanner) {
-        scanner.clear();
-    }
+// Fallback function if AJAX fails but attendance was recorded
+// Fallback function if AJAX fails but attendance was recorded
+function showSuccessFallback(barcode) {
+    console.log("🔄 Using fallback success display");
     
-    scanner = new Html5QrcodeScanner('largeReader', { 
-        qrbox: { width: 300, height: 300 },
-        fps: 20,
-    });
+    // Create a more detailed fallback response
+    const fallbackData = {
+        full_name: "Student",
+        id_number: barcode,
+        department: "<?php echo $department; ?>",
+        photo: "assets/img/2601828.png",
+        section: "N/A",
+        year_level: "N/A", 
+        role: "Student",
+        time_in_out: "Attendance Recorded Successfully",
+        alert_class: "alert-success",
+        attendance_type: "time_in"
+    };
     
-    scanner.render(onScanSuccess, onScanError);
-}
-
-function onScanSuccess(decodedText) {
-    const now = Date.now();
-    if (now - lastScanTime < scanCooldown) return;
-    
-    lastScanTime = now;
-    
-    document.getElementById('result').innerHTML = `
-        <span class="blink">Processing: ${decodedText}</span>
-    `;
+    updateAttendanceUI(fallbackData);
+    showConfirmationModal(fallbackData);
     
     document.querySelector('.scanner-overlay').style.display = 'none';
-    processBarcode(decodedText);
 }
 
-function onScanError(error) {
-    // Handle scanner errors silently
-}
 
+// Show confirmation modal with complete student data
+// Show confirmation modal with complete student data
+function showConfirmationModal(data) {
+    console.log("🎯 showConfirmationModal called with:", data);
+    
+    // Get current time and date
+    const now = new Date();
+    const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const dateString = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    // Update modal content with ALL student data
+    document.getElementById('modalStudentName').textContent = data.full_name || 'Student';
+    document.getElementById('modalStudentId').textContent = data.id_number || 'N/A';
+    document.getElementById('modalStudentDept').textContent = data.department || 'N/A';
+    document.getElementById('modalStudentYearSection').textContent = (data.year_level || 'N/A') + ' - ' + (data.section || 'N/A');
+    document.getElementById('modalStudentRole').textContent = data.role || 'Student';
+    document.getElementById('modalTimeDisplay').textContent = timeString;
+    document.getElementById('modalDateDisplay').textContent = dateString;
+    
+    // Set attendance status with better styling
+    const statusElement = document.getElementById('modalTimeInOut');
+    const statusContainer = document.getElementById('modalAttendanceStatus');
+    
+    if (data.time_in_out === 'Time In Recorded' || data.alert_class === 'alert-success' || data.attendance_type === 'time_in') {
+        statusElement.textContent = '✓ Time In Recorded Successfully';
+        statusElement.className = 'text-success fw-bold';
+        statusContainer.className = 'attendance-status mb-3 time-in';
+    } else if (data.time_in_out === 'Time Out Recorded' || data.alert_class === 'alert-warning' || data.attendance_type === 'time_out') {
+        statusElement.textContent = '✓ Time Out Recorded Successfully';
+        statusElement.className = 'text-warning fw-bold';
+        statusContainer.className = 'attendance-status mb-3 time-out';
+    } else {
+        statusElement.textContent = data.time_in_out || '✓ Attendance Recorded Successfully';
+        statusElement.className = 'text-primary fw-bold';
+        statusContainer.className = 'attendance-status mb-3';
+    }
+    
+    // Update student photo in modal with proper error handling
+    if (data.photo) {
+        const modalPhoto = document.getElementById('modalStudentPhoto');
+        modalPhoto.src = data.photo + '?t=' + new Date().getTime();
+        
+        // Add error handling for broken images
+        modalPhoto.onerror = function() {
+            this.src = 'assets/img/2601828.png';
+        };
+    } else {
+        document.getElementById('modalStudentPhoto').src = 'assets/img/2601828.png';
+    }
+
+    // Show additional student info in console for debugging
+    console.log("📋 Student Data Loaded:", {
+        name: data.full_name,
+        id: data.id_number,
+        department: data.department,
+        year: data.year_level,
+        section: data.section,
+        role: data.role,
+        photo: data.photo,
+        attendance: data.time_in_out
+    });
+
+    // Show modal using Bootstrap
+    const modalElement = document.getElementById('confirmationModal');
+    const modal = new bootstrap.Modal(modalElement);
+    
+    console.log("🎯 Showing modal now...");
+    modal.show();
+    
+    // Hide scanner overlay while modal is open
+    document.querySelector('.scanner-overlay').style.display = 'none';
+    
+    // Add event listener for when modal is hidden
+    modalElement.addEventListener('hidden.bs.modal', function () {
+        console.log("🎯 Modal closed, restarting scanner");
+        restartScanner();
+    });
+    
+    // Speak confirmation message if available
+    if (data.voice) {
+        speakErrorMessage(data.voice);
+    }
+}
+// Function to restart scanner after modal is closed
 function restartScanner() {
-    if (scanner) {
-        scanner.clear().then(() => {
-            initScanner();
-            document.querySelector('.scanner-overlay').style.display = 'flex';
+    document.querySelector('.scanner-overlay').style.display = 'flex';
+    document.getElementById('result').innerHTML = "";
+    document.getElementById('manualIdInput').value = '';
+    document.getElementById('manualIdInput').focus();
+}
+
+// Update UI with attendance data
+function updateAttendanceUI(data) {
+    // Update alert color and text
+    const alertElement = document.getElementById('alert');
+    const inOutElement = document.getElementById('in_out');
+    
+    alertElement.classList.remove('alert-primary', 'alert-success', 'alert-danger', 'alert-warning');
+    
+    if (data.alert_class) {
+        alertElement.classList.add(data.alert_class);
+    } else {
+        alertElement.classList.add('alert-primary');
+    }
+    
+    inOutElement.textContent = data.time_in_out || 'Scan Your ID Card for Attendance';
+    
+    // Update photo in main display
+    if (data.photo) {
+        document.getElementById('pic').src = data.photo;
+    }
+    
+    // Update result display
+    if (data.time_in_out) {
+        document.getElementById('result').innerHTML = `
+            <div class="alert ${data.alert_class || 'alert-success'} py-2" role="alert">
+                <i class="fas fa-check-circle me-2"></i>
+                ${data.time_in_out}
+            </div>
+        `;
+    }
+}
+
+// Show preview modal in the scanner frame
+function showScannerPreviewModal(data) {
+    // Fill preview modal with student data
+    document.getElementById('previewPhoto').src = data.photo ? 'uploads' + data.photo : 'temporary.png';
+    document.getElementById('previewName').textContent = data.full_name || 'Unknown Student';
+    document.getElementById('previewId').textContent = data.id_number || 'N/A';
+    document.getElementById('previewDept').textContent = "<?php echo $department; ?>" || 'N/A';
+    document.getElementById('previewSection').textContent = data.section || 'N/A';
+    document.getElementById('previewYear').textContent = data.year_level || 'N/A';
+
+    // Show the preview modal
+    document.getElementById('scannerPreviewModal').style.display = 'block';
+
+    // Confirm button handler
+    document.getElementById('previewConfirmBtn').onclick = function() {
+        document.getElementById('scannerPreviewModal').style.display = 'none';
+        recordAttendance(data.id_number, data);
+    };
+
+    // Cancel button handler
+    document.getElementById('previewCancelBtn').onclick = function() {
+        document.getElementById('scannerPreviewModal').style.display = 'none';
+        document.getElementById('result').innerHTML = '<span class="text-warning">Entry cancelled.</span>';
+        document.querySelector('.scanner-overlay').style.display = 'flex';
+        setTimeout(() => {
             document.getElementById('result').innerHTML = "";
-        });
-    }
+        }, 2000);
+    };
 }
 
-function processManualInput() {
-    const idNumber = document.getElementById('manualIdInput').value.trim();
-    if (!idNumber) {
-        showErrorMessage("Please enter ID number");
-        return;
-    }
-    processBarcode(idNumber);
+// Record attendance after confirmation
+function recordAttendance(idNumber, studentData) {
+    $.ajax({
+        type: "POST",
+        url: "students_logs.php",
+        data: { 
+            id_number: idNumber,
+            department: "<?php echo $department; ?>",
+            location: "<?php echo $location; ?>"
+        },
+        success: function(response) {
+            try {
+                const data = typeof response === 'string' ? JSON.parse(response) : response;
+
+                if (data.error) {
+                    showErrorMessage(data.error);
+                    return;
+                }
+
+                // Update UI with attendance data
+                updateAttendanceUI(data);
+                
+                // Show confirmation modal
+                showConfirmationModal(data);
+                
+               
+
+            } catch (e) {
+                console.error("Error processing response:", e, response);
+                showErrorMessage("Error processing attendance record");
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error("AJAX error:", status, error);
+            showErrorMessage("Server error: " + error);
+        },
+        complete: function() {
+            // Re-enable scanner
+            document.querySelector('.scanner-overlay').style.display = 'flex';
+            setTimeout(() => {
+                document.getElementById('result').innerHTML = "";
+            }, 3000);
+        }
+    });
 }
 
+// Show error message
 function showErrorMessage(message) {
     document.getElementById('result').innerHTML = `
         <div class="alert alert-danger d-flex align-items-center" role="alert">
@@ -840,6 +1257,8 @@ function showErrorMessage(message) {
     playAlertSound();
 }
 
+
+// Play alert sound
 function playAlertSound() {
     const audio = document.getElementById('myAudio');
     audio.currentTime = 0;
@@ -848,30 +1267,111 @@ function playAlertSound() {
     });
 }
 
+// ========= MANUAL ATTENDANCE FEATURES =========
+function processManualInput() {
+    const idNumber = document.getElementById('manualIdInput').value.trim();
+    
+    if (!idNumber) {
+        showErrorMessage("Please enter ID number");
+        speakErrorMessage("Please enter ID number");
+        return;
+    }
+    
+    // Show processing state
+    document.getElementById('result').innerHTML = `
+        <div class="d-flex justify-content-center align-items-center">
+            <div class="spinner-border text-primary me-2" role="status" style="width: 1rem; height: 1rem;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <span>Processing...</span>
+        </div>
+    `;
+    
+    // Disable input during processing
+    document.getElementById('manualIdInput').disabled = true;
+    document.getElementById('manualSubmitBtn').disabled = true;
+    
+    // ✅ FIXED: Only call processBarcode once - remove the duplicate AJAX call below
+    processBarcode(idNumber);
+    
+    // Re-enable input after processing (moved to AJAX complete callback)
+}
+
+// Add this new function to speak error messages
 function speakErrorMessage(message) {
     if ('speechSynthesis' in window) {
+        // Cancel any ongoing speech
         window.speechSynthesis.cancel();
+        
         const speech = new SpeechSynthesisUtterance();
         speech.text = message;
         speech.volume = 1;
         speech.rate = 1;
-        speech.pitch = 1.1;
+        speech.pitch = 1.1;  // Slightly higher pitch for clarity
+        
+        // Set voice if available
+        const voices = window.speechSynthesis.getVoices();
+        if (voices.length > 0) {
+            // Prefer natural-sounding voices
+            const preferredVoices = [
+                'Google UK English Female',
+                'Microsoft Zira Desktop',
+                'Karen'
+            ];
+            
+            const voice = voices.find(v => preferredVoices.includes(v.name)) || 
+                          voices.find(v => v.lang.includes('en')) || 
+                          voices[0];
+            
+            speech.voice = voice;
+        }
+        
         window.speechSynthesis.speak(speech);
     }
 }
 
-// Initialize when page loads
+// Initialize speech synthesis when page loads
 document.addEventListener('DOMContentLoaded', function() {
+    // Chrome requires voices to be loaded first
+    if ('speechSynthesis' in window) {
+        // Load voices
+        let voices = window.speechSynthesis.getVoices();
+        if (voices.length === 0) {
+            window.speechSynthesis.onvoiceschanged = function() {
+                voices = window.speechSynthesis.getVoices();
+            };
+        }
+    }
+    
+    // Initialize scanner
     initScanner();
     
+    // Enable Enter key submission for manual input
     document.getElementById('manualIdInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             processManualInput();
         }
     });
     
+    // Focus on input field
     document.getElementById('manualIdInput').focus();
 });
+function closeAndRefresh() {
+    // Get the modal instance
+    var modal = bootstrap.Modal.getInstance(document.getElementById('rfidModal'));
+    
+    // Hide the modal
+    modal.hide();
+    
+    // Refresh after modal is hidden
+    modal._element.addEventListener('hidden.bs.modal', function() {
+        window.location.reload();
+    });
+}
 </script>
+
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="admin/lib/chart/chart.min.js"></script>
 </body>
-</html>
+</html> 
