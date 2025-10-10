@@ -7,6 +7,35 @@ ini_set('display_errors', 1);
 // Include required files
 include 'security-headers.php';
 include 'connection.php';
+
+// =====================================================================
+// reCAPTCHA VERIFICATION FUNCTION
+// =====================================================================
+function verifyRecaptcha($recaptchaResponse) {
+    $secret_key = '6Ld2w-QrAAAAAFeIvhKm5V6YBpIsiyHIyzHxeqm-';
+    $url = 'https://www.google.com/recaptcha/api/siteverify';
+    
+    $data = [
+        'secret' => $secret_key,
+        'response' => $recaptchaResponse,
+        'remoteip' => $_SERVER['REMOTE_ADDR']
+    ];
+    
+    $options = [
+        'http' => [
+            'method' => 'POST',
+            'content' => http_build_query($data),
+            'header' => "Content-Type: application/x-www-form-urlencoded\r\n"
+        ]
+    ];
+    
+    $context = stream_context_create($options);
+    $result = file_get_contents($url, false, $context);
+    $response = json_decode($result);
+    
+    return $response;
+}
+
 // Start session first
 session_start();
 // Clear any existing output
@@ -77,22 +106,31 @@ function sanitizeInput($data) {
 }
 
 
-// =====================================================================
-// LOGIN PROCESSING - Enhanced with Rate Limiting
-// =====================================================================
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Additional security: Validate CSRF token if implemented
-    // Additional security: Check request origin
-    $allowed_origins = ['https://yourdomain.com', 'http://localhost']; // Add your domains
-    if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed_origins)) {
-        header('Access-Control-Allow-Origin: ' . $_SERVER['HTTP_ORIGIN']);
-    } else {
-        header('Access-Control-Allow-Origin: ' . (isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : 'self'));
+    // Verify reCAPTCHA first
+    $recaptchaResponse = $_POST['recaptcha_response'] ?? '';
+    
+    if (empty($recaptchaResponse)) {
+        http_response_code(400);
+        header('Content-Type: application/json');
+        die(json_encode(['status' => 'error', 'message' => "Security verification failed. Please refresh and try again."]));
     }
     
+    $recaptchaResult = verifyRecaptcha($recaptchaResponse);
+    
+    if (!$recaptchaResult->success || $recaptchaResult->score < 0.5) {
+        // Log suspicious activity
+        error_log("reCAPTCHA failed - Score: " . ($recaptchaResult->score ?? 'unknown') . " - IP: " . $_SERVER['REMOTE_ADDR']);
+        
+        http_response_code(400);
+        header('Content-Type: application/json');
+        die(json_encode(['status' => 'error', 'message' => "Security verification failed. Please try again."]));
+    }
+    
+    // Continue with existing login validation...
     $department = sanitizeInput($_POST['roomdpt'] ?? '');
     $location = sanitizeInput($_POST['location'] ?? '');
-    $password = $_POST['Ppassword'] ?? ''; // Don't sanitize passwords
+    $password = $_POST['Ppassword'] ?? '';
     $id_number = sanitizeInput($_POST['Pid_number'] ?? '');
     $selected_subject = sanitizeInput($_POST['selected_subject'] ?? '');
     $selected_room = sanitizeInput($_POST['selected_room'] ?? '');
@@ -336,7 +374,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta name="description" content="Gate and Personnel Management System">
     <meta name="robots" content="noindex, nofollow"> <!-- Prevent search engine indexing -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://ajax.googleapis.com https://fonts.googleapis.com 'unsafe-inline'; style-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none';">
-    
+    <script src="https://www.google.com/recaptcha/api.js?render=6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_"></script>
     <!-- Security Meta Tags -->
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="referrer" content="strict-origin-when-cross-origin">
@@ -377,6 +415,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         /* Additional security styling */
         body {
             position: relative;
+        }
+        .grecaptcha-badge {
+        visibility: visible !important;
+         }
+    
+        .mb-3, .mb-4 {
+            transition: all 0.3s ease;
+        }
+        
+        .gate-access-info {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
         }
     </style>
 </head>
@@ -448,6 +501,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         
                         <!-- Security: Add CSRF token if needed -->
                         <!-- <input type="hidden" name="csrf_token" value="<?php echo bin2hex(random_bytes(32)); ?>"> -->
+
+                        <!-- reCAPTCHA Token -->
+                        <input type="hidden" name="recaptcha_response" id="recaptchaResponse">
                         
                         <button type="submit" class="btn btn-primary w-100 mb-3" id="loginButton">Login</button>
                         
@@ -558,7 +614,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Initial check
         $('#roomdpt').trigger('change');
 
-        // Form submission handler - UPDATED LOGIC
+        // Form submission handler - UPDATED WITH reCAPTCHA
         $('#logform').on('submit', function(e) {
             e.preventDefault();
             
@@ -580,18 +636,33 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 return;
             }
             
-            // For Main department + Gate location, proceed directly to gate access
-            if (department === 'Main' && selectedRoom === 'Gate') {
-                submitLoginForm();
-            } 
-            // For instructors, show subject selection if no subject is selected yet
-            else if (!$('#selected_subject').val()) {
-                showSubjectSelectionModal();
-            }
-            // If subject is already selected, proceed with login
-            else {
-                submitLoginForm();
-            }
+            // Execute reCAPTCHA first
+            grecaptcha.ready(function() {
+                grecaptcha.execute('6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_', {action: 'login'})
+                .then(function(token) {
+                    // Add token to form
+                    $('#recaptchaResponse').val(token);
+                    
+                    // Continue with existing logic
+                    if (department === 'Main' && selectedRoom === 'Gate') {
+                        submitLoginForm();
+                    } 
+                    else if (!$('#selected_subject').val()) {
+                        showSubjectSelectionModal();
+                    }
+                    else {
+                        submitLoginForm();
+                    }
+                })
+                .catch(function(error) {
+                    console.error('reCAPTCHA error:', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Security Check Failed',
+                        text: 'Please refresh the page and try again.'
+                    });
+                });
+            });
         });
 
         // Show subject selection modal
