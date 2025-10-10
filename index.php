@@ -12,30 +12,47 @@ include 'recaptcha.php';
 // =====================================================================
 // reCAPTCHA VERIFICATION FUNCTION
 // =====================================================================
-function verifyRecaptcha($recaptchaResponse) {
-    $secret_key = '6Ld2w-QrAAAAAFeIvhKm5V6YBpIsiyHIyzHxeqm-';
-    $url = 'https://www.google.com/recaptcha/api/siteverify';
-    
-    $data = [
-        'secret' => $secret_key,
-        'response' => $recaptchaResponse,
-        'remoteip' => $_SERVER['REMOTE_ADDR']
-    ];
-    
-    $options = [
-        'http' => [
-            'method' => 'POST',
-            'content' => http_build_query($data),
-            'header' => "Content-Type: application/x-www-form-urlencoded\r\n"
-        ]
-    ];
-    
-    $context = stream_context_create($options);
-    $result = file_get_contents($url, false, $context);
-    $response = json_decode($result);
-    
-    return $response;
-}
+    function verifyRecaptcha($recaptchaResponse) {
+        $secret_key = '6Ld2w-QrAAAAAFeIvhKm5V6YBpIsiyHIyzHxeqm-';
+        $url = 'https://www.google.com/recaptcha/api/siteverify';
+        
+        $data = [
+            'secret' => $secret_key,
+            'response' => $recaptchaResponse,
+            'remoteip' => $_SERVER['REMOTE_ADDR']
+        ];
+        
+        $options = [
+            'http' => [
+                'method' => 'POST',
+                'content' => http_build_query($data),
+                'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
+                'timeout' => 10 // Add timeout
+            ]
+        ];
+        
+        try {
+            $context = stream_context_create($options);
+            $result = file_get_contents($url, false, $context);
+            
+            if ($result === FALSE) {
+                error_log("reCAPTCHA API request failed - cannot connect to Google");
+                return (object)['success' => false, 'score' => 0];
+            }
+            
+            $response = json_decode($result);
+            
+            // Log for debugging (remove in production)
+            error_log("reCAPTCHA Response - Success: " . ($response->success ? 'true' : 'false') . 
+                    " - Score: " . ($response->score ?? 'unknown') . 
+                    " - Hostname: " . ($response->hostname ?? 'unknown'));
+            
+            return $response;
+        } catch (Exception $e) {
+            error_log("reCAPTCHA verification exception: " . $e->getMessage());
+            return (object)['success' => false, 'score' => 0];
+        }
+    }
 
 // Start session first
 session_start();
@@ -117,15 +134,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         die(json_encode(['status' => 'error', 'message' => "Security verification failed. Please refresh and try again."]));
     }
     
-    $recaptchaResult = verifyRecaptcha($recaptchaResponse);
-    
-    if (!$recaptchaResult->success || $recaptchaResult->score < 0.5) {
-        // Log suspicious activity
-        error_log("reCAPTCHA failed - Score: " . ($recaptchaResult->score ?? 'unknown') . " - IP: " . $_SERVER['REMOTE_ADDR']);
+        $recaptchaResult = verifyRecaptcha($recaptchaResponse);
         
+        if (!$recaptchaResult->success || $recaptchaResult->score < 0.3) {
+        // DEBUG: Log detailed information
+        error_log("reCAPTCHA DEBUG - Success: " . ($recaptchaResult->success ? 'true' : 'false') . 
+                " - Score: " . ($recaptchaResult->score ?? 'unknown') . 
+                " - Errors: " . json_encode($recaptchaResult->{'error-codes'} ?? []) . 
+                " - IP: " . $_SERVER['REMOTE_ADDR']);
+        
+        // Temporary: Show detailed error for debugging
         http_response_code(400);
         header('Content-Type: application/json');
-        die(json_encode(['status' => 'error', 'message' => "Security verification failed. Please try again."]));
+        die(json_encode([
+            'status' => 'error', 
+            'message' => "Security check failed. Score: " . ($recaptchaResult->score ?? 'unknown') . 
+                        " - Success: " . ($recaptchaResult->success ? 'true' : 'false')
+        ]));
     }
     
     // Continue with existing login validation...
@@ -620,6 +645,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $('#roomdpt').trigger('change');
 
         // Form submission handler - UPDATED WITH reCAPTCHA
+                
         $('#logform').on('submit', function(e) {
             e.preventDefault();
             
@@ -641,12 +667,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 return;
             }
             
+            console.log('🔄 Starting reCAPTCHA...');
+            
             // Execute reCAPTCHA first
             grecaptcha.ready(function() {
+                console.log('✅ reCAPTCHA ready, executing...');
+                
                 grecaptcha.execute('6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_', {action: 'login'})
                 .then(function(token) {
+                    console.log('✅ reCAPTCHA token generated:', token.substring(0, 50) + '...');
+                    
                     // Add token to form
                     $('#recaptchaResponse').val(token);
+                    
+                    console.log('🔄 Proceeding with login logic...');
                     
                     // Continue with existing logic
                     if (department === 'Main' && selectedRoom === 'Gate') {
@@ -660,7 +694,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     }
                 })
                 .catch(function(error) {
-                    console.error('reCAPTCHA error:', error);
+                    console.error('❌ reCAPTCHA error:', error);
                     Swal.fire({
                         icon: 'error',
                         title: 'Security Check Failed',
