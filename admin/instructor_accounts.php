@@ -1,6 +1,4 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
 include 'header.php';
 include '../connection.php';
 
@@ -71,15 +69,20 @@ $instructors_result = $db->query("
     ORDER BY i.fullname
 ");
 
-// Fetch all instructor accounts with instructor details
+// CORRECTED: Fetch all instructor accounts with instructor details
 $accounts_query = "
-    SELECT ia.*, i.fullname, i.id_number, d.department_id 
-    FROM instructor ia 
+    SELECT ia.*, i.fullname, i.id_number, i.department_id, d.department_name 
+    FROM instructor_accounts ia 
     INNER JOIN instructor i ON ia.instructor_id = i.id 
-    LEFT JOIN department d ON i.department_id = d.department_name 
+    LEFT JOIN department d ON i.department_id = d.department_id 
     ORDER BY i.fullname
 ";
 $accounts_result = $db->query($accounts_query);
+
+// Check for query errors
+if (!$accounts_result) {
+    die("Query failed: " . $db->error);
+}
 ?>
 
 <!DOCTYPE html>
