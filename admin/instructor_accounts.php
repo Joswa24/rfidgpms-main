@@ -2,8 +2,6 @@
 include 'header.php';
 include '../connection.php';
 
-// Check if user is logged in and has admin privileges
-// Add your admin authentication here
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
