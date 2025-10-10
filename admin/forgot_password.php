@@ -1,19 +1,12 @@
 <?php
-// forgot_password.php - CORRECTED VERSION
+// forgot_password.php - UPDATED WITH PROPER EMAIL
 
-// Start session at the VERY TOP
+// Start session
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
 include '../connection.php';
-include '../security-headers.php';
-
-// Security headers
-header("X-Frame-Options: DENY");
-header("X-Content-Type-Options: nosniff");
-header("X-XSS-Protection: 1; mode=block");
-header("Referrer-Policy: strict-origin-when-cross-origin");
 
 // Generate CSRF token if not exists
 if (empty($_SESSION['forgot_csrf_token'])) {
@@ -31,10 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = "Security token missing. Please refresh the page and try again.";
     } elseif ($_POST['csrf_token'] !== $_SESSION['forgot_csrf_token']) {
         $error = "Security token invalid or expired. Please refresh the page and try again.";
-        
-        // Regenerate token for security after failed attempt
         $_SESSION['forgot_csrf_token'] = bin2hex(random_bytes(32));
-        $_SESSION['forgot_csrf_time'] = time();
     } else {
         // Token is valid - process the form
         $email = trim($_POST['email']);
@@ -45,22 +35,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "Please fill in all fields.";
         } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $error = "Please enter a valid email address.";
-        } elseif (strlen($email) > 255) {
-            $error = "Email address is too long.";
         } else {
-            // Verify CAPTCHA (case insensitive)
+            // Verify CAPTCHA
             $session_captcha = isset($_SESSION['captcha']) ? strtolower(trim($_SESSION['captcha'])) : '';
             $input_captcha = strtolower(trim($captcha));
             
-            if (empty($session_captcha)) {
-                $error = "CAPTCHA session expired. Please refresh the CAPTCHA and try again.";
-            } elseif ($input_captcha !== $session_captcha) {
+            if (empty($session_captcha) || $input_captcha !== $session_captcha) {
                 $error = "Invalid CAPTCHA code. Please try again.";
-                
-                // Clear the used CAPTCHA
                 unset($_SESSION['captcha']);
             } else {
-                // CAPTCHA is valid - check if email exists in database
+                // CAPTCHA is valid - check if email exists
                 try {
                     $stmt = $db->prepare("SELECT id, username FROM user WHERE email = ?");
                     $stmt->bind_param("s", $email);
@@ -83,18 +67,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             unset($_SESSION['captcha']);
                             unset($_SESSION['forgot_csrf_token']);
                             
-                            // Send verification email
+                            // Send verification email using PHPMailer
                             if (sendPasswordResetEmail($email, $token, $user['username'])) {
-                                // Store the token in session for immediate redirect
-                                $_SESSION['temp_reset_token'] = $token;
-                                $_SESSION['reset_email'] = $email;
-                                $_SESSION['reset_token_sent'] = true;
-                                
-                                // Redirect to reset password page WITH the token
-                                header('Location: reset_password.php?token=' . urlencode($token));
+                                $_SESSION['reset_success'] = "Password reset link has been sent to your email!";
+                                header('Location: reset_message.php');
                                 exit();
-                            }
-                             else {
+                            } else {
                                 $error = "Failed to send verification email. Please try again.";
                             }
                         } else {
@@ -112,68 +90,84 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Function to send password reset email
+// Function to send password reset email using PHPMailer
 function sendPasswordResetEmail($email, $token, $username) {
-    // SMTP Configuration (Update these with your Gmail credentials)
-    $smtp_host = 'smtp.gmail.com';
-    $smtp_port = 587;
-    $smtp_username = 'joshuapastorpide10@gmail.com'; // Your Gmail address
-    $smtp_password = 'bmnvognbjqcpxcyf'; // Your Gmail app password
-    $from_email = 'joshuapastorpide10@gmail.com';
-    $from_name = 'RFID GPMS Admin';
+    // Load PHPMailer
+    require_once '../PHPMailer/src/PHPMailer.php';
+    require_once '../PHPMailer/src/SMTP.php';
+    require_once '../PHPMailer/src/Exception.php';
     
+
     
-    // Create reset link
-    $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
-    $domain = $_SERVER['HTTP_HOST'];
-    $reset_link = "$protocol://$domain/admin/reset_password.php?token=$token";
+    $mail = new PHPMailer(true);
     
-    // Email content
-    $subject = "Password Reset Request - RFID GPMS Admin";
-    $message = "
-    <html>
-    <head>
-        <style>
-            body { font-family: Arial, sans-serif; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: #4e73df; color: white; padding: 20px; text-align: center; }
-            .content { padding: 20px; background: #f8f9fc; }
-            .button { background: #4e73df; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; }
-            .footer { padding: 20px; text-align: center; color: #6c757d; font-size: 12px; }
-        </style>
-    </head>
-    <body>
-        <div class='container'>
-            <div class='header'>
-                <h2>RFID GPMS Admin Portal</h2>
+    try {
+        // Server settings
+        $mail->isSMTP();
+        $mail->Host = 'smtp.gmail.com';
+        $mail->SMTPAuth = true;
+        $mail->Username = 'joshuapastorpide10@gmail.com'; // Your Gmail
+        $mail->Password = 'bmnvognbjqcpxcyf'; // Your App Password
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = 587;
+        
+        // Recipients
+        $mail->setFrom('joshuapastorpide10@gmail.com', 'RFID GPMS Admin');
+        $mail->addAddress($email, $username);
+        
+        // Create reset link
+        $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
+        $domain = $_SERVER['HTTP_HOST'];
+        $reset_link = "$protocol://$domain/admin/reset_password.php?token=$token";
+        
+        // Content
+        $mail->isHTML(true);
+        $mail->Subject = 'Password Reset Request - RFID GPMS Admin';
+        
+        $mail->Body = "
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: #4e73df; color: white; padding: 20px; text-align: center; }
+                .content { padding: 20px; background: #f8f9fc; }
+                .button { background: #4e73df; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; }
+                .footer { padding: 20px; text-align: center; color: #6c757d; font-size: 12px; }
+            </style>
+        </head>
+        <body>
+            <div class='container'>
+                <div class='header'>
+                    <h2>RFID GPMS Admin Portal</h2>
+                </div>
+                <div class='content'>
+                    <h3>Hello $username,</h3>
+                    <p>You have requested to reset your password for the RFID GPMS Admin Portal.</p>
+                    <p>Click the button below to reset your password. This link will expire in 1 hour.</p>
+                    <p style='text-align: center; margin: 30px 0;'>
+                        <a href='$reset_link' class='button'>Reset Your Password</a>
+                    </p>
+                    <p>If the button doesn't work, copy and paste this link in your browser:</p>
+                    <p><code style='background: #f1f1f1; padding: 10px; display: block; word-break: break-all;'>$reset_link</code></p>
+                    <p>If you didn't request this password reset, please ignore this email.</p>
+                </div>
+                <div class='footer'>
+                    <p>This is an automated message. Please do not reply to this email.</p>
+                </div>
             </div>
-            <div class='content'>
-                <h3>Hello $username,</h3>
-                <p>You have requested to reset your password for the RFID GPMS Admin Portal.</p>
-                <p>Click the button below to reset your password. This link will expire in 1 hour.</p>
-                <p style='text-align: center; margin: 30px 0;'>
-                    <a href='$reset_link' class='button'>Reset Your Password</a>
-                </p>
-                <p>If the button doesn't work, copy and paste this link in your browser:</p>
-                <p><code>$reset_link</code></p>
-                <p>If you didn't request this password reset, please ignore this email.</p>
-            </div>
-            <div class='footer'>
-                <p>This is an automated message. Please do not reply to this email.</p>
-            </div>
-        </div>
-    </body>
-    </html>
-    ";
-    
-    // Email headers
-    $headers = "MIME-Version: 1.0" . "\r\n";
-    $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
-    $headers .= "From: $from_name <$from_email>" . "\r\n";
-    $headers .= "Reply-To: $from_email" . "\r\n";
-    $headers .= "X-Mailer: PHP/" . phpversion();
-    
-    return mail($email, $subject, $message, $headers);
+        </body>
+        </html>
+        ";
+        
+        $mail->AltBody = "Hello $username,\n\nYou have requested to reset your password for the RFID GPMS Admin Portal.\n\nPlease use this link to reset your password: $reset_link\n\nThis link will expire in 1 hour.\n\nIf you didn't request this, please ignore this email.";
+        
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        error_log("Email sending failed: " . $mail->ErrorInfo);
+        return false;
+    }
 }
 ?>
 
@@ -183,27 +177,11 @@ function sendPasswordResetEmail($email, $token, $username) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Forgot Password - RFID GPMS Admin</title>
-    
-    <!-- Security Meta Tags -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: https:;">
-    <meta http-equiv="X-Frame-Options" content="DENY">
-    <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap">
-    
     <style>
-        :root {
-            --primary-color: #e1e7f0ff;
-            --secondary-color: #b0caf0ff;
-            --accent-color: #4e73df;
-            --light-bg: #f8f9fc;
-            --dark-text: #5a5c69;
-        }
-        
         body {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            background: linear-gradient(135deg, #e1e7f0, #b0caf0);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -211,89 +189,21 @@ function sendPasswordResetEmail($email, $token, $username) {
             font-family: 'Heebo', sans-serif;
             padding: 20px;
         }
-        
         .reset-container {
-            background-color: white;
+            background: white;
             border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-            overflow: hidden;
-            width: 100%;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
             max-width: 450px;
+            width: 100%;
         }
-        
         .reset-header {
-            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
+            background: linear-gradient(135deg, #4e73df, #b0caf0);
             padding: 25px;
             text-align: center;
             color: white;
         }
-        
-        .reset-header h3 {
-            margin: 0;
-            font-weight: 700;
-            font-size: 1.8rem;
-        }
-        
         .reset-body {
             padding: 30px;
-        }
-        
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-        
-        .input-group {
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-        }
-        
-        .input-group-text {
-            background-color: var(--light-bg);
-            border: none;
-            padding: 0.75rem 1rem;
-            color: var(--accent-color);
-        }
-        
-        .form-control {
-            border: none;
-            padding: 0.75rem 1rem;
-            background-color: var(--light-bg);
-        }
-        
-        .btn-reset {
-            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
-            border: none;
-            color: white;
-            font-weight: 600;
-            padding: 12px;
-            border-radius: 8px;
-            width: 100%;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-reset:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(78, 115, 223, 0.4);
-        }
-        
-        .captcha-container {
-            text-align: center;
-            margin: 20px 0;
-            padding: 15px;
-            background: var(--light-bg);
-            border-radius: 8px;
-        }
-        
-        .captcha-image {
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            margin-bottom: 10px;
-        }
-        
-        .back-link {
-            text-align: center;
-            margin-top: 20px;
         }
     </style>
 </head>
@@ -311,43 +221,31 @@ function sendPasswordResetEmail($email, $token, $username) {
                     <?php echo htmlspecialchars($error); ?>
                 </div>
             <?php endif; ?>
-            
-            <?php if (!empty($success)): ?>
-                <div class="alert alert-success">
-                    <i class="fas fa-check-circle me-2"></i>
-                    <?php echo htmlspecialchars($success); ?>
-                </div>
-            <?php endif; ?>
 
             <form method="POST" id="resetForm">
                 <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['forgot_csrf_token']; ?>">
                 
-                <div class="form-group">
-                    <label for="email" class="form-label"><i class="fas fa-envelope"></i>Email Address</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="fas fa-envelope"></i></span>
-                        <input type="email" class="form-control" id="email" name="email" 
-                               placeholder="Enter your registered email" required
-                               value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>">
-                    </div>
+                <div class="mb-3">
+                    <label class="form-label"><i class="fas fa-envelope"></i> Email Address</label>
+                    <input type="email" class="form-control" name="email" placeholder="Enter your registered email" required
+                           value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>">
                 </div>
 
-                <div class="captcha-container">
-                    <label class="form-label mb-3"><i class="fas fa-shield-alt"></i>Security Verification</label>
-                    <img src="captcha.php?<?php echo time(); ?>" alt="CAPTCHA" class="captcha-image" id="captchaImage">
-                    <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="refreshCaptcha()">
+                <div class="captcha-container text-center p-3 bg-light rounded mb-3">
+                    <label class="form-label mb-3"><i class="fas fa-shield-alt"></i> Security Verification</label>
+                    <img src="captcha.php?<?php echo time(); ?>" alt="CAPTCHA" class="captcha-image d-block mx-auto mb-2" id="captchaImage">
+                    <button type="button" class="btn btn-sm btn-outline-secondary mb-3" onclick="refreshCaptcha()">
                         <i class="fas fa-redo"></i> Refresh CAPTCHA
                     </button>
-                    <input type="text" class="form-control mt-3" name="captcha" placeholder="Enter CAPTCHA code" required maxlength="6" 
-                        value="<?php echo isset($_POST['captcha']) ? htmlspecialchars($_POST['captcha']) : ''; ?>">
+                    <input type="text" class="form-control" name="captcha" placeholder="Enter CAPTCHA code" required maxlength="6">
                 </div>
 
-                <button type="submit" class="btn btn-reset mb-3">
+                <button type="submit" class="btn btn-primary w-100 py-2 mb-3">
                     <i class="fas fa-paper-plane me-2"></i>Send Reset Link
                 </button>
             </form>
 
-            <div class="back-link">
+            <div class="text-center">
                 <a href="index.php" class="text-decoration-none">
                     <i class="fas fa-arrow-left me-2"></i>Back to Login
                 </a>
@@ -355,21 +253,11 @@ function sendPasswordResetEmail($email, $token, $username) {
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function refreshCaptcha() {
             const captchaImage = document.getElementById('captchaImage');
-            // Add timestamp to prevent caching
             captchaImage.src = 'captcha.php?' + new Date().getTime();
-            
-            // Clear the CAPTCHA input field
             document.querySelector('input[name="captcha"]').value = '';
-            
-            // Show loading state
-            captchaImage.style.opacity = '0.5';
-            setTimeout(() => {
-                captchaImage.style.opacity = '1';
-            }, 300);
         }
 
         document.getElementById('resetForm').addEventListener('submit', function() {
