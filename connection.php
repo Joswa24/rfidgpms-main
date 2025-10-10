@@ -8,7 +8,6 @@ date_default_timezone_set('Asia/Manila');
         die ('Unable to connect. Check your connection parameters.');
         mysqli_select_db($db, 'u802714156_rfidgpms' ) or die(mysqli_error($db));
 ?> 
-
 <?php
 // date_default_timezone_set('Asia/Manila');
 
