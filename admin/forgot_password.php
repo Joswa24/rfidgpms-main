@@ -85,11 +85,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             
                             // Send verification email
                             if (sendPasswordResetEmail($email, $token, $user['username'])) {
+                                // Store the token in session for immediate redirect
+                                $_SESSION['temp_reset_token'] = $token;
                                 $_SESSION['reset_email'] = $email;
                                 $_SESSION['reset_token_sent'] = true;
-                                header('Location: reset_password.php');
+                                
+                                // Redirect to reset password page WITH the token
+                                header('Location: reset_password.php?token=' . urlencode($token));
                                 exit();
-                            } else {
+                            }
+                             else {
                                 $error = "Failed to send verification email. Please try again.";
                             }
                         } else {

@@ -7,33 +7,32 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 include '../connection.php';
-include '../security-headers.php';
-
-// Security headers
-header("X-Frame-Options: DENY");
-header("X-Content-Type-Options: nosniff");
-header("X-XSS-Protection: 1; mode=block");
-header("Referrer-Policy: strict-origin-when-cross-origin");
 
 $error = '';
 $success = '';
-$token = '';
 $valid_token = false;
 $user_id = null;
 
-// Get token from URL or session
-if (isset($_GET['token'])) {
+// Get token from multiple sources (URL, session, POST)
+$token = '';
+
+if (isset($_GET['token']) && !empty($_GET['token'])) {
     $token = trim($_GET['token']);
-} elseif (isset($_SESSION['reset_token'])) {
-    $token = $_SESSION['reset_token'];
+} elseif (isset($_SESSION['temp_reset_token']) && !empty($_SESSION['temp_reset_token'])) {
+    $token = $_SESSION['temp_reset_token'];
+} elseif (isset($_POST['token']) && !empty($_POST['token'])) {
+    $token = trim($_POST['token']);
 }
+
+// Debug: Check what token we received
+error_log("Reset Password - Token received: " . ($token ? $token : 'EMPTY'));
 
 // Validate token
 if (!empty($token)) {
     try {
         // Check if token exists and is not expired
         $stmt = $db->prepare("
-            SELECT prt.user_id, prt.expires_at, u.email 
+            SELECT prt.user_id, prt.expires_at, u.email, u.username 
             FROM password_reset_tokens prt 
             JOIN user u ON prt.user_id = u.id 
             WHERE prt.token = ? AND prt.used = 0 AND prt.expires_at > NOW()
@@ -46,11 +45,19 @@ if (!empty($token)) {
             $token_data = $result->fetch_assoc();
             $user_id = $token_data['user_id'];
             $valid_token = true;
+            
+            // Store in session for the form submission
             $_SESSION['reset_user_id'] = $user_id;
             $_SESSION['reset_token'] = $token;
+            $_SESSION['reset_email'] = $token_data['email'];
+            
+            error_log("Reset Password - Valid token for user: " . $token_data['email']);
         } else {
             $error = "Invalid or expired reset token. Please request a new password reset.";
-            // Clean up invalid token
+            error_log("Reset Password - Invalid token: " . $token);
+            
+            // Clean up
+            unset($_SESSION['temp_reset_token']);
             unset($_SESSION['reset_token']);
         }
     } catch (Exception $e) {
@@ -86,13 +93,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $valid_token) {
                 $stmt->bind_param("s", $token);
                 $stmt->execute();
                 
-                // Clear session data
+                // Clear all session data
+                unset($_SESSION['temp_reset_token']);
                 unset($_SESSION['reset_token']);
                 unset($_SESSION['reset_user_id']);
                 unset($_SESSION['reset_email']);
+                unset($_SESSION['reset_token_sent']);
                 
                 $success = "Password reset successfully! You can now login with your new password.";
                 $valid_token = false; // Token is now used
+                
+                error_log("Password reset successful for user ID: " . $user_id);
             } else {
                 $error = "Failed to reset password. Please try again.";
             }
@@ -101,6 +112,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $valid_token) {
             $error = "Database error. Please try again.";
         }
     }
+}
+
+// If we have a temporary token from forgot_password.php, clear it after use
+if (isset($_SESSION['temp_reset_token']) && $valid_token) {
+    unset($_SESSION['temp_reset_token']);
 }
 ?>
 
@@ -248,12 +264,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $valid_token) {
 
             <?php if ($valid_token): ?>
                 <form method="POST" id="resetForm">
+                    <input type="hidden" name="token" value="<?php echo htmlspecialchars($token); ?>">
+                    
                     <div class="form-group">
                         <label for="new_password" class="form-label"><i class="fas fa-lock"></i> New Password</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="fas fa-lock"></i></span>
                             <input type="password" class="form-control" id="new_password" name="new_password" 
-                                   placeholder="Enter new password" required minlength="8">
+                                   placeholder="Enter new password (min. 8 characters)" required minlength="8">
                         </div>
                         <div class="password-strength" id="passwordStrength"></div>
                     </div>
@@ -301,67 +319,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $valid_token) {
         const confirmInput = document.getElementById('confirm_password');
         const matchText = document.getElementById('passwordMatch');
 
-        passwordInput.addEventListener('input', function() {
-            const password = this.value;
-            let strength = '';
-            let color = '';
+        if (passwordInput) {
+            passwordInput.addEventListener('input', function() {
+                const password = this.value;
+                let strength = '';
+                let color = '';
 
-            if (password.length === 0) {
-                strength = '';
-            } else if (password.length < 8) {
-                strength = 'Weak - at least 8 characters required';
-                color = 'strength-weak';
-            } else if (password.length < 12) {
-                strength = 'Medium';
-                color = 'strength-medium';
-            } else {
-                // Check for complexity
-                const hasUpper = /[A-Z]/.test(password);
-                const hasLower = /[a-z]/.test(password);
-                const hasNumbers = /\d/.test(password);
-                const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-                
-                let score = 0;
-                if (hasUpper) score++;
-                if (hasLower) score++;
-                if (hasNumbers) score++;
-                if (hasSpecial) score++;
-                
-                if (score >= 3) {
-                    strength = 'Strong';
-                    color = 'strength-strong';
-                } else {
-                    strength = 'Medium - add more character types';
+                if (password.length === 0) {
+                    strength = '';
+                } else if (password.length < 8) {
+                    strength = 'Weak - at least 8 characters required';
+                    color = 'strength-weak';
+                } else if (password.length < 12) {
+                    strength = 'Medium';
                     color = 'strength-medium';
+                } else {
+                    // Check for complexity
+                    const hasUpper = /[A-Z]/.test(password);
+                    const hasLower = /[a-z]/.test(password);
+                    const hasNumbers = /\d/.test(password);
+                    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+                    
+                    let score = 0;
+                    if (hasUpper) score++;
+                    if (hasLower) score++;
+                    if (hasNumbers) score++;
+                    if (hasSpecial) score++;
+                    
+                    if (score >= 3) {
+                        strength = 'Strong';
+                        color = 'strength-strong';
+                    } else {
+                        strength = 'Medium - add more character types';
+                        color = 'strength-medium';
+                    }
                 }
-            }
-            
-            strengthText.textContent = strength;
-            strengthText.className = 'password-strength ' + color;
-        });
+                
+                if (strengthText) {
+                    strengthText.textContent = strength;
+                    strengthText.className = 'password-strength ' + color;
+                }
+            });
 
-        // Password match indicator
-        confirmInput.addEventListener('input', function() {
-            const password = passwordInput.value;
-            const confirm = this.value;
-            
-            if (confirm.length === 0) {
-                matchText.textContent = '';
-            } else if (password === confirm) {
-                matchText.textContent = 'Passwords match';
-                matchText.className = 'password-match text-success';
-            } else {
-                matchText.textContent = 'Passwords do not match';
-                matchText.className = 'password-match text-danger';
-            }
-        });
+            // Password match indicator
+            confirmInput.addEventListener('input', function() {
+                const password = passwordInput.value;
+                const confirm = this.value;
+                
+                if (confirm.length === 0) {
+                    matchText.textContent = '';
+                } else if (password === confirm) {
+                    matchText.textContent = 'Passwords match';
+                    matchText.className = 'password-match text-success';
+                } else {
+                    matchText.textContent = 'Passwords do not match';
+                    matchText.className = 'password-match text-danger';
+                }
+            });
 
-        // Form submission handler
-        document.getElementById('resetForm')?.addEventListener('submit', function() {
-            const btn = this.querySelector('button[type="submit"]');
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Resetting...';
-            btn.disabled = true;
-        });
+            // Form submission handler
+            document.getElementById('resetForm').addEventListener('submit', function() {
+                const btn = this.querySelector('button[type="submit"]');
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Resetting...';
+                btn.disabled = true;
+            });
+        }
     </script>
 </body>
 </html>
