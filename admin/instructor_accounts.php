@@ -2,6 +2,8 @@
 include 'header.php';
 include '../connection.php';
 
+// Check if user is logged in and has admin privileges
+// Add your admin authentication here
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -364,17 +366,12 @@ $accounts_result = $db->query($accounts_query);
 
             <?php include 'footer.php'; ?>
         </div>
-         <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top" style="background-color: #87abe0ff"><i class="bi bi-arrow-up" style="background-color: #87abe0ff"></i></a>
     </div>
 
     <!-- JavaScript Libraries -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="lib/chart/chart.min.js"></script>
-
-    <!-- Template Javascript -->
-    <script src="js/main.js"></script>
 
     <script>
         // Toggle password visibility
