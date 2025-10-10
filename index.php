@@ -7,7 +7,6 @@ ini_set('display_errors', 1);
 // Include required files
 include 'security-headers.php';
 include 'connection.php';
-include 'recaptcha.php';
 
 // =====================================================================
 // reCAPTCHA VERIFICATION FUNCTION
@@ -680,24 +679,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 });
             });
         });
-        
-            grecaptcha.execute('6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_', {action: 'login'})
-            .then(function(token) {
-                console.log('reCAPTCHA token generated:', token);
-                // Add token to form
-                $('#recaptchaResponse').val(token);
-                
-                // Continue with existing logic
-                if (department === 'Main' && selectedRoom === 'Gate') {
-                    submitLoginForm();
-                } 
-                else if (!$('#selected_subject').val()) {
-                    showSubjectSelectionModal();
-                }
-                else {
-                    submitLoginForm();
-                }
-            })
+        // In your JavaScript, after getting the token
+        grecaptcha.execute('6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_', {action: 'login'})
+        .then(function(token) {
+            console.log('reCAPTCHA token generated:', token);
+            // Add token to form
+            $('#recaptchaResponse').val(token);
+            
+            // Continue with existing logic
+            if (department === 'Main' && selectedRoom === 'Gate') {
+                submitLoginForm();
+            } 
+            else if (!$('#selected_subject').val()) {
+                showSubjectSelectionModal();
+            }
+            else {
+                submitLoginForm();
+            }
+        })
 
         // Show subject selection modal
         function showSubjectSelectionModal() {
