@@ -25,15 +25,30 @@ function verifyRecaptcha($recaptchaResponse) {
         'http' => [
             'method' => 'POST',
             'content' => http_build_query($data),
-            'header' => "Content-Type: application/x-www-form-urlencoded\r\n"
+            'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
+            'timeout' => 10 // 10 second timeout
         ]
     ];
     
-    $context = stream_context_create($options);
-    $result = file_get_contents($url, false, $context);
-    $response = json_decode($result);
-    
-    return $response;
+    try {
+        $context = stream_context_create($options);
+        $result = file_get_contents($url, false, $context);
+        
+        if ($result === FALSE) {
+            error_log("reCAPTCHA API request failed");
+            return (object)['success' => false, 'score' => 0];
+        }
+        
+        $response = json_decode($result);
+        
+        // Log reCAPTCHA scores for monitoring (remove in production)
+        error_log("reCAPTCHA Score: " . ($response->score ?? 'unknown') . " for IP: " . $_SERVER['REMOTE_ADDR']);
+        
+        return $response;
+    } catch (Exception $e) {
+        error_log("reCAPTCHA verification exception: " . $e->getMessage());
+        return (object)['success' => false, 'score' => 0];
+    }
 }
 
 // Start session first
@@ -664,6 +679,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 });
             });
         });
+        
+            grecaptcha.execute('6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_', {action: 'login'})
+            .then(function(token) {
+                console.log('reCAPTCHA token generated:', token);
+                // Add token to form
+                $('#recaptchaResponse').val(token);
+                
+                // Continue with existing logic
+                if (department === 'Main' && selectedRoom === 'Gate') {
+                    submitLoginForm();
+                } 
+                else if (!$('#selected_subject').val()) {
+                    showSubjectSelectionModal();
+                }
+                else {
+                    submitLoginForm();
+                }
+            })
 
         // Show subject selection modal
         function showSubjectSelectionModal() {
