@@ -1,6 +1,11 @@
 <?php
 // reset_password.php
-session_start();
+
+// Start session
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 include '../connection.php';
 include '../security-headers.php';
 
@@ -8,59 +13,67 @@ include '../security-headers.php';
 header("X-Frame-Options: DENY");
 header("X-Content-Type-Options: nosniff");
 header("X-XSS-Protection: 1; mode=block");
+header("Referrer-Policy: strict-origin-when-cross-origin");
 
 $error = '';
 $success = '';
+$token = '';
 $valid_token = false;
-$email = '';
+$user_id = null;
 
-// Check if token is provided
+// Get token from URL or session
 if (isset($_GET['token'])) {
     $token = trim($_GET['token']);
-    
-    // Validate token
+} elseif (isset($_SESSION['reset_token'])) {
+    $token = $_SESSION['reset_token'];
+}
+
+// Validate token
+if (!empty($token)) {
     try {
+        // Check if token exists and is not expired
         $stmt = $db->prepare("
-            SELECT u.email, u.id 
+            SELECT prt.user_id, prt.expires_at, u.email 
             FROM password_reset_tokens prt 
             JOIN user u ON prt.user_id = u.id 
-            WHERE prt.token = ? AND prt.expires_at > NOW() AND prt.used = 0
+            WHERE prt.token = ? AND prt.used = 0 AND prt.expires_at > NOW()
         ");
         $stmt->bind_param("s", $token);
         $stmt->execute();
         $result = $stmt->get_result();
         
         if ($result->num_rows > 0) {
-            $data = $result->fetch_assoc();
-            $email = $data['email'];
-            $user_id = $data['id'];
+            $token_data = $result->fetch_assoc();
+            $user_id = $token_data['user_id'];
             $valid_token = true;
             $_SESSION['reset_user_id'] = $user_id;
             $_SESSION['reset_token'] = $token;
         } else {
-            $error = "Invalid or expired reset link. Please request a new password reset.";
+            $error = "Invalid or expired reset token. Please request a new password reset.";
+            // Clean up invalid token
+            unset($_SESSION['reset_token']);
         }
     } catch (Exception $e) {
         error_log("Token validation error: " . $e->getMessage());
         $error = "Database error. Please try again.";
     }
-} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Handle password reset form submission
-    $token = $_SESSION['reset_token'] ?? '';
-    $user_id = $_SESSION['reset_user_id'] ?? 0;
+} else {
+    $error = "No reset token provided. Please check your email for a valid reset link or request a new one.";
+}
+
+// Handle password reset form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $valid_token) {
     $new_password = trim($_POST['new_password']);
     $confirm_password = trim($_POST['confirm_password']);
     
-    if (empty($token) || empty($user_id)) {
-        $error = "Invalid session. Please request a new password reset.";
-    } elseif (empty($new_password) || empty($confirm_password)) {
+    if (empty($new_password) || empty($confirm_password)) {
         $error = "Please fill in all fields.";
-    } elseif ($new_password !== $confirm_password) {
-        $error = "Passwords do not match.";
     } elseif (strlen($new_password) < 8) {
         $error = "Password must be at least 8 characters long.";
+    } elseif ($new_password !== $confirm_password) {
+        $error = "Passwords do not match.";
     } else {
-        // Update password
+        // Hash new password and update user record
         try {
             $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
             
@@ -73,12 +86,13 @@ if (isset($_GET['token'])) {
                 $stmt->bind_param("s", $token);
                 $stmt->execute();
                 
-                // Clear session
-                unset($_SESSION['reset_user_id']);
+                // Clear session data
                 unset($_SESSION['reset_token']);
+                unset($_SESSION['reset_user_id']);
+                unset($_SESSION['reset_email']);
                 
                 $success = "Password reset successfully! You can now login with your new password.";
-                $valid_token = false;
+                $valid_token = false; // Token is now used
             } else {
                 $error = "Failed to reset password. Please try again.";
             }
@@ -87,8 +101,6 @@ if (isset($_GET['token'])) {
             $error = "Database error. Please try again.";
         }
     }
-} else {
-    $error = "No reset token provided.";
 }
 ?>
 
@@ -105,7 +117,7 @@ if (isset($_GET['token'])) {
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome@6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap">
     
     <style>
@@ -200,15 +212,18 @@ if (isset($_GET['token'])) {
         .strength-weak { color: #dc3545; }
         .strength-medium { color: #fd7e14; }
         .strength-strong { color: #198754; }
+        
+        .back-link {
+            text-align: center;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
     <div class="reset-container">
         <div class="reset-header">
-            <h3><i class="fas fa-lock me-2"></i>SET NEW PASSWORD</h3>
-            <?php if ($valid_token && !empty($email)): ?>
-                <p class="mb-0">Reset password for: <?php echo htmlspecialchars($email); ?></p>
-            <?php endif; ?>
+            <h3><i class="fas fa-key me-2"></i>SET NEW PASSWORD</h3>
+            <p class="mb-0">Create your new password</p>
         </div>
         
         <div class="reset-body">
@@ -223,135 +238,127 @@ if (isset($_GET['token'])) {
                 <div class="alert alert-success">
                     <i class="fas fa-check-circle me-2"></i>
                     <?php echo htmlspecialchars($success); ?>
-                    <div class="mt-2">
-                        <a href="index.php" class="btn btn-sm btn-success">Go to Login</a>
-                    </div>
+                    <?php if ($success): ?>
+                        <div class="mt-2">
+                            <a href="index.php" class="btn btn-sm btn-outline-success">Go to Login</a>
+                        </div>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
 
-            <?php if ($valid_token && empty($success)): ?>
+            <?php if ($valid_token): ?>
                 <form method="POST" id="resetForm">
                     <div class="form-group">
-                        <label for="new_password" class="form-label"><i class="fas fa-key"></i>New Password</label>
-                        <div class="input-group password-field">
-                            <span class="input-group-text"><i class="fas fa-key"></i></span>
+                        <label for="new_password" class="form-label"><i class="fas fa-lock"></i> New Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-lock"></i></span>
                             <input type="password" class="form-control" id="new_password" name="new_password" 
                                    placeholder="Enter new password" required minlength="8">
-                            <span class="input-group-text password-toggle" style="cursor: pointer;">
-                                <i class="fas fa-eye"></i>
-                            </span>
                         </div>
                         <div class="password-strength" id="passwordStrength"></div>
                     </div>
 
                     <div class="form-group">
-                        <label for="confirm_password" class="form-label"><i class="fas fa-key"></i>Confirm Password</label>
-                        <div class="input-group password-field">
-                            <span class="input-group-text"><i class="fas fa-key"></i></span>
+                        <label for="confirm_password" class="form-label"><i class="fas fa-lock"></i> Confirm Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-lock"></i></span>
                             <input type="password" class="form-control" id="confirm_password" name="confirm_password" 
                                    placeholder="Confirm new password" required minlength="8">
-                            <span class="input-group-text password-toggle" style="cursor: pointer;">
-                                <i class="fas fa-eye"></i>
-                            </span>
                         </div>
                         <div class="password-match" id="passwordMatch"></div>
                     </div>
 
-                    <button type="submit" class="btn btn-reset mb-3" id="resetBtn">
+                    <button type="submit" class="btn btn-reset mb-3">
                         <i class="fas fa-save me-2"></i>Reset Password
                     </button>
                 </form>
-            <?php elseif (empty($success)): ?>
-                <div class="text-center">
-                    <p>Please check your email for a valid reset link or <a href="forgot_password.php">request a new one</a>.</p>
+            <?php elseif (empty($success) && empty($error)): ?>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    No reset token provided. Please check your email for a valid reset link or request a new one.
                 </div>
             <?php endif; ?>
 
-            <div class="text-center">
+            <div class="back-link">
                 <a href="index.php" class="text-decoration-none">
                     <i class="fas fa-arrow-left me-2"></i>Back to Login
                 </a>
+                <?php if (!$valid_token && empty($success)): ?>
+                    <br>
+                    <a href="forgot_password.php" class="text-decoration-none mt-2 d-inline-block">
+                        <i class="fas fa-redo me-2"></i>Request New Reset Link
+                    </a>
+                <?php endif; ?>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Password visibility toggle
-        document.querySelectorAll('.password-toggle').forEach(toggle => {
-            toggle.addEventListener('click', function() {
-                const input = this.closest('.password-field').querySelector('input');
-                const icon = this.querySelector('i');
-                
-                if (input.type === 'password') {
-                    input.type = 'text';
-                    icon.classList.replace('fa-eye', 'fa-eye-slash');
-                } else {
-                    input.type = 'password';
-                    icon.classList.replace('fa-eye-slash', 'fa-eye');
-                }
-            });
-        });
-
         // Password strength indicator
-        document.getElementById('new_password').addEventListener('input', function() {
+        const passwordInput = document.getElementById('new_password');
+        const strengthText = document.getElementById('passwordStrength');
+        const confirmInput = document.getElementById('confirm_password');
+        const matchText = document.getElementById('passwordMatch');
+
+        passwordInput.addEventListener('input', function() {
             const password = this.value;
-            const strengthText = document.getElementById('passwordStrength');
             let strength = '';
-            let className = '';
-            
+            let color = '';
+
             if (password.length === 0) {
                 strength = '';
             } else if (password.length < 8) {
                 strength = 'Weak - at least 8 characters required';
-                className = 'strength-weak';
+                color = 'strength-weak';
             } else if (password.length < 12) {
                 strength = 'Medium';
-                className = 'strength-medium';
+                color = 'strength-medium';
             } else {
-                strength = 'Strong';
-                className = 'strength-strong';
+                // Check for complexity
+                const hasUpper = /[A-Z]/.test(password);
+                const hasLower = /[a-z]/.test(password);
+                const hasNumbers = /\d/.test(password);
+                const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+                
+                let score = 0;
+                if (hasUpper) score++;
+                if (hasLower) score++;
+                if (hasNumbers) score++;
+                if (hasSpecial) score++;
+                
+                if (score >= 3) {
+                    strength = 'Strong';
+                    color = 'strength-strong';
+                } else {
+                    strength = 'Medium - add more character types';
+                    color = 'strength-medium';
+                }
             }
             
             strengthText.textContent = strength;
-            strengthText.className = 'password-strength ' + className;
+            strengthText.className = 'password-strength ' + color;
         });
 
         // Password match indicator
-        document.getElementById('confirm_password').addEventListener('input', function() {
-            const newPassword = document.getElementById('new_password').value;
-            const confirmPassword = this.value;
-            const matchText = document.getElementById('passwordMatch');
+        confirmInput.addEventListener('input', function() {
+            const password = passwordInput.value;
+            const confirm = this.value;
             
-            if (confirmPassword.length === 0) {
+            if (confirm.length === 0) {
                 matchText.textContent = '';
-            } else if (newPassword === confirmPassword) {
-                matchText.textContent = '✓ Passwords match';
+            } else if (password === confirm) {
+                matchText.textContent = 'Passwords match';
                 matchText.className = 'password-match text-success';
             } else {
-                matchText.textContent = '✗ Passwords do not match';
+                matchText.textContent = 'Passwords do not match';
                 matchText.className = 'password-match text-danger';
             }
         });
 
-        // Form submission
-        document.getElementById('resetForm')?.addEventListener('submit', function(e) {
-            const newPassword = document.getElementById('new_password').value;
-            const confirmPassword = document.getElementById('confirm_password').value;
-            
-            if (newPassword !== confirmPassword) {
-                e.preventDefault();
-                alert('Passwords do not match!');
-                return;
-            }
-            
-            if (newPassword.length < 8) {
-                e.preventDefault();
-                alert('Password must be at least 8 characters long!');
-                return;
-            }
-            
-            const btn = document.getElementById('resetBtn');
+        // Form submission handler
+        document.getElementById('resetForm')?.addEventListener('submit', function() {
+            const btn = this.querySelector('button[type="submit"]');
             btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Resetting...';
             btn.disabled = true;
         });
