@@ -1,5 +1,5 @@
 <?php
-// forgot_password.php - UPDATED WITH PROPER EMAIL
+// forgot_password.php - FIXED VERSION
 
 // Start session
 if (session_status() === PHP_SESSION_NONE) {
@@ -92,24 +92,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Function to send password reset email using PHPMailer
 function sendPasswordResetEmail($email, $token, $username) {
-    // Load PHPMailer
-    require_once '../PHPMailer/src/PHPMailer.php';
-    require_once '../PHPMailer/src/SMTP.php';
-    require_once '../PHPMailer/src/Exception.php';
-    
-
-    
-    $mail = new PHPMailer(true);
-    
     try {
+        // Load PHPMailer classes
+        require_once 'PHPMailer/src/PHPMailer.php';
+        require_once 'PHPMailer/src/SMTP.php';
+        require_once 'PHPMailer/src/Exception.php';
+        
+        $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+        
         // Server settings
         $mail->isSMTP();
         $mail->Host = 'smtp.gmail.com';
         $mail->SMTPAuth = true;
         $mail->Username = 'joshuapastorpide10@gmail.com'; // Your Gmail
         $mail->Password = 'bmnvognbjqcpxcyf'; // Your App Password
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port = 587;
+        
+        // Enable verbose debug output
+        $mail->SMTPDebug = 0; // Set to 2 for detailed debug output
+        $mail->Debugoutput = 'error_log';
         
         // Recipients
         $mail->setFrom('joshuapastorpide10@gmail.com', 'RFID GPMS Admin');
@@ -163,9 +165,10 @@ function sendPasswordResetEmail($email, $token, $username) {
         $mail->AltBody = "Hello $username,\n\nYou have requested to reset your password for the RFID GPMS Admin Portal.\n\nPlease use this link to reset your password: $reset_link\n\nThis link will expire in 1 hour.\n\nIf you didn't request this, please ignore this email.";
         
         $mail->send();
+        error_log("Password reset email sent successfully to: $email");
         return true;
     } catch (Exception $e) {
-        error_log("Email sending failed: " . $mail->ErrorInfo);
+        error_log("Email sending failed: " . $e->getMessage());
         return false;
     }
 }
