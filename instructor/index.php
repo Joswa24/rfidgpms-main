@@ -16,14 +16,14 @@ if (!isset($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// // Security headers - placed after session_start()
-// header("X-Frame-Options: DENY");
-// header("X-Content-Type-Options: nosniff");
-// header("X-XSS-Protection: 1; mode=block");
-// header("Referrer-Policy: strict-origin-when-cross-origin");
-// header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-// header("Pragma: no-cache");
-// header("Expires: 0");
+// Security headers - placed after session_start()
+header("X-Frame-Options: DENY");
+header("X-Content-Type-Options: nosniff");
+header("X-XSS-Protection: 1; mode=block");
+header("Referrer-Policy: strict-origin-when-cross-origin");
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+header("Expires: 0");
 
 // Login configuration - CHANGED TO 3 ATTEMPTS
 $maxAttempts = 3; // Changed from 5 to 3
