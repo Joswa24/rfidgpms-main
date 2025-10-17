@@ -1,4 +1,9 @@
 <?php
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+
 // Start output buffering and session at the very top
 ob_start();
 session_start();
@@ -16,18 +21,9 @@ if (!isset($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// Security headers - placed after session_start()
-header("X-Frame-Options: DENY");
-header("X-Content-Type-Options: nosniff");
-header("X-XSS-Protection: 1; mode=block");
-header("Referrer-Policy: strict-origin-when-cross-origin");
-header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-header("Pragma: no-cache");
-header("Expires: 0");
-
-// Login configuration - CHANGED TO 3 ATTEMPTS
-$maxAttempts = 3; // Changed from 5 to 3
-$lockoutTime = 30; // Changed from 300 to 30 seconds
+// Login configuration
+$maxAttempts = 3;
+$lockoutTime = 30;
 $errorMessage = '';
 
 // Check if user is currently locked out
@@ -62,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             } elseif (!$db) {
                 $errorMessage = "Database connection error. Please try again later.";
             } else {
-                // FIXED QUERY: Join with instructor table to get fullname and department
+                // Query to verify instructor credentials
                 $stmt = $db->prepare("
                     SELECT ia.*, i.fullname, i.department_id, d.department_name 
                     FROM instructor_accounts ia 
@@ -81,15 +77,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
 
                         // Verify password
                         if (password_verify($password, $user['password'])) {
-                            // Successful login
+                            // Successful login - SET ALL SESSION VARIABLES
                             $_SESSION['login_attempts'] = 0;
                             $_SESSION['lockout_time'] = 0;
 
-                            // Store session data
+                            // Store ALL required session data
                             $_SESSION['username'] = htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8');
                             $_SESSION['instructor_id'] = (int)$user['instructor_id'];
                             $_SESSION['fullname'] = htmlspecialchars($user['fullname'], ENT_QUOTES, 'UTF-8');
-                            $_SESSION['department'] = htmlspecialchars($user['department_name'] ?? 'N/A', ENT_QUOTES, 'UTF-8');
+                            $_SESSION['department'] = htmlspecialchars($user['department_name'] ?? 'Not Assigned', ENT_QUOTES, 'UTF-8');
                             $_SESSION['role'] = 'instructor';
                             $_SESSION['logged_in'] = true;
                             $_SESSION['last_activity'] = time();
@@ -101,7 +97,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                             $updateStmt->execute();
                             $updateStmt->close();
 
+                            // Debug: Log successful login
+                            error_log("SUCCESSFUL LOGIN - Instructor ID: " . $user['instructor_id'] . ", Username: " . $username);
+                            
+                            // Regenerate session ID and redirect
                             session_regenerate_id(true);
+                            
+                            // Verify session data before redirect
+                            error_log("SESSION BEFORE REDIRECT: " . print_r($_SESSION, true));
+                            
                             header("Location: dashboard.php");
                             exit();
                         } else {
@@ -149,7 +153,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     <meta name="description" content="Gate and Personnel Management System">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap">
     <style>
-        /* Your existing CSS styles remain the same */
         :root {
             --primary-color: #e1e7f0ff;
             --secondary-color: #b0caf0ff;
@@ -379,6 +382,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             margin-top: 10px;
         }
         
+        .header-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .logo-title-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .header-logo {
+            height: 120px;
+            width: 150px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 3px;
+        }
+
         @media (max-width: 576px) {
             .login-container {
                 max-width: 100%;
@@ -395,46 +421,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             .login-header h3 {
                 font-size: 1.5rem;
             }
-            .header-content {
-            position: relative;
-            z-index: 1;
-            }
-
-            .logo-title-wrapper {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: 15px;
-                flex-wrap: wrap;
-            }
-
-            .header-logo {
-                height: 1px;
-                width: auto;
-                border-radius: 8px;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-                border: 2px solid rgba(255, 255, 255, 0.5);
-                background: rgba(255, 255, 255, 0.9);
-                padding: 3px;
-            }
-
-            /* Ensure the logo displays even if there are path issues */
-            .header-logo[src=""],
-            .header-logo:not([src]) {
-                display: none;
-            }
-
             
+            .logo-title-wrapper {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .header-logo {
+                height: 80px;
+                width: 100px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="login-container">
         <div class="login-header">
-            <!-- Logo and Title Wrapped Together -->
             <div class="header-content">
                 <div class="logo-title-wrapper">
-                    <img src="../uploads/it.png" alt="Institution Logo" class="header-logo" style="height: 120px; width: 150px;">
+                    <img src="../uploads/it.png" alt="Institution Logo" class="header-logo">
                     <h3><i class="fas fa-chalkboard-teacher me-2"></i>INSTRUCTOR LOGIN</h3>
                 </div>
             </div>

@@ -2,10 +2,258 @@
 session_start();
 include 'connection.php';
 
+// ============================================
+// PHOTO PATH FUNCTIONS
+// ============================================
+
+/**
+ * Get instructor photo path with multiple fallbacks
+ */
+function getInstructorPhotoPath($instructor) {
+    $defaultPhoto = 'admin/uploads/students/default.png';
+    
+    if (is_array($instructor)) {
+        $photo = isset($instructor['photo']) ? $instructor['photo'] : '';
+    } else {
+        $photo = $instructor;
+    }
+    
+    if (!empty($photo) && $photo !== 'default.png') {
+        $possiblePaths = [
+            'admin/uploads/instructors/' . $photo,
+            '../admin/uploads/instructors/' . $photo,
+            './admin/uploads/instructors/' . $photo,
+            'uploads/instructors/' . $photo,
+            '../uploads/instructors/' . $photo,
+            './uploads/instructors/' . $photo,
+            $_SERVER['DOCUMENT_ROOT'] . '/admin/uploads/instructors/' . $photo,
+            dirname(__FILE__) . '/../admin/uploads/instructors/' . $photo
+        ];
+        
+        foreach ($possiblePaths as $path) {
+            if (strpos($path, $_SERVER['DOCUMENT_ROOT']) === 0 || strpos($path, dirname(__FILE__)) === 0) {
+                if (file_exists($path)) {
+                    if (strpos($path, $_SERVER['DOCUMENT_ROOT']) === 0) {
+                        return str_replace($_SERVER['DOCUMENT_ROOT'], '', $path);
+                    } else {
+                        return 'admin/uploads/instructors/' . $photo;
+                    }
+                }
+            } else {
+                if (file_exists($path)) {
+                    return $path;
+                }
+            }
+        }
+        
+        if (!empty($photo)) {
+            return 'admin/uploads/instructors/' . $photo;
+        }
+    }
+    
+    return $defaultPhoto;
+}
+
+/**
+ * Get student photo path with multiple fallbacks
+ */
+function getStudentsPhotoPath($student) {
+    $defaultPhoto = 'admin/uploads/students/default.png';
+    
+    if (is_array($student)) {
+        $photo = isset($student['photo']) ? $student['photo'] : '';
+    } else {
+        $photo = $student;
+    }
+    
+    if (!empty($photo) && $photo !== 'default.png') {
+        $possiblePaths = [
+            'admin/uploads/students/' . $photo,
+            '../admin/uploads/students/' . $photo,
+            './admin/uploads/students/' . $photo,
+            'uploads/students/' . $photo,
+            '../uploads/students/' . $photo,
+            './uploads/students/' . $photo,
+            $_SERVER['DOCUMENT_ROOT'] . '/admin/uploads/students/' . $photo,
+            dirname(__FILE__) . '/../admin/uploads/students/' . $photo
+        ];
+        
+        foreach ($possiblePaths as $path) {
+            if (strpos($path, $_SERVER['DOCUMENT_ROOT']) === 0 || strpos($path, dirname(__FILE__)) === 0) {
+                if (file_exists($path)) {
+                    if (strpos($path, $_SERVER['DOCUMENT_ROOT']) === 0) {
+                        return str_replace($_SERVER['DOCUMENT_ROOT'], '', $path);
+                    } else {
+                        return 'admin/uploads/students/' . $photo;
+                    }
+                }
+            } else {
+                if (file_exists($path)) {
+                    return $path;
+                }
+            }
+        }
+        
+        if (!empty($photo)) {
+            return 'admin/uploads/students/' . $photo;
+        }
+    }
+    
+    return $defaultPhoto;
+}
+
+/**
+ * Get personnel photo path with multiple fallbacks
+ */
+function getPersonellPhotoPath($personnel) {
+    $defaultPhoto = 'admin/uploads/students/default.png';
+    
+    if (is_array($personnel)) {
+        $photo = isset($personnel['photo']) ? $personnel['photo'] : '';
+    } else {
+        $photo = $personnel;
+    }
+    
+    if (!empty($photo) && $photo !== 'default.png') {
+        $possiblePaths = [
+            'admin/uploads/personell/' . $photo,
+            '../admin/uploads/personell/' . $photo,
+            './admin/uploads/personell/' . $photo,
+            'admin/uploads/personnel/' . $photo,
+            '../admin/uploads/personnel/' . $photo,
+            './admin/uploads/personnel/' . $photo,
+            'uploads/personell/' . $photo,
+            '../uploads/personell/' . $photo,
+            './uploads/personell/' . $photo,
+            $_SERVER['DOCUMENT_ROOT'] . '/admin/uploads/personell/' . $photo,
+            dirname(__FILE__) . '/../admin/uploads/personell/' . $photo
+        ];
+        
+        foreach ($possiblePaths as $path) {
+            if (strpos($path, $_SERVER['DOCUMENT_ROOT']) === 0 || strpos($path, dirname(__FILE__)) === 0) {
+                if (file_exists($path)) {
+                    if (strpos($path, $_SERVER['DOCUMENT_ROOT']) === 0) {
+                        return str_replace($_SERVER['DOCUMENT_ROOT'], '', $path);
+                    } else {
+                        return 'admin/uploads/personell/' . $photo;
+                    }
+                }
+            } else {
+                if (file_exists($path)) {
+                    return $path;
+                }
+            }
+        }
+        
+        if (!empty($photo)) {
+            return 'admin/uploads/personell/' . $photo;
+        }
+    }
+    
+    return $defaultPhoto;
+}
+
+/**
+ * Universal photo path function that automatically detects user type
+ */
+function getUniversalPhotoPath($userData) {
+    if (!is_array($userData)) {
+        return 'admin/uploads/students/default.png';
+    }
+    
+    $role = isset($userData['person_type']) ? strtolower($userData['person_type']) : '';
+    $photo = isset($userData['photo']) ? $userData['photo'] : '';
+    
+    switch($role) {
+        case 'instructor':
+        case 'faculty':
+            return getInstructorPhotoPath($userData);
+            
+        case 'student':
+            return getStudentsPhotoPath($userData);
+            
+        case 'personell':
+        case 'staff':
+        case 'admin':
+        case 'security':
+        case 'personnel':
+            return getPersonellPhotoPath($userData);
+            
+        case 'visitor':
+            if (!empty($photo)) {
+                $visitorPath = 'admin/uploads/visitors/' . $photo;
+                if (file_exists($visitorPath) || file_exists('../' . $visitorPath)) {
+                    return $visitorPath;
+                }
+            }
+            return 'admin/uploads/students/default.png';
+            
+        default:
+            return 'admin/uploads/students/default.png';
+    }
+}
+
+/**
+ * Check if photo file actually exists, return default if not
+ */
+function validatePhotoPath($photoPath) {
+    $defaultPhoto = 'admin/uploads/students/default.png';
+    
+    if (empty($photoPath) || $photoPath === $defaultPhoto) {
+        return $defaultPhoto;
+    }
+    
+    $pathsToCheck = [
+        $photoPath,
+        '../' . $photoPath,
+        './' . $photoPath,
+        dirname(__FILE__) . '/' . $photoPath
+    ];
+    
+    foreach ($pathsToCheck as $path) {
+        if (file_exists($path)) {
+            return $photoPath;
+        }
+    }
+    
+    return $defaultPhoto;
+}
+
+/**
+ * Convert photo to base64 if file exists, otherwise return default
+ */
+function getPhotoForResponse($userData) {
+    $photoPath = getUniversalPhotoPath($userData);
+    $validatedPath = validatePhotoPath($photoPath);
+    
+    // If it's a file path and file exists, convert to base64
+    if (!empty($validatedPath) && $validatedPath !== 'admin/uploads/students/default.png' && file_exists($validatedPath)) {
+        $imageData = file_get_contents($validatedPath);
+        if ($imageData !== false) {
+            $mimeType = mime_content_type($validatedPath);
+            return 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+        }
+    }
+    
+    // Return default photo as base64 or empty string
+    $defaultPath = 'admin/uploads/students/default.png';
+    if (file_exists($defaultPath)) {
+        $imageData = file_get_contents($defaultPath);
+        $mimeType = mime_content_type($defaultPath);
+        return 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+    }
+    
+    return ''; // Return empty if no photo available
+}
+
+// ============================================
+// MAIN GATE PROCESSING LOGIC
+// ============================================
+
 // Get POST data
 $barcode = $_POST['barcode'] ?? '';
-$current_department = $_POST['current_department'] ?? 'Main';
-$current_location = $_POST['current_location'] ?? 'Gate';
+$current_department = $_POST['department'] ?? 'Main';
+$current_location = $_POST['location'] ?? 'Gate';
 $today = date('Y-m-d');
 $now = date('Y-m-d H:i:s');
 $current_time = date('H:i:s');
@@ -20,7 +268,6 @@ if (empty($barcode)) {
 // Search for person in all tables (students, instructors, personnel, visitors)
 $person = null;
 $person_type = '';
-$photo_base64 = '';
 
 // Check students table first
 $student_query = "SELECT *, 'student' as person_type, photo as photo_blob, fullname as full_name FROM students WHERE id_number = ? LIMIT 1";
@@ -92,17 +339,15 @@ if ($result->num_rows > 0) {
     }
 }
 
-// Convert photo BLOB to base64 if it exists
-if (!empty($person['photo_blob'])) {
-    $photo_base64 = 'data:image/jpeg;base64,' . base64_encode($person['photo_blob']);
-}
+// Get photo using enhanced photo functions
+$photo_data = getPhotoForResponse($person);
 
-// Prepare base response (matching process_barcode.php structure)
+// Prepare base response
 $response = [
     'full_name' => $person['full_name'],
     'id_number' => $person['id_number'],
-    'department' => $person['department'] ?? $person['department_id'] ?? 'N/A',
-    'photo' => $photo_base64,
+    'department' => $person['department'] ?? $person['department_name'] ?? 'N/A',
+    'photo' => $photo_data,
     'section' => $person['section'] ?? 'N/A',
     'year_level' => $person['year'] ?? 'N/A',
     'role' => ucfirst($person_type),
@@ -144,6 +389,8 @@ if ($existing_specific_log) {
     if (!empty($existing_specific_log['time_out']) && $existing_specific_log['time_out'] != '00:00:00') {
         $response['error'] = 'Already timed out today';
         $response['voice'] = "Already timed out today";
+        $response['time_in_out'] = 'Already timed out today';
+        $response['alert_class'] = 'alert-info';
     } 
     // Check if person has logged IN but not OUT yet
     else if (!empty($existing_specific_log['time_in']) && (empty($existing_specific_log['time_out']) || $existing_specific_log['time_out'] == '00:00:00')) {
@@ -163,6 +410,7 @@ if ($existing_specific_log) {
             $response['voice'] = "Time out recorded for {$person['full_name']}";
         } else {
             $response['error'] = 'Failed to record time out';
+            $response['voice'] = "Error recording time out";
         }
         $update_specific_stmt->close();
     } else {
@@ -181,6 +429,7 @@ if ($existing_specific_log) {
             $response['voice'] = "Time in recorded for {$person['full_name']}";
         } else {
             $response['error'] = 'Failed to record time in';
+            $response['voice'] = "Error recording time in";
         }
         $update_specific_stmt->close();
     }
@@ -213,6 +462,7 @@ if ($existing_specific_log) {
         $response['voice'] = "Time in recorded for {$person['full_name']}";
     } else {
         $response['error'] = 'Failed to record time in';
+        $response['voice'] = "Error recording time in";
     }
     $insert_specific_stmt->close();
 }
@@ -220,10 +470,21 @@ if ($existing_specific_log) {
 // Close statements
 $specific_log_stmt->close();
 
+// Final response formatting
+if (isset($response['error'])) {
+    $response['time_in_out'] = $response['error'];
+}
+
 echo json_encode($response);
 exit;
 
-// Function to update gate_logs for OUT action
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+/**
+ * Function to update gate_logs for OUT action
+ */
 function updateGateLogs($db, $person_type, $person_id, $id_number, $full_name, $action, $department, $location, $now) {
     $time = date('H:i:s');
     $date = date('Y-m-d');
@@ -256,7 +517,9 @@ function updateGateLogs($db, $person_type, $person_id, $id_number, $full_name, $
     }
 }
 
-// Function to insert into gate_logs
+/**
+ * Function to insert into gate_logs
+ */
 function insertIntoGateLogs($db, $person_type, $person_id, $id_number, $full_name, $action, $department, $location, $now) {
     $time = date('H:i:s');
     $date = date('Y-m-d');

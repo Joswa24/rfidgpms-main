@@ -13,6 +13,33 @@ if (isset($_SESSION['error_message'])) {
 }
 
 include '../connection.php';
+
+// Enhanced photo path function for admin
+function getInstructorPhotoPath($instructor) {
+    $defaultPhoto = '../assets/img/default-avatar.png';
+    
+    if (!empty($instructor['photo']) && $instructor['photo'] !== 'default.png') {
+        // Check multiple possible locations
+        $possiblePaths = [
+            '../admin/uploads/instructors/' . $instructor['photo'],
+            'admin/uploads/instructors/' . $instructor['photo'],
+            'uploads/instructors/' . $instructor['photo'],
+            '../uploads/instructors/' . $instructor['photo'],
+            './admin/uploads/instructors/' . $instructor['photo']
+        ];
+        
+        foreach ($possiblePaths as $path) {
+            if (file_exists($path)) {
+                return $path;
+            }
+        }
+        
+        // If no file found but we have a photo name, return the expected path
+        return 'admin/uploads/instructors/' . $instructor['photo'];
+    }
+    
+    return $defaultPhoto;
+}
 ?>
 <?php include 'header.php'; ?>
 
@@ -117,7 +144,6 @@ include '../connection.php';
                                         <th scope="col">Full Name</th>
                                         <th scope="col">Department</th>
                                         <th scope="col">Action</th>
-                                        <th style="display: none;">Date Added</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -131,49 +157,70 @@ include '../connection.php';
                                     if ($results === false) {
                                         die("Query failed: " . mysqli_error($db));
                                     }
-                                    ?>
-                                    <?php while ($row = mysqli_fetch_array($results)) { 
-                                        // Get instructor photo path
-                                        $photoPath = '../assets/img/default-avatar.png'; // Default photo
-                                        if (!empty($row['photo']) && file_exists('../uploads/instructors/' . $row['photo'])) {
-                                            $photoPath = '../uploads/instructors/' . $row['photo'];
+                                    
+                                    // Enhanced photo path function for instructors
+                                    function getInstructorPhoto($photo) {
+                                        $defaultPhoto = '../assets/img/default-avatar.png';
+                                        
+                                        if (!empty($photo) && $photo !== 'default.png') {
+                                            // Check multiple possible locations
+                                            $possiblePaths = [
+                                                '../admin/uploads/instructors/' . $photo,
+                                                'admin/uploads/instructors/' . $photo,
+                                                'uploads/instructors/' . $photo,
+                                                '../uploads/instructors/' . $photo,
+                                                './admin/uploads/instructors/' . $photo
+                                            ];
+                                            
+                                            foreach ($possiblePaths as $path) {
+                                                if (file_exists($path)) {
+                                                    return $path;
+                                                }
+                                            }
+                                            
+                                            // If no file found but we have a photo name, return the expected path
+                                            return 'admin/uploads/instructors/' . $photo;
                                         }
+                                        
+                                        return $defaultPhoto;
+                                    }
+                                    ?>
+                                    
+                                    <?php while ($row = mysqli_fetch_array($results)) { 
+                                        // Use the enhanced getInstructorPhoto function to get the correct photo path
+                                        $photoPath = getInstructorPhoto($row['photo']);
                                     ?>
                                     <tr class="table-<?php echo $row['id'];?>" data-instructor-id="<?php echo $row['id'];?>">
                                         <input class="department_id" type="hidden" value="<?php echo $row['department_id']; ?>" />
-                                        <input class="id_number" type="hidden" value="<?php echo $row['id_number']; ?>" />
-                                        <input class="fullname" type="hidden" value="<?php echo $row['fullname']; ?>" />
-                                        <?php if (isset($row['date_added'])): ?>
-                                        <input class="date_added" type="hidden" value="<?php echo $row['date_added']; ?>" />
-                                        <?php endif; ?>
+                                        <input class="id_number" type="hidden" value="<?php echo htmlspecialchars($row['id_number']); ?>" />
+                                        <input class="fullname" type="hidden" value="<?php echo htmlspecialchars($row['fullname']); ?>" />
 
                                         <td>
                                             <center>
-                                                <img class="photo instructor-photo" src="<?php echo $photoPath; ?>" 
-                                                     onerror="this.onerror=null; this.src='../assets/img/default-avatar.png';">
+                                                <div class="photo-preview-container">
+                                                    <img class="photo instructor-photo" src="<?php echo $photoPath; ?>" 
+                                                        onerror="this.onerror=null; this.src='../assets/img/default-avatar.png';"
+                                                        alt="<?php echo htmlspecialchars($row['fullname']); ?>"
+                                                        style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #dee2e6;">
+                                                </div>
                                             </center>
                                         </td>
-                                        <td class="instructor_id"><?php echo $row['id_number']; ?></td>
-                                        <td><?php echo $row['fullname']; ?></td>
-                                        <td><?php echo $row['department_name']; ?></td>
-                                        <td width="14%">
+                                        <td class="instructor_id"><?php echo htmlspecialchars($row['id_number']); ?></td>
+                                        <td><?php echo htmlspecialchars($row['fullname']); ?></td>
+                                        <td><?php echo htmlspecialchars($row['department_name']); ?></td>
+                                        <td width="16%">
                                             <center>
                                                 <button data-id="<?php echo $row['id'];?>" 
                                                         class="btn btn-outline-primary btn-sm btn-edit e_instructor_id">
                                                     <i class="fas fa-edit"></i> Edit 
                                                 </button>
-                                                <button instructor_name="<?php echo $row['fullname']; ?>" 
+                                                <button instructor_name="<?php echo htmlspecialchars($row['fullname']); ?>" 
                                                         data-id="<?php echo $row['id']; ?>" 
                                                         class="btn btn-outline-danger btn-sm btn-del d_instructor_id">
                                                     <i class="fas fa-trash"></i> Delete 
                                                 </button>
                                             </center>
                                         </td>
-                                        <?php if (isset($row['date_added'])): ?>
-                                        <td style="display:none;" class="hidden-date"><?php echo $row['date_added']; ?></td>
-                                        <?php else: ?>
-                                        <td style="display:none;" class="hidden-date"><?php echo date('Y-m-d H:i:s'); ?></td>
-                                        <?php endif; ?>
                                     </tr>
                                     <?php } ?>
                                 </tbody>
@@ -348,26 +395,6 @@ include '../connection.php';
                 </div>
             </div>
 
-            <!-- Delete Confirmation Modal -->
-            <div class="modal fade" id="delinstructor-modal" tabindex="-1" aria-labelledby="delinstructorModalLabel" aria-hidden="true">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="delinstructorModalLabel">Confirm Delete</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <p>Are you sure you want to delete instructor: <strong id="delete_instructorname"></strong>?</p>
-                            <input type="hidden" id="delete_instructorid">
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="button" class="btn btn-danger" id="btn-delinstructor">Yes, Delete</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <?php include 'footer.php'; ?>
         </div>
          <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top" style="background-color: #87abe0ff"><i class="bi bi-arrow-up" style="background-color: #87abe0ff"></i></a>
@@ -388,7 +415,7 @@ include '../connection.php';
         $(document).ready(function() {
             // Initialize DataTable
             var dataTable = $('#myDataTable').DataTable({
-                order: [[5, 'desc']],
+                order: [[0, 'desc']],
                 stateSave: true
             });
 
@@ -408,8 +435,34 @@ include '../connection.php';
                 $(this).val(value);
             });
 
+            // Enhanced AJAX error handling
+            function handleAjaxError(xhr, status, error, defaultMessage = 'An error occurred') {
+                console.error('AJAX Error:', status, error);
+                console.error('Response:', xhr.responseText);
+                
+                let errorMessage = defaultMessage;
+                
+                try {
+                    if (xhr.responseText) {
+                        const errorResponse = JSON.parse(xhr.responseText);
+                        if (errorResponse.message) {
+                            errorMessage = errorResponse.message;
+                        }
+                    }
+                } catch (e) {
+                    // If not JSON, check for server errors
+                    if (xhr.status === 500) {
+                        errorMessage = 'Internal Server Error - Check server logs';
+                    } else if (xhr.responseText.includes('error') || xhr.responseText.includes('Error')) {
+                        errorMessage = 'Server Error: ' + xhr.responseText.substring(0, 200);
+                    }
+                }
+                
+                return errorMessage;
+            }
+
             // ==========
-            // READ (EDIT INSTRUCTOR) - FIXED
+            // READ (EDIT INSTRUCTOR)
             // ==========
             $(document).on('click', '.e_instructor_id', function() {
                 const id = $(this).data('id');
@@ -421,7 +474,7 @@ include '../connection.php';
                 const $getdept = $row.find('.department_id').val();
                 const $getfullname = $row.find('.fullname').val();
 
-                console.log('Editing instructor:', id, $getidnumber, $getfullname); // Debug log
+                console.log('Editing instructor:', id, $getidnumber, $getfullname);
 
                 // Populate edit form
                 $('#edit_instructorid').val(id);
@@ -468,6 +521,22 @@ include '../connection.php';
                     isValid = false; 
                 }
                 
+                // Photo validation
+                if (photo) {
+                    const validFormats = ['image/jpeg', 'image/png', 'image/jpg'];
+                    const maxSize = 2 * 1024 * 1024; // 2MB
+                    
+                    if (!validFormats.includes(photo.type)) {
+                        $('#photo-error').text('Only JPG, JPEG and PNG formats are allowed');
+                        isValid = false;
+                    }
+                    
+                    if (photo.size > maxSize) {
+                        $('#photo-error').text('File size must be less than 2MB');
+                        isValid = false;
+                    }
+                }
+                
                 if (!isValid) return;
 
                 // Show loading state
@@ -511,10 +580,16 @@ include '../connection.php';
                         $('#btn-instructor').html('Save');
                         $('#btn-instructor').prop('disabled', false);
                         
+                        const errorMessage = handleAjaxError(xhr, status, error, 'Failed to save instructor');
+                        
                         Swal.fire({
                             icon: 'error',
                             title: 'Error!',
-                            text: 'An error occurred: ' + error
+                            html: '<div style="text-align: left;">' + 
+                                  '<strong>Error Details:</strong><br>' +
+                                  errorMessage + 
+                                  '<br><br><small>Check browser console for more details.</small>' +
+                                  '</div>'
                         });
                     }
                 });
@@ -530,6 +605,7 @@ include '../connection.php';
                 const department_id = $('#edepartment_id').val();
                 const id_number = $('#eid_number').val().trim();
                 const fullname = $('#efullname').val().trim();
+                const photo = $('#editPhoto')[0].files[0];
 
                 // Validation
                 let isValid = true;
@@ -555,6 +631,22 @@ include '../connection.php';
                     $('#efullname-error').text(''); 
                 }
                 
+                // Photo validation for update
+                if (photo) {
+                    const validFormats = ['image/jpeg', 'image/png', 'image/jpg'];
+                    const maxSize = 2 * 1024 * 1024;
+                    
+                    if (!validFormats.includes(photo.type)) {
+                        $('#photo-error').text('Only JPG, JPEG and PNG formats are allowed');
+                        isValid = false;
+                    }
+                    
+                    if (photo.size > maxSize) {
+                        $('#photo-error').text('File size must be less than 2MB');
+                        isValid = false;
+                    }
+                }
+                
                 if (!isValid) return;
 
                 // Show loading state
@@ -562,7 +654,7 @@ include '../connection.php';
                 $('#btn-editinstructor').prop('disabled', true);
 
                 var formData = new FormData(this);
-                formData.append('id', id);
+                formData.append('instructor_id', id);
 
                 $.ajax({
                     type: "POST",
@@ -599,22 +691,17 @@ include '../connection.php';
                         $('#btn-editinstructor').html('Update');
                         $('#btn-editinstructor').prop('disabled', false);
                         
-                        try {
-                            // Try to parse the error response as JSON
-                            var errorResponse = JSON.parse(xhr.responseText);
-                            Swal.fire({
-                                title: 'Error!',
-                                text: errorResponse.message || 'An error occurred',
-                                icon: 'error'
-                            });
-                        } catch (e) {
-                            // If not JSON, show raw response
-                            Swal.fire({
-                                title: 'Error!',
-                                text: 'An error occurred: ' + xhr.responseText,
-                                icon: 'error'
-                            });
-                        }
+                        const errorMessage = handleAjaxError(xhr, status, error, 'Failed to update instructor');
+                        
+                        Swal.fire({
+                            title: 'Error!',
+                            html: '<div style="text-align: left;">' + 
+                                  '<strong>Error Details:</strong><br>' +
+                                  errorMessage + 
+                                  '<br><br><small>Check browser console for more details.</small>' +
+                                  '</div>',
+                            icon: 'error'
+                        });
                     }
                 });
             });
@@ -672,9 +759,15 @@ include '../connection.php';
                                 }
                             },
                             error: function(xhr, status, error) {
+                                const errorMessage = handleAjaxError(xhr, status, error, 'Failed to delete instructor');
+                                
                                 Swal.fire({
                                     title: 'Error!',
-                                    text: 'An error occurred: ' + error,
+                                    html: '<div style="text-align: left;">' + 
+                                          '<strong>Error Details:</strong><br>' +
+                                          errorMessage + 
+                                          '<br><br><small>Check browser console for more details.</small>' +
+                                          '</div>',
                                     icon: 'error'
                                 });
                             }

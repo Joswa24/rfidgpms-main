@@ -7,57 +7,7 @@ ini_set('display_errors', 1);
 // Include required files
 include 'security-headers.php';
 include 'connection.php';
-include 'recaptcha.php';
-
-    // =====================================================================
-    // reCAPTCHA VERIFICATION FUNCTION
-    // =====================================================================
-        function verifyRecaptcha($recaptchaResponse) {
-        $secret_key = '6Ld2w-QrAAAAAFeIvhKm5V6YBpIsiyHIyzHxeqm-';
-        $url = 'https://www.google.com/recaptcha/api/siteverify';
-        
-        $data = [
-            'secret' => $secret_key,
-            'response' => $recaptchaResponse
-            // Remove remoteip for now to simplify
-        ];
-        
-        // Use cURL instead of file_get_contents (more reliable)
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-        
-        $result = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
-        curl_close($ch);
-        
-        // Log detailed information
-        error_log("reCAPTCHA Debug - HTTP Code: $httpCode, cURL Error: $curlError, Result: " . $result);
-        
-        if ($result === false) {
-            error_log("reCAPTCHA cURL failed: " . $curlError);
-            return (object)['success' => false, 'score' => 0];
-        }
-        
-        if ($httpCode !== 200) {
-            error_log("reCAPTCHA HTTP Error: $httpCode");
-            return (object)['success' => false, 'score' => 0];
-        }
-        
-        $response = json_decode($result);
-        
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            error_log("reCAPTCHA JSON parse error: " . json_last_error_msg());
-            return (object)['success' => false, 'score' => 0];
-        }
-        
-        return $response;
-    }
+// Removed: include 'recaptcha.php';
 
 // Start session first
 session_start();
@@ -65,7 +15,6 @@ session_start();
 if (ob_get_level() > 0) {
     ob_clean();
 }
-
 
 // =====================================================================
 // MAINTENANCE TASKS - Improved with prepared statements
@@ -128,35 +77,8 @@ function sanitizeInput($data) {
     return htmlspecialchars(stripslashes(trim($data)), ENT_QUOTES, 'UTF-8');
 }
 
-
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Verify reCAPTCHA first
-    $recaptchaResponse = $_POST['recaptcha_response'] ?? '';
-    
-    if (empty($recaptchaResponse)) {
-        http_response_code(400);
-        header('Content-Type: application/json');
-        die(json_encode(['status' => 'error', 'message' => "Security verification failed. Please refresh and try again."]));
-    }
-    
-        $recaptchaResult = verifyRecaptcha($recaptchaResponse);
-        
-        if (!$recaptchaResult->success || $recaptchaResult->score < 0.3) {
-        // DEBUG: Log detailed information
-        error_log("reCAPTCHA DEBUG - Success: " . ($recaptchaResult->success ? 'true' : 'false') . 
-                " - Score: " . ($recaptchaResult->score ?? 'unknown') . 
-                " - Errors: " . json_encode($recaptchaResult->{'error-codes'} ?? []) . 
-                " - IP: " . $_SERVER['REMOTE_ADDR']);
-        
-        // Temporary: Show detailed error for debugging
-        http_response_code(400);
-        header('Content-Type: application/json');
-        die(json_encode([
-            'status' => 'error', 
-            'message' => "Security check failed. Score: " . ($recaptchaResult->score ?? 'unknown') . 
-                        " - Success: " . ($recaptchaResult->success ? 'true' : 'false')
-        ]));
-    }
+    // Removed reCAPTCHA verification
     
     // Continue with existing login validation...
     $department = sanitizeInput($_POST['roomdpt'] ?? '');
@@ -269,17 +191,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             die(json_encode(['status' => 'error', 'message' => "Invalid Gate Password."]));
         }
 
-        // Gate login successful - set session data
+        // Gate login successful - set session data for SECURITY PERSONNEL
         $_SESSION['access'] = [
-            'security' => [
+            'security' => [  // Changed from 'instructor' to 'security'
                 'id' => $securityGuard['id'],
                 'fullname' => $securityGuard['first_name'] . ' ' . $securityGuard['last_name'],
                 'id_number' => $securityGuard['id_number'],
                 'role' => $securityGuard['role']
             ],
-            'gate' => [
-                'department' => 'Main',
-                'location' => 'Gate'
+            'room' => [
+                'id' => $room['id'],
+                'department' => $room['department'],
+                'room' => $room['room'],
+                'desc' => $room['desc'],
+                'descr' => $room['descr'],
+                'authorized_personnel' => $room['authorized_personnel']
             ],
             'last_activity' => time()
         ];
@@ -318,7 +244,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         die(json_encode(['status' => 'error', 'message' => "Invalid ID number. Instructor not found."]));
     }
 
-    $instructor = $instructorResult->fetch_assoc();
+    $instructor = $instructorResult->fetch_assoc(); // THIS IS WHERE $instructor IS DEFINED
 
     // Verify room credentials
     $stmt = $db->prepare("SELECT * FROM rooms WHERE department = ? AND room = ?");
@@ -337,15 +263,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $stmt = $db->prepare("SELECT * FROM rooms WHERE password=?");
     $stmt->bind_param("s", $password);
     $stmt->execute();
-    $password = $stmt->get_result();
+    $passwordResult = $stmt->get_result();
 
-    if ($password->num_rows === 0) {
+    if ($passwordResult->num_rows === 0) {
         sleep(2);
         header('Content-Type: application/json');
         die(json_encode(['status' => 'error', 'message' => "Invalid Password."]));
     }
 
-    // Login successful - set session data
+    // Login successful - set session data FOR INSTRUCTOR
     $_SESSION['access'] = [
         'instructor' => [
             'id' => $instructor['id'],
@@ -368,15 +294,37 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         'last_activity' => time()
     ];
 
+    // ✅ NEW: Record instructor session start time
+    $currentTime = date('Y-m-d H:i:s');
+    $_SESSION['instructor_login_time'] = $currentTime;
+
+    // ✅ NEW: Create instructor attendance summary record
+    $instructorId = $instructor['id'];
+    $instructorName = $instructor['fullname'];
+    $subjectName = $selected_subject;
+
+    // Extract year level and section from subject if possible, or use defaults
+    $yearLevel = "1st Year"; // You can extract this from your subject data
+    $section = "A"; // You can extract this from your subject data
+    $sessionDate = date('Y-m-d');
+    $timeIn = date('H:i:s');
+
+    // Insert into instructor_attendance_summary table
+    $sessionSql = "INSERT INTO instructor_attendance_summary 
+                (instructor_id, instructor_name, subject_name, year_level, section, 
+                    total_students, present_count, absent_count, attendance_rate,
+                    session_date, time_in, time_out) 
+                VALUES (?, ?, ?, ?, ?, 0, 0, 0, 0.00, ?, ?, '00:00:00')";
+    $stmt = $db->prepare($sessionSql);
+    $stmt->bind_param("issssss", $instructorId, $instructorName, $subjectName, $yearLevel, $section, $sessionDate, $timeIn);
+    $stmt->execute();
+    $attendanceSessionId = $stmt->insert_id;
+
+    // Store session ID for later use
+    $_SESSION['attendance_session_id'] = $attendanceSessionId;
+
     // Regenerate session ID to prevent session fixation
     session_regenerate_id(true);
-
-    // Clear output buffer before JSON response
-    if ($password->num_rows === 0) {
-        sleep(2);
-        header('Content-Type: application/json');
-        die(json_encode(['status' => 'error', 'message' => 'Invalid Password.']));
-    }
 
     // Clear any existing output
     while (ob_get_level()) {
@@ -407,15 +355,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     
     <!-- CORRECTED Content Security Policy -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; 
-    script-src 'self' https://www.google.com https://www.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://ajax.googleapis.com https://fonts.googleapis.com 'unsafe-inline' 'unsafe-eval'; 
+    script-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://ajax.googleapis.com https://fonts.googleapis.com 'unsafe-inline' 'unsafe-eval'; 
     style-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.googleapis.com 'unsafe-inline'; 
     font-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.gstatic.com; 
     img-src 'self' data: https:; 
-    connect-src 'self' https://www.google.com https://recaptcha.google.com; 
-    frame-src https://www.google.com; 
+    connect-src 'self'; 
     frame-ancestors 'none';">
-    
-    <script src="https://www.google.com/recaptcha/api.js?render=6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_"></script>
     
     <!-- Security Meta Tags -->
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -424,119 +369,540 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <link rel="icon" href="admin/uploads/logo.png" type="image/png">
     
     <!-- CSS -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="admin/css/bootstrap.min.css">
-    <link rel="stylesheet" href="admin/css/style.css">
     <!-- SweetAlert CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     
     <style>
-        .mb-3, .mb-4 {
+        :root {
+            --primary-color: #e1e7f0ff;
+            --secondary-color: #b0caf0ff;
+            --accent-color: #f3f5fcff;
+            --icon-color: #5c95e9ff;
+            --light-bg: #f8f9fc;
+            --dark-text: #5a5c69;
+            --warning-color: #f6c23e;
+            --danger-color: #e74a3b;
+            --border-radius: 15px;
+            --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+            color: var(--dark-text);
+        }
+
+        .login-container {
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            overflow: hidden;
+            width: 100%;
+            max-width: 450px;
+            transition: transform 0.3s ease;
+        }
+
+        .login-container:hover {
+            transform: translateY(-5px);
+        }
+
+        .login-header {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
+            padding: 25px;
+            text-align: center;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: rotate(45deg);
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .logo-title-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .header-logo {
+            height: 80px;
+            width: 100px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 3px;
+        }
+
+        .system-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .location-indicator {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+
+        .card-body {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark-text);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+        }
+
+        .form-label i {
+            margin-right: 8px;
+            color: var(--icon-color);
+        }
+
+        .input-group {
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
             transition: all 0.3s ease;
         }
-        
-        /* Security guard specific styles */
-        .gate-access-info {
-            background-color: #e3f2fd;
-            border-left: 4px solid #2196f3;
-            padding: 10px;
-            margin-bottom: 15px;
+
+        .input-group:focus-within {
+            box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+        }
+
+        .input-group-text {
+            background-color: var(--light-bg);
+            border: none;
+            padding: 0.75rem 1rem;
+            color: var(--accent-color);
+        }
+
+        .form-control, .form-select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1.5px solid var(--gray-300);
+            border-radius: 8px;
+            font-size: 15px;
+            transition: var(--transition);
+            background-color: var(--white);
+            border: none;
+            background-color: var(--light-bg);
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15);
+            outline: none;
+            background-color: white;
+            box-shadow: none;
+        }
+
+        .password-field {
+            position: relative;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--gray-500);
+            cursor: pointer;
+            transition: var(--transition);
+            padding: 5px;
             border-radius: 4px;
+            z-index: 5;
+            background: white;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        
-        .subject-radio:disabled {
+
+        .password-toggle:hover {
+            color: var(--primary);
+            background-color: var(--gray-100);
+        }
+
+        .gate-access-info {
+            background: linear-gradient(135deg, #e3f2fd 0%, #f0f7ff 100%);
+            border-left: 4px solid var(--accent-color);
+            padding: 14px 16px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .gate-access-info i {
+            color: var(--accent-color);
+            margin-right: 10px;
+            font-size: 16px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
+            border: none;
+            color: white;
+            padding: 14px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            width: 100%;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(78, 115, 223, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(78, 115, 223, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            background: #6c757d;
             cursor: not-allowed;
-            opacity: 0.6;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn-primary:hover::before {
+            left: 100%;
+        }
+
+        .terms-link {
+            color: var(--gray-600);
+            text-decoration: none;
+            font-size: 14px;
+            transition: var(--transition);
+        }
+
+        .terms-link:hover {
+            color: var(--icon-color);
+        }
+
+        /* Alert Styles */
+        .alert-container {
+            margin-bottom: 20px;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            border: none;
+        }
+
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .alert-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border-left: 4px solid var(--warning-color);
+        }
+
+        /* Modal Styles */
+        .modal-content {
+            border-radius: var(--border-radius);
+            border: none;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
+            color: white;
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
+            padding: 20px 25px;
+            border: none;
+        }
+
+        .modal-title {
+            font-weight: 600;
+            font-size: 18px;
+        }
+
+        .btn-close-white {
+            filter: invert(1);
+        }
+
+        .modal-body {
+            padding: 25px;
+        }
+
+        .modal-footer {
+            padding: 20px 25px;
+            border-top: 1px solid var(--gray-200);
+            border-radius: 0 0 var(--border-radius) var(--border-radius);
+        }
+
+        .subject-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .subject-table th {
+            background-color: var(--gray-100);
+            font-weight: 600;
+            font-size: 14px;
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--gray-300);
+        }
+
+        .subject-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--gray-200);
+            font-size: 14px;
+        }
+
+        .subject-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .subject-table tr:hover {
+            background-color: var(--gray-50);
+        }
+
+        .badge {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        /* Security and additional elements */
+        .attempts-counter {
+            text-align: center;
+            margin-bottom: 15px;
         }
         
-        .modal-subject-row:hover {
-            background-color: #f8f9fa;
+        .countdown-timer {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--danger-color);
+            margin: 10px 0;
         }
         
+        .attempts-warning {
+            font-size: 0.9rem;
+            color: var(--warning-color);
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .login-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 576px) {
+            .login-container {
+                max-width: 100%;
+            }
+            
+            .card-body {
+                padding: 25px 20px;
+            }
+            
+            .login-header {
+                padding: 20px;
+            }
+            
+            .system-title {
+                font-size: 22px;
+            }
+            
+            .logo-title-wrapper {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .header-logo {
+                height: 70px;
+                width: 90px;
+            }
+        }
+
+        /* Animation for form elements */
+        .form-group {
+            animation: fadeInUp 0.5s ease forwards;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        .form-group:nth-child(1) { animation-delay: 0.1s; }
+        .form-group:nth-child(2) { animation-delay: 0.2s; }
+        .form-group:nth-child(3) { animation-delay: 0.3s; }
+        .form-group:nth-child(4) { animation-delay: 0.4s; }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Loading animation */
+        .spinner-border-sm {
+            width: 1rem;
+            height: 1rem;
+        }
         
+        .form-text {
+            font-size: 13px;
+            margin-top: 5px;
+        }
     </style>
 </head>
-<body class="bg-light">
-    <div class="container-fluid min-vh-100 d-flex align-items-center justify-content-center">
-        <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4">
-            <div class="card shadow-sm">
-                <div class="card-body p-4 p-sm-5">
-                    <form id="logform" method="POST" novalidate autocomplete="on">
-                        <div id="alert-container" class="alert alert-danger d-none" role="alert"></div>
-                        
-                        <div class="d-flex align-items-center justify-content-between mb-4">
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <div class="header-content">
+                <div class="d-flex align-items-center justify-content-between mb-4">
                             <h3 class="text-primary mb-0">GACPMS</h3>
                             <h5 class="text-muted mb-0">Location</h5>
                         </div>
-                        
-                        <div class="mb-3">
-                            <label for="roomdpt" class="form-label">Department</label>
-                            <select class="form-select" name="roomdpt" id="roomdpt" required autocomplete="organization">
-                                <option value="Main" selected>Main</option>
-                                <?php
-                                $sql = "SELECT department_name FROM department WHERE department_name != 'Main'";
-                                $result = $db->query($sql);
-                                while ($row = $result->fetch_assoc()):
-                                ?>
-                                <option value="<?= htmlspecialchars($row['department_name']) ?>">
-                                    <?= htmlspecialchars($row['department_name']) ?>
-                                </option>
-                                <?php endwhile; ?>
-                            </select>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="location" class="form-label">Location</label>
-                            <select class="form-select" name="location" id="location" required autocomplete="organization-title">
-                                <option value="Gate" selected>Gate</option>
-                            </select>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="password" class="form-label">Password</label>
-                            <div class="input-group">
-                                <input type="password" class="form-control" id="password" name="Ppassword" required autocomplete="current-password">
-                                <button class="btn btn-outline-secondary" type="button" id="togglePassword">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <label for="id-input" class="form-label">ID Number</label>
-                            <input type="text" class="form-control" id="id-input" name="Pid_number" 
-                                   placeholder="0000-0000" required autocomplete="username"
-                                   pattern="[0-9]{4}-[0-9]{4}" 
-                                   title="Please enter ID in format: 0000-0000">
-                            <div class="form-text">Scan your ID barcode or type manually (format: 0000-0000)</div>
-                        </div>
-                        
-                        <!-- Gate access information -->
-                        <div id="gateAccessInfo" class="gate-access-info d-none">
-                            <i class="fas fa-shield-alt me-2"></i>
-                            <strong>Gate Access Mode:</strong> Security personnel only
-                        </div>
-                        
-                        <!-- Hidden fields for selected subject -->
-                        <input type="hidden" name="selected_subject" id="selected_subject" value="">
-                        <input type="hidden" name="selected_room" id="selected_room" value="">
-                        <input type="hidden" name="selected_time" id="selected_time" value="">
-                        
-                        <!-- Security: Add CSRF token if needed -->
-                        <!-- <input type="hidden" name="csrf_token" value="<?php echo bin2hex(random_bytes(32)); ?>"> -->
-
-                        <!-- reCAPTCHA Token -->
-                        <input type="hidden" name="recaptcha_response" id="recaptchaResponse">
-                        
-                        <button type="submit" class="btn btn-primary w-100 mb-3" id="loginButton">Login</button>
-                        
-                        <div class="text-end">
-                            <a href="terms.php" class="terms-link">Terms and Conditions</a>
-                        </div>
-                    </form>
-                </div>
             </div>
+        </div>
+        
+        <div class="card-body">
+            <form id="logform" method="POST" novalidate autocomplete="on">
+                <div id="alert-container" class="alert alert-danger d-none" role="alert"></div>
+                
+                <div class="form-group">
+                    <label for="roomdpt" class="form-label"><i class="fas fa-building"></i>Department</label>
+                    <select class="form-select" name="roomdpt" id="roomdpt" required autocomplete="organization">
+                        <option value="Main" selected>Main</option>
+                        <?php
+                        $sql = "SELECT department_name FROM department WHERE department_name != 'Main'";
+                        $result = $db->query($sql);
+                        while ($row = $result->fetch_assoc()):
+                        ?>
+                        <option value="<?= htmlspecialchars($row['department_name']) ?>">
+                            <?= htmlspecialchars($row['department_name']) ?>
+                        </option>
+                        <?php endwhile; ?>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="location" class="form-label"><i class="fas fa-map-marker-alt"></i>Location</label>
+                    <select class="form-select" name="location" id="location" required autocomplete="organization-title">
+                        <option value="Gate" selected>Gate</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password" class="form-label"><i class="fas fa-lock"></i>Password</label>
+                    <div class="input-group password-field">
+                        <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                        <input type="password" class="form-control" id="password" name="Ppassword" required autocomplete="current-password">
+                        <button class="password-toggle" type="button" id="togglePassword">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="id-input" class="form-label"><i class="fas fa-id-card"></i>ID Number</label>
+                    <input type="text" class="form-control" id="id-input" name="Pid_number" 
+                           placeholder="0000-0000" required autocomplete="username"
+                           pattern="[0-9]{4}-[0-9]{4}" 
+                           title="Please enter ID in format: 0000-0000">
+                    <small class="form-text text-muted">Scan your ID barcode or type manually (format: 0000-0000)</small>
+                </div>
+                
+                <!-- Gate access information -->
+                <div id="gateAccessInfo" class="gate-access-info d-none">
+                    <i class="fas fa-shield-alt"></i>
+                    <div>
+                        <strong>Gate Access Mode:</strong> Security personnel only
+                    </div>
+                </div>
+                
+                <!-- Hidden fields for selected subject -->
+                <input type="hidden" name="selected_subject" id="selected_subject" value="">
+                <input type="hidden" name="selected_room" id="selected_room" value="">
+                <input type="hidden" name="selected_time" id="selected_time" value="">
+                
+                <button type="submit" class="btn btn-primary mb-3" id="loginButton">
+                    <i class="fas fa-sign-in-alt me-2"></i>Login
+                </button>
+                
+                <div class="login-footer">
+                    <a href="terms.php" class="terms-link">Terms and Conditions</a>
+                    <div class="text-muted">© <?php echo date('Y'); ?></div>
+                </div>
+            </form>
         </div>
     </div>
     
@@ -544,7 +910,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <div class="modal fade" id="subjectModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
+                <div class="modal-header">
                     <h5 class="modal-title">Select Your Subject for <span id="modalRoomName"></span></h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -554,8 +920,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         Please select the subject you're currently teaching in this room and click "Confirm Selection".
                     </div>
                     <div class="table-responsive">
-                        <table class="table table-hover" id="subjectTable">
-                            <thead class="table-light">
+                        <table class="table subject-table" id="subjectTable">
+                            <thead>
                                 <tr>
                                     <th width="5%">Select</th>
                                     <th>Subject</th>
@@ -638,8 +1004,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Initial check
         $('#roomdpt').trigger('change');
 
-        // Form submission handler - UPDATED WITH reCAPTCHA
-                
+        // Form submission handler - REMOVED reCAPTCHA
         $('#logform').on('submit', function(e) {
             e.preventDefault();
             
@@ -661,41 +1026,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 return;
             }
             
-            console.log('🔄 Starting reCAPTCHA...');
+            console.log('🔄 Proceeding with login logic...');
             
-            // Execute reCAPTCHA first
-            grecaptcha.ready(function() {
-                console.log('✅ reCAPTCHA ready, executing...');
-                
-                grecaptcha.execute('6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_', {action: 'login'})
-                .then(function(token) {
-                    console.log('✅ reCAPTCHA token generated:', token.substring(0, 50) + '...');
-                    
-                    // Add token to form
-                    $('#recaptchaResponse').val(token);
-                    
-                    console.log('🔄 Proceeding with login logic...');
-                    
-                    // Continue with existing logic
-                    if (department === 'Main' && selectedRoom === 'Gate') {
-                        submitLoginForm();
-                    } 
-                    else if (!$('#selected_subject').val()) {
-                        showSubjectSelectionModal();
-                    }
-                    else {
-                        submitLoginForm();
-                    }
-                })
-                .catch(function(error) {
-                    console.error('❌ reCAPTCHA error:', error);
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Security Check Failed',
-                        text: 'Please refresh the page and try again.'
-                    });
-                });
-            });
+            // Continue with existing logic (no reCAPTCHA)
+            if (department === 'Main' && selectedRoom === 'Gate') {
+                submitLoginForm();
+            } 
+            else if (!$('#selected_subject').val()) {
+                showSubjectSelectionModal();
+            }
+            else {
+                submitLoginForm();
+            }
         });
 
         // Show subject selection modal

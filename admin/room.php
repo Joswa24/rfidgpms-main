@@ -24,41 +24,227 @@ if (isset($_SESSION['error_message'])) {
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <style>
+        :root {
+            --primary-color: #e1e7f0ff;
+            --secondary-color: #b0caf0ff;
+            --accent-color: #f3f5fcff;
+            --icon-color: #5c95e9ff;
+            --light-bg: #f8f9fc;
+            --dark-text: #5a5c69;
+            --warning-color: #f6c23e;
+            --danger-color: #e74a3b;
+            --border-radius: 15px;
+            --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            --transition: all 0.3s ease;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            font-family: 'Inter', sans-serif;
+            color: var(--dark-text);
+        }
+
+        .content {
+            background: transparent;
+        }
+
         .bg-light {
-            background-color: #f8f9fa !important;
+            background-color: var(--light-bg) !important;
+            border-radius: var(--border-radius);
         }
+
         .card {
-            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            background: white;
         }
+
         .table th {
-            background-color: #4e73df;
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
             color: white;
+            font-weight: 600;
+            border: none;
+            padding: 15px 12px;
         }
+
+        .table td {
+            padding: 12px;
+            border-color: rgba(0,0,0,0.05);
+            vertical-align: middle;
+        }
+
+        .table-responsive {
+            border-radius: var(--border-radius);
+            overflow: hidden;
+        }
+
         .badge {
             font-size: 0.85em;
+            border-radius: 8px;
         }
-        .section-header {
-            background-color: #f8d7da;
-            border-left: 4px solid #dc3545;
+
+        .btn {
+            border-radius: 8px;
+            font-weight: 500;
+            transition: var(--transition);
+            border: none;
         }
+
+        .btn-outline-warning {
+            color: var(--warning-color);
+            border: 1.5px solid var(--warning-color);
+        }
+
+        .btn-outline-warning:hover {
+            background-color: var(--warning-color);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(246, 194, 62, 0.3);
+        }
+
+        .btn-outline-primary {
+            color: var(--icon-color);
+            border: 1.5px solid var(--icon-color);
+        }
+
+        .btn-outline-primary:hover {
+            background-color: var(--icon-color);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(92, 149, 233, 0.3);
+        }
+
+        .btn-outline-danger {
+            color: var(--danger-color);
+            border: 1.5px solid var(--danger-color);
+        }
+
+        .btn-outline-danger:hover {
+            background-color: var(--danger-color);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(231, 74, 59, 0.3);
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.875rem;
+        }
+
         .btn-del {
             transition: all 0.3s ease;
         }
+
         .btn-del:hover {
             transform: scale(1.05);
             box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
         }
-        .swal2-popup {
-            font-family: inherit;
+
+        .modal-content {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
         }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
+            color: white;
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
+            border: none;
+            padding: 20px 25px;
+        }
+
+        .modal-title {
+            font-weight: 600;
+        }
+
+        .btn-close {
+            filter: invert(1);
+        }
+
+        .form-control, .form-select {
+            border-radius: 8px;
+            border: 1.5px solid #e3e6f0;
+            padding: 12px 16px;
+            transition: var(--transition);
+            background-color: var(--light-bg);
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--icon-color);
+            box-shadow: 0 0 0 3px rgba(92, 149, 233, 0.15);
+            background-color: white;
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: var(--dark-text);
+            margin-bottom: 8px;
+        }
+
+        .alert {
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .alert-success {
+            background-color: #d1edff;
+            color: #0c5460;
+            border-left: 4px solid #117a8b;
+        }
+
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+
+        .back-to-top {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color)) !important;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--box-shadow);
+            transition: var(--transition);
+        }
+
+        .back-to-top:hover {
+            transform: translateY(-3px);
+        }
+
+        h6.mb-4 {
+            color: var(--dark-text);
+            font-weight: 700;
+            font-size: 1.25rem;
+        }
+
+        hr {
+            opacity: 0.1;
+            margin: 1.5rem 0;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(92, 149, 233, 0.05);
+            transform: translateY(-1px);
+            transition: var(--transition);
+        }
+
         .error-message {
-            color: #dc3545;
+            color: var(--danger-color);
             font-size: 0.875rem;
             margin-top: 0.25rem;
         }
+
         .password-field {
             position: relative;
         }
+
         .password-toggle {
             position: absolute;
             right: 10px;
@@ -67,6 +253,18 @@ if (isset($_SESSION['error_message'])) {
             background: none;
             border: none;
             cursor: pointer;
+            color: var(--icon-color);
+            transition: var(--transition);
+        }
+
+        .password-toggle:hover {
+            color: var(--secondary-color);
+        }
+
+        /* SweetAlert customization */
+        .swal2-popup {
+            border-radius: var(--border-radius) !important;
+            font-family: inherit !important;
         }
     </style>
 </head>
@@ -304,7 +502,7 @@ if (isset($_SESSION['error_message'])) {
 
             <?php include 'footer.php'; ?>
         </div>
-         <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top" style="background-color: #87abe0ff"><i class="bi bi-arrow-up" style="background-color: #87abe0ff"></i></a>
+         <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top"><i class="bi bi-arrow-up"></i></a>
     </div>
 
     <!-- JavaScript Libraries -->

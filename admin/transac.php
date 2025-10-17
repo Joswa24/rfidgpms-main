@@ -3,32 +3,156 @@ include('../connection.php');
 date_default_timezone_set('Asia/Manila');
 session_start();
 
-// Function to send JSON response
-function jsonResponse($status, $message, $data = []) {
-    // Clear any previous output
-    if (ob_get_length()) ob_clean();
-    
-    header('Content-Type: application/json');
-    echo json_encode([
-        'status' => $status,
-        'message' => $message,
-        'data' => $data
-    ]);
-    exit;
-}
+    // Function to send JSON response
+    function jsonResponse($status, $message, $data = []) {
+        // Clear any previous output
+        if (ob_get_length()) ob_clean();
+        
+        header('Content-Type: application/json');
+        echo json_encode([
+            'status' => $status,
+            'message' => $message,
+            'data' => $data
+        ]);
+        exit;
+    }
+    // ========================
+            // ENHANCED INSTRUCTOR CRUD OPERATIONS
+            // ========================
 
-// Function to validate and sanitize input
-function sanitizeInput($db, $input) {
-    return mysqli_real_escape_string($db, trim($input));
-}
-
-// Function to handle file uploads
-function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'], $maxSize = 2 * 1024 * 1024) {
-    if (!isset($_FILES[$fileInput]) || $_FILES[$fileInput]['error'] !== UPLOAD_ERR_OK) {
-        return ['success' => false, 'message' => 'No file uploaded or upload error'];
+            // Enhanced file upload function with better error handling
+            function handleInstructorPhotoUpload($fileInputName, $existingPhoto = '') {
+            $uploadDir = 'admin/uploads/instructors/';
+            
+            // Enable error logging
+            error_log("=== FILE UPLOAD STARTED ===");
+            error_log("Upload directory: " . $uploadDir);
+            error_log("Existing photo: " . $existingPhoto);
+            
+            // Create directory if it doesn't exist
+            if (!file_exists($uploadDir)) {
+                error_log("Creating directory: " . $uploadDir);
+                if (!mkdir($uploadDir, 0755, true)) {
+                    $error = error_get_last();
+                    error_log("Failed to create directory: " . $error['message']);
+                    return ['success' => false, 'message' => 'Failed to create upload directory: ' . $error['message']];
+                }
+                error_log("Directory created successfully");
+            }
+            
+            // Check if directory is writable
+            if (!is_writable($uploadDir)) {
+                error_log("Directory is not writable: " . $uploadDir);
+                return ['success' => false, 'message' => 'Upload directory is not writable'];
+            }
+            
+            // Check if file was uploaded
+            if (!isset($_FILES[$fileInputName])) {
+                error_log("No file found in FILES array");
+                return ['success' => false, 'message' => 'No file uploaded'];
+            }
+            
+            $file = $_FILES[$fileInputName];
+            error_log("File details: " . print_r($file, true));
+            
+            // Check for upload errors
+            if ($file['error'] !== UPLOAD_ERR_OK) {
+                $uploadErrors = [
+                    UPLOAD_ERR_INI_SIZE => 'File size exceeds server limit',
+                    UPLOAD_ERR_FORM_SIZE => 'File size exceeds form limit',
+                    UPLOAD_ERR_PARTIAL => 'File was only partially uploaded',
+                    UPLOAD_ERR_NO_FILE => 'No file was uploaded',
+                    UPLOAD_ERR_NO_TMP_DIR => 'Missing temporary folder',
+                    UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk',
+                    UPLOAD_ERR_EXTENSION => 'File upload stopped by extension'
+                ];
+                $errorMsg = $uploadErrors[$file['error']] ?? 'Unknown upload error';
+                error_log("Upload error: " . $errorMsg);
+                return ['success' => false, 'message' => $errorMsg];
+            }
+            
+            // Validate file type using extension (more reliable)
+            $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
+            $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            
+            if (!in_array($fileExtension, $allowedExtensions)) {
+                error_log("Invalid file extension: " . $fileExtension);
+                return ['success' => false, 'message' => 'Only JPG, JPEG, PNG and GIF images are allowed'];
+            }
+            
+            // Validate file size (2MB max)
+            $maxSize = 2 * 1024 * 1024;
+            if ($file['size'] > $maxSize) {
+                error_log("File too large: " . $file['size'] . " bytes");
+                return ['success' => false, 'message' => 'File size must be less than 2MB'];
+            }
+            
+            // Generate unique filename
+            $fileName = 'instructor_' . time() . '_' . uniqid() . '.' . $fileExtension;
+            $filePath = $uploadDir . $fileName;
+            error_log("Generated filename: " . $fileName);
+            
+            // Delete old photo if exists and not default
+            if (!empty($existingPhoto) && $existingPhoto !== 'default.png') {
+                $oldFilePath = $uploadDir . $existingPhoto;
+                if (file_exists($oldFilePath) && is_file($oldFilePath)) {
+                    if (unlink($oldFilePath)) {
+                        error_log("Old photo deleted: " . $oldFilePath);
+                    } else {
+                        error_log("Failed to delete old photo: " . $oldFilePath);
+                    }
+                }
+            }
+            
+            // Move uploaded file
+            if (move_uploaded_file($file['tmp_name'], $filePath)) {
+                error_log("File moved successfully to: " . $filePath);
+                return [
+                    'success' => true, 
+                    'filename' => $fileName,
+                    'filepath' => $filePath
+                ];
+            } else {
+                $error = error_get_last();
+                error_log("Failed to move uploaded file: " . $error['message']);
+                return ['success' => false, 'message' => 'Failed to move uploaded file: ' . $error['message']];
+            }
+        }
+    // Enhanced function to get instructor photo for display
+    function getInstructorPhotoForDisplay($photoFilename) {
+        $defaultPhoto = '../assets/img/default-avatar.png';
+        
+        if (empty($photoFilename) || $photoFilename === 'default.png') {
+            return $defaultPhoto;
+        }
+        
+        // Check multiple possible locations
+        $possiblePaths = [
+            '../admin/uploads/instructors/' . $photoFilename,
+            'admin/uploads/instructors/' . $photoFilename,
+            '../uploads/instructors/' . $photoFilename,
+            'uploads/instructors/' . $photoFilename,
+            './admin/uploads/instructors/' . $photoFilename
+        ];
+        
+        foreach ($possiblePaths as $path) {
+            if (file_exists($path)) {
+                return $path;
+            }
+        }
+        
+        return $defaultPhoto;
     }
 
-    $file = $_FILES[$fileInput];
+    // Function to validate and sanitize input
+    function sanitizeInput($db, $input) {
+        return mysqli_real_escape_string($db, trim($input));
+    }
+
+    // Function to handle file uploads
+    function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'], $maxSize = 2 * 1024 * 1024) {
+
+        $file = $_FILES[$fileInput];
     
     // Check file type
     $fileInfo = finfo_open(FILEINFO_MIME_TYPE);
@@ -989,215 +1113,119 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
                 jsonResponse('error', 'Failed to delete student: ' . $stmt->error);
             }
             break;
-            // ========================
-            // INSTRUCTOR CRUD OPERATIONS
-            // ========================
+
             case 'add_instructor':
-                if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                    jsonResponse('error', 'Invalid request method');
+            // Enable error logging
+            error_reporting(E_ALL);
+            ini_set('display_errors', 1);
+            error_log("=== ADD INSTRUCTOR STARTED ===");
+            
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                error_log("Invalid request method");
+                jsonResponse('error', 'Invalid request method');
+            }
+
+            // Log received data
+            error_log("POST data: " . print_r($_POST, true));
+            error_log("FILES data: " . print_r($_FILES, true));
+
+            // Validate required fields
+            $required = ['department_id', 'id_number', 'fullname'];
+            foreach ($required as $field) {
+                if (empty($_POST[$field])) {
+                    error_log("Missing required field: $field");
+                    jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
                 }
+            }
 
-                // Validate required fields
-                $required = ['department_id', 'id_number', 'fullname'];
-                foreach ($required as $field) {
-                    if (empty($_POST[$field])) {
-                        jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
-                    }
+            // Sanitize inputs
+            $department_id = intval($_POST['department_id']);
+            $id_number = sanitizeInput($db, trim($_POST['id_number']));
+            $fullname = sanitizeInput($db, trim($_POST['fullname']));
+            // REMOVE THIS LINE: $photoFilename = sanitizeInput($db, trim($_POST['photo']));
+
+            // Validate department ID
+            if ($department_id <= 0) {
+                jsonResponse('error', 'Invalid department');
+            }
+
+            // Validate ID Number format (0000-0000 format)
+            if (!preg_match('/^\d{4}-\d{4}$/', $id_number)) {
+                jsonResponse('error', 'Invalid ID Number format. Must be in 0000-0000 format. Received: ' . $id_number);
+            }
+
+            // Check if ID Number already exists
+            $check_id = $db->prepare("SELECT id FROM instructor WHERE id_number = ?");
+            if (!$check_id) {
+                $error = $db->error;
+                error_log("Database prepare error: " . $error);
+                jsonResponse('error', 'Database error: ' . $error);
+            }
+            
+            $check_id->bind_param("s", $id_number);
+            if (!$check_id->execute()) {
+                $error = $check_id->error;
+                error_log("Database execute error: " . $error);
+                jsonResponse('error', 'Database error: ' . $check_id->error);
+            }
+            
+            $check_id->store_result();
+            
+            if ($check_id->num_rows > 0) {
+                error_log("ID Number already exists: " . $id_number);
+                jsonResponse('error', 'ID Number already exists');
+            }
+            $check_id->close();
+
+            // Handle file upload - WITH FALLBACK
+            $photo = 'default.png'; // Default photo
+            
+            // Check if file was uploaded and has valid data
+            if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK && $_FILES['photo']['size'] > 0) {
+                error_log("Attempting file upload...");
+                $uploadResult = handleInstructorPhotoUpload('photo');
+                if (!$uploadResult['success']) {
+                    error_log("File upload failed: " . $uploadResult['message']);
+                    jsonResponse('error', $uploadResult['message']);
                 }
-
-                // Sanitize inputs
-                $department_id = intval($_POST['department_id']);
-                $id_number = sanitizeInput($db, trim($_POST['id_number']));
-                $fullname = sanitizeInput($db, trim($_POST['fullname']));
-
-                // Validate department ID
-                if ($department_id <= 0) {
-                    jsonResponse('error', 'Invalid department');
+                $photo = $uploadResult['filename'];
+                error_log("File uploaded successfully: " . $photo);
+            } else {
+                error_log("No file uploaded or file upload skipped. Using default photo.");
+                if (isset($_FILES['photo'])) {
+                    error_log("File upload error code: " . $_FILES['photo']['error']);
                 }
+            }
 
-                // Validate ID Number format (0000-0000 format)
-                if (!preg_match('/^\d{4}-\d{4}$/', $id_number)) {
-                    jsonResponse('error', 'Invalid ID Number format. Must be in 0000-0000 format.');
-                }
+            // Insert instructor record
+            $query = "INSERT INTO instructor (department_id, id_number, fullname, photo) 
+                    VALUES (?, ?, ?, ?)";
+            
+            error_log("Executing query: " . $query);
+            
+            $stmt = $db->prepare($query);
+            if (!$stmt) {
+                $error = $db->error;
+                error_log("Database prepare error: " . $error);
+                jsonResponse('error', 'Database error: ' . $error);
+            }
 
-                // Check if ID Number already exists
-                $check_id = $db->prepare("SELECT id FROM instructor WHERE id_number = ?");
-                $check_id->bind_param("s", $id_number);
-                $check_id->execute();
-                $check_id->store_result();
-                
-                if ($check_id->num_rows > 0) {
-                    jsonResponse('error', 'ID Number already exists');
-                }
-                $check_id->close();
+            $stmt->bind_param("isss", $department_id, $id_number, $fullname, $photo);
 
-                // Handle file upload
-                $photo = 'default.png'; // Default photo
-                if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
-                    $uploadResult = handleFileUpload('photo', '../uploads/instructors/');
-                    if (!$uploadResult['success']) {
-                        jsonResponse('error', $uploadResult['message']);
-                    }
-                    $photo = $uploadResult['filename'];
-                }
+            if ($stmt->execute()) {
+                $insertId = $stmt->insert_id;
+                error_log("Instructor added successfully with ID: " . $insertId);
+                jsonResponse('success', 'Instructor added successfully', [
+                    'id' => $insertId,
+                    'photo_filename' => $photo
+                ]);
+            } else {
+                $error = $stmt->error;
+                error_log("Database execute error: " . $error);
+                jsonResponse('error', 'Failed to add instructor: ' . $error);
+            }
+            break;
 
-                // Insert instructor record
-                $query = "INSERT INTO instructor (department_id, id_number, fullname, photo, date_added) 
-                        VALUES (?, ?, ?, ?, NOW())";
-                
-                $stmt = $db->prepare($query);
-                if (!$stmt) {
-                    jsonResponse('error', 'Database error: ' . $db->error);
-                }
-
-                $stmt->bind_param("isss", $department_id, $id_number, $fullname, $photo);
-
-                if ($stmt->execute()) {
-                    jsonResponse('success', 'Instructor added successfully', [
-                        'id' => $stmt->insert_id
-                    ]);
-                } else {
-                    jsonResponse('error', 'Failed to add instructor: ' . $stmt->error);
-                }
-                break;
-
-            case 'update_instructor':
-                if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                    jsonResponse('error', 'Invalid request method');
-                }
-
-                // Validate required fields
-                if (empty($_POST['id'])) {
-                    jsonResponse('error', 'Instructor ID is required');
-                }
-
-                $required = ['department_id', 'id_number', 'fullname'];
-                foreach ($required as $field) {
-                    if (empty($_POST[$field])) {
-                        jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
-                    }
-                }
-
-                // Sanitize inputs
-                $id = intval($_POST['id']);
-                $department_id = intval($_POST['department_id']);
-                $id_number = sanitizeInput($db, trim($_POST['id_number']));
-                $fullname = sanitizeInput($db, trim($_POST['fullname']));
-
-                // Validate IDs
-                if ($id <= 0) {
-                    jsonResponse('error', 'Invalid instructor ID');
-                }
-                if ($department_id <= 0) {
-                    jsonResponse('error', 'Invalid department');
-                }
-
-                // Validate ID Number format
-                if (!preg_match('/^\d{4}-\d{4}$/', $id_number)) {
-                    jsonResponse('error', 'Invalid ID Number format. Must be in 0000-0000 format.');
-                }
-
-                // Check if ID Number exists for other instructors
-                $check_id = $db->prepare("SELECT id FROM instructor WHERE id_number = ? AND id != ?");
-                $check_id->bind_param("si", $id_number, $id);
-                $check_id->execute();
-                $check_id->store_result();
-                
-                if ($check_id->num_rows > 0) {
-                    jsonResponse('error', 'ID Number already assigned to another instructor');
-                }
-                $check_id->close();
-
-                // Handle file upload
-                $photo = '';
-                if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
-                    $uploadResult = handleFileUpload('photo', '../uploads/instructors/');
-                    if (!$uploadResult['success']) {
-                        jsonResponse('error', $uploadResult['message']);
-                    }
-                    $photo = $uploadResult['filename'];
-                } else {
-                    // Keep existing photo if no new upload
-                    $photo = sanitizeInput($db, $_POST['capturedImage']);
-                }
-
-                // Update instructor record
-                if (!empty($photo)) {
-                    $query = "UPDATE instructor SET 
-                        department_id = ?, id_number = ?, fullname = ?, photo = ?
-                        WHERE id = ?";
-                    $stmt = $db->prepare($query);
-                    $stmt->bind_param("isssi", $department_id, $id_number, $fullname, $photo, $id);
-                } else {
-                    $query = "UPDATE instructor SET 
-                        department_id = ?, id_number = ?, fullname = ?
-                        WHERE id = ?";
-                    $stmt = $db->prepare($query);
-                    $stmt->bind_param("issi", $department_id, $id_number, $fullname, $id);
-                }
-
-                if ($stmt->execute()) {
-                    jsonResponse('success', 'Instructor updated successfully');
-                } else {
-                    jsonResponse('error', 'Failed to update instructor: ' . $stmt->error);
-                }
-                break;
-
-            case 'delete_instructor':
-                if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                    jsonResponse('error', 'Invalid request method');
-                }
-
-                // Validate required field
-                if (empty($_POST['id'])) {
-                    jsonResponse('error', 'Instructor ID is required');
-                }
-
-                // Sanitize input
-                $id = intval($_POST['id']);
-
-                if ($id <= 0) {
-                    jsonResponse('error', 'Invalid instructor ID');
-                }
-
-                // Check if instructor exists
-                $checkInstructor = $db->prepare("SELECT id FROM instructor WHERE id = ?");
-                $checkInstructor->bind_param("i", $id);
-                $checkInstructor->execute();
-                $checkInstructor->store_result();
-                
-                if ($checkInstructor->num_rows === 0) {
-                    jsonResponse('error', 'Instructor not found');
-                }
-                $checkInstructor->close();
-
-                // Check for instructor dependencies (classes, schedules, etc.)
-                // Add dependency checks based on your database schema
-                
-                
-                // Example: Check if instructor has assigned classes
-                $checkClasses = $db->prepare("SELECT COUNT(*) FROM room_schedules WHERE instructor_id = ?");
-                $checkClasses->bind_param("i", $id);
-                $checkClasses->execute();
-                $checkClasses->bind_result($classCount);
-                $checkClasses->fetch();
-                $checkClasses->close();
-
-                if ($classCount > 0) {
-                    jsonResponse('error', 'Cannot delete instructor with assigned classes');
-                }
-                
-
-                // Delete instructor
-                $stmt = $db->prepare("DELETE FROM instructor WHERE id = ?");
-                $stmt->bind_param("i", $id);
-                
-                if ($stmt->execute()) {
-                    jsonResponse('success', 'Instructor deleted successfully');
-                } else {
-                    jsonResponse('error', 'Failed to delete instructor: ' . $stmt->error);
-                }
-                break;
                 // ========================
                 // SUBJECT CRUD OPERATIONS
                 // ========================

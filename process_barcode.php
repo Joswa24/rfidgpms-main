@@ -2,130 +2,163 @@
 session_start();
 include 'connection.php';
 
-if ($_POST['barcode']) {
-    $barcode = trim($_POST['barcode']);
-    $department = $_POST['department'] ?? '';
-    $location = $_POST['location'] ?? '';
+header('Content-Type: application/json');
+
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+$instructorLoginTime = $_SESSION['instructor_login_time'] ?? date('Y-m-d H:i:s');
+$attendanceSessionId = $_SESSION['attendance_session_id'] ?? null;
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode(['error' => 'Invalid request method']);
+    exit;
+}
+
+$barcode = $_POST['barcode'] ?? '';
+$department = $_POST['department'] ?? '';
+$location = $_POST['location'] ?? '';
+
+if (empty($barcode)) {
+    echo json_encode(['error' => 'No barcode provided']);
+    exit;
+}
+
+// Clean the barcode input
+$barcode = trim($barcode);
+
+try {
+    // Query student information
+    $sql = "SELECT s.*, d.department_name 
+            FROM students s 
+            LEFT JOIN department d ON s.department_id = d.department_id 
+            WHERE s.id_number = ?";
+    $stmt = $db->prepare($sql);
     
-    try {
-        // Enhanced student lookup with comprehensive data
-        $student_query = "SELECT 
-                         s.id, s.fullname, s.id_number, s.section, s.year, 
-                         s.department_id, d.department_name, s.photo,
-                         s.email, s.contact_number, s.address, s.gender, s.birthdate,
-                         s.status, s.created_at,
-                         i.id as instructor_id, i.fullname as instructor_name,
-                         sub.subject_name, sub.subject_code,
-                         r.room as room_name
-                      FROM students s
-                      LEFT JOIN department d ON s.department_id = d.department_id
-                      LEFT JOIN instructors i ON i.id = ?
-                      LEFT JOIN subjects sub ON sub.id = ?
-                      LEFT JOIN rooms r ON r.room = ?
-                      WHERE s.id_number = ? AND s.status = 'active'";
-        
-        $stmt = $db->prepare($student_query);
-        $instructor_id = $_SESSION['access']['instructor']['id'] ?? null;
-        $subject_id = $_SESSION['access']['subject']['id'] ?? null;
-        $stmt->bind_param("iiss", $instructor_id, $subject_id, $location, $barcode);
-        $stmt->execute();
-        $student = $stmt->get_result()->fetch_assoc();
-        
-        if (!$student) {
-            throw new Exception("Student not found or inactive. Please check your ID card.");
-        }
-        
-        // Check for existing attendance today
-        $attendance_check = "SELECT * FROM attendance_logs 
-                           WHERE student_id = ? 
-                           AND DATE(time_in) = CURDATE()
-                           AND instructor_id = ?
-                           ORDER BY time_in DESC LIMIT 1";
-        
-        $check_stmt = $db->prepare($attendance_check);
-        $check_stmt->bind_param("ii", $student['id'], $instructor_id);
-        $check_stmt->execute();
-        $existing_attendance = $check_stmt->get_result()->fetch_assoc();
-        
-        $response = [];
-        $attendance_type = '';
-        
-        if ($existing_attendance && !$existing_attendance['time_out']) {
-            // Record time out
-            $update_query = "UPDATE attendance_logs 
-                           SET time_out = NOW(), 
-                               status = 'completed'
-                           WHERE id = ?";
-            $update_stmt = $db->prepare($update_query);
-            $update_stmt->bind_param("i", $existing_attendance['id']);
-            $update_stmt->execute();
-            
-            $attendance_type = 'time_out';
-            $time_message = 'Time Out Recorded';
-            $alert_class = 'alert-warning';
-            
-        } else {
-            // Record time in
-            $insert_query = "INSERT INTO attendance_logs 
-                           (student_id, id_number, time_in, department, location, instructor_id)
-                           VALUES (?, ?, NOW(), ?, ?, ?)";
-            $insert_stmt = $db->prepare($insert_query);
-            $insert_stmt->bind_param(
-                "isssi", 
-                $student['id'],
-                $student['id_number'],
-                $department,
-                $location,
-                $instructor_id
-            );
-            $insert_stmt->execute();
-            
-            $attendance_type = 'time_in';
-            $time_message = 'Time In Recorded';
-            $alert_class = 'alert-success';
-        }
-        
-        // Calculate student age from birthdate
-        $age = '';
-        if (!empty($student['birthdate'])) {
-            $birthDate = new DateTime($student['birthdate']);
-            $today = new DateTime();
-            $age = $today->diff($birthDate)->y;
-        }
-        
-        // Enhanced response with comprehensive student data
-        $response = [
-            'success' => true,
-            'student_data' => [
-                'full_name' => $student['fullname'],
-                'id_number' => $student['id_number'],
-                'department' => $student['department_name'],
-                'section' => $student['section'],
-                'year_level' => $student['year'],
-                'status' => $student['status'],
-            ],
-            'attendance_info' => [
-                'time_in_out' => $time_message,
-                'attendance_type' => $attendance_type,
-                'alert_class' => $alert_class,
-                'current_time' => date('g:i A'),
-                'current_date' => date('F j, Y'),
-                'room' => $student['room_name'] ?? $location,
-                'subject' => $student['subject_name'] ?? ($_SESSION['access']['subject']['name'] ?? 'N/A'),
-                'instructor' => $student['instructor_name'] ?? ($_SESSION['access']['instructor']['fullname'] ?? 'N/A')
-            ],
-            'photo' => $student['photo'] ? 'uploads/students/' . $student['photo'] : 'assets/img/2601828.png',
-            'voice' => "{$time_message} for {$student['fullname']}"
-        ];
-        
-        echo json_encode($response);
-        
-    } catch (Exception $e) {
-        echo json_encode([
-            'success' => false,
-            'error' => $e->getMessage(),
-            'voice' => "Error: " . $e->getMessage()
-        ]);
+    if (!$stmt) {
+        throw new Exception("Prepare failed: " . $db->error);
     }
+    
+    $stmt->bind_param("s", $barcode);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($result->num_rows === 0) {
+        echo json_encode(['error' => 'Student ID not found in database']);
+        exit;
+    }
+
+    $student = $result->fetch_assoc();
+    
+    // Get student photo path using the same logic as students.php
+    $photoPath = getStudentPhoto($student['photo']);
+
+    // Determine if this is time in or time out
+    $attendanceCheck = "SELECT * FROM attendance_logs 
+                       WHERE id_number = ? AND DATE(time_in) = CURDATE() 
+                       ORDER BY time_in DESC LIMIT 1";
+    $stmtCheck = $db->prepare($attendanceCheck);
+    
+    if (!$stmtCheck) {
+        throw new Exception("Prepare failed: " . $db->error);
+    }
+    
+    $stmtCheck->bind_param("s", $barcode);
+    $stmtCheck->execute();
+    $attendanceResult = $stmtCheck->get_result();
+
+    $attendanceType = 'time_in';
+    $timeInOut = 'Time In Recorded';
+    $alertClass = 'alert-success';
+    $voiceMessage = 'Time in recorded';
+
+    if ($attendanceResult->num_rows > 0) {
+        $lastAttendance = $attendanceResult->fetch_assoc();
+        // If time_out is null, this should be time out
+        if (empty($lastAttendance['time_out'])) {
+            $attendanceType = 'time_out';
+            $timeInOut = 'Time Out Recorded';
+            $alertClass = 'alert-warning';
+            $voiceMessage = 'Time out recorded';
+        }
+    }
+
+    // Record attendance - USING CORRECT COLUMN NAMES FROM YOUR DATABASE
+    if ($attendanceType === 'time_in') {
+        $insertSql = "INSERT INTO attendance_logs (student_id, id_number, time_in, department, location, instructor_id) 
+                      VALUES (?, ?, NOW(), ?, ?, '')";
+        $stmtInsert = $db->prepare($insertSql);
+        
+        if (!$stmtInsert) {
+            throw new Exception("Prepare failed: " . $stmtInsert->error);
+        }
+        
+        $stmtInsert->bind_param("isss", 
+            $student['id'],           // student_id
+            $student['id_number'],    // id_number
+            $department,              // department
+            $location                 // location
+        );
+        
+        if (!$stmtInsert->execute()) {
+            throw new Exception("Insert failed: " . $stmtInsert->error);
+        }
+    } else {
+        // Time out - update existing record
+        $updateSql = "UPDATE attendance_logs SET time_out = NOW() 
+                      WHERE id_number = ? AND DATE(time_in) = CURDATE() AND time_out IS NULL 
+                      ORDER BY time_in DESC LIMIT 1";
+        $stmtUpdate = $db->prepare($updateSql);
+        
+        if (!$stmtUpdate) {
+            throw new Exception("Prepare failed: " . $stmtUpdate->error);
+        }
+        
+        $stmtUpdate->bind_param("s", $barcode);
+        
+        if (!$stmtUpdate->execute()) {
+            throw new Exception("Update failed: " . $stmtUpdate->error);
+        }
+    }
+
+    // Prepare response data
+    $response = [
+        'full_name' => $student['fullname'],
+        'id_number' => $student['id_number'],
+        'department' => $student['department_name'],
+        'year_level' => $student['year'],
+        'section' => $student['section'],
+        'photo' => $photoPath,
+        'time_in_out' => $timeInOut,
+        'alert_class' => $alertClass,
+        'attendance_type' => $attendanceType,
+        'role' => 'Student',
+        'voice' => $voiceMessage,
+        'status' => 'success'
+    ];
+
+    echo json_encode($response);
+
+} catch (Exception $e) {
+    error_log("Attendance system error: " . $e->getMessage());
+    echo json_encode(['error' => 'System error: ' . $e->getMessage()]);
+}
+
+// Helper function to get student photo - MATCHING YOUR students.php LOGIC
+function getStudentPhoto($photo) {
+    $basePath = 'uploads/students/';
+    $defaultPhoto = 'assets/img/2601828.png';
+
+    // If no photo or file does not exist → return default
+    if (empty($photo) || !file_exists($basePath . $photo)) {
+        return $defaultPhoto;
+    }
+
+    return $basePath . $photo;
+}
+
+// Close database connection
+if (isset($db)) {
+    $db->close();
 }
 ?>
