@@ -1,4 +1,12 @@
 <?php
+
+date_default_timezone_set('Asia/Manila');
+include 'connection.php';
+
+// Set MySQL timezone to match PHP
+mysqli_query($db, "SET time_zone = '+08:00'");
+
+
 session_start();
 include 'connection.php';
 
@@ -33,6 +41,240 @@ if (isset($_POST['logout_after_save'])) {
     exit();
 }
 
+// Function to fetch actual student time in/out with proper timezone
+function getStudentAttendanceTimes($db, $id_number) {
+    $query = "SELECT 
+                al.time_in,
+                al.time_out,
+                (SELECT COUNT(*) FROM attendance_logs 
+                 WHERE student_id = s.id 
+                 AND DATE(time_in) = CURDATE()) as scan_count,
+                s.fullname
+              FROM attendance_logs al
+              JOIN students s ON al.student_id = s.id
+              WHERE s.id_number = ? 
+              AND DATE(al.time_in) = CURDATE()
+              ORDER BY al.time_in DESC
+              LIMIT 1";
+    
+    $stmt = $db->prepare($query);
+    if ($stmt) {
+        $stmt->bind_param("s", $id_number);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $attendance_data = $result->fetch_assoc();
+        $stmt->close();
+        
+        if ($attendance_data) {
+            // Convert UTC times from database to Asia/Manila timezone
+            $time_in = $attendance_data['time_in'] ? 
+                convertUtcToManila($attendance_data['time_in']) : 
+                null;
+            
+            $time_out = $attendance_data['time_out'] ? 
+                convertUtcToManila($attendance_data['time_out']) : 
+                null;
+            
+            return [
+                'time_in' => $time_in,
+                'time_out' => $time_out,
+                'scan_count' => $attendance_data['scan_count'],
+                'fullname' => $attendance_data['fullname'],
+                'has_time_in' => !empty($attendance_data['time_in']),
+                'has_time_out' => !empty($attendance_data['time_out'])
+            ];
+        }
+    }
+    
+    return [
+        'time_in' => null,
+        'time_out' => null,
+        'scan_count' => 0,
+        'fullname' => '',
+        'has_time_in' => false,
+        'has_time_out' => false
+    ];
+}
+
+// Function to convert UTC time from database to Asia/Manila time
+function convertUtcToManila($utcDateTime) {
+    if (!$utcDateTime) return null;
+    
+    try {
+        // Create DateTime object from UTC time
+        $utcTime = new DateTime($utcDateTime, new DateTimeZone('UTC'));
+        // Convert to Asia/Manila timezone
+        $utcTime->setTimezone(new DateTimeZone('Asia/Manila'));
+        // Return formatted time
+        return $utcTime->format('h:i A');
+    } catch (Exception $e) {
+        error_log("Time conversion error: " . $e->getMessage());
+        // Fallback to direct formatting
+        return date('h:i A', strtotime($utcDateTime . ' UTC')) ?: null;
+    }
+}
+
+// Enhanced function to get classmates with proper timezone conversion
+function getClassmatesByYearSection($db, $year, $section) {
+    $query = "SELECT 
+                s.id_number, 
+                s.fullname, 
+                s.section, 
+                s.year, 
+                d.department_name,
+                s.photo,
+                (SELECT COUNT(*) FROM attendance_logs al 
+                 WHERE al.student_id = s.id 
+                 AND DATE(al.time_in) = CURDATE()) as attendance_count,
+                (SELECT time_in FROM attendance_logs al 
+                 WHERE al.student_id = s.id 
+                 AND DATE(al.time_in) = CURDATE()
+                 ORDER BY al.time_in ASC LIMIT 1) as time_in,
+                (SELECT time_out FROM attendance_logs al 
+                 WHERE al.student_id = s.id 
+                 AND DATE(al.time_in) = CURDATE()
+                 ORDER BY al.time_in DESC LIMIT 1) as time_out
+              FROM students s
+              LEFT JOIN department d ON s.department_id = d.department_id
+              WHERE s.section = ? AND s.year = ?
+              ORDER BY s.fullname";
+    
+    $stmt = $db->prepare($query);
+    
+    if ($stmt) {
+        $stmt->bind_param("ss", $section, $year);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $classmates = $result->fetch_all(MYSQLI_ASSOC);
+        $stmt->close();
+        
+        // Process times with proper timezone conversion
+        foreach ($classmates as &$student) {
+            // Format Time In - convert from UTC to Manila time
+            $student['formatted_time_in'] = '-';
+            if ($student['time_in']) {
+                $student['formatted_time_in'] = convertUtcToManila($student['time_in']);
+            }
+            
+            // Format Time Out - convert from UTC to Manila time
+            $student['formatted_time_out'] = '-';
+            if ($student['time_out']) {
+                $student['formatted_time_out'] = convertUtcToManila($student['time_out']);
+            }
+            
+            // Determine attendance status
+            $student['attendance_status'] = $student['attendance_count'] > 0 ? 'Present' : 'Absent';
+        }
+        
+        return $classmates;
+    }
+    
+    return [];
+}
+
+// Function to display classmates table with consistent time formatting
+function displayClassmatesTable($classmates, $year, $section) {
+    if (empty($classmates)) {
+        echo '<div class="alert alert-info mt-4">No classmates found for ' . htmlspecialchars($year) . ' - ' . htmlspecialchars($section) . '</div>';
+        return;
+    }
+    
+    echo '<h5 class="mt-4">Class Attendance List (' . htmlspecialchars($year) . ' - ' . htmlspecialchars($section) . ')</h5>';
+    echo '<div class="table-responsive">';
+    echo '<table class="table table-striped table-hover">';
+    echo '<thead class="table-dark">';
+    echo '<tr>';
+    echo '<th>ID Number</th>';
+    echo '<th>Name</th>';
+    echo '<th>Section</th>';
+    echo '<th>Year</th>';
+    echo '<th>Department</th>';
+    echo '<th>Status</th>';
+    echo '<th>Time In</th>';
+    echo '<th>Time Out</th>';
+    echo '</tr>';
+    echo '</thead>';
+    echo '<tbody>';
+    
+    foreach ($classmates as $student) {
+        $status_badge = $student['attendance_count'] > 0 ? 
+            '<span class="badge bg-success">Present</span>' : 
+            '<span class="badge bg-danger">Absent</span>';
+        
+        echo '<tr>';
+        echo '<td>' . htmlspecialchars($student['id_number']) . '</td>';
+        echo '<td>' . htmlspecialchars($student['fullname']) . '</td>';
+        echo '<td>' . htmlspecialchars($student['section']) . '</td>';
+        echo '<td>' . htmlspecialchars($student['year']) . '</td>';
+        echo '<td>' . htmlspecialchars($student['department_name']) . '</td>';
+        echo '<td>' . $status_badge . '</td>';
+        echo '<td class="time-in-cell">' . $student['formatted_time_in'] . '</td>';
+        echo '<td class="time-out-cell">' . $student['formatted_time_out'] . '</td>';
+        echo '</tr>';
+    }
+    
+    echo '</tbody>';
+    echo '</table>';
+    echo '</div>';
+}
+
+// Function to get first student details
+function getFirstStudentDetails($db) {
+    $query = "SELECT s.year, s.section 
+              FROM attendance_logs al
+              JOIN students s ON al.student_id = s.id
+              WHERE DATE(al.time_in) = CURDATE()
+              ORDER BY al.time_in ASC
+              LIMIT 1";
+    
+    $result = $db->query($query);
+    if ($result && $result->num_rows > 0) {
+        return $result->fetch_assoc();
+    }
+    
+    return null;
+}
+
+// Function to get attendance statistics
+function getAttendanceStats($db, $year, $section) {
+    $query = "SELECT 
+                COUNT(*) as total_students,
+                SUM(CASE WHEN EXISTS (
+                    SELECT 1 FROM attendance_logs al 
+                    WHERE al.student_id = s.id 
+                    AND DATE(al.time_in) = CURDATE()
+                ) THEN 1 ELSE 0 END) as present_count,
+                SUM(CASE WHEN NOT EXISTS (
+                    SELECT 1 FROM attendance_logs al 
+                    WHERE al.student_id = s.id 
+                    AND DATE(al.time_in) = CURDATE()
+                ) THEN 1 ELSE 0 END) as absent_count
+              FROM students s
+              WHERE s.section = ? AND s.year = ?";
+    
+    $stmt = $db->prepare($query);
+    if ($stmt) {
+        $stmt->bind_param("ss", $section, $year);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $stats = $result->fetch_assoc();
+        $stmt->close();
+        
+        // Calculate percentages
+        if ($stats['total_students'] > 0) {
+            $stats['attendance_rate'] = round(($stats['present_count'] / $stats['total_students']) * 100, 1);
+            $stats['absent_rate'] = round(($stats['absent_count'] / $stats['total_students']) * 100, 1);
+        } else {
+            $stats['attendance_rate'] = 0;
+            $stats['absent_rate'] = 0;
+        }
+        
+        return $stats;
+    }
+    
+    return ['total_students' => 0, 'present_count' => 0, 'absent_count' => 0, 'attendance_rate' => 0, 'absent_rate' => 0];
+}
+
 // Get first student details to determine class
 $first_student = getFirstStudentDetails($db);
 if ($first_student) {
@@ -40,8 +282,6 @@ if ($first_student) {
     $first_student_year = $first_student['year'];
 }
 
-
-// Handle Save Attendance action
 // Handle Save Attendance action
 if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
     $instructor_id = $_SESSION['access']['instructor']['id'] ?? null;
@@ -192,13 +432,20 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
 
         $db->commit();
 
-        // Success handling
+        // Success handling with consistent time formatting
         $_SESSION['timeout_time'] = date('h:i A');
         $_SESSION['original_time_in'] = date('h:i A', strtotime($original_time_in));
         $_SESSION['attendance_saved'] = true;
         $_SESSION['archive_message'] = "Attendance saved successfully! Present: {$stats['present_count']}, Absent: {$stats['absent_count']}";
         
-        unset($_SESSION['instructor_session_id'], $_SESSION['instructor_login_time']);
+        // Clear all session data related to current attendance
+        unset(
+            $_SESSION['instructor_session_id'], 
+            $_SESSION['instructor_login_time'],
+            $_SESSION['allowed_section'],
+            $_SESSION['allowed_year'],
+            $_SESSION['is_first_student']
+        );
         
         header("Location: students_logs.php");
         exit();
@@ -211,6 +458,7 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
         exit();
     }
 }
+
 // Check if attendance was just saved
 if (isset($_SESSION['attendance_saved']) && $_SESSION['attendance_saved']) {
     $attendance_saved = true;
@@ -219,161 +467,21 @@ if (isset($_SESSION['attendance_saved']) && $_SESSION['attendance_saved']) {
     $archive_message = $_SESSION['archive_message'] ?? '';
     
     // Clear the session variables
-    unset($_SESSION['attendance_saved'], $_SESSION['timeout_time'], $_SESSION['archive_message']);
+    unset(
+        $_SESSION['attendance_saved'], 
+        $_SESSION['timeout_time'], 
+        $_SESSION['archive_message'],
+        $_SESSION['first_student_section'],
+        $_SESSION['first_student_year']
+    );
 }
 
-// Function to get first student details
-function getFirstStudentDetails($db) {
-    $query = "SELECT s.year, s.section 
-              FROM attendance_logs al
-              JOIN students s ON al.student_id = s.id
-              WHERE DATE(al.time_in) = CURDATE()
-              ORDER BY al.time_in ASC
-              LIMIT 1";
-    
-    $result = $db->query($query);
-    if ($result && $result->num_rows > 0) {
-        return $result->fetch_assoc();
-    }
-    
-    return null;
-}
-
-// Enhanced function to get classmates with attendance status
-// Enhanced function to get classmates with attendance status and time in/out
-function getClassmatesByYearSection($db, $year, $section) {
-    $query = "SELECT 
-                s.id_number, 
-                s.fullname, 
-                s.section, 
-                s.year, 
-                d.department_name,
-                s.photo,
-                (SELECT COUNT(*) FROM attendance_logs al 
-                 WHERE al.student_id = s.id 
-                 AND DATE(al.time_in) = CURDATE()) as attendance_count,
-                (SELECT time_in FROM attendance_logs al 
-                 WHERE al.student_id = s.id 
-                 AND DATE(al.time_in) = CURDATE()
-                 ORDER BY al.time_in ASC LIMIT 1) as time_in,
-                (SELECT time_out FROM attendance_logs al 
-                 WHERE al.student_id = s.id 
-                 AND DATE(al.time_in) = CURDATE()
-                 ORDER BY al.time_in DESC LIMIT 1) as time_out
-              FROM students s
-              LEFT JOIN department d ON s.department_id = d.department_id
-              WHERE s.section = ? AND s.year = ?
-              ORDER BY s.fullname";
-    
-    $stmt = $db->prepare($query);
-    
-    if ($stmt) {
-        $stmt->bind_param("ss", $section, $year);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $classmates = $result->fetch_all(MYSQLI_ASSOC);
-        $stmt->close();
-        return $classmates;
-    }
-    
-    return [];
-}
-
-// Function to display classmates table
-// Function to display classmates table with Time In and Time Out
-function displayClassmatesTable($classmates, $year, $section) {
-    if (empty($classmates)) {
-        echo '<div class="alert alert-info mt-4">No classmates found for ' . htmlspecialchars($year) . ' - ' . htmlspecialchars($section) . '</div>';
-        return;
-    }
-    
-    echo '<h5 class="mt-4">Class Attendance List (' . htmlspecialchars($year) . ' - ' . htmlspecialchars($section) . ')</h5>';
-    echo '<div class="table-responsive">';
-    echo '<table class="table table-striped table-hover">';
-    echo '<thead class="table-dark">';
-    echo '<tr>';
-    echo '<th>ID Number</th>';
-    echo '<th>Name</th>';
-    echo '<th>Section</th>';
-    echo '<th>Year</th>';
-    echo '<th>Department</th>';
-    echo '<th>Status</th>';
-    echo '<th>Time In</th>';
-    echo '<th>Time Out</th>';
-    echo '</tr>';
-    echo '</thead>';
-    echo '<tbody>';
-    
-    foreach ($classmates as $student) {
-        $status_badge = $student['attendance_count'] > 0 ? 
-            '<span class="badge bg-success">Present</span>' : 
-            '<span class="badge bg-danger">Absent</span>';
-        
-        // Format Time In
-        $time_in_display = $student['time_in'] ? 
-            date('h:i A', strtotime($student['time_in'])) : 
-            '<span class="text-muted">-</span>';
-        
-        // Format Time Out
-        $time_out_display = $student['time_out'] ? 
-            date('h:i A', strtotime($student['time_out'])) : 
-            '<span class="text-muted">-</span>';
-        
-        echo '<tr>';
-        echo '<td>' . htmlspecialchars($student['id_number']) . '</td>';
-        echo '<td>' . htmlspecialchars($student['fullname']) . '</td>';
-        echo '<td>' . htmlspecialchars($student['section']) . '</td>';
-        echo '<td>' . htmlspecialchars($student['year']) . '</td>';
-        echo '<td>' . htmlspecialchars($student['department_name']) . '</td>';
-        echo '<td>' . $status_badge . '</td>';
-        echo '<td>' . $time_in_display . '</td>';
-        echo '<td>' . $time_out_display . '</td>';
-        echo '</tr>';
-    }
-    
-    echo '</tbody>';
-    echo '</table>';
-    echo '</div>';
-}
-
-// Function to get attendance statistics
-function getAttendanceStats($db, $year, $section) {
-    $query = "SELECT 
-                COUNT(*) as total_students,
-                SUM(CASE WHEN EXISTS (
-                    SELECT 1 FROM attendance_logs al 
-                    WHERE al.student_id = s.id 
-                    AND DATE(al.time_in) = CURDATE()
-                ) THEN 1 ELSE 0 END) as present_count,
-                SUM(CASE WHEN NOT EXISTS (
-                    SELECT 1 FROM attendance_logs al 
-                    WHERE al.student_id = s.id 
-                    AND DATE(al.time_in) = CURDATE()
-                ) THEN 1 ELSE 0 END) as absent_count
-              FROM students s
-              WHERE s.section = ? AND s.year = ?";
-    
-    $stmt = $db->prepare($query);
-    if ($stmt) {
-        $stmt->bind_param("ss", $section, $year);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $stats = $result->fetch_assoc();
-        $stmt->close();
-        
-        // Calculate percentages
-        if ($stats['total_students'] > 0) {
-            $stats['attendance_rate'] = round(($stats['present_count'] / $stats['total_students']) * 100, 1);
-            $stats['absent_rate'] = round(($stats['absent_count'] / $stats['total_students']) * 100, 1);
-        } else {
-            $stats['attendance_rate'] = 0;
-            $stats['absent_rate'] = 0;
-        }
-        
-        return $stats;
-    }
-    
-    return ['total_students' => 0, 'present_count' => 0, 'absent_count' => 0, 'attendance_rate' => 0, 'absent_rate' => 0];
+// AJAX handler for real-time time display
+if (isset($_GET['ajax']) && isset($_GET['id_number'])) {
+    $attendance_data = getStudentAttendanceTimes($db, $_GET['id_number']);
+    header('Content-Type: application/json');
+    echo json_encode($attendance_data);
+    exit();
 }
 ?>
 <!DOCTYPE html>
@@ -474,7 +582,7 @@ function getAttendanceStats($db, $year, $section) {
         }
 
         .modern-tabs .nav-link.active {
-            background: var(--icon-color);
+            background: var(--secondary-color);
             color: white;
             box-shadow: 0 4px 12px rgba(92, 149, 233, 0.3);
         }
@@ -744,6 +852,42 @@ function getAttendanceStats($db, $year, $section) {
             justify-content: center;
         }
 
+        /* Additional styles for time display */
+        .time-display {
+            padding: 10px;
+            background: var(--light-bg);
+            border-radius: 8px;
+            margin: 5px 0;
+        }
+
+        .time-display small {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+
+        .time-display .fw-bold {
+            font-size: 1.1rem;
+        }
+
+        /* Highlight recent scans */
+        tr:hover {
+            background-color: rgba(92, 149, 233, 0.05) !important;
+        }
+
+        /* Time cells styling */
+        .time-in-cell, .time-out-cell {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+        }
+
+        .time-in-cell {
+            color: #198754;
+        }
+
+        .time-out-cell {
+            color: #dc3545;
+        }
+
         /* Responsive adjustments */
         @media (max-width: 992px) {
             .header-container {
@@ -898,38 +1042,55 @@ function getAttendanceStats($db, $year, $section) {
                 <!-- Student Attendance Tab -->
                 <div class="tab-pane fade show active" id="pills-students">
                     <?php if ($attendance_saved): ?>
-                    <div class="archived-message">
-                        <h4>Attendance Records Archived</h4>
-                        <p><?php echo htmlspecialchars($archive_message); ?></p>
-                        <div class="session-timeline text-center mb-3">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="time-display">
-                                        <small class="text-muted">Time In</small>
-                                        <div class="fw-bold text-primary"><?php echo htmlspecialchars($_SESSION['original_time_in'] ?? 'N/A'); ?></div>
+                        <div class="archived-message">
+                            <h4>Attendance Records Archived</h4>
+                            <p><?php echo htmlspecialchars($archive_message); ?></p>
+                            <div class="session-timeline text-center mb-3">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="time-display">
+                                            <small class="text-muted">Time In</small>
+                                            <div class="fw-bold text-primary">
+                                                <?php 
+                                                if (isset($_SESSION['original_time_in'])) {
+                                                    // Ensure proper timezone for displayed time
+                                                    echo htmlspecialchars($_SESSION['original_time_in']);
+                                                } else {
+                                                    echo 'N/A';
+                                                }
+                                                ?>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="time-display">
-                                        <small class="text-muted">Time Out</small>
-                                        <div class="fw-bold text-primary"><?php echo htmlspecialchars($timeout_time); ?></div>
+                                    <div class="col-md-6">
+                                        <div class="time-display">
+                                            <small class="text-muted">Time Out</small>
+                                            <div class="fw-bold text-primary">
+                                                <?php 
+                                                if (!empty($timeout_time)) {
+                                                    echo htmlspecialchars($timeout_time);
+                                                } else {
+                                                    echo 'N/A';
+                                                }
+                                                ?>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
+                            <p class="text-success"><i class="fas fa-check-circle me-2"></i>Classmates data has been saved to your instructor panel.</p>
+                            
+                            <!-- Logout Button for Another Class -->
+                            <div class="logout-after-save">
+                                <form method="post" class="d-inline">
+                                    <button type="submit" name="logout_after_save" class="btn btn-success btn-lg">
+                                        <i class="fas fa-sign-out-alt me-2"></i>Logout & Start Another Class
+                                    </button>
+                                </form>
+                                <p class="text-muted mt-2">Click above to log out and start attendance for another class</p>
+                            </div>
                         </div>
-                        <p class="text-success"><i class="fas fa-check-circle me-2"></i>Classmates data has been saved to your instructor panel.</p>
-                        
-                        <!-- Logout Button for Another Class -->
-                        <div class="logout-after-save">
-                            <form method="post" class="d-inline">
-                                <button type="submit" name="logout_after_save" class="btn btn-success btn-lg">
-                                    <i class="fas fa-sign-out-alt me-2"></i>Logout & Start Another Class
-                                </button>
-                            </form>
-                            <p class="text-muted mt-2">Click above to log out and start attendance for another class</p>
-                        </div>
-                    </div>
-                <?php else: ?>
+                    <?php else: ?>
                         <!-- Enhanced Statistics Section -->
                         <?php if ($first_student_section && $first_student_year): 
                             $stats = getAttendanceStats($db, $first_student_year, $first_student_section);
@@ -1235,10 +1396,25 @@ function getAttendanceStats($db, $year, $section) {
         <?php endif; ?>
 
         // Auto-refresh the page every 30 seconds to update attendance status
+        // Only refresh if attendance is not saved (when showing active data)
+        <?php if (!$attendance_saved): ?>
         setTimeout(function() {
             window.location.reload();
         }, 30000);
+        <?php endif; ?>
     });
+
+    // Function to format time consistently (matches main1.php format)
+    function formatTimeForDisplay(dateTimeString) {
+        if (!dateTimeString) return '-';
+        
+        const date = new Date(dateTimeString);
+        return date.toLocaleTimeString('en-PH', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: true 
+        });
+    }
 </script>
 </body>
 </html>

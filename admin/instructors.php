@@ -1,7 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<?php 
+<?php
 session_start();
+include '../connection.php';
+
 // Display success/error messages
 if (isset($_SESSION['success_message'])) {
     echo '<div class="alert alert-success">' . $_SESSION['success_message'] . '</div>';
@@ -12,35 +12,21 @@ if (isset($_SESSION['error_message'])) {
     unset($_SESSION['error_message']);
 }
 
-include '../connection.php';
-
-// Enhanced photo path function for admin
-function getInstructorPhotoPath($instructor) {
+// Simple instructor photo display function
+function getInstructorPhoto($photo) {
+    $basePath = '../uploads/instructors/';
     $defaultPhoto = '../assets/img/default-avatar.png';
-    
-    if (!empty($instructor['photo']) && $instructor['photo'] !== 'default.png') {
-        // Check multiple possible locations
-        $possiblePaths = [
-            '../admin/uploads/instructors/' . $instructor['photo'],
-            'admin/uploads/instructors/' . $instructor['photo'],
-            'uploads/instructors/' . $instructor['photo'],
-            '../uploads/instructors/' . $instructor['photo'],
-            './admin/uploads/instructors/' . $instructor['photo']
-        ];
-        
-        foreach ($possiblePaths as $path) {
-            if (file_exists($path)) {
-                return $path;
-            }
-        }
-        
-        // If no file found but we have a photo name, return the expected path
-        return 'admin/uploads/instructors/' . $instructor['photo'];
+
+    // If no photo or file does not exist → return default
+    if (empty($photo) || $photo === 'default.png' || !file_exists($basePath . $photo)) {
+        return $defaultPhoto;
     }
-    
-    return $defaultPhoto;
+
+    return $basePath . $photo;
 }
 ?>
+<!DOCTYPE html>
+<html lang="en">
 <?php include 'header.php'; ?>
 
 <head>
@@ -53,61 +39,20 @@ function getInstructorPhotoPath($instructor) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
-        .bg-light {
-            background-color: #f8f9fa !important;
-        }
-        .card {
-            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-        }
-        .table th {
-            background-color: #4e73df;
-            color: white;
-        }
-        .badge {
-            font-size: 0.85em;
-        }
-        .section-header {
-            background-color: #f8d7da;
-            border-left: 4px solid #dc3545;
-        }
-        .btn-del {
-            transition: all 0.3s ease;
-        }
-        .btn-del:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
-        }
-        .swal2-popup {
-            font-family: inherit;
-        }
-        .error-message {
-            color: #dc3545;
-            font-size: 0.875rem;
-            margin-top: 0.25rem;
-        }
-        .instructor-photo {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid #dee2e6;
-        }
-        .upload-img-btn {
-            cursor: pointer;
-            display: block;
-            position: relative;
-        }
-        .preview-1 {
-            border-radius: 8px;
-            transition: all 0.3s ease;
-        }
-        .preview-1:hover {
-            opacity: 0.8;
-        }
-        .file-uploader {
-            position: relative;
-            margin-bottom: 15px;
-        }
+        .bg-light { background-color: #f8f9fa !important; }
+        .card { box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15); }
+        .table th { background-color: #4e73df; color: white; }
+        .badge { font-size: 0.85em; }
+        .section-header { background-color: #f8d7da; border-left: 4px solid #dc3545; }
+        .btn-del { transition: all 0.3s ease; }
+        .btn-del:hover { transform: scale(1.05); box-shadow: 0 0 10px rgba(220, 53, 69, 0.5); }
+        .swal2-popup { font-family: inherit; }
+        .error-message { color: #dc3545; font-size: 0.875rem; margin-top: 0.25rem; }
+        .instructor-photo { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #dee2e6; }
+        .upload-img-btn { cursor: pointer; display: block; position: relative; }
+        .preview-1 { border-radius: 8px; transition: all 0.3s ease; }
+        .preview-1:hover { opacity: 0.8; }
+        .file-uploader { position: relative; margin-bottom: 15px; }
     </style>
 </head>
 
@@ -158,36 +103,7 @@ function getInstructorPhotoPath($instructor) {
                                         die("Query failed: " . mysqli_error($db));
                                     }
                                     
-                                    // Enhanced photo path function for instructors
-                                    function getInstructorPhoto($photo) {
-                                        $defaultPhoto = '../assets/img/default-avatar.png';
-                                        
-                                        if (!empty($photo) && $photo !== 'default.png') {
-                                            // Check multiple possible locations
-                                            $possiblePaths = [
-                                                '../admin/uploads/instructors/' . $photo,
-                                                'admin/uploads/instructors/' . $photo,
-                                                'uploads/instructors/' . $photo,
-                                                '../uploads/instructors/' . $photo,
-                                                './admin/uploads/instructors/' . $photo
-                                            ];
-                                            
-                                            foreach ($possiblePaths as $path) {
-                                                if (file_exists($path)) {
-                                                    return $path;
-                                                }
-                                            }
-                                            
-                                            // If no file found but we have a photo name, return the expected path
-                                            return 'admin/uploads/instructors/' . $photo;
-                                        }
-                                        
-                                        return $defaultPhoto;
-                                    }
-                                    ?>
-                                    
-                                    <?php while ($row = mysqli_fetch_array($results)) { 
-                                        // Use the enhanced getInstructorPhoto function to get the correct photo path
+                                    while ($row = mysqli_fetch_array($results)) { 
                                         $photoPath = getInstructorPhoto($row['photo']);
                                     ?>
                                     <tr class="table-<?php echo $row['id'];?>" data-instructor-id="<?php echo $row['id'];?>">
@@ -406,9 +322,6 @@ function getInstructorPhotoPath($instructor) {
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    
-
-    <!-- Template Javascript -->
     <script src="js/main.js"></script>
 
     <script>
@@ -835,6 +748,6 @@ function getInstructorPhotoPath($instructor) {
                 }
             }
         });
-        </script>
+    </script>
 </body>
 </html>

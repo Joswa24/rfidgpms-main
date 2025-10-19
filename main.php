@@ -963,25 +963,28 @@ if (isset($db)) {
     <img src="uploads/Head-removebg-preview.png" alt="Header" class="header-image">
 </div>
 
-<!-- Enhanced Confirmation Modal -->
-<div class="modal fade confirmation-modal" id="confirmationModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="modalTitle">
-                    <i class="fas fa-door-open me-2"></i>Gate Access Recorded
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body text-center">
-                <!-- Dynamic content will be inserted here by JavaScript -->
-            </div>
-            <div class="modal-footer">
-                 <button type="button" class="btn btn-ok" data-bs-dismiss="modal">OK</button>
+
+    <!-- Enhanced Confirmation Modal -->
+    <div class="modal fade confirmation-modal" id="confirmationModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">
+                        <i class="fas fa-door-open me-2"></i>Gate Access Recorded
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <!-- Dynamic content will be inserted here by JavaScript -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ok" data-bs-dismiss="modal">
+                        <i class="fas fa-check me-2"></i>OK
+                    </button>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
 <!-- Main Container - Scroll Design -->
 <div class="main-container">
@@ -1008,12 +1011,9 @@ if (isset($db)) {
             <!-- Department/Location Info -->
             <div class="dept-location-info">
                 <div class="row">
-                    <div class="col-md-6">
-                        <h3><i class="fas fa-building me-2"></i>Department: <?php echo $department; ?></h3>
-                    </div>
-                    <div class="col-md-6">
-                        <h3><i class="fas fa-map-marker-alt me-2"></i>Location: <?php echo $location; ?></h3>
-                    </div>
+                    <center>
+                        <h3><i class="fas fa-map-marker-alt me-2"></i>Location: <?php echo $department; echo $location; ?></h3>
+                    </center>    
                 </div>
             </div>
 
@@ -1174,125 +1174,56 @@ function onScanError(error) {
     }
 }
 
-// Process scanned barcode
-function processBarcode(barcode) {
-    console.log("🔍 Processing barcode:", barcode);
-    
-    // Show processing state
-    document.getElementById('result').innerHTML = `
-        <div class="d-flex justify-content-center align-items-center">
-            <div class="spinner-border text-primary me-2" role="status" style="width: 1rem; height: 1rem;">
-                <span class="visually-hidden">Loading...</span>
+    // Process scanned barcode
+    function processBarcode(barcode) {
+        console.log("🔍 Processing barcode:", barcode);
+        
+        // Show processing state
+        document.getElementById('result').innerHTML = `
+            <div class="d-flex justify-content-center align-items-center">
+                <div class="spinner-border text-primary me-2" role="status" style="width: 1rem; height: 1rem;">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <span>Processing ID: ${barcode}</span>
             </div>
-            <span>Processing ID: ${barcode}</span>
-        </div>
-    `;
-    
-    // Disable inputs during processing
-    document.getElementById('manualIdInput').disabled = true;
-    document.getElementById('manualSubmitBtn').disabled = true;
-    
-    $.ajax({
-        type: "POST",
-        url: "process_gate.php",
-        data: { 
-            barcode: barcode,
-            department: "<?php echo $department; ?>",
-            location: "<?php echo $location; ?>"
-        },
-        dataType: 'json',
-        timeout: 15000,
-        success: function(response) {
-            console.log("✅ SUCCESS - Raw response:", response);
-            
-            // Check if response is valid
-            if (!response || typeof response !== 'object') {
-                console.error("❌ Invalid response format");
-                showSuccessFallback(barcode);
-                return;
-            }
-            
-            if (response.error) {
-                console.log("❌ Server error:", response.error);
-                showErrorMessage(response.error);
-                speakMessage(response.error);
-                document.querySelector('.scanner-overlay').style.display = 'flex';
-                return;
-            }
-
-            // Log successful person data retrieval
-            console.log("🎓 Person Data Retrieved:", {
-                name: response.full_name,
-                id: response.id_number,
-                department: response.department,
-                role: response.role,
-                photo: response.photo
-            });
-
-            // Play appropriate sound based on access type
-            const isSuccess = !response.error && 
-                (response.time_in_out === 'Time In Recorded' || 
-                 response.time_in_out === 'Time Out Recorded' ||
-                 response.time_in_out === 'TIME IN' || 
-                 response.time_in_out === 'TIME OUT');
-            playAccessSound(isSuccess);
-
-            // Update UI with gate access data
-            updateGateUI(response);
-            
-            // Update photo in the main display
-            if (response.photo) {
-                console.log("🖼️ Setting person photo:", response.photo);
-                updatePersonPhoto(response);
-            }
-            
-            // Show confirmation modal with all data
-            console.log("🎯 Showing confirmation modal with person data");
-            showConfirmationModal(response);
-            
-        },
-        error: function(xhr, status, error) {
-            console.error("❌ AJAX ERROR:");
-            console.error("Status:", status);
-            console.error("Error:", error);
-            console.error("Response text:", xhr.responseText);
-            console.error("Ready state:", xhr.readyState);
-            console.error("Status code:", xhr.status);
-            
-            // Try to parse response even if AJAX reports error
-            if (xhr.responseText && xhr.responseText.trim() !== '') {
-                try {
-                    const parsedResponse = JSON.parse(xhr.responseText);
-                    console.log("📦 Parsed response despite AJAX error:", parsedResponse);
-                    
-                    if (parsedResponse.error) {
-                        showErrorMessage(parsedResponse.error);
-                    } else {
-                        // If we got valid JSON but AJAX still errored, try to use it
-                        console.log("🔄 Using parsed response data");
-                        updateGateUI(parsedResponse);
-                        showConfirmationModal(parsedResponse);
-                        return;
-                    }
-                } catch (e) {
-                    console.log("❌ Could not parse response as JSON:", e.message);
-                }
-            }
-            
-            // Fallback to success since access was likely recorded
-            console.log("🔄 Using fallback success display");
-            showSuccessFallback(barcode);
-        },
-        complete: function() {
-            // Re-enable inputs
-            document.getElementById('manualIdInput').disabled = false;
-            document.getElementById('manualSubmitBtn').disabled = false;
-            document.getElementById('manualIdInput').value = '';
-            document.getElementById('manualIdInput').focus();
+        `;
+        
+        // Disable inputs during processing
+        document.getElementById('manualIdInput').disabled = true;
+        document.getElementById('manualSubmitBtn').disabled = true;
+        
+        // In your main.php, update the AJAX call to use the new process_gate.php
+$.ajax({
+    type: "POST",
+    url: "process_gate.php",
+    data: { 
+        barcode: barcode,
+        department: "<?php echo $department; ?>",
+        location: "<?php echo $location; ?>"
+    },
+    dataType: 'json',
+    timeout: 15000,
+    success: function(response) {
+        console.log("Gate Access Response:", response);
+        
+        // Handle response
+        if (response.error) {
+            showErrorMessage(response.error);
+            return;
         }
-    });
-}
-
+        
+        // Success - show confirmation modal
+        playAccessSound(true);
+        updateGateUI(response);
+        updatePersonPhoto(response);
+        showConfirmationModal(response);
+    },
+    error: function(xhr, status, error) {
+        console.error("Scanner error:", error);
+        showErrorMessage("Scanner temporarily unavailable. Please try manual entry.");
+    }
+});
+    }
 // Fallback function if AJAX fails but access was recorded
 function showSuccessFallback(barcode) {
     console.log("🔄 Using fallback success display");

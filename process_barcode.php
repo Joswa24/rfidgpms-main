@@ -1,6 +1,10 @@
 <?php
+date_default_timezone_set('Asia/Manila');
 session_start();
 include 'connection.php';
+
+// Set MySQL timezone to match PHP
+mysqli_query($db, "SET time_zone = '+08:00'"); // Changed to Asia/Manila timezone
 
 header('Content-Type: application/json');
 
@@ -10,6 +14,7 @@ ini_set('display_errors', 1);
 
 $instructorLoginTime = $_SESSION['instructor_login_time'] ?? date('Y-m-d H:i:s');
 $attendanceSessionId = $_SESSION['attendance_session_id'] ?? null;
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['error' => 'Invalid request method']);
     exit;
@@ -71,11 +76,14 @@ try {
     $timeInOut = 'Time In Recorded';
     $alertClass = 'alert-success';
     $voiceMessage = 'Time in recorded';
+    $existingRecord = null;
+    $newTimeIn = null;
+    $newTimeOut = null;
 
     if ($attendanceResult->num_rows > 0) {
-        $lastAttendance = $attendanceResult->fetch_assoc();
+        $existingRecord = $attendanceResult->fetch_assoc();
         // If time_out is null, this should be time out
-        if (empty($lastAttendance['time_out'])) {
+        if (empty($existingRecord['time_out'])) {
             $attendanceType = 'time_out';
             $timeInOut = 'Time Out Recorded';
             $alertClass = 'alert-warning';
@@ -83,26 +91,31 @@ try {
         }
     }
 
-    // Record attendance - USING CORRECT COLUMN NAMES FROM YOUR DATABASE
+    // Record attendance
     if ($attendanceType === 'time_in') {
-        $insertSql = "INSERT INTO attendance_logs (student_id, id_number, time_in, department, location, instructor_id) 
-                      VALUES (?, ?, NOW(), ?, ?, '')";
+       $insertSql = "INSERT INTO attendance_logs (student_id, id_number, time_in, department, location, instructor_id) 
+              VALUES (?, ?, NOW(), ?, ?, ?)";  // Added instructor_id
         $stmtInsert = $db->prepare($insertSql);
         
         if (!$stmtInsert) {
-            throw new Exception("Prepare failed: " . $stmtInsert->error);
+            throw new Exception("Prepare failed: " . $db->error);
         }
         
-        $stmtInsert->bind_param("isss", 
-            $student['id'],           // student_id
-            $student['id_number'],    // id_number
-            $department,              // department
-            $location                 // location
-        );
+        $stmtInsert->bind_param("isssi", 
+        $student['id'],           // student_id
+        $student['id_number'],    // id_number
+        $department,              // department
+        $location,                // location
+        $instructor_id            // instructor_id from session
+    );
         
         if (!$stmtInsert->execute()) {
             throw new Exception("Insert failed: " . $stmtInsert->error);
         }
+        
+        // Get the newly inserted record's time_in
+        $newTimeIn = date('Y-m-d H:i:s');
+        
     } else {
         // Time out - update existing record
         $updateSql = "UPDATE attendance_logs SET time_out = NOW() 
@@ -119,9 +132,29 @@ try {
         if (!$stmtUpdate->execute()) {
             throw new Exception("Update failed: " . $stmtUpdate->error);
         }
+        
+        // Get the updated time_out
+        $newTimeOut = date('Y-m-d H:i:s');
     }
 
-    // Prepare response data
+    // Fetch the complete updated record to get accurate times
+    $finalCheckSql = "SELECT * FROM attendance_logs 
+                     WHERE id_number = ? AND DATE(time_in) = CURDATE() 
+                     ORDER BY time_in DESC LIMIT 1";
+    $stmtFinal = $db->prepare($finalCheckSql);
+    $stmtFinal->bind_param("s", $barcode);
+    $stmtFinal->execute();
+    $finalResult = $stmtFinal->get_result();
+    $finalRecord = $finalResult->fetch_assoc();
+
+    // Prepare response data with accurate times
+    $actualTimeIn = $finalRecord['time_in'] ?? $newTimeIn;
+    $actualTimeOut = $finalRecord['time_out'] ?? $newTimeOut;
+
+    // Format times for display
+    $displayTimeIn = date('h:i A', strtotime($actualTimeIn));
+    $displayTimeOut = $actualTimeOut ? date('h:i A', strtotime($actualTimeOut)) : null;
+
     $response = [
         'full_name' => $student['fullname'],
         'id_number' => $student['id_number'],
@@ -134,7 +167,11 @@ try {
         'attendance_type' => $attendanceType,
         'role' => 'Student',
         'voice' => $voiceMessage,
-        'status' => 'success'
+        'status' => 'success',
+        'actual_time_in' => $actualTimeIn,
+        'actual_time_out' => $actualTimeOut,
+        'display_time_in' => $displayTimeIn,
+        'display_time_out' => $displayTimeOut
     ];
 
     echo json_encode($response);

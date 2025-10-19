@@ -9,68 +9,120 @@ if (!isset($_SESSION['access']) || !isset($_SESSION['access']['security'])) {
 
 include 'connection.php';
 
-// Helper to stop on prepare errors (keeps messages friendly)
-function checkStmt($stmt, $db, $query) {
+// =====================================================================
+// GET PENDING EXITS DETAILS
+// =====================================================================
+function getPendingExits($db) {
+    $query = "SELECT gl.id_number, 
+                     COALESCE(s.fullname, i.fullname, CONCAT_WS(' ', p.first_name, p.middle_name, p.last_name), v.name, gl.name) as full_name,
+                     gl.person_type, 
+                     gl.created_at as entry_time
+              FROM gate_logs gl
+              LEFT JOIN students s ON gl.person_type = 'student' AND gl.person_id = s.id
+              LEFT JOIN instructor i ON gl.person_type = 'instructor' AND gl.person_id = i.id
+              LEFT JOIN personell p ON gl.person_type = 'personell' AND gl.person_id = p.id
+              LEFT JOIN visitor v ON gl.person_type = 'visitor' AND gl.person_id = v.id
+              WHERE gl.direction = 'IN' 
+              AND DATE(gl.created_at) = CURDATE() 
+              AND gl.id_number NOT IN (
+                  SELECT id_number 
+                  FROM gate_logs 
+                  WHERE direction = 'OUT' 
+                  AND DATE(created_at) = CURDATE()
+              )
+              ORDER BY gl.created_at DESC";
+    
+    $stmt = $db->prepare($query);
     if (!$stmt) {
-        die("❌ SQL Prepare failed:<br>Error (" . $db->errno . "): " . $db->error . "<br><br>Query:<br>$query");
+        error_log("Pending exits query failed: " . $db->error);
+        return [];
     }
-    return $stmt;
+    
+    $stmt->execute();
+    $result = $stmt->get_result();
+    return $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
 }
 
-// Function to sanitize output
-function sanitizeOutput($output) {
-    return htmlspecialchars($output ?? '', ENT_QUOTES, 'UTF-8');
+// =====================================================================
+// HANDLE LOGOUT REQUEST
+// =====================================================================
+if (isset($_POST['logout_request'])) {
+    // Always allow logout, but track if there are pending exits for warning
+    $pending_exits = getPendingExits($db);
+    $has_pending_exits = count($pending_exits) > 0;
+    
+    if ($has_pending_exits) {
+        // Store pending exits info in session to show warning after logout
+        $_SESSION['pending_exits_warning'] = [
+            'count' => count($pending_exits),
+            'details' => $pending_exits,
+            'logout_time' => date('Y-m-d H:i:s')
+        ];
+    }
+    
+    // Clear session and redirect
+    session_destroy();
+    header("Location: index.php");
+    exit();
 }
 
-// Use created_at as the timestamp column for your table structure
-$time_col = 'created_at';
+// =====================================================================
+// MAIN LOGS QUERY WITH IMPROVED ERROR HANDLING AND BETTER JOINS
+// =====================================================================
 
-// Build SELECT query for your table structure
-$select_full_name = "COALESCE(
-    s.fullname,
-    i.fullname,
-    CONCAT_WS(' ', p.first_name, p.middle_name, p.last_name),
-    v.name,
-    gl.name
-) AS full_name";
+// Get filters from GET with defaults
+$date_filter = $_GET['date'] ?? date('Y-m-d');
+$type_filter = $_GET['type'] ?? 'all';
+$direction_filter = $_GET['direction'] ?? 'all';
+$search_term = $_GET['search'] ?? '';
 
-$query = "SELECT gl.*, $select_full_name
-          FROM gate_logs gl
-          LEFT JOIN students s   ON gl.person_type = 'student'   AND gl.person_id = s.id
-          LEFT JOIN instructor i ON gl.person_type = 'instructor' AND gl.person_id = i.id
-          LEFT JOIN personell p  ON gl.person_type = 'personell'  AND gl.person_id = p.id
-          LEFT JOIN visitor v    ON gl.person_type = 'visitor'   AND gl.person_id = v.id
-          WHERE 1=1";
+// Build the main query with better JOIN conditions
+$query = "SELECT 
+    gl.*,
+    CASE 
+        WHEN gl.person_type = 'student' AND s.fullname IS NOT NULL THEN s.fullname
+        WHEN gl.person_type = 'instructor' AND i.fullname IS NOT NULL THEN i.fullname
+        WHEN gl.person_type = 'personell' AND CONCAT_WS(' ', p.first_name, p.middle_name, p.last_name) IS NOT NULL 
+            THEN CONCAT_WS(' ', p.first_name, p.middle_name, p.last_name)
+        WHEN gl.person_type = 'visitor' AND v.name IS NOT NULL THEN v.name
+        ELSE gl.name
+    END as full_name,
+    gl.person_type,
+    gl.direction,
+    gl.department,
+    gl.location,
+    gl.created_at
+FROM gate_logs gl
+LEFT JOIN students s ON gl.person_type = 'student' AND gl.id_number = s.id_number
+LEFT JOIN instructor i ON gl.person_type = 'instructor' AND gl.id_number = i.id_number
+LEFT JOIN personell p ON gl.person_type = 'personell' AND gl.id_number = p.id_number
+LEFT JOIN visitor v ON gl.person_type = 'visitor' AND gl.id_number = v.id_number
+WHERE 1=1";
 
 $params = [];
 $types = '';
 
-// Get filters from GET
-$date_filter      = $_GET['date'] ?? date('Y-m-d');
-$type_filter      = $_GET['type'] ?? 'all';
-$direction_filter = $_GET['direction'] ?? 'all';
-$search_term      = $_GET['search'] ?? '';
-
-// Apply filters
+// Apply filters safely
 if (!empty($date_filter)) {
     $query .= " AND DATE(gl.created_at) = ?";
     $params[] = $date_filter;
     $types .= 's';
 }
+
 if ($type_filter !== 'all') {
     $query .= " AND gl.person_type = ?";
     $params[] = $type_filter;
     $types .= 's';
 }
+
 if ($direction_filter !== 'all') {
     $query .= " AND gl.direction = ?";
     $params[] = $direction_filter;
     $types .= 's';
 }
+
 if (!empty($search_term)) {
-    // search by ID number or the computed full_name
-    $query .= " AND (gl.id_number LIKE ? OR (" .
-              "COALESCE(s.fullname, i.fullname, CONCAT_WS(' ', p.first_name, p.middle_name, p.last_name), v.name, gl.name) LIKE ?))";
+    $query .= " AND (gl.id_number LIKE ? OR gl.name LIKE ?)";
     $search_param = "%$search_term%";
     $params[] = $search_param;
     $params[] = $search_param;
@@ -79,43 +131,166 @@ if (!empty($search_term)) {
 
 $query .= " ORDER BY gl.created_at DESC";
 
-// Prepare & execute safely
-$stmt = checkStmt($db->prepare($query), $db, $query);
-if (!empty($params)) {
-    $stmt->bind_param($types, ...$params);
-}
-$stmt->execute();
-$result = $stmt->get_result();
-$logs = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+// Execute query with improved error handling
+$logs = [];
+$query_success = false;
 
-// ----------------- STATS -----------------
-$today = date('Y-m-d');
-$stats_query = "SELECT 
-    COUNT(*) as total_entries,
-    SUM(CASE WHEN direction = 'in' THEN 1 ELSE 0 END) as entries_in,
-    SUM(CASE WHEN direction = 'out' THEN 1 ELSE 0 END) as entries_out,
-    COUNT(DISTINCT person_id) as unique_people
-FROM gate_logs
-WHERE DATE(created_at) = ?";
-
-$stats_stmt = checkStmt($db->prepare($stats_query), $db, $stats_query);
-$stats_stmt->bind_param("s", $today);
-$stats_stmt->execute();
-$stats_result = $stats_stmt->get_result();
-$stats = $stats_result ? $stats_result->fetch_assoc() : [];
-
-// ----------------- BREAKDOWN -----------------
-$breakdown_query = "SELECT person_type, COUNT(*) as count FROM gate_logs WHERE DATE(created_at) = ? GROUP BY person_type";
-$breakdown_stmt = checkStmt($db->prepare($breakdown_query), $db, $breakdown_query);
-$breakdown_stmt->bind_param("s", $today);
-$breakdown_stmt->execute();
-$breakdown_result = $breakdown_stmt->get_result();
-
-$breakdown = [];
-if ($breakdown_result) {
-    while ($row = $breakdown_result->fetch_assoc()) {
-        $breakdown[$row['person_type']] = $row['count'];
+try {
+    // First, let's test the connection and basic query
+    if (!$db || $db->connect_error) {
+        throw new Exception("Database connection failed: " . ($db->connect_error ?? 'Unknown error'));
     }
+
+    $stmt = $db->prepare($query);
+    if (!$stmt) {
+        throw new Exception("Query preparation failed: " . $db->error);
+    }
+
+    if (!empty($params)) {
+        $stmt->bind_param($types, ...$params);
+    }
+    
+    $execute_result = $stmt->execute();
+    if (!$execute_result) {
+        throw new Exception("Query execution failed: " . $stmt->error);
+    }
+    
+    $result = $stmt->get_result();
+    if (!$result) {
+        throw new Exception("Failed to get result set: " . $stmt->error);
+    }
+    
+    $logs = $result->fetch_all(MYSQLI_ASSOC);
+    $query_success = true;
+    
+    // Debug: Log the number of records found
+    error_log("Gate logs query successful. Records found: " . count($logs));
+    
+} catch (Exception $e) {
+    error_log("GATE LOGS ERROR: " . $e->getMessage());
+    error_log("Query: " . $query);
+    error_log("Params: " . json_encode($params));
+    
+    // Fallback: try a simple query to see if we can get any data
+    try {
+        $fallback_query = "SELECT * FROM gate_logs ORDER BY created_at DESC LIMIT 50";
+        $fallback_result = $db->query($fallback_query);
+        if ($fallback_result) {
+            $logs = $fallback_result->fetch_all(MYSQLI_ASSOC);
+            error_log("Fallback query successful. Records: " . count($logs));
+        }
+    } catch (Exception $fallback_e) {
+        error_log("Fallback query also failed: " . $fallback_e->getMessage());
+    }
+}
+
+// If still no logs, check if table exists and has data
+if (empty($logs)) {
+    try {
+        $check_table = $db->query("SHOW TABLES LIKE 'gate_logs'");
+        if ($check_table && $check_table->num_rows > 0) {
+            $count_result = $db->query("SELECT COUNT(*) as total FROM gate_logs");
+            if ($count_result) {
+                $count_data = $count_result->fetch_assoc();
+                error_log("Gate logs table exists with " . $count_data['total'] . " total records");
+            }
+        } else {
+            error_log("Gate logs table does not exist!");
+        }
+    } catch (Exception $e) {
+        error_log("Table check failed: " . $e->getMessage());
+    }
+}
+
+// =====================================================================
+// STATISTICS QUERIES
+// =====================================================================
+$today = date('Y-m-d');
+
+// Today's statistics
+$stats = ['total_entries' => 0, 'entries_in' => 0, 'entries_out' => 0, 'unique_people' => 0];
+try {
+    $stats_query = "SELECT 
+        COUNT(*) as total_entries,
+        SUM(CASE WHEN direction = 'IN' THEN 1 ELSE 0 END) as entries_in,
+        SUM(CASE WHEN direction = 'OUT' THEN 1 ELSE 0 END) as entries_out,
+        COUNT(DISTINCT id_number) as unique_people
+    FROM gate_logs
+    WHERE DATE(created_at) = ?";
+    
+    $stats_stmt = $db->prepare($stats_query);
+    if ($stats_stmt) {
+        $stats_stmt->bind_param("s", $today);
+        $stats_stmt->execute();
+        $stats_result = $stats_stmt->get_result();
+        $stats = $stats_result ? $stats_result->fetch_assoc() : $stats;
+    }
+} catch (Exception $e) {
+    error_log("Stats query failed: " . $e->getMessage());
+}
+
+// Pending exits count
+$pending_exits_count = 0;
+try {
+    $pending_query = "SELECT COUNT(*) as pending_exits 
+                     FROM gate_logs 
+                     WHERE direction = 'IN' 
+                     AND DATE(created_at) = CURDATE() 
+                     AND id_number NOT IN (
+                         SELECT id_number 
+                         FROM gate_logs 
+                         WHERE direction = 'OUT' 
+                         AND DATE(created_at) = CURDATE()
+                     )";
+    
+    $pending_stmt = $db->prepare($pending_query);
+    if ($pending_stmt) {
+        $pending_stmt->execute();
+        $pending_result = $pending_stmt->get_result();
+        $pending_data = $pending_result ? $pending_result->fetch_assoc() : ['pending_exits' => 0];
+        $pending_exits_count = $pending_data['pending_exits'] ?? 0;
+    }
+} catch (Exception $e) {
+    error_log("Pending exits query failed: " . $e->getMessage());
+}
+
+// Breakdown by person type
+$breakdown = [];
+try {
+    $breakdown_query = "SELECT person_type, COUNT(*) as count FROM gate_logs WHERE DATE(created_at) = ? GROUP BY person_type";
+    $breakdown_stmt = $db->prepare($breakdown_query);
+    if ($breakdown_stmt) {
+        $breakdown_stmt->bind_param("s", $today);
+        $breakdown_stmt->execute();
+        $breakdown_result = $breakdown_stmt->get_result();
+        
+        if ($breakdown_result) {
+            while ($row = $breakdown_result->fetch_assoc()) {
+                $breakdown[$row['person_type']] = $row['count'];
+            }
+        }
+    }
+} catch (Exception $e) {
+    error_log("Breakdown query failed: " . $e->getMessage());
+}
+
+// Get pending exits details for the modal
+$pending_exits_details = getPendingExits($db);
+
+// Function to sanitize output
+function sanitizeOutput($output) {
+    return htmlspecialchars($output ?? '', ENT_QUOTES, 'UTF-8');
+}
+
+// Helper function to get icons for person types
+function getPersonTypeIcon($type) {
+    $icons = [
+        'student' => 'user-graduate',
+        'instructor' => 'chalkboard-teacher',
+        'personell' => 'user-tie',
+        'visitor' => 'user-clock'
+    ];
+    return $icons[$type] ?? 'user';
 }
 ?>
 
@@ -168,7 +343,7 @@ if ($breakdown_result) {
         .header-section {
             background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
             padding: 25px;
-            color: white;
+            color: var(--icon-color);
         }
 
         .stat-card {
@@ -206,7 +381,7 @@ if ($breakdown_result) {
 
         .table th {
             background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
-            color: white;
+            color: var(--icon-color);
             border: none;
             padding: 15px;
             font-weight: 600;
@@ -255,6 +430,23 @@ if ($breakdown_result) {
             color: white;
         }
 
+        .badge-pending {
+            background: linear-gradient(135deg, #e74a3b, #d62828);
+            color: white;
+            animation: pulse 2s infinite;
+        }
+
+        .badge-warning {
+            background: linear-gradient(135deg, #f6c23e, #f4a261);
+            color: white;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
         .btn-primary {
             background: linear-gradient(135deg, var(--icon-color), #4361ee);
             border: none;
@@ -267,6 +459,34 @@ if ($breakdown_result) {
         .btn-primary:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(92, 149, 233, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #e74a3b, #d62828);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(231, 74, 59, 0.4);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f6c23e, #f4a261);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .btn-warning:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(246, 194, 62, 0.4);
         }
 
         .form-control, .form-select {
@@ -303,6 +523,17 @@ if ($breakdown_result) {
             opacity: 0.5;
         }
 
+        .pending-alert {
+            border-left: 4px solid #e74a3b;
+            background-color: #f8d7da;
+        }
+
+        .warning-alert {
+            border-left: 4px solid #f6c23e;
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
         /* Responsive adjustments */
         @media (max-width: 768px) {
             .main-container {
@@ -333,17 +564,35 @@ if ($breakdown_result) {
     <!-- Header Section -->
     <div class="header-section">
         <div class="row align-items-center">
-            <div class="col-md-8">
+            <div class="col-md-6">
                 <h1 class="h2 mb-2"><i class="fas fa-door-open me-2"></i>Gate Access Logs</h1>
                 <p class="mb-0 opacity-75">Comprehensive tracking of all gate entries and exits</p>
             </div>
-            <div class="col-md-4 text-end">
-                <a href="main.php" class="btn btn-light btn-lg">
-                    <i class="fas fa-arrow-left me-2"></i>Back to Scanner
-                </a>
+            <div class="col-md-6 text-end">
+                <div class="d-flex justify-content-end gap-2">
+                    <a href="main.php" class="btn btn-light btn-lg">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Scanner
+                    </a>
+                    <button type="button" class="btn btn-danger btn-lg" data-bs-toggle="modal" data-bs-target="#logoutModal">
+                        <i class="fas fa-sign-out-alt me-2"></i>Logout
+                    </button>
+                </div>
             </div>
         </div>
     </div>
+
+    <!-- Pending Exits Warning -->
+    <?php if ($pending_exits_count > 0): ?>
+    <div class="alert alert-warning warning-alert mx-4 mt-4 d-flex align-items-center">
+        <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+        <div class="flex-grow-1">
+            <h5 class="alert-heading mb-1">Pending Exits Detected</h5>
+            <p class="mb-0">There are <strong><?php echo $pending_exits_count; ?> person(s)</strong> who entered but haven't exited yet. 
+            You can still logout, but please ensure these individuals exit properly.</p>
+        </div>
+        <span class="badge badge-warning fs-6"><?php echo $pending_exits_count; ?> PENDING</span>
+    </div>
+    <?php endif; ?>
 
     <!-- Statistics Cards -->
     <div class="row p-4">
@@ -394,11 +643,11 @@ if ($breakdown_result) {
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="card-title mb-1">Unique People</h6>
-                            <h2 class="card-text mb-0"><?php echo $stats['unique_people'] ?? 0; ?></h2>
-                            <small>Distinct visitors</small>
+                            <h6 class="card-title mb-1">Pending Exits</h6>
+                            <h2 class="card-text mb-0"><?php echo $pending_exits_count; ?></h2>
+                            <small>Haven't exited yet</small>
                         </div>
-                        <i class="fas fa-users stat-icon"></i>
+                        <i class="fas fa-exclamation-triangle stat-icon"></i>
                     </div>
                 </div>
             </div>
@@ -409,8 +658,14 @@ if ($breakdown_result) {
     <div class="row px-4">
         <div class="col-12">
             <div class="card">
-                <div class="card-header bg-light">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Today's Breakdown</h5>
+                    <?php if ($pending_exits_count > 0): ?>
+                    <span class="badge badge-warning">
+                        <i class="fas fa-exclamation-circle me-1"></i>
+                        <?php echo $pending_exits_count; ?> pending exits
+                    </span>
+                    <?php endif; ?>
                 </div>
                 <div class="card-body">
                     <div class="d-flex flex-wrap justify-content-center">
@@ -549,18 +804,100 @@ if ($breakdown_result) {
     </div>
 </div>
 
-<?php
-// Helper function to get icons for person types
-function getPersonTypeIcon($type) {
-    $icons = [
-        'student' => 'user-graduate',
-        'instructor' => 'chalkboard-teacher',
-        'personell' => 'user-tie',
-        'visitor' => 'user-clock'
-    ];
-    return $icons[$type] ?? 'user';
-}
-?>
+<!-- Logout Confirmation Modal -->
+<div class="modal fade" id="logoutModal" tabindex="-1" aria-labelledby="logoutModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="logoutModalLabel">
+                    <i class="fas fa-sign-out-alt me-2"></i>Security Logout
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <?php if ($pending_exits_count > 0): ?>
+                    <!-- Warning Logout - Pending Exits -->
+                    <div class="alert alert-warning">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+                            <div>
+                                <h5 class="alert-heading">Warning: Pending Exits Detected</h5>
+                                <p class="mb-2">There are <strong><?php echo $pending_exits_count; ?> person(s)</strong> who entered but haven't exited yet.</p>
+                                <p class="mb-0">You can still logout, but please ensure these individuals exit properly.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <h6 class="mb-3">Pending Exits Details:</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-warning">
+                                    <tr>
+                                        <th>ID Number</th>
+                                        <th>Name</th>
+                                        <th>Type</th>
+                                        <th>Entry Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($pending_exits_details as $pending): ?>
+                                    <tr>
+                                        <td><code><?php echo sanitizeOutput($pending['id_number']); ?></code></td>
+                                        <td><strong><?php echo sanitizeOutput($pending['full_name']); ?></strong></td>
+                                        <td>
+                                            <span class="badge badge-<?php echo $pending['person_type']; ?> rounded-pill">
+                                                <?php echo ucfirst($pending['person_type']); ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">
+                                                <?php echo date('M j, Y h:i A', strtotime($pending['entry_time'])); ?>
+                                            </small>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Note:</strong> You are responsible for ensuring all individuals exit the campus before ending your shift.
+                    </div>
+                <?php else: ?>
+                    <!-- Safe Logout -->
+                    <div class="alert alert-success">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-check-circle fa-2x me-3"></i>
+                            <div>
+                                <h5 class="alert-heading">Safe to Logout</h5>
+                                <p class="mb-0">All entrants have exited the campus. You can safely logout.</p>
+                            </div>
+                        </div>
+                    </div>
+                <?php endif; ?>
+                
+                <div class="text-center mt-4">
+                    <p class="text-muted">You are logged in as: <strong><?php echo $_SESSION['access']['security']['fullname'] ?? 'Security Personnel'; ?></strong></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancel
+                </button>
+                <form method="POST" class="d-inline">
+                    <input type="hidden" name="logout_request" value="1">
+                    <button type="submit" class="btn <?php echo $pending_exits_count > 0 ? 'btn-warning' : 'btn-danger'; ?>">
+                        <i class="fas fa-sign-out-alt me-2"></i>
+                        <?php echo $pending_exits_count > 0 ? 'Logout Anyway' : 'Confirm Logout'; ?>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
@@ -588,6 +925,13 @@ function getPersonTypeIcon($type) {
                 }
             });
         });
+
+        // Auto-refresh the page every 30 seconds to update pending exits count
+        setInterval(function() {
+            if (<?php echo $pending_exits_count; ?> > 0) {
+                window.location.reload();
+            }
+        }, 30000);
     });
 </script>
 </body>

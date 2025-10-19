@@ -1,4 +1,5 @@
 <?php
+date_default_timezone_set('Asia/Manila');
 include 'connection.php';
 session_start();
 
@@ -214,7 +215,7 @@ mysqli_close($db);
         }
 
         .modern-tabs .nav-link.active {
-            background: var(--icon-color);
+            background: var(--secondary-color);
             color: white;
             box-shadow: 0 4px 12px rgba(92, 149, 233, 0.3);
         }
@@ -315,7 +316,23 @@ mysqli_close($db);
             width: 100%;
             height: 100%;
         }
+        /* Completely hide any images in the scanner container */
+        #largeReader > img,
+        #largeReader > div > img,
+        .scanner-container img {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            width: 0 !important;
+            height: 0 !important;
+        }
 
+        /* Make sure the scanner video takes full space */
+        #largeReader video {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+        }
         .scanner-overlay {
             position: absolute;
             top: 0;
@@ -748,67 +765,75 @@ mysqli_close($db);
     <img src="uploads/Head-removebg-preview.png" alt="Header" class="header-image">
 </div>
 
-<!-- Confirmation Modal -->
-<!-- Confirmation Modal -->
-<div class="modal fade confirmation-modal" id="confirmationModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Attendance Recorded Successfully</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body text-center">
-                <!-- Student Photo - Larger Size -->
-                <img id="modalStudentPhoto" 
-                    src="assets/img/2601828.png" 
-                    alt="Student Photo" 
-                    class="modal-student-photo rounded-circle border-4 border-primary shadow mb-3"
-                    style="width: 120px; height: 120px; object-fit: cover;">
-                
-                <!-- Student Name -->
-                <h4 id="modalStudentName" class="mb-3" style="color: var(--icon-color); font-weight: 600;"></h4>
-                
-                <!-- Student Information Card -->
-                <div class="student-info-card">
-                    <div class="row text-start">
-                        <div class="col-6 mb-2">
-                            <strong><i class="fas fa-id-card me-1"></i> Student ID:</strong><br>
-                            <span id="modalStudentId" style="color: var(--dark-text); font-size: 0.95rem;"></span>
-                        </div>
-                        <div class="col-6 mb-2">
-                            <strong><i class="fas fa-building me-1"></i> Department:</strong><br>
-                            <span id="modalStudentDept" style="color: var(--dark-text); font-size: 0.95rem;"></span>
-                        </div>
-                        <div class="col-6 mb-2">
-                            <strong><i class="fas fa-graduation-cap me-1"></i> Year Level:</strong><br>
-                            <span id="modalStudentYear" style="color: var(--dark-text); font-size: 0.95rem;"></span>
-                        </div>
-                        <div class="col-6 mb-2">
-                            <strong><i class="fas fa-users me-1"></i> Section:</strong><br>
-                            <span id="modalStudentSection" style="color: var(--dark-text); font-size: 0.95rem;"></span>
+    <!-- Confirmation Modal -->
+    <div class="modal fade confirmation-modal" id="confirmationModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Attendance Recorded Successfully</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <!-- Student Photo - Larger Size -->
+                    <img id="modalStudentPhoto" 
+                        src="assets/img/2601828.png" 
+                        alt="Student Photo" 
+                        class="modal-student-photo rounded-circle border-4 border-primary shadow mb-3"
+                        style="width: 120px; height: 120px; object-fit: cover;">
+                    
+                    <!-- Student Name -->
+                    <h4 id="modalStudentName" class="mb-3" style="color: var(--icon-color); font-weight: 600;"></h4>
+                    
+                    <!-- Student Information Card -->
+                    <div class="student-info-card">
+                        <div class="row text-start">
+                            <div class="col-6 mb-2">
+                                <strong><i class="fas fa-id-card me-1"></i> Student ID:</strong><br>
+                                <span id="modalStudentId" style="color: var(--dark-text); font-size: 0.95rem;"></span>
+                            </div>
+                            <div class="col-6 mb-2">
+                                <strong><i class="fas fa-building me-1"></i> Department:</strong><br>
+                                <span id="modalStudentDept" style="color: var(--dark-text); font-size: 0.95rem;"></span>
+                            </div>
+                            <div class="col-6 mb-2">
+                                <strong><i class="fas fa-graduation-cap me-1"></i> Year Level:</strong><br>
+                                <span id="modalStudentYear" style="color: var(--dark-text); font-size: 0.95rem;"></span>
+                            </div>
+                            <div class="col-6 mb-2">
+                                <strong><i class="fas fa-users me-1"></i> Section:</strong><br>
+                                <span id="modalStudentSection" style="color: var(--dark-text); font-size: 0.95rem;"></span>
+                            </div>
                         </div>
                     </div>
+                    
+                    <!-- Attendance Status -->
+                    <div class="status-badge mt-3" id="modalAttendanceStatus">
+                        <span id="modalTimeInOut" class="fw-bold"></span>
+                    </div>
+                    
+                    <!-- Time Display - Show actual times from database -->
+                    <div class="time-display mt-3">
+                        <div class="row">
+                            <div class="col-6">
+                                <small class="text-muted">Time In</small>
+                                <div id="modalTimeIn" class="fw-bold text-primary"></div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Time Out</small>
+                                <div id="modalTimeOut" class="fw-bold text-primary"></div>
+                            </div>
+                        </div>
+                        <div id="modalDateDisplay" class="text-muted small mt-2"></div>
+                    </div>
                 </div>
-                
-                <!-- Attendance Status -->
-                <div class="status-badge mt-3" id="modalAttendanceStatus">
-                    <span id="modalTimeInOut" class="fw-bold"></span>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary px-4 py-2" onclick="closeAndRefresh()">
+                        <i class="fas fa-check me-2"></i>Confirm & Continue
+                    </button>
                 </div>
-                
-                <!-- Time and Date Display -->
-                <div class="time-display mt-3">
-                    <div id="modalTimeDisplay" class="fw-bold fs-5" style="color: var(--icon-color);"></div>
-                    <div id="modalDateDisplay" class="text-muted small mt-1"></div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary px-4 py-2" onclick="closeAndRefresh()">
-                    <i class="fas fa-check me-2"></i>Confirm & Continue
-                </button>
             </div>
         </div>
     </div>
-</div>
 
 <!-- Main Container - Scroll Design -->
 <div class="main-container">
@@ -916,147 +941,130 @@ const scanCooldown = 1000; // 1 second cooldown between scans
 let scanner = null;
 
 // ========= SCANNER FUNCTIONS =========
-function initScanner() {
-    if (scanner) {
-        scanner.clear().catch(console.error);
-    }
-    
-    scanner = new Html5QrcodeScanner('largeReader', { 
-        qrbox: {
-            width: 300,
-            height: 300,
-        },
-        fps: 20,
-        rememberLastUsedCamera: true,
-        supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-        showTorchButtonIfSupported: true
-    });
-    
-    scanner.render(onScanSuccess, onScanError);
-}
-
-function stopScanner() {
-    if (scanner) {
-        scanner.clear().then(() => {
-            console.log("Scanner stopped successfully");
-        }).catch(err => {
-            console.error("Failed to stop scanner:", err);
+    function initScanner() {
+        if (scanner) {
+            scanner.clear().catch(console.error);
+        }
+        
+        scanner = new Html5QrcodeScanner('largeReader', { 
+            qrbox: {
+                width: 300,
+                height: 300,
+            },
+            fps: 20,
+            rememberLastUsedCamera: true,
+            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
+            showTorchButtonIfSupported: true
         });
+        
+        // Remove the permission request image by hiding the element
+        const permissionElement = document.querySelector('#largeReader img');
+        if (permissionElement) {
+            permissionElement.style.display = 'none';
+        }
+        
+        scanner.render(onScanSuccess, onScanError);
     }
-}
 
-function restartScanner() {
-    stopScanner();
-    setTimeout(initScanner, 500);
-    document.querySelector('.scanner-overlay').style.display = 'flex';
-}
-
-function onScanSuccess(decodedText) {
-    const now = Date.now();
-    
-    if (now - lastScanTime < scanCooldown) {
-        console.log("Scan cooldown active - ignoring scan");
-        return;
+    function onScanError(error) {
+        // Only log actual errors, not benign "no code found" errors
+        if (!error.includes('NotFoundException') && !error.includes('No MultiFormat Readers')) {
+            console.error('Scanner error:', error);
+        }
+        
+        // Hide any permission-related images
+        const permissionElement = document.querySelector('#largeReader img');
+        if (permissionElement) {
+            permissionElement.style.display = 'none';
+        }
     }
-    
-    lastScanTime = now;
-    document.querySelector('.scanner-overlay').style.display = 'none';
-    processBarcode(decodedText);
-}
-
-function onScanError(error) {
-    // Only log actual errors, not benign "no code found" errors
-    if (!error.includes('NotFoundException') && !error.includes('No MultiFormat Readers')) {
-        console.error('Scanner error:', error);
-    }
-}
 
 // ========= TIME AND DATE FUNCTIONS =========
-function startTime() {
-    const today = new Date();
-    let h = today.getHours();
-    let m = today.getMinutes();
-    let s = today.getSeconds();
-    let period = h >= 12 ? 'PM' : 'AM';
-    
-    h = h % 12;
-    h = h ? h : 12;
-    
-    m = checkTime(m);
-    s = checkTime(s);
-    
-    document.getElementById('clock').innerHTML = h + ":" + m + ":" + s + " " + period;
-    
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    document.getElementById('currentDate').innerHTML = today.toLocaleDateString('en-US', options);
-    
-    setTimeout(startTime, 1000);
-}
+    function startTime() {
+        const today = new Date();
+        let h = today.getHours();
+        let m = today.getMinutes();
+        let s = today.getSeconds();
+        let period = h >= 12 ? 'PM' : 'AM';
+        
+        h = h % 12;
+        h = h ? h : 12;
+        
+        m = checkTime(m);
+        s = checkTime(s);
+        
+        document.getElementById('clock').innerHTML = h + ":" + m + ":" + s + " " + period;
+        
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('currentDate').innerHTML = today.toLocaleDateString('en-US', options);
+        
+        setTimeout(startTime, 1000);
+    }
 
-function checkTime(i) {
-    if (i < 10) {i = "0" + i};
-    return i;
-}
+    function checkTime(i) {
+        if (i < 10) {i = "0" + i};
+        return i;
+    }
 
 // ========= BARCODE PROCESSING FUNCTIONS =========
-function processBarcode(barcode) {
-    console.log("🔍 Processing barcode:", barcode);
-    
-    // Validate barcode format
-    if (!isValidBarcode(barcode)) {
-        showErrorMessage("Invalid ID format. Please use format: 0000-0000");
-        restartScanner();
-        return;
-    }
-    
-    showProcessingState(barcode);
-    
-    // Disable inputs during processing
-    setInputsDisabled(true);
-    
-    $.ajax({
-        type: "POST",
-        url: "process_barcode.php",
-        data: { 
-            barcode: barcode,
-            department: "<?php echo htmlspecialchars($department); ?>",
-            location: "<?php echo htmlspecialchars($location); ?>"
-        },
-        dataType: 'json',
-        timeout: 15000,
-        success: function(response) {
-            handleScanSuccess(response, barcode);
-        },
-        error: function(xhr, status, error) {
-            handleScanError(xhr, status, error, barcode);
-        },
-        complete: function() {
-            setInputsDisabled(false);
+    function processBarcode(barcode) {
+        console.log("🔍 Processing barcode:", barcode);
+        
+        // Validate barcode format
+        if (!isValidBarcode(barcode)) {
+            showErrorMessage("Invalid ID format. Please use format: 0000-0000");
+            restartScanner();
+            return;
         }
-    });
-}
+        
+        showProcessingState(barcode);
+        
+        // Disable inputs during processing
+        setInputsDisabled(true);
+        
+        $.ajax({
+            type: "POST",
+            url: "process_barcode.php",
+            data: { 
+                barcode: barcode,
+                department: "<?php echo htmlspecialchars($department); ?>",
+                location: "<?php echo htmlspecialchars($location); ?>"
+            },
+            dataType: 'json',
+            timeout: 15000,
+            success: function(response) {
+                handleScanSuccess(response, barcode);
+            },
+            error: function(xhr, status, error) {
+                handleScanError(xhr, status, error, barcode);
+            },
+            complete: function() {
+                setInputsDisabled(false);
+            }
+        });
+    }
 
-function isValidBarcode(barcode) {
-    // Basic validation for ID format (0000-0000)
-    const idPattern = /^\d{4}-\d{4}$/;
-    return idPattern.test(barcode);
-}
+    function isValidBarcode(barcode) {
+        // Basic validation for ID format (0000-0000)
+        const idPattern = /^\d{4}-\d{4}$/;
+        return idPattern.test(barcode);
+    }
 
-function showProcessingState(barcode) {
-    document.getElementById('result').innerHTML = `
-        <div class="d-flex justify-content-center align-items-center">
-            <div class="spinner-border text-primary me-2" role="status" style="width: 1rem; height: 1rem;">
-                <span class="visually-hidden">Loading...</span>
+    function showProcessingState(barcode) {
+        document.getElementById('result').innerHTML = `
+            <div class="d-flex justify-content-center align-items-center">
+                <div class="spinner-border text-primary me-2" role="status" style="width: 1rem; height: 1rem;">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <span>Processing ID: ${barcode}</span>
             </div>
-            <span>Processing ID: ${barcode}</span>
-        </div>
-    `;
-}
+        `;
+    }
 
-function setInputsDisabled(disabled) {
-    document.getElementById('manualIdInput').disabled = disabled;
-    document.getElementById('manualSubmitBtn').disabled = disabled;
-}
+    function setInputsDisabled(disabled) {
+        document.getElementById('manualIdInput').disabled = disabled;
+        document.getElementById('manualSubmitBtn').disabled = disabled;
+    }
 
 // ========= SCAN RESPONSE HANDLING FUNCTIONS =========
 function handleScanSuccess(response, originalBarcode) {
@@ -1175,42 +1183,80 @@ function showConfirmationModal(data) {
     }
 }
 
-function updateModalContent(data, timeString, dateString) {
-    // Sanitize and set text content (prevents XSS)
-    document.getElementById('modalStudentName').textContent = sanitizeHTML(data.full_name || 'Student Name');
-    document.getElementById('modalStudentId').textContent = sanitizeHTML(data.id_number || 'N/A');
-    document.getElementById('modalStudentDept').textContent = sanitizeHTML(data.department || 'N/A');
-    document.getElementById('modalStudentYear').textContent = sanitizeHTML(data.year_level || 'N/A');
-    document.getElementById('modalStudentSection').textContent = sanitizeHTML(data.section || 'N/A');
-    document.getElementById('modalTimeDisplay').textContent = timeString;
-    document.getElementById('modalDateDisplay').textContent = dateString;
-    
-    // Set attendance status with proper styling
-    updateAttendanceStatus(data);
-    
-    // Update student photos with fallback handling
-    updateStudentPhotos(data);
-}
-
-function updateAttendanceStatus(data) {
-    const statusElement = document.getElementById('modalTimeInOut');
-    const statusContainer = document.getElementById('modalAttendanceStatus');
-    
-    // Clear existing classes
-    statusContainer.className = 'status-badge';
-    
-    if (data.time_in_out === 'Time In Recorded' || data.alert_class === 'alert-success' || data.attendance_type === 'time_in') {
-        statusElement.textContent = '✓ TIME IN RECORDED';
-        statusContainer.classList.add('time-in-badge');
-    } else if (data.time_in_out === 'Time Out Recorded' || data.alert_class === 'alert-warning' || data.attendance_type === 'time_out') {
-        statusElement.textContent = '✓ TIME OUT RECORDED';
-        statusContainer.classList.add('time-out-badge');
-    } else {
-        statusElement.textContent = data.time_in_out || '✓ ATTENDANCE RECORDED';
-        statusContainer.style.backgroundColor = 'var(--light-bg)';
-        statusContainer.style.color = 'var(--dark-text)';
+    function updateModalContent(data, timeString, dateString) {
+        // Sanitize and set text content (prevents XSS)
+        document.getElementById('modalStudentName').textContent = sanitizeHTML(data.full_name || 'Student Name');
+        document.getElementById('modalStudentId').textContent = sanitizeHTML(data.id_number || 'N/A');
+        document.getElementById('modalStudentDept').textContent = sanitizeHTML(data.department || 'N/A');
+        document.getElementById('modalStudentYear').textContent = sanitizeHTML(data.year_level || 'N/A');
+        document.getElementById('modalStudentSection').textContent = sanitizeHTML(data.section || 'N/A');
+        document.getElementById('modalDateDisplay').textContent = dateString;
+        
+        // Set actual time in/time out from database if available
+        const timeInElement = document.getElementById('modalTimeIn');
+        const timeOutElement = document.getElementById('modalTimeOut');
+        
+        // Check if this is a time-out event and we have the actual time_out from database
+        if (data.attendance_type === 'time_out' || data.time_in_out === 'Time Out Recorded') {
+            // For time-out, show the actual recorded time_in in the Time In field
+            if (data.display_time_in) {
+                timeInElement.textContent = data.display_time_in;
+            } else {
+                timeInElement.textContent = '-';
+                timeInElement.style.color = '#6c757d';
+            }
+            
+            // Show the actual recorded time_out in the Time Out field
+            if (data.display_time_out) {
+                timeOutElement.textContent = data.display_time_out;
+                timeOutElement.style.color = ''; // Reset to default color
+            } else {
+                // Fallback to current time (this should rarely happen)
+                timeOutElement.textContent = timeString;
+            }
+        } else {
+            // For time-in or other events
+            if (data.display_time_in) {
+                timeInElement.textContent = data.display_time_in;
+            } else {
+                // Fallback to current time
+                timeInElement.textContent = timeString;
+            }
+            
+            if (data.display_time_out) {
+                timeOutElement.textContent = data.display_time_out;
+            } else {
+                timeOutElement.textContent = '-';
+                timeOutElement.style.color = '#6c757d';
+            }
+        }
+        
+        // Set attendance status with proper styling
+        updateAttendanceStatus(data);
+        
+        // Update student photos with fallback handling
+        updateStudentPhotos(data);
     }
-}
+    function updateAttendanceStatus(data) {
+            const statusElement = document.getElementById('modalTimeInOut');
+            const statusContainer = document.getElementById('modalAttendanceStatus');
+        
+            // Clear existing classes
+            statusContainer.className = 'status-badge';
+        
+            // Determine if this is time-in or time-out
+            const isTimeOut = data.attendance_type === 'time_out' || 
+                        data.time_in_out === 'Time Out Recorded' || 
+                        (data.alert_class && data.alert_class.includes('warning'));
+        
+            if (isTimeOut) {
+            statusElement.textContent = '✓ TIME OUT RECORDED';
+            statusContainer.classList.add('time-out-badge');
+            } else {
+            statusElement.textContent = '✓ TIME IN RECORDED';
+            statusContainer.classList.add('time-in-badge');
+         }
+        }
 
 function updateStudentPhotos(data) {
     const modalPhoto = document.getElementById('modalStudentPhoto');

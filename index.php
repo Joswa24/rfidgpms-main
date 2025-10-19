@@ -1,5 +1,4 @@
 <?php
-
 // Simple error reporting
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
@@ -7,7 +6,6 @@ ini_set('display_errors', 1);
 // Include required files
 include 'security-headers.php';
 include 'connection.php';
-// Removed: include 'recaptcha.php';
 
 // Start session first
 session_start();
@@ -16,57 +14,6 @@ if (ob_get_level() > 0) {
     ob_clean();
 }
 
-// =====================================================================
-// MAINTENANCE TASKS - Improved with prepared statements
-// =====================================================================
-$yesterday = date('Y-m-d', strtotime('-1 day'));
-
-// Update personell_logs with parameterized queries
-$sql = "SELECT id, time_in_am, time_in_pm, time_out_am, time_out_pm 
-        FROM personell_logs 
-        WHERE DATE(date_logged) = ?";
-$stmt = $db->prepare($sql);
-$stmt->bind_param("s", $yesterday);
-$stmt->execute();
-$result = $stmt->get_result();
-
-while ($row = $result->fetch_assoc()) {
-    $updates = [];
-    $params = [];
-    $types = '';
-    
-    if (empty($row['time_in_am'])) {
-        $updates[] = "time_in_am = ?";
-        $params[] = '?';
-        $types .= 's';
-    }
-    if (empty($row['time_in_pm'])) {
-        $updates[] = "time_in_pm = ?";
-        $params[] = '?';
-        $types .= 's';
-    }
-    if (empty($row['time_out_am'])) {
-        $updates[] = "time_out_am = ?";
-        $params[] = '?';
-        $types .= 's';
-    }
-    if (empty($row['time_out_pm'])) {
-        $updates[] = "time_out_pm = ?";
-        $params[] = '?';
-        $types .= 's';
-    }
-    
-    if (!empty($updates)) {
-        $updateSql = "UPDATE personell_logs SET " . implode(", ", $updates) . " WHERE id = ?";
-        $stmt = $db->prepare($updateSql);
-        $params[] = $row['id'];
-        $types .= 'i';
-        $stmt->bind_param($types, ...$params);
-        $stmt->execute();
-    }
-}
- 
-// Clear output buffer
 // =====================================================================
 // HELPER FUNCTION - Improved Sanitization
 // =====================================================================
@@ -77,10 +24,190 @@ function sanitizeInput($data) {
     return htmlspecialchars(stripslashes(trim($data)), ENT_QUOTES, 'UTF-8');
 }
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Removed reCAPTCHA verification
+// =====================================================================
+// PASSWORD VALIDATION FUNCTION - Universal for all rooms
+// =====================================================================
+function validateRoomPassword($db, $department, $location, $password, $id_number) {
+    $errors = [];
     
-    // Continue with existing login validation...
+    // Step 1: Validate room exists and get room details
+    $stmt = $db->prepare("SELECT * FROM rooms WHERE department = ? AND room = ?");
+    $stmt->bind_param("ss", $department, $location);
+    $stmt->execute();
+    $roomResult = $stmt->get_result();
+
+    if ($roomResult->num_rows === 0) {
+        $errors[] = "Room not found in this department.";
+        return ['success' => false, 'errors' => $errors];
+    }
+
+    $room = $roomResult->fetch_assoc();
+
+    // Step 2: Verify password for this specific room - THIS IS THE KEY FIX
+    $stmt = $db->prepare("SELECT * FROM rooms WHERE department = ? AND room = ? AND password = ?");
+    $stmt->bind_param("sss", $department, $location, $password);
+    $stmt->execute();
+    $passwordResult = $stmt->get_result();
+
+    // THIS CHECK MUST HAPPEN FOR ALL ROOMS, NOT JUST GATE
+    if ($passwordResult->num_rows === 0) {
+        $errors[] = "Invalid password for this room.";
+        return ['success' => false, 'errors' => $errors];
+    }
+
+    // Step 3: Check user authorization based on room type
+    $authorizedPersonnel = $room['authorized_personnel'] ?? '';
+    
+    // Gate access - Security personnel only
+    if ($department === 'Main' && $location === 'Gate') {
+        return validateSecurityPersonnel($db, $id_number, $room);
+    }
+    
+    // Classroom access - Instructors only (default for academic rooms)
+    if (empty($authorizedPersonnel) || 
+        stripos($authorizedPersonnel, 'Instructor') !== false || 
+        stripos($authorizedPersonnel, 'Faculty') !== false) {
+        return validateInstructor($db, $id_number, $room);
+    }
+    
+    // Other specialized rooms - Check specific personnel types
+    return validateOtherPersonnel($db, $id_number, $room, $authorizedPersonnel);
+}
+
+// =====================================================================
+// SECURITY PERSONNEL VALIDATION
+// =====================================================================
+function validateSecurityPersonnel($db, $id_number, $room) {
+    $clean_id = str_replace('-', '', $id_number);
+    
+    // Check personell table for security personnel
+    $stmt = $db->prepare("SELECT * FROM personell WHERE id_number = ? AND department = 'Main'");
+    $stmt->bind_param("s", $clean_id);
+    $stmt->execute();
+    $securityResult = $stmt->get_result();
+
+    if ($securityResult->num_rows === 0) {
+        // Try with role-based search
+        $stmt = $db->prepare("SELECT * FROM personell WHERE id_number = ? AND role LIKE '%Security%'");
+        $stmt->bind_param("s", $clean_id);
+        $stmt->execute();
+        $securityResult = $stmt->get_result();
+    }
+
+    if ($securityResult->num_rows === 0) {
+        return [
+            'success' => false, 
+            'errors' => ['Security personnel not found with this ID.']
+        ];
+    }
+
+    $securityGuard = $securityResult->fetch_assoc();
+    
+    // Check if they have security role
+    $role = strtolower($securityGuard['role'] ?? '');
+    $isSecurity = stripos($role, 'security') !== false || stripos($role, 'guard') !== false;
+    
+    if (!$isSecurity) {
+        return [
+            'success' => false, 
+            'errors' => ["Unauthorized access. User found but not security personnel. Role: " . ($securityGuard['role'] ?? 'Unknown')]
+        ];
+    }
+
+    return [
+        'success' => true,
+        'user_type' => 'security',
+        'user_data' => [
+            'id' => $securityGuard['id'],
+            'fullname' => $securityGuard['first_name'] . ' ' . $securityGuard['last_name'],
+            'id_number' => $securityGuard['id_number'],
+            'role' => $securityGuard['role']
+        ],
+        'room_data' => $room
+    ];
+}
+
+// =====================================================================
+// INSTRUCTOR VALIDATION
+// =====================================================================
+function validateInstructor($db, $id_number, $room) {
+    // Verify ID number against instructor table
+    $stmt = $db->prepare("SELECT * FROM instructor WHERE id_number = ?");
+    $stmt->bind_param("s", $id_number);
+    $stmt->execute();
+    $instructorResult = $stmt->get_result();
+
+    if ($instructorResult->num_rows === 0) {
+        return [
+            'success' => false, 
+            'errors' => ['Instructor not found with this ID number.']
+        ];
+    }
+
+    $instructor = $instructorResult->fetch_assoc();
+
+    return [
+        'success' => true,
+        'user_type' => 'instructor',
+        'user_data' => [
+            'id' => $instructor['id'],
+            'fullname' => $instructor['fullname'],
+            'id_number' => $instructor['id_number']
+        ],
+        'room_data' => $room
+    ];
+}
+
+// =====================================================================
+// OTHER PERSONNEL VALIDATION
+// =====================================================================
+function validateOtherPersonnel($db, $id_number, $room, $authorizedPersonnel) {
+    $clean_id = str_replace('-', '', $id_number);
+    
+    // Check personell table
+    $stmt = $db->prepare("SELECT * FROM personell WHERE id_number = ?");
+    $stmt->bind_param("s", $clean_id);
+    $stmt->execute();
+    $personnelResult = $stmt->get_result();
+
+    if ($personnelResult->num_rows === 0) {
+        return [
+            'success' => false, 
+            'errors' => ['Personnel not found with this ID.']
+        ];
+    }
+
+    $personnel = $personnelResult->fetch_assoc();
+    
+    // Check if personnel role matches authorized personnel for this room
+    $personnelRole = strtolower($personnel['role'] ?? '');
+    $requiredRole = strtolower($authorizedPersonnel);
+    
+    if (stripos($personnelRole, $requiredRole) === false) {
+        return [
+            'success' => false, 
+            'errors' => ["Unauthorized access. Your role '{$personnel['role']}' does not match required role '{$authorizedPersonnel}' for this room."]
+        ];
+    }
+
+    return [
+        'success' => true,
+        'user_type' => 'personnel',
+        'user_data' => [
+            'id' => $personnel['id'],
+            'fullname' => $personnel['first_name'] . ' ' . $personnel['last_name'],
+            'id_number' => $personnel['id_number'],
+            'role' => $personnel['role']
+        ],
+        'room_data' => $room
+    ];
+}
+
+// =====================================================================
+// MAIN LOGIN PROCESSING
+// =====================================================================
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    // Sanitize inputs
     $department = sanitizeInput($_POST['roomdpt'] ?? '');
     $location = sanitizeInput($_POST['location'] ?? '');
     $password = $_POST['Ppassword'] ?? '';
@@ -88,7 +215,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $selected_subject = sanitizeInput($_POST['selected_subject'] ?? '');
     $selected_room = sanitizeInput($_POST['selected_room'] ?? '');
 
-    // Validate inputs
+    // Validate required inputs
     $errors = [];
     if (empty($department)) $errors[] = "Department is required";
     if (empty($location)) $errors[] = "Location is required";
@@ -101,227 +228,69 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         die(json_encode(['status' => 'error', 'message' => implode("<br>", $errors)]));
     }
 
-    // Check if this is a gate access request (Main department + Gate location)
-    if ($department === 'Main' && $location === 'Gate') {
-        // Remove hyphen from ID for database search
-        $clean_id = str_replace('-', '', $id_number);
-        
-        // Use the correct column name: id_no instead of id_number
-        $stmt = $db->prepare("SELECT * FROM personell WHERE id_number = ? AND department = 'Main'");
-        if (!$stmt) {
-            error_log("Prepare failed: " . $db->error);
-            header('Content-Type: application/json');
-            die(json_encode(['status' => 'error', 'message' => "Database error. Please check server logs."]));
-        }
-        
-        $stmt->bind_param("s", $clean_id);
-        if (!$stmt->execute()) {
-            error_log("Execute failed: " . $stmt->error);
-            header('Content-Type: application/json');
-            die(json_encode(['status' => 'error', 'message' => "Database query failed."]));
-        }
-        
-        $securityResult = $stmt->get_result();
-
-        if ($securityResult->num_rows === 0) {
-            sleep(2);
-            
-            // Try rfid_number as fallback (also without hyphen)
-            $stmt2 = $db->prepare("SELECT * FROM personell WHERE id_number = ? AND role = 'Security Personnel'");
-            if ($stmt2) {
-                $stmt2->bind_param("s", $clean_id);
-                $stmt2->execute();
-                $securityResult = $stmt2->get_result();
-            }
-        }
-
-        if ($securityResult->num_rows === 0) {
-            sleep(2);
-            
-            // Debug: Check what IDs actually exist
-            $debugStmt = $db->prepare("SELECT id_number, first_name, last_name, role FROM personell WHERE (role LIKE '%Security Personnel%' OR role LIKE '%Guard%')");
-            $debugStmt->execute();
-            $debugResult = $debugStmt->get_result();
-            
-            $availablePersonnel = [];
-            while ($row = $debugResult->fetch_assoc()) {
-                $availablePersonnel[] = " RFID:{$row['id_number']}, Name:{$row['first_name']} {$row['last_name']}";
-            }
-            
-            die("Unauthorized access. Security personnel not found with ID: $id_number");
-        }
-
-        $securityGuard = $securityResult->fetch_assoc();
-        
-        // Check if they have security role
-        $role = strtolower($securityGuard['role'] ?? '');
-        $isSecurity = stripos($role, 'security') !== false || stripos($role, 'guard') !== false;
-        
-        if (!$isSecurity) {
-            sleep(2);
-            header('Content-Type: application/json');
-            die(json_encode([ 
-                'message' => "Unauthorized access. User found but not security personnel. Role: " . ($securityGuard['role'] ?? 'Unknown')
-            ]));
-        }
-
-        // Verify room credentials for gate
-        $stmt = $db->prepare("SELECT * FROM rooms WHERE department = ? AND room = ?");
-        $stmt->bind_param("ss", $department, $location);
-        $stmt->execute();
-        $roomResult = $stmt->get_result();
-
-        if ($roomResult->num_rows === 0) {
-            sleep(2);
-            header('Content-Type: application/json');
-            die(json_encode(['status' => 'error', 'message' => "Gate access not configured."]));
-        }
-
-        $room = $roomResult->fetch_assoc();
-
-        // Verify gate password
-        $stmt = $db->prepare("SELECT * FROM rooms WHERE password=? AND department='Main' AND room='Gate'");
-        $stmt->bind_param("s", $password);
-        $stmt->execute();
-        $passwordResult = $stmt->get_result();
-
-        if ($passwordResult->num_rows === 0) {
-            sleep(2);
-            header('Content-Type: application/json');
-            die(json_encode(['status' => 'error', 'message' => "Invalid Gate Password."]));
-        }
-
-        // Gate login successful - set session data for SECURITY PERSONNEL
-        $_SESSION['access'] = [
-            'security' => [  // Changed from 'instructor' to 'security'
-                'id' => $securityGuard['id'],
-                'fullname' => $securityGuard['first_name'] . ' ' . $securityGuard['last_name'],
-                'id_number' => $securityGuard['id_number'],
-                'role' => $securityGuard['role']
-            ],
-            'room' => [
-                'id' => $room['id'],
-                'department' => $room['department'],
-                'room' => $room['room'],
-                'desc' => $room['desc'],
-                'descr' => $room['descr'],
-                'authorized_personnel' => $room['authorized_personnel']
-            ],
-            'last_activity' => time()
-        ];
-
-        // Regenerate session ID to prevent session fixation
-        session_regenerate_id(true);
-
-        // Clear any existing output
-        while (ob_get_level()) {
-            ob_end_clean();
-        }
-
-        // Set proper headers
+    // Universal password validation for all rooms
+    $validationResult = validateRoomPassword($db, $department, $location, $password, $id_number);
+    
+    if (!$validationResult['success']) {
+        sleep(2); // Rate limiting
+        http_response_code(401);
         header('Content-Type: application/json');
-        header('X-Content-Type-Options: nosniff');
-
-        // Return JSON response for gate access - REDIRECT TO MAIN.PHP
-        echo json_encode([
-            'status' => 'success',
-            'redirect' => 'main.php', // Security personnel go to main.php
-            'message' => 'Gate access granted'
-        ]);
-        exit;
+        die(json_encode([
+            'status' => 'error', 
+            'message' => implode("<br>", $validationResult['errors'])
+        ]));
     }
 
-    // Regular instructor login process (for non-gate access)
-    // Verify ID number against instructor table with rate limiting
-    $stmt = $db->prepare("SELECT * FROM instructor WHERE id_number = ?");
-    $stmt->bind_param("s", $id_number);
-    $stmt->execute();
-    $instructorResult = $stmt->get_result();
+    // Login successful - set session data based on user type
+    $userType = $validationResult['user_type'];
+    $userData = $validationResult['user_data'];
+    $roomData = $validationResult['room_data'];
 
-    if ($instructorResult->num_rows === 0) {
-        sleep(2); // Slow down brute force attempts
-        header('Content-Type: application/json');
-        die(json_encode(['status' => 'error', 'message' => "Invalid ID number. Instructor not found."]));
-    }
-
-    $instructor = $instructorResult->fetch_assoc(); // THIS IS WHERE $instructor IS DEFINED
-
-    // Verify room credentials
-    $stmt = $db->prepare("SELECT * FROM rooms WHERE department = ? AND room = ?");
-    $stmt->bind_param("ss", $department, $location);
-    $stmt->execute();
-    $roomResult = $stmt->get_result();
-
-    if ($roomResult->num_rows === 0) {
-        sleep(2);
-        header('Content-Type: application/json');
-        die(json_encode(['status' => 'error', 'message' => "Room not found."]));
-    }
-
-    $room = $roomResult->fetch_assoc();
-
-    $stmt = $db->prepare("SELECT * FROM rooms WHERE password=?");
-    $stmt->bind_param("s", $password);
-    $stmt->execute();
-    $passwordResult = $stmt->get_result();
-
-    if ($passwordResult->num_rows === 0) {
-        sleep(2);
-        header('Content-Type: application/json');
-        die(json_encode(['status' => 'error', 'message' => "Invalid Password."]));
-    }
-
-    // Login successful - set session data FOR INSTRUCTOR
     $_SESSION['access'] = [
-        'instructor' => [
-            'id' => $instructor['id'],
-            'fullname' => $instructor['fullname'],
-            'id_number' => $instructor['id_number']
-        ],
-        'room' => [
-            'id' => $room['id'],
-            'department' => $room['department'],
-            'room' => $room['room'],
-            'desc' => $room['desc'],
-            'descr' => $room['descr'],
-            'authorized_personnel' => $room['authorized_personnel']
-        ],
-        'subject' => [
-            'name' => $selected_subject,
-            'room' => $selected_room,
-            'time' => $_POST['selected_time'] // Add this line
-        ],
+        'user_type' => $userType,
         'last_activity' => time()
     ];
 
-    // ✅ NEW: Record instructor session start time
-    $currentTime = date('Y-m-d H:i:s');
-    $_SESSION['instructor_login_time'] = $currentTime;
+    // Set user-specific session data
+    if ($userType === 'security') {
+        $_SESSION['access']['security'] = $userData;
+        $_SESSION['access']['room'] = $roomData;
+        $redirectUrl = 'main.php';
+        
+    } elseif ($userType === 'instructor') {
+        $_SESSION['access']['instructor'] = $userData;
+        $_SESSION['access']['room'] = $roomData;
+        $_SESSION['access']['subject'] = [
+            'name' => $selected_subject,
+            'room' => $selected_room,
+            'time' => $_POST['selected_time'] ?? ''
+        ];
+        $redirectUrl = 'main1.php';
+        
+        // Record instructor session start time
+        $currentTime = date('Y-m-d H:i:s');
+        $_SESSION['instructor_login_time'] = $currentTime;
 
-    // ✅ NEW: Create instructor attendance summary record
-    $instructorId = $instructor['id'];
-    $instructorName = $instructor['fullname'];
-    $subjectName = $selected_subject;
+        // Create instructor attendance summary record
+        $instructorId = $userData['id'];
+        $instructorName = $userData['fullname'];
+        $subjectName = $selected_subject;
+        $yearLevel = "1st Year";
+        $section = "A";
+        $sessionDate = date('Y-m-d');
+        $timeIn = date('H:i:s');
 
-    // Extract year level and section from subject if possible, or use defaults
-    $yearLevel = "1st Year"; // You can extract this from your subject data
-    $section = "A"; // You can extract this from your subject data
-    $sessionDate = date('Y-m-d');
-    $timeIn = date('H:i:s');
-
-    // Insert into instructor_attendance_summary table
-    $sessionSql = "INSERT INTO instructor_attendance_summary 
-                (instructor_id, instructor_name, subject_name, year_level, section, 
-                    total_students, present_count, absent_count, attendance_rate,
-                    session_date, time_in, time_out) 
-                VALUES (?, ?, ?, ?, ?, 0, 0, 0, 0.00, ?, ?, '00:00:00')";
-    $stmt = $db->prepare($sessionSql);
-    $stmt->bind_param("issssss", $instructorId, $instructorName, $subjectName, $yearLevel, $section, $sessionDate, $timeIn);
-    $stmt->execute();
-    $attendanceSessionId = $stmt->insert_id;
-
-    // Store session ID for later use
-    $_SESSION['attendance_session_id'] = $attendanceSessionId;
+        $sessionSql = "INSERT INTO instructor_attendance_summary 
+                    (instructor_id, instructor_name, subject_name, year_level, section, 
+                        total_students, present_count, absent_count, attendance_rate,
+                        session_date, time_in, time_out) 
+                    VALUES (?, ?, ?, ?, ?, 0, 0, 0, 0.00, ?, ?, '00:00:00')";
+        $stmt = $db->prepare($sessionSql);
+        $stmt->bind_param("issssss", $instructorId, $instructorName, $subjectName, $yearLevel, $section, $sessionDate, $timeIn);
+        $stmt->execute();
+        $_SESSION['attendance_session_id'] = $stmt->insert_id;
+        
+    }
 
     // Regenerate session ID to prevent session fixation
     session_regenerate_id(true);
@@ -335,10 +304,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     header('Content-Type: application/json');
     header('X-Content-Type-Options: nosniff');
 
-    // Return JSON response
+    // Return success response
     echo json_encode([
         'status' => 'success',
-        'redirect' => 'main1.php'
+        'redirect' => $redirectUrl,
+        'message' => 'Login successful',
+        'user_type' => $userType
     ]);
     exit;
 }
@@ -1028,17 +999,78 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             
             console.log('🔄 Proceeding with login logic...');
             
-            // Continue with existing logic (no reCAPTCHA)
-            if (department === 'Main' && selectedRoom === 'Gate') {
-                submitLoginForm();
-            } 
-            else if (!$('#selected_subject').val()) {
-                showSubjectSelectionModal();
-            }
-            else {
-                submitLoginForm();
-            }
+            // FIRST validate password for the room, THEN handle subject selection
+            validateRoomPasswordBeforeSubject(department, selectedRoom, password, idNumber);
         });
+
+        // NEW FUNCTION: Validate password BEFORE showing subject modal
+        function validateRoomPasswordBeforeSubject(department, location, password, idNumber) {
+            // Show loading state
+            $('#loginButton').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Validating...');
+            $('#loginButton').prop('disabled', true);
+            
+            // Create a minimal form data for password validation
+            const formData = {
+                roomdpt: department,
+                location: location,
+                Ppassword: password,
+                Pid_number: idNumber,
+                validate_only: 'true' // Add a flag to indicate this is just password validation
+            };
+            
+            $.ajax({
+                url: '', // same PHP page
+                type: 'POST',
+                data: formData,
+                dataType: 'json',
+                success: function(response) {
+                    // Reset button state
+                    $('#loginButton').html('<i class="fas fa-sign-in-alt me-2"></i>Login');
+                    $('#loginButton').prop('disabled', false);
+                    
+                    if (response.status === 'success') {
+                        // Password is valid, now check if we need subject selection
+                        if (department === 'Main' && location === 'Gate') {
+                            // Gate access - submit directly
+                            submitLoginForm();
+                        } else if (!$('#selected_subject').val()) {
+                            // Classroom access - show subject selection
+                            showSubjectSelectionModal();
+                        } else {
+                            // Subject already selected - submit directly
+                            submitLoginForm();
+                        }
+                    } else {
+                        // Password validation failed
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Login Failed',
+                            text: response.message || 'Invalid password or credentials'
+                        });
+                    }
+                },
+                error: function(xhr, status, error) {
+                    // Reset button state
+                    $('#loginButton').html('<i class="fas fa-sign-in-alt me-2"></i>Login');
+                    $('#loginButton').prop('disabled', false);
+                    
+                    let errorMessage = 'Password validation failed. Please try again.';
+                    
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        errorMessage = response.message || errorMessage;
+                    } catch (e) {
+                        errorMessage = xhr.responseText || errorMessage;
+                    }
+                    
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: errorMessage
+                    });
+                }
+            });
+        }
 
         // Show subject selection modal
         function showSubjectSelectionModal() {
