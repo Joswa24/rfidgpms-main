@@ -244,24 +244,6 @@ $fourthYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as coun
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-xl-2 col-md-4 col-sm-6">
-                                <div class="card bg-secondary text-white summary-card mb-4">
-                                    <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <div class="fs-6 fw-bold">Departments</div>
-                                                <div class="fs-4 fw-bold">
-                                                    <?php 
-                                                    $deptCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(DISTINCT department_id) as count FROM students"))['count'];
-                                                    echo $deptCount;
-                                                    ?>
-                                                </div>
-                                            </div>
-                                            <i class="fas fa-building fa-2x"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
 
                         <!-- View Toggle Buttons -->
@@ -274,9 +256,6 @@ $fourthYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as coun
                                     <button type="button" class="btn btn-outline-primary view-toggle-btn" data-view="grouped">
                                         <i class="fas fa-layer-group"></i> Grouped View
                                     </button>
-                                    <button type="button" class="btn btn-outline-primary view-toggle-btn" data-view="cards">
-                                        <i class="fas fa-id-card"></i> Card View
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -284,19 +263,6 @@ $fourthYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as coun
                         <!-- Filter Section -->
                         <div class="filter-section">
                             <div class="row">
-                                <div class="col-md-3">
-                                    <label><strong>Filter by Department:</strong></label>
-                                    <select class="form-control" id="filterDepartment">
-                                        <option value="">All Departments</option>
-                                        <?php
-                                        $sql = "SELECT * FROM department ORDER BY department_name";
-                                        $result = $db->query($sql);
-                                        while ($dept = $result->fetch_assoc()) {
-                                            echo "<option value='{$dept['department_id']}'>{$dept['department_name']}</option>";
-                                        }
-                                        ?>
-                                    </select>
-                                </div>
                                 <div class="col-md-2">
                                     <label><strong>Filter by Year:</strong></label>
                                     <select class="form-control" id="filterYear">
