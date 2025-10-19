@@ -770,7 +770,7 @@ $entrantsDistribution = getEntrantsDistribution($db);
             drawEntrantsDistributionChart();
         }
 
-        function drawWeeklyEntrantsChart() {
+            function drawWeeklyEntrantsChart() {
             // Weekly entrants data from PHP
             const weeklyData = <?php echo json_encode($weeklyData); ?>;
             
@@ -785,29 +785,44 @@ $entrantsDistribution = getEntrantsDistribution($db);
             const options = {
                 title: '',
                 curveType: 'function',
-                legend: { position: 'bottom' },
+                legend: { position: 'none' },
                 colors: ['#5c95e9'],
                 backgroundColor: 'transparent',
-                chartArea: {width: '85%', height: '75%'},
+                chartArea: {width: '85%', height: '75%', top: 20, bottom: 60},
                 hAxis: {
-                    title: 'Day',
-                    titleTextStyle: {color: '#5a5c69', bold: true},
+                    textStyle: {color: '#5a5c69', fontSize: 12},
                     gridlines: { color: 'transparent' },
-                    baselineColor: '#5a5c69'
+                    baselineColor: '#5a5c69',
+                    showTextEvery: 1,
+                    slantedText: false
                 },
                 vAxis: {
                     title: 'Number of Entrants',
-                    titleTextStyle: {color: '#5a5c69', bold: true},
+                    titleTextStyle: {color: '#5a5c69', bold: true, fontSize: 12},
                     minValue: 0,
-                    gridlines: { color: '#f0f0f0' },
+                    gridlines: { 
+                        color: '#f0f0f0',
+                        count: 5
+                    },
                     baseline: 0,
                     baselineColor: '#5a5c69',
-                    format: '0'
+                    format: '0',
+                    viewWindow: {
+                        min: 0
+                    },
+                    textStyle: {color: '#5a5c69', fontSize: 11}
                 },
                 titleTextStyle: {
                     color: '#5a5c69',
                     fontSize: 16,
                     bold: true
+                },
+                lineWidth: 3,
+                pointSize: 6,
+                animation: {
+                    startup: true,
+                    duration: 1000,
+                    easing: 'out'
                 }
             };
 
@@ -816,57 +831,73 @@ $entrantsDistribution = getEntrantsDistribution($db);
         }
 
         function drawEntrantsDistributionChart() {
-            // Entrants distribution data from PHP
-            const distributionData = <?php echo json_encode($entrantsDistribution); ?>;
-            
-            const data = new google.visualization.DataTable();
-            data.addColumn('string', 'Person Type');
-            data.addColumn('number', 'Count');
-            
-            distributionData.forEach(item => {
-                data.addRow([item.type, parseInt(item.total)]);
-            });
+        // Entrants distribution data from PHP
+        const distributionData = <?php echo json_encode($entrantsDistribution); ?>;
+        
+        const data = new google.visualization.DataTable();
+        data.addColumn('string', 'Person Type');
+        data.addColumn('number', 'Count');
+        
+        distributionData.forEach(item => {
+            data.addRow([item.type, parseInt(item.total)]);
+        });
 
-            const options = {
-                title: '',
-                pieHole: 0.4,
-                backgroundColor: 'transparent',
-                chartArea: {width: '90%', height: '80%', top: 20, left: 0},
-                legend: {
-                    position: 'labeled',
-                    textStyle: {
-                        color: '#5a5c69',
-                        fontSize: 12
-                    }
-                },
-                pieSliceText: 'value',
-                tooltip: {
-                    text: 'percentage'
-                },
-                slices: {
-                    0: { color: '#5c95e9' },
-                    1: { color: '#4e73df' },
-                    2: { color: '#1cc88a' },
-                    3: { color: '#36b9cc' },
-                    4: { color: '#f6c23e' },
-                    5: { color: '#e74a3b' }
-                },
-                titleTextStyle: {
-                    color: '#5a5c69',
-                    fontSize: 16,
-                    bold: true
-                },
-                pieSliceTextStyle: {
-                    color: 'white',
-                    fontSize: 12,
-                    bold: true
-                }
-            };
+        const options = {
+            title: '',
+            pieHole: 0,
+            backgroundColor: 'transparent',
+            chartArea: {
+                width: '95%', 
+                height: '85%', 
+                top: 20, 
+                left: 10,
+                right: 10,
+                bottom: 20
+            },
+            legend: {
+                position: 'none' // Remove the legend completely
+            },
+            pieSliceText: 'label', // Show labels (Instructor, Students, etc.) in slices
+            tooltip: {
+                text: 'percentage',
+                showColorCode: true
+            },
+            slices: {
+                0: { color: '#5c95e9' },
+                1: { color: '#4e73df' },
+                2: { color: '#1cc88a' },
+                3: { color: '#36b9cc' },
+                4: { color: '#f6c23e' },
+                5: { color: '#e74a3b' }
+            },
+            titleTextStyle: {
+                color: '#5a5c69',
+                fontSize: 16,
+                bold: true
+            },
+            pieSliceTextStyle: {
+                color: 'white',
+                fontSize: 12,
+                bold: true,
+                fontName: 'Arial'
+            },
+            pieSliceBorderColor: 'transparent', // Remove border lines
+            pieSliceBorderWidth: 0, // Remove border width
+            is3D: false,
+            pieStartAngle: 0,
+            sliceVisibilityThreshold: 0 // Show all slices even if very small
+        };
 
-            const chart = new google.visualization.PieChart(document.getElementById('entrantsDistributionChart'));
-            chart.draw(data, options);
-        }
+        // Format the data to show labels with percentages
+        const formatter = new google.visualization.NumberFormat({
+            pattern: '#,##0'
+        });
+        
+        formatter.format(data, 1);
 
+        const chart = new google.visualization.PieChart(document.getElementById('entrantsDistributionChart'));
+        chart.draw(data, options);
+    }
         // Redraw charts on window resize
         window.addEventListener('resize', function() {
             drawCharts();
@@ -936,6 +967,7 @@ $entrantsDistribution = getEntrantsDistribution($db);
             });
         }
     });
-    </script>
+
+</script>
 </body>
 </html>
