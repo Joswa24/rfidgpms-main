@@ -1,75 +1,264 @@
 <?php
-// Enable error reporting
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+session_start();
+// Display success/error messages
+if (isset($_SESSION['success_message'])) {
+    echo '<div class="alert alert-success">' . $_SESSION['success_message'] . '</div>';
+    unset($_SESSION['success_message']);
+}
+if (isset($_SESSION['error_message'])) {
+    echo '<div class="alert alert-danger">' . $_SESSION['error_message'] . '</div>';
+    unset($_SESSION['error_message']);
+}
 
-// Include connection and functions
+// Include connection
 include '../connection.php';
-include 'functions.php';
+
+// Check if connection is successful
+if (!$db) {
+    die("Database connection failed: " . mysqli_connect_error());
+}
+
+// Define essential functions
+if (!function_exists('sanitizeOutput')) {
+    function sanitizeOutput($data) {
+        return htmlspecialchars($data ?? '', ENT_QUOTES, 'UTF-8');
+    }
+}
+
+if (!function_exists('formatTime')) {
+    function formatTime($time) {
+        if (empty($time) || $time == '00:00:00' || $time == '?' || $time == '0000-00-00 00:00:00') {
+            return '-';
+        }
+        try {
+            return date('h:i A', strtotime($time));
+        } catch (Exception $e) {
+            return '-';
+        }
+    }
+}
 
 // Get dashboard statistics
-$stats = getDashboardStats($db);
+function getDashboardStats($db) {
+    $stats = [
+        'total_entrants_today' => 0,
+        'visitors_today' => 0,
+        'students_today' => 0,
+        'instructors_today' => 0,
+        'staff_today' => 0,
+        'blocked' => 0,
+        'total_students' => 0,
+        'total_instructors' => 0,
+        'total_staff' => 0
+    ];
+
+    try {
+        // Total entrants today
+        $query = "SELECT COUNT(*) as total FROM gate_logs WHERE DATE(created_at) = CURDATE()";
+        $result = $db->query($query);
+        if ($result) {
+            $row = $result->fetch_assoc();
+            $stats['total_entrants_today'] = $row['total'] ?? 0;
+        }
+
+        // Visitors today
+        $query = "SELECT COUNT(*) as total FROM visitor_logs WHERE DATE(time_in) = CURDATE()";
+        $result = $db->query($query);
+        if ($result) {
+            $row = $result->fetch_assoc();
+            $stats['visitors_today'] = $row['total'] ?? 0;
+        }
+
+        // Students present today
+        $query = "SELECT COUNT(DISTINCT student_id) as total FROM students_glogs WHERE date_logged = CURDATE() AND (time_out IS NULL OR time_out = '00:00:00')";
+        $result = $db->query($query);
+        if ($result) {
+            $row = $result->fetch_assoc();
+            $stats['students_today'] = $row['total'] ?? 0;
+        }
+
+        // Total students
+        $query = "SELECT COUNT(*) as total FROM students";
+        $result = $db->query($query);
+        if ($result) {
+            $row = $result->fetch_assoc();
+            $stats['total_students'] = $row['total'] ?? 0;
+        }
+
+        // Instructors present today
+        $query = "SELECT COUNT(DISTINCT instructor_id) as total FROM instructor_glogs WHERE date_logged = CURDATE() AND (time_out IS NULL OR time_out = '00:00:00')";
+        $result = $db->query($query);
+        if ($result) {
+            $row = $result->fetch_assoc();
+            $stats['instructors_today'] = $row['total'] ?? 0;
+        }
+
+        // Total instructors
+        $query = "SELECT COUNT(*) as total FROM instructor";
+        $result = $db->query($query);
+        if ($result) {
+            $row = $result->fetch_assoc();
+            $stats['total_instructors'] = $row['total'] ?? 0;
+        }
+
+        // Staff present today
+        $query = "SELECT COUNT(DISTINCT personell_id) as total FROM personell_glogs WHERE date_logged = CURDATE() AND (time_out IS NULL OR time_out = '00:00:00')";
+        $result = $db->query($query);
+        if ($result) {
+            $row = $result->fetch_assoc();
+            $stats['staff_today'] = $row['total'] ?? 0;
+        }
+
+        // Total staff
+        $query = "SELECT COUNT(*) as total FROM personell WHERE status != 'Block'";
+        $result = $db->query($query);
+        if ($result) {
+            $row = $result->fetch_assoc();
+            $stats['total_staff'] = $row['total'] ?? 0;
+        }
+
+        // Blocked personnel
+        $query = "SELECT COUNT(*) as total FROM personell WHERE status = 'Block'";
+        $result = $db->query($query);
+        if ($result) {
+            $row = $result->fetch_assoc();
+            $stats['blocked'] = $row['total'] ?? 0;
+        }
+
+    } catch (Exception $e) {
+        error_log("Dashboard stats error: " . $e->getMessage());
+    }
+
+    return $stats;
+}
 
 // Get today's logs
+function getTodaysLogs($db) {
+    $query = "SELECT 
+                gl.name as full_name,
+                gl.person_type as role,
+                gl.location,
+                gl.time_in,
+                gl.time_out,
+                gl.created_at
+              FROM gate_logs gl
+              WHERE DATE(gl.created_at) = CURDATE()
+              ORDER BY gl.created_at DESC
+              LIMIT 50";
+    
+    try {
+        return $db->query($query);
+    } catch (Exception $e) {
+        error_log("Today's logs error: " . $e->getMessage());
+        return false;
+    }
+}
+
+// Get weekly entrants data for line chart
+function getWeeklyEntrants($db) {
+    $weeklyData = [];
+    
+    try {
+        // Get last 7 days including today
+        for ($i = 6; $i >= 0; $i--) {
+            $date = date('Y-m-d', strtotime("-$i days"));
+            $dayName = date('D', strtotime($date));
+            
+            $query = "SELECT COUNT(*) as total FROM gate_logs WHERE DATE(created_at) = '$date'";
+            $result = $db->query($query);
+            
+            if ($result) {
+                $row = $result->fetch_assoc();
+                $weeklyData[] = [
+                    'day' => $dayName,
+                    'date' => $date,
+                    'total' => $row['total'] ?? 0
+                ];
+            } else {
+                $weeklyData[] = [
+                    'day' => $dayName,
+                    'date' => $date,
+                    'total' => 0
+                ];
+            }
+        }
+    } catch (Exception $e) {
+        error_log("Weekly entrants error: " . $e->getMessage());
+    }
+    
+    return $weeklyData;
+}
+
+// Get entrants distribution for pie chart
+function getEntrantsDistribution($db) {
+    $distribution = [];
+    
+    try {
+        // Get counts for each person type
+        $query = "SELECT 
+                    person_type,
+                    COUNT(*) as total
+                  FROM gate_logs 
+                  WHERE DATE(created_at) = CURDATE()
+                  GROUP BY person_type";
+        
+        $result = $db->query($query);
+        
+        if ($result) {
+            while ($row = $result->fetch_assoc()) {
+                $distribution[] = [
+                    'type' => ucfirst($row['person_type']),
+                    'total' => $row['total'] ?? 0
+                ];
+            }
+        }
+        
+        // If no data for today, get from all time for demo
+        if (empty($distribution)) {
+            $query = "SELECT 
+                        person_type,
+                        COUNT(*) as total
+                      FROM gate_logs 
+                      GROUP BY person_type
+                      LIMIT 10";
+            
+            $result = $db->query($query);
+            
+            if ($result) {
+                while ($row = $result->fetch_assoc()) {
+                    $distribution[] = [
+                        'type' => ucfirst($row['person_type']),
+                        'total' => $row['total'] ?? 0
+                    ];
+                }
+            }
+        }
+        
+    } catch (Exception $e) {
+        error_log("Entrants distribution error: " . $e->getMessage());
+    }
+    
+    return $distribution;
+}
+
+// Get data
+$stats = getDashboardStats($db);
 $logsResult = getTodaysLogs($db);
+$weeklyData = getWeeklyEntrants($db);
+$entrantsDistribution = getEntrantsDistribution($db);
 ?>
 <!DOCTYPE html>
 <html lang="en">
-    <?php include 'header.php'; ?>
+<?php include 'header.php'; ?>
+
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - RFIDGPMS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-    <script type="text/javascript">
-        google.charts.load('current', {packages: ['corechart']});
-        google.charts.setOnLoadCallback(drawChart);
-
-        function drawChart() {
-            const weeklyData = <?php
-                // Function to get count of logs for each day
-                function getEntrantsCount($db, $tableName) {
-                    $data = array_fill(0, 7, 0);
-                    for ($i = 0; $i < 7; $i++) {
-                        $date = date('Y-m-d', strtotime("last Monday +$i days"));
-                        $sql = "SELECT COUNT(*) as count FROM $tableName WHERE date_logged = '$date'";
-                        $result = $db->query($sql);
-                        if ($result && $row = $result->fetch_assoc()) {
-                            $data[$i] = $row['count'];
-                        }
-                    }
-                    return $data;
-                }
-
-                $personellData = getEntrantsCount($db, 'personell_logs');
-                $visitorData = getEntrantsCount($db, 'visitor_logs');
-
-                $totalData = [];
-                for ($i = 0; $i < 7; $i++) {
-                    $totalData[$i] = $personellData[$i] + $visitorData[$i];
-                }
-
-                echo json_encode($totalData);
-            ?>;
-            
-            const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-            const dataArray = [['Day', 'Entrants']];
-            for (let i = 0; i < weeklyData.length; i++) {
-                dataArray.push([daysOfWeek[i], weeklyData[i]]);
-            }
-            const data = google.visualization.arrayToDataTable(dataArray);
-
-            const options = {
-                title: 'Weekly Entrants',
-                hAxis: {title: 'Day'},
-                vAxis: {title: 'Number of Entrants'},
-                legend: 'none',
-                colors: ['#5c95e9'],
-                backgroundColor: '#f8f9fc',
-                chartArea: {width: '85%', height: '70%'}
-            };
-
-            const chart = new google.visualization.LineChart(document.getElementById('myChart1'));
-            chart.draw(data, options);
-        }
-    </script>
     <style>
         :root {
             --primary-color: #e1e7f0ff;
@@ -79,48 +268,51 @@ $logsResult = getTodaysLogs($db);
             --light-bg: #f8f9fc;
             --dark-text: #5a5c69;
             --warning-color: #f6c23e;
-            --danger-color: #e4652aff;
-            --border-radius: 12px;
-            --box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            --danger-color: #e74a3b;
+            --success-color: #1cc88a;
+            --border-radius: 15px;
+            --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
             --transition: all 0.3s ease;
         }
 
         body {
-            font-family: 'Inter', sans-serif;
             background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            font-family: 'Inter', sans-serif;
             color: var(--dark-text);
-            line-height: 1.6;
         }
 
         .content {
             background: transparent;
-            padding: 20px;
         }
 
-        .main-container {
-            background: white;
+        .bg-light {
+            background-color: var(--light-bg) !important;
+            border-radius: var(--border-radius);
+        }
+
+        .card {
+            border: none;
             border-radius: var(--border-radius);
             box-shadow: var(--box-shadow);
-            overflow: hidden;
-            margin-bottom: 20px;
+            background: white;
+            transition: var(--transition);
         }
 
-        /* Stats Cards */
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        }
+
         .stats-card {
-            background: var(--light-bg);
+            background: white;
             border-radius: var(--border-radius);
-            padding: 20px;
+            padding: 20px 15px;
             box-shadow: var(--box-shadow);
             transition: var(--transition);
             border: none;
+            height: 100%;
             position: relative;
             overflow: hidden;
-            height: 100%;
-        }
-
-        .stats-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
         }
 
         .stats-card::before {
@@ -130,47 +322,154 @@ $logsResult = getTodaysLogs($db);
             left: 0;
             width: 100%;
             height: 4px;
-            background: linear-gradient(135deg, var(--icon-color), #4361ee);
         }
 
+        .stats-card.text-info::before { background: linear-gradient(135deg, #36b9cc, #2e59d9); }
+        .stats-card.text-primary::before { background: linear-gradient(135deg, #4e73df, #2e59d9); }
+        .stats-card.text-danger::before { background: linear-gradient(135deg, #e74a3b, #be2617); }
+        .stats-card.text-success::before { background: linear-gradient(135deg, #1cc88a, #17a673); }
+        .stats-card.text-warning::before { background: linear-gradient(135deg, #f6c23e, #f4b619); }
+        .stats-card.text-secondary::before { background: linear-gradient(135deg, #858796, #6c757d); }
+
         .stats-icon {
-            font-size: 2.5rem;
-            margin-bottom: 15px;
+            font-size: 2rem;
+            margin-bottom: 5px;
             opacity: 0.8;
         }
 
-        .stats-content h6 {
-            font-size: 1.8rem;
+        .stats-content h3 {
+            font-size: 1.6rem;
             font-weight: 700;
             margin-bottom: 5px;
             color: var(--dark-text);
         }
 
         .stats-content p {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             color: #6c757d;
-            margin-bottom: 0;
+            margin-bottom: 5px;
             font-weight: 500;
         }
 
         .stats-detail {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: #495057;
             margin-top: 5px;
         }
 
-        /* Hover Logs */
+        .table th {
+            background: linear-gradient(135deg, var(--icon-color), #4361ee);
+            color: white;
+            font-weight: 600;
+            border: none;
+            padding: 15px 12px;
+        }
+
+        .table td {
+            padding: 12px;
+            border-color: rgba(0,0,0,0.05);
+            vertical-align: middle;
+        }
+
+        .table-responsive {
+            border-radius: var(--border-radius);
+            overflow: hidden;
+        }
+
+        .badge {
+            font-size: 0.85em;
+            border-radius: 8px;
+            padding: 6px 10px;
+        }
+
+        .btn {
+            border-radius: 8px;
+            font-weight: 500;
+            transition: var(--transition);
+            border: none;
+        }
+
+        .alert {
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .alert-success {
+            background-color: #d1edff;
+            color: #0c5460;
+            border-left: 4px solid #117a8b;
+        }
+
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+
+        .back-to-top {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color)) !important;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--box-shadow);
+            transition: var(--transition);
+        }
+
+        .back-to-top:hover {
+            transform: translateY(-3px);
+        }
+
+        h6.mb-4 {
+            color: var(--dark-text);
+            font-weight: 700;
+            font-size: 1.25rem;
+        }
+
+        hr {
+            opacity: 0.1;
+            margin: 1.5rem 0;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(92, 149, 233, 0.05);
+            transform: translateY(-1px);
+            transition: var(--transition);
+        }
+
+        /* Chart container */
+        .chart-container {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 25px;
+            margin-bottom: 20px;
+            height: 400px;
+        }
+
+        .chart-title {
+            color: var(--dark-text);
+            font-weight: 600;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        /* Hover logs */
         .hover-logs {
             display: none;
             position: absolute;
             background: white;
             border-radius: var(--border-radius);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
             padding: 15px;
-            z-index: 1000;
-            max-height: 300px;
+            z-index: 1050;
+            max-height: 280px;
             overflow-y: auto;
-            width: 280px;
+            width: 320px;
             border: 1px solid var(--accent-color);
         }
 
@@ -181,10 +480,8 @@ $logsResult = getTodaysLogs($db);
         }
 
         .hover-logs li {
-            padding: 8px 0;
+            padding: 10px 0;
             border-bottom: 1px solid var(--accent-color);
-            display: flex;
-            align-items: center;
         }
 
         .hover-logs li:last-child {
@@ -193,470 +490,265 @@ $logsResult = getTodaysLogs($db);
 
         .hover-logs img {
             border-radius: 50%;
-            width: 30px;
-            height: 30px;
+            width: 35px;
+            height: 35px;
             object-fit: cover;
             margin-right: 10px;
         }
 
-        .hover-logs .user-info {
-            flex: 1;
-        }
-
-        .hover-logs .user-info b {
-            display: block;
-            font-size: 0.9rem;
-            color: var(--dark-text);
-        }
-
-        .hover-logs .user-info small {
-            font-size: 0.8rem;
-            color: #6c757d;
-        }
-
-        /* Table Styling */
-        .table-container {
-            background: white;
-            border-radius: var(--border-radius);
-            box-shadow: var(--box-shadow);
-            overflow: hidden;
-            padding: 20px;
-        }
-
-        .table-container h2 {
-            color: var(--dark-text);
-            font-weight: 600;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-        }
-
-        .table-container h2 i {
-            margin-right: 10px;
-            color: var(--icon-color);
-        }
-
-        .table-responsive {
-            border-radius: var(--border-radius);
-            overflow: hidden;
-        }
-
-        .table {
-            margin-bottom: 0;
-            border-collapse: separate;
-            border-spacing: 0;
-        }
-
-        .table thead th {
-            background: linear-gradient(135deg, var(--icon-color), #4361ee);
-            color: white;
-            border: none;
-            padding: 15px;
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.85rem;
-            letter-spacing: 0.5px;
-        }
-
-        .table tbody tr {
-            transition: var(--transition);
-        }
-
-        .table tbody tr:hover {
-            background-color: var(--secondary-color);
-            transform: translateY(-1px);
-        }
-
-        .table tbody td {
-            padding: 12px 15px;
-            border-color: #e9ecef;
-            vertical-align: middle;
-            font-size: 0.9rem;
-        }
-
-        /* Chart Container */
-        .chart-container {
-            background: white;
-            border-radius: var(--border-radius);
-            box-shadow: var(--box-shadow);
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .chart-container h3 {
-            color: var(--dark-text);
-            font-weight: 600;
-            margin-bottom: 15px;
-            text-align: center;
-        }
-
-        /* Back to Top Button */
-        .back-to-top {
-            background: linear-gradient(135deg, var(--icon-color), #4361ee) !important;
-            border: none;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 15px rgba(92, 149, 233, 0.3);
-            transition: var(--transition);
-        }
-
-        .back-to-top:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(92, 149, 233, 0.4);
-        }
-
-        /* Section Headers */
-        .section-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid var(--accent-color);
-        }
-
-        .section-header h2 {
-            color: var(--dark-text);
-            font-weight: 600;
-            margin: 0;
-            display: flex;
-            align-items: center;
-        }
-
-        .section-header h2 i {
-            margin-right: 10px;
-            color: var(--icon-color);
-        }
-
-        /* Responsive Design */
+        /* Chart responsiveness */
         @media (max-width: 768px) {
-            .content {
-                padding: 10px;
-            }
-            
-            .stats-card {
+            .chart-container {
+                height: 300px;
                 padding: 15px;
             }
-            
-            .stats-icon {
-                font-size: 2rem;
-            }
-            
-            .stats-content h6 {
-                font-size: 1.5rem;
-            }
-            
-            .table-container {
-                padding: 15px;
-            }
-            
-            .hover-logs {
-                width: 250px;
-            }
-        }
-
-        @media (max-width: 576px) {
-            .stats-card {
-                margin-bottom: 15px;
-            }
-            
-            .table thead th {
-                padding: 10px 8px;
-                font-size: 0.8rem;
-            }
-            
-            .table tbody td {
-                padding: 8px 6px;
-                font-size: 0.85rem;
-            }
-        }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: var(--light-bg);
-            border-radius: 3px;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--icon-color);
-            border-radius: 3px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #4a7fe0;
         }
     </style>
 </head>
+
 <body>
-    <div class="container-fluid position-relative d-flex p-0" style="background: transparent;">
+    <div class="container-fluid position-relative bg-white d-flex p-0">
         <!-- Sidebar Start -->
         <?php include 'sidebar.php'; ?>
         <!-- Sidebar End -->
 
         <!-- Content Start -->
-        <div class="content" style="flex: 1;">
+        <div class="content">
             <?php include 'navbar.php'; ?>
 
-            <!-- Main Content Container -->
-            <div class="main-container">
-                <div class="container-fluid p-4">
+            <div class="container-fluid pt-4 px-4">
+                <div class="col-sm-12 col-xl-12">
+                    <div class="bg-light rounded h-100 p-4">
+                        <div class="row">
+                            <div class="col-12">
+                                <h6 class="mb-4"><i class="fas fa-tachometer-alt me-2"></i>Dashboard Overview</h6>
+                            </div>
+                        </div>
+                        <hr>
 
-                    <!-- Stats Cards -->
-                    <div class="row g-4 mb-4">
-                        <!-- Total Entrants Card -->
-                        <div class="col-sm-6 col-xl-4">
-                            <div class="stats-card">
-                                <div class="stats-icon text-info">
-                                    <i class="fa fa-users"></i>
-                                </div>
-                                <div class="stats-content">
-                                    <h6><?php echo $stats['total_entrants_today']; ?></h6>
-                                    <p>Total Entrants Today</p>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Visitors Card -->
-                        <div class="col-sm-6 col-xl-4">
-                            <div class="stats-card position-relative"
-                                onmouseover="showVisitorLogs()" onmouseout="hideVisitorLogs()">
-                                <div class="stats-icon text-primary">
-                                    <i class="fa fa-user-plus"></i>
-                                </div>
-                                <div class="stats-content">
-                                    <h6><?php echo $stats['visitors_today']; ?></h6>
-                                    <p>Visitors Today</p>
-                                </div>
-                                <div id="visitorLogs" class="hover-logs">
-                                    <ul class="list-unstyled">
-                                        <?php
-                                        $visitorLogs = getHoverLogs($db, 'visitors');
-                                        if (!empty($visitorLogs)) {
-                                            foreach ($visitorLogs as $row) {
-                                                echo '<li class="mb-2">';
-                                                echo '<div class="d-flex align-items-center">';
-                                                echo '<img src="../admin/uploads/' . sanitizeOutput($row["photo"]) . '" alt="Visitor Photo">';
-                                                echo '<div class="user-info">';
-                                                echo '<b>' . sanitizeOutput($row["full_name"]) . '</b>';
-                                                echo '<small>' . sanitizeOutput($row["department"]) . '</small>';
-                                                echo '</div>';
-                                                echo '</div>';
-                                                echo '</li>';
-                                            }
-                                        } else {
-                                            echo '<li><p class="text-center text-muted">No visitor logs found</p></li>';
-                                        }
-                                        ?>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Blocked Card -->
-                        <div class="col-sm-6 col-xl-4">
-                            <div class="stats-card position-relative"
-                                onmouseover="showBlockLogs()" onmouseout="hideBlockLogs()">
-                                <div class="stats-icon text-danger">
-                                    <i class="fa fa-ban"></i>
-                                </div>
-                                <div class="stats-content">
-                                    <h6><?php echo $stats['blocked']; ?></h6>
-                                    <p>Blocked Personnel</p>
-                                </div>
-                                <div id="blockLogs" class="hover-logs">
-                                    <ul class="list-unstyled">
-                                        <?php
-                                        $blockedLogs = getHoverLogs($db, 'blocked');
-                                        if (!empty($blockedLogs)) {
-                                            foreach ($blockedLogs as $row) {
-                                                echo '<li class="mb-2">';
-                                                echo '<div class="d-flex align-items-center">';
-                                                echo '<img src="../admin/uploads/' . sanitizeOutput($row["photo"]) . '" alt="Blocked Photo">';
-                                                echo '<div class="user-info">';
-                                                echo '<b>' . sanitizeOutput($row["full_name"]) . '</b>';
-                                                echo '<small>' . sanitizeOutput($row["role"]) . ' - ' . sanitizeOutput($row["department"]) . '</small>';
-                                                echo '</div>';
-                                                echo '</div>';
-                                                echo '</li>';
-                                            }
-                                        } else {
-                                            echo '<li><p class="text-center text-muted">No blocked personnel found</p></li>';
-                                        }
-                                        ?>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row g-4 mb-4">
-                        <!-- Students Card -->
-                        <div class="col-sm-6 col-xl-4">
-                            <div class="stats-card">
-                                <div class="stats-icon text-success">
-                                    <i class="fa fa-user-graduate"></i>
-                                </div>
-                                <div class="stats-content">
-                                    <h6><?php echo $stats['students_today']; ?></h6>
-                                    <p>Students Present</p>
-                                    <div class="stats-detail">
-                                        Total: <?php echo $stats['total_students']; ?>
+                        <!-- Statistics Cards -->
+                        <div class="row g-4 mb-4">
+                            <!-- Total Entrants -->
+                            <div class="col-sm-6 col-md-4 col-xl-2">
+                                <div class="stats-card text-info">
+                                    <div class="stats-icon">
+                                        <i class="fas fa-users"></i>
+                                    </div>
+                                    <div class="stats-content">
+                                        <h3><?php echo sanitizeOutput($stats['total_entrants_today']); ?></h3>
+                                        <p>Total Entrants Today</p>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    
-                    
-                        <!-- Instructors Card -->
-                        <div class="col-sm-6 col-xl-4">
-                            <div class="stats-card position-relative"
-                                onmouseover="showInstructorLogs()" onmouseout="hideInstructorLogs()">
-                                <div class="stats-icon text-warning">
-                                    <i class="fa fa-chalkboard-teacher"></i>
-                                </div>
-                                <div class="stats-content">
-                                    <h6><?php echo $stats['instructors_today']; ?></h6>
-                                    <p>Instructors Present</p>
-                                    <div class="stats-detail">
-                                        Total: <?php echo $stats['total_instructors']; ?>
+
+                            <!-- Visitors -->
+                            <div class="col-sm-6 col-md-4 col-xl-2">
+                                <div class="stats-card text-primary position-relative"
+                                    onmouseover="showVisitorLogs()" onmouseout="hideVisitorLogs()">
+                                    <div class="stats-icon">
+                                        <i class="fas fa-user-plus"></i>
                                     </div>
-                                </div>
-                                <div id="instructorLogs" class="hover-logs">
-                                    <ul class="list-unstyled">
-                                        <?php
-                                        $instructorLogs = getHoverLogs($db, 'instructors');
-                                        if (!empty($instructorLogs)) {
-                                            foreach ($instructorLogs as $row) {
-                                                echo '<li class="mb-2">';
-                                                echo '<div class="d-flex align-items-center">';
-                                                echo '<div class="user-info">';
-                                                echo '<b>' . sanitizeOutput($row["full_name"]) . '</b>';
-                                                echo '<small class="' . ($row['status'] == 'Present' ? 'text-success' : 'text-danger') . '">' . $row['status'] . '</small>';
-                                                if ($row['status'] == 'Present') {
-                                                    echo '<small>' . sanitizeOutput($row["department"]) . '</small>';
+                                    <div class="stats-content">
+                                        <h3><?php echo sanitizeOutput($stats['visitors_today']); ?></h3>
+                                        <p>Visitors Today</p>
+                                    </div>
+                                    <div id="visitorLogs" class="hover-logs">
+                                        <h6 class="mb-3"><i class="fas fa-users me-2"></i>Today's Visitors</h6>
+                                        <ul class="list-unstyled">
+                                            <?php
+                                            $visitorQuery = "SELECT full_name, contact_number as department FROM visitor_logs WHERE DATE(time_in) = CURDATE() ORDER BY time_in DESC LIMIT 10";
+                                            $visitorResult = $db->query($visitorQuery);
+                                            if ($visitorResult && $visitorResult->num_rows > 0) {
+                                                while ($row = $visitorResult->fetch_assoc()) {
+                                                    echo '<li class="mb-2">';
+                                                    echo '<div class="d-flex align-items-center">';
+                                                    echo '<img src="../admin/uploads/students/default.png" alt="Visitor Photo">';
+                                                    echo '<div>';
+                                                    echo '<b>' . sanitizeOutput($row["full_name"]) . '</b><br>';
+                                                    echo '<small class="text-muted">' . sanitizeOutput($row["department"]) . '</small>';
+                                                    echo '</div>';
+                                                    echo '</div>';
+                                                    echo '</li>';
                                                 }
-                                                echo '</div>';
-                                                echo '</div>';
-                                                echo '</li>';
+                                            } else {
+                                                echo '<li><div class="text-center text-muted py-3"><i class="fas fa-user-slash fa-2x mb-2"></i><br>No visitors today</div></li>';
                                             }
-                                        } else {
-                                            echo '<li><p class="text-center text-muted">No instructors found</p></li>';
-                                        }
-                                        ?>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Staff Card -->
-                        <div class="col-sm-6 col-xl-4">
-                            <div class="stats-card position-relative"
-                                onmouseover="showStaffLogs()" onmouseout="hideStaffLogs()">
-                                <div class="stats-icon text-secondary">
-                                    <i class="fa fa-users-cog"></i>
-                                </div>
-                                <div class="stats-content">
-                                    <h6><?php echo $stats['staff_today']; ?></h6>
-                                    <p>Staff Present</p>
-                                    <div class="stats-detail">
-                                        Total: <?php echo $stats['total_staff']; ?>
+                                            ?>
+                                        </ul>
                                     </div>
                                 </div>
-                                <div id="staffLogs" class="hover-logs">
-                                    <ul class="list-unstyled">
-                                        <?php
-                                        $staffLogs = getHoverLogs($db, 'staff');
-                                        if (!empty($staffLogs)) {
-                                            foreach ($staffLogs as $row) {
-                                                echo '<li class="mb-2">';
-                                                echo '<div class="d-flex align-items-center">';
-                                                echo '<img src="../admin/uploads/' . sanitizeOutput($row["photo"]) . '" alt="Staff Photo">';
-                                                echo '<div class="user-info">';
-                                                echo '<b>' . sanitizeOutput($row["full_name"]) . '</b>';
-                                                echo '<small class="' . ($row['status'] == 'Present' ? 'text-success' : 'text-danger') . '">' . $row['status'] . '</small>';
-                                                if ($row['status'] == 'Present') {
-                                                    echo '<small>' . sanitizeOutput($row["role"]) . ' - ' . sanitizeOutput($row["department"]) . '</small>';
+                            </div>
+
+                            <!-- Students -->
+                            <div class="col-sm-6 col-md-4 col-xl-2">
+                                <div class="stats-card text-success">
+                                    <div class="stats-icon">
+                                        <i class="fas fa-user-graduate"></i>
+                                    </div>
+                                    <div class="stats-content">
+                                        <h3><?php echo sanitizeOutput($stats['students_today']); ?></h3>
+                                        <p>Students Present</p>
+                                        <div class="stats-detail">
+                                            Total: <?php echo sanitizeOutput($stats['total_students']); ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Blocked -->
+                            <div class="col-sm-6 col-md-4 col-xl-2">
+                                <div class="stats-card text-danger position-relative"
+                                    onmouseover="showBlockLogs()" onmouseout="hideBlockLogs()">
+                                    <div class="stats-icon">
+                                        <i class="fas fa-ban"></i>
+                                    </div>
+                                    <div class="stats-content">
+                                        <h3><?php echo sanitizeOutput($stats['blocked']); ?></h3>
+                                        <p>Blocked Personnel</p>
+                                    </div>
+                                    <div id="blockLogs" class="hover-logs">
+                                        <h6 class="mb-3"><i class="fas fa-ban me-2"></i>Blocked Personnel</h6>
+                                        <ul class="list-unstyled">
+                                            <?php
+                                            $blockedQuery = "SELECT CONCAT(first_name, ' ', last_name) as full_name, department, 'Staff' as role FROM personell WHERE status = 'Block' LIMIT 10";
+                                            $blockedResult = $db->query($blockedQuery);
+                                            if ($blockedResult && $blockedResult->num_rows > 0) {
+                                                while ($row = $blockedResult->fetch_assoc()) {
+                                                    echo '<li class="mb-2">';
+                                                    echo '<div class="d-flex align-items-center">';
+                                                    echo '<img src="../admin/uploads/personell/default.png" alt="Blocked Photo">';
+                                                    echo '<div>';
+                                                    echo '<b>' . sanitizeOutput($row["full_name"]) . '</b><br>';
+                                                    echo '<small class="text-muted">' . sanitizeOutput($row["role"]) . ' - ' . sanitizeOutput($row["department"]) . '</small>';
+                                                    echo '</div>';
+                                                    echo '</div>';
+                                                    echo '</li>';
                                                 }
-                                                echo '</div>';
-                                                echo '</div>';
-                                                echo '</li>';
+                                            } else {
+                                                echo '<li><div class="text-center text-muted py-3"><i class="fas fa-check-circle fa-2x mb-2"></i><br>No blocked personnel</div></li>';
                                             }
-                                        } else {
-                                            echo '<li><p class="text-center text-muted">No staff found</p></li>';
-                                        }
-                                        ?>
-                                    </ul>
+                                            ?>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Instructors -->
+                            <div class="col-sm-6 col-md-4 col-xl-2">
+                                <div class="stats-card text-warning">
+                                    <div class="stats-icon">
+                                        <i class="fas fa-chalkboard-teacher"></i>
+                                    </div>
+                                    <div class="stats-content">
+                                        <h3><?php echo sanitizeOutput($stats['instructors_today']); ?></h3>
+                                        <p>Instructors Present</p>
+                                        <div class="stats-detail">
+                                            Total: <?php echo sanitizeOutput($stats['total_instructors']); ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Staff -->
+                            <div class="col-sm-6 col-md-4 col-xl-2">
+                                <div class="stats-card text-secondary">
+                                    <div class="stats-icon">
+                                        <i class="fas fa-users-cog"></i>
+                                    </div>
+                                    <div class="stats-content">
+                                        <h3><?php echo sanitizeOutput($stats['staff_today']); ?></h3>
+                                        <p>Staff Present</p>
+                                        <div class="stats-detail">
+                                            Total: <?php echo sanitizeOutput($stats['total_staff']); ?>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Today's Entrance Logs -->
-                    <div class="table-container">
-                        <div class="section-header">
-                            <h2><i class="fas fa-clock me-2"></i>Today's Entrance Logs</h2>
+                        <!-- Charts Section -->
+                        <div class="row g-4 mb-4">
+                            <!-- Weekly Entrants Line Chart -->
+                            <div class="col-lg-8">
+                                <div class="chart-container">
+                                    <h5 class="chart-title"><i class="fas fa-chart-line me-2"></i>Weekly Entrants Trend</h5>
+                                    <div id="weeklyEntrantsChart" style="height: 100%;"></div>
+                                </div>
+                            </div>
+
+                            <!-- Entrants Distribution Pie Chart -->
+                            <div class="col-lg-4">
+                                <div class="chart-container">
+                                    <h5 class="chart-title"><i class="fas fa-chart-pie me-2"></i>Entrants Distribution</h5>
+                                    <div id="entrantsDistributionChart" style="height: 100%;"></div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="table-responsive">
-                            <table class="table table-hover" id="myDataTable">
-                                <thead>
-                                    <tr>
-                                        <th scope="col">Full Name</th>
-                                        <th scope="col">Role</th>
-                                        <th scope="col">Location</th>
-                                        <th scope="col">Entrance</th>
-                                        <th scope="col">Exit</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php
-                                    if (!$logsResult) {
-                                        echo '<tr><td colspan="7" class="text-danger text-center">Error loading data: ' . mysqli_error($db) . '</td></tr>';
-                                    } else {
-                                        if (mysqli_num_rows($logsResult) > 0) {
-                                            while ($row = mysqli_fetch_array($logsResult)) { 
-                                                $timein = formatTime($row['time_in']);
-                                                $timeout = formatTime($row['time_out']);
-                                    ?>
-                                                <tr>
-                                                    <td><?php echo sanitizeOutput($row['full_name']); ?></td>
-                                                    <td><?php echo sanitizeOutput($row['role']); ?></td>
-                                                    <td><?php echo sanitizeOutput($row['location']); ?></td>
-                                                    <td><?php echo $timein; ?></td>
-                                                    <td><?php echo $timeout; ?></td>
-                                                </tr>
-                                    <?php 
-                                            }
-                                        } else {
-                                            echo '<tr><td colspan="7" class="text-center text-muted">No entrance logs found for today.</td></tr>';
-                                        }
-                                    }
-                                    ?>
-                                </tbody>
-                            </table>
+
+                        <!-- Today's Entrance Logs -->
+                        <div class="row g-4">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h5 class="card-title"><i class="fas fa-clock me-2"></i>Today's Entrance Logs</h5>
+                                        <hr>
+                                        <div class="table-responsive">
+                                            <table class="table table-hover" id="logsTable">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Full Name</th>
+                                                        <th>Role</th>
+                                                        <th>Location</th>
+                                                        <th>Entrance</th>
+                                                        <th>Exit</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <?php
+                                                    if (!$logsResult) {
+                                                        echo '<tr><td colspan="5" class="text-danger text-center py-4"><i class="fas fa-exclamation-triangle me-2"></i>Error loading entrance logs</td></tr>';
+                                                    } else {
+                                                        if ($logsResult->num_rows > 0) {
+                                                            while ($row = $logsResult->fetch_assoc()) { 
+                                                                $timein = formatTime($row['time_in']);
+                                                                $timeout = formatTime($row['time_out']);
+                                                    ?>
+                                                                <tr>
+                                                                    <td><?php echo sanitizeOutput($row['full_name']); ?></td>
+                                                                    <td><span class="badge bg-primary"><?php echo sanitizeOutput($row['role']); ?></span></td>
+                                                                    <td><?php echo sanitizeOutput($row['location']); ?></td>
+                                                                    <td><span class="badge bg-success"><?php echo $timein; ?></span></td>
+                                                                    <td><span class="badge bg-secondary"><?php echo $timeout; ?></span></td>
+                                                                </tr>
+                                                    <?php 
+                                                            }
+                                                        } else {
+                                                            echo '<tr><td colspan="5" class="text-center text-muted py-4"><i class="fas fa-inbox me-2"></i>No entrance logs found for today.</td></tr>';
+                                                        }
+                                                    }
+                                                    ?>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    <!-- Chart Section -->
-                    <div class="chart-container mb-4">
-                        <h3><i class="fas fa-chart-line me-2"></i>Weekly Entrants Overview</h3>
-                        <div id="myChart1" style="height: 300px;"></div>
                     </div>
                 </div>
             </div>
-            
+
             <?php include 'footer.php'; ?>
         </div>
-        <!-- Back to Top -->
-        <a href="#" class="btn btn-lg back-to-top"><i class="fas fa-arrow-up"></i></a>
+
+        <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top"><i class="fas fa-arrow-up"></i></a>
     </div>
 
     <!-- JavaScript Libraries -->
-    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script src="lib/chart/chart.min.js"></script>
     <script src="lib/easing/easing.min.js"></script>
     <script src="lib/waypoints/waypoints.min.js"></script>
@@ -668,46 +760,181 @@ $logsResult = getTodaysLogs($db);
     <!-- Template Javascript -->
     <script src="js/main.js"></script>
 
-    <!-- Hover Functions -->
-    <script>
-    function showVisitorLogs() {
-        document.getElementById('visitorLogs').style.display = 'block';
-    }
-    function hideVisitorLogs() {
-        document.getElementById('visitorLogs').style.display = 'none';
-    }
-    function showBlockLogs() {
-        document.getElementById('blockLogs').style.display = 'block';
-    }
-    function hideBlockLogs() {
-        document.getElementById('blockLogs').style.display = 'none';
-    }
-    function showInstructorLogs() {
-        document.getElementById('instructorLogs').style.display = 'block';
-    }
-    function hideInstructorLogs() {
-        document.getElementById('instructorLogs').style.display = 'none';
-    }
-    function showStaffLogs() {
-        document.getElementById('staffLogs').style.display = 'block';
-    }
-    function hideStaffLogs() {
-        document.getElementById('staffLogs').style.display = 'none';
-    }
+    <script type="text/javascript">
+        // Load Google Charts
+        google.charts.load('current', {'packages':['corechart']});
+        google.charts.setOnLoadCallback(drawCharts);
 
-    // Position hover logs dynamically
-    document.addEventListener('DOMContentLoaded', function() {
-        const cards = document.querySelectorAll('.stats-card');
-        cards.forEach(card => {
-            card.addEventListener('mouseover', function(e) {
-                const hoverLog = this.querySelector('.hover-logs');
-                if (hoverLog) {
-                    const rect = this.getBoundingClientRect();
-                    hoverLog.style.top = (rect.bottom + 10) + 'px';
-                    hoverLog.style.left = (rect.left) + 'px';
+        function drawCharts() {
+            drawWeeklyEntrantsChart();
+            drawEntrantsDistributionChart();
+        }
+
+        function drawWeeklyEntrantsChart() {
+            // Weekly entrants data from PHP
+            const weeklyData = <?php echo json_encode($weeklyData); ?>;
+            
+            const data = new google.visualization.DataTable();
+            data.addColumn('string', 'Day');
+            data.addColumn('number', 'Entrants');
+            
+            weeklyData.forEach(day => {
+                data.addRow([day.day, parseInt(day.total)]);
+            });
+
+            const options = {
+                title: '',
+                curveType: 'function',
+                legend: { position: 'bottom' },
+                colors: ['#5c95e9'],
+                backgroundColor: 'transparent',
+                chartArea: {width: '85%', height: '75%'},
+                hAxis: {
+                    title: 'Day',
+                    titleTextStyle: {color: '#5a5c69', bold: true},
+                    gridlines: { color: 'transparent' },
+                    baselineColor: '#5a5c69'
+                },
+                vAxis: {
+                    title: 'Number of Entrants',
+                    titleTextStyle: {color: '#5a5c69', bold: true},
+                    minValue: 0,
+                    gridlines: { color: '#f0f0f0' },
+                    baseline: 0,
+                    baselineColor: '#5a5c69',
+                    format: '0'
+                },
+                titleTextStyle: {
+                    color: '#5a5c69',
+                    fontSize: 16,
+                    bold: true
+                }
+            };
+
+            const chart = new google.visualization.LineChart(document.getElementById('weeklyEntrantsChart'));
+            chart.draw(data, options);
+        }
+
+        function drawEntrantsDistributionChart() {
+            // Entrants distribution data from PHP
+            const distributionData = <?php echo json_encode($entrantsDistribution); ?>;
+            
+            const data = new google.visualization.DataTable();
+            data.addColumn('string', 'Person Type');
+            data.addColumn('number', 'Count');
+            
+            distributionData.forEach(item => {
+                data.addRow([item.type, parseInt(item.total)]);
+            });
+
+            const options = {
+                title: '',
+                pieHole: 0.4,
+                backgroundColor: 'transparent',
+                chartArea: {width: '90%', height: '80%', top: 20, left: 0},
+                legend: {
+                    position: 'labeled',
+                    textStyle: {
+                        color: '#5a5c69',
+                        fontSize: 12
+                    }
+                },
+                pieSliceText: 'value',
+                tooltip: {
+                    text: 'percentage'
+                },
+                slices: {
+                    0: { color: '#5c95e9' },
+                    1: { color: '#4e73df' },
+                    2: { color: '#1cc88a' },
+                    3: { color: '#36b9cc' },
+                    4: { color: '#f6c23e' },
+                    5: { color: '#e74a3b' }
+                },
+                titleTextStyle: {
+                    color: '#5a5c69',
+                    fontSize: 16,
+                    bold: true
+                },
+                pieSliceTextStyle: {
+                    color: 'white',
+                    fontSize: 12,
+                    bold: true
+                }
+            };
+
+            const chart = new google.visualization.PieChart(document.getElementById('entrantsDistributionChart'));
+            chart.draw(data, options);
+        }
+
+        // Redraw charts on window resize
+        window.addEventListener('resize', function() {
+            drawCharts();
+        });
+    </script>
+
+    <script>
+    $(document).ready(function() {
+        // Initialize DataTable for logs
+        $('#logsTable').DataTable({
+            order: [[3, 'desc']],
+            pageLength: 10,
+            responsive: true
+        });
+
+        // Auto-refresh logs every 30 seconds
+        setInterval(function() {
+            $.ajax({
+                url: 'refresh_logs.php',
+                type: 'GET',
+                success: function(data) {
+                    // Update the logs table if needed
+                    console.log('Logs refreshed');
                 }
             });
-        });
+        }, 30000);
+    });
+
+    // Hover log functions
+    function showVisitorLogs() {
+        const hoverLog = document.getElementById('visitorLogs');
+        const card = hoverLog.parentElement;
+        const rect = card.getBoundingClientRect();
+        
+        hoverLog.style.top = (rect.bottom + 10) + 'px';
+        hoverLog.style.left = rect.left + 'px';
+        hoverLog.style.display = 'block';
+    }
+
+    function hideVisitorLogs() {
+        setTimeout(() => {
+            document.getElementById('visitorLogs').style.display = 'none';
+        }, 300);
+    }
+
+    function showBlockLogs() {
+        const hoverLog = document.getElementById('blockLogs');
+        const card = hoverLog.parentElement;
+        const rect = card.getBoundingClientRect();
+        
+        hoverLog.style.top = (rect.bottom + 10) + 'px';
+        hoverLog.style.left = rect.left + 'px';
+        hoverLog.style.display = 'block';
+    }
+
+    function hideBlockLogs() {
+        setTimeout(() => {
+            document.getElementById('blockLogs').style.display = 'none';
+        }, 300);
+    }
+
+    // Close hover logs when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.stats-card')) {
+            document.querySelectorAll('.hover-logs').forEach(log => {
+                log.style.display = 'none';
+            });
+        }
     });
     </script>
 </body>

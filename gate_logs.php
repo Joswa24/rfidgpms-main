@@ -44,7 +44,7 @@ function getPendingExits($db) {
 }
 
 // =====================================================================
-// HANDLE LOGOUT REQUEST
+// COMPLETE SESSION DESTRUCTION ON LOGOUT
 // =====================================================================
 if (isset($_POST['logout_request'])) {
     // Always allow logout, but track if there are pending exits for warning
@@ -60,14 +60,31 @@ if (isset($_POST['logout_request'])) {
         ];
     }
     
-    // Clear session and redirect
+    // COMPLETELY DESTROY ALL SESSION DATA
+    $_SESSION = array(); // Clear all session variables
+    
+    // If it's desired to kill the session, also delete the session cookie
+    if (ini_get("session.use_cookies")) {
+        $params = session_get_cookie_params();
+        setcookie(session_name(), '', time() - 42000,
+            $params["path"], $params["domain"],
+            $params["secure"], $params["httponly"]
+        );
+    }
+    
+    // Finally, destroy the session
     session_destroy();
+    
+    // Redirect to login page with cache prevention headers
+    header("Cache-Control: no-cache, no-store, must-revalidate");
+    header("Pragma: no-cache");
+    header("Expires: 0");
     header("Location: index.php");
     exit();
 }
 
 // =====================================================================
-// MAIN LOGS QUERY WITH IMPROVED ERROR HANDLING AND BETTER JOINS
+// IMPROVED MAIN LOGS QUERY WITH BETTER NAME RESOLUTION
 // =====================================================================
 
 // Get filters from GET with defaults
@@ -76,27 +93,26 @@ $type_filter = $_GET['type'] ?? 'all';
 $direction_filter = $_GET['direction'] ?? 'all';
 $search_term = $_GET['search'] ?? '';
 
-// Build the main query with better JOIN conditions
+// Build the main query with improved JOIN conditions
 $query = "SELECT 
     gl.*,
-    CASE 
-        WHEN gl.person_type = 'student' AND s.fullname IS NOT NULL THEN s.fullname
-        WHEN gl.person_type = 'instructor' AND i.fullname IS NOT NULL THEN i.fullname
-        WHEN gl.person_type = 'personell' AND CONCAT_WS(' ', p.first_name, p.middle_name, p.last_name) IS NOT NULL 
-            THEN CONCAT_WS(' ', p.first_name, p.middle_name, p.last_name)
-        WHEN gl.person_type = 'visitor' AND v.name IS NOT NULL THEN v.name
-        ELSE gl.name
-    END as full_name,
+    COALESCE(
+        s.fullname,
+        i.fullname,
+        CONCAT_WS(' ', p.first_name, COALESCE(p.middle_name, ''), p.last_name),
+        v.name,
+        gl.name
+    ) as full_name,
     gl.person_type,
     gl.direction,
     gl.department,
     gl.location,
     gl.created_at
 FROM gate_logs gl
-LEFT JOIN students s ON gl.person_type = 'student' AND gl.id_number = s.id_number
-LEFT JOIN instructor i ON gl.person_type = 'instructor' AND gl.id_number = i.id_number
-LEFT JOIN personell p ON gl.person_type = 'personell' AND gl.id_number = p.id_number
-LEFT JOIN visitor v ON gl.person_type = 'visitor' AND gl.id_number = v.id_number
+LEFT JOIN students s ON gl.person_type = 'student' AND gl.person_id = s.id
+LEFT JOIN instructor i ON gl.person_type = 'instructor' AND gl.person_id = i.id
+LEFT JOIN personell p ON gl.person_type = 'personell' AND gl.person_id = p.id
+LEFT JOIN visitor v ON gl.person_type = 'visitor' AND gl.person_id = v.id
 WHERE 1=1";
 
 $params = [];
@@ -163,8 +179,13 @@ try {
     $logs = $result->fetch_all(MYSQLI_ASSOC);
     $query_success = true;
     
-    // Debug: Log the number of records found
+    // Debug: Log the number of records found and sample data
     error_log("Gate logs query successful. Records found: " . count($logs));
+    
+    // Debug: Log first few records to see what's happening
+    if (count($logs) > 0) {
+        error_log("Sample log record: " . json_encode($logs[0]));
+    }
     
 } catch (Exception $e) {
     error_log("GATE LOGS ERROR: " . $e->getMessage());
@@ -203,78 +224,140 @@ if (empty($logs)) {
 }
 
 // =====================================================================
-// STATISTICS QUERIES
+// HELPER: GATE STATISTICS (single reusable function)
 // =====================================================================
+/**
+ * Get gate statistics for a given date and optional department/location.
+ *
+ * Returns array with keys:
+ *  - stats: ['total_entries','entries_in','entries_out','unique_people']
+ *  - breakdown: ['student'=>int,'instructor'=>int,...]
+ *  - pending_exits_count: int
+ */
+function getGateStats($db, $date, $department = null, $location = null) {
+    $response = [
+        'stats' => ['total_entries' => 0, 'entries_in' => 0, 'entries_out' => 0, 'unique_people' => 0],
+        'breakdown' => [],
+        'pending_exits_count' => 0
+    ];
+
+    try {
+        // Base filters
+        $where = "WHERE DATE(created_at) = ?";
+        $types = "s";
+        $params = [$date];
+
+        if (!empty($department)) {
+            $where .= " AND department = ?";
+            $types .= "s";
+            $params[] = $department;
+        }
+        if (!empty($location)) {
+            $where .= " AND location = ?";
+            $types .= "s";
+            $params[] = $location;
+        }
+
+        // Totals
+        $stats_sql = "SELECT 
+            COUNT(*) as total_entries,
+            SUM(CASE WHEN direction = 'IN' THEN 1 ELSE 0 END) as entries_in,
+            SUM(CASE WHEN direction = 'OUT' THEN 1 ELSE 0 END) as entries_out,
+            COUNT(DISTINCT id_number) as unique_people
+            FROM gate_logs
+            $where";
+        $stmt = $db->prepare($stats_sql);
+        if ($stmt) {
+            $stmt->bind_param($types, ...$params);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($res) {
+                $row = $res->fetch_assoc();
+                if ($row) $response['stats'] = $row;
+            }
+            $stmt->close();
+        }
+
+        // Breakdown by person_type
+        $break_sql = "SELECT person_type, COUNT(*) as cnt FROM gate_logs $where GROUP BY person_type";
+        $stmt = $db->prepare($break_sql);
+        if ($stmt) {
+            $stmt->bind_param($types, ...$params);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($res) {
+                while ($r = $res->fetch_assoc()) {
+                    $response['breakdown'][$r['person_type']] = (int)$r['cnt'];
+                }
+            }
+            $stmt->close();
+        }
+
+        // Pending exits count (entrants without corresponding exit same day)
+        // Build pending subquery filters similarly
+        $pending_where = "WHERE direction = 'IN' AND DATE(created_at) = ?";
+        $pending_types = "s";
+        $pending_params = [$date];
+        if (!empty($department)) {
+            $pending_where .= " AND department = ?";
+            $pending_types .= "s";
+            $pending_params[] = $department;
+        }
+        if (!empty($location)) {
+            $pending_where .= " AND location = ?";
+            $pending_types .= "s";
+            $pending_params[] = $location;
+        }
+
+        $pending_sql = "SELECT COUNT(*) as pending_exits
+            FROM gate_logs gl
+            $pending_where
+            AND gl.id_number NOT IN (
+                SELECT id_number FROM gate_logs WHERE direction = 'OUT' AND DATE(created_at) = ?" .
+                (empty($department) ? "" : " AND department = ?") .
+                (empty($location) ? "" : " AND location = ?") .
+            ")";
+        // Build pending bind params (IN filters then OUT filters)
+        $bindParams = [$date];
+        if (!empty($department)) $bindParams[] = $department;
+        if (!empty($location)) $bindParams[] = $location;
+        // then OUT filters
+        $bindParams[] = $date;
+        if (!empty($department)) $bindParams[] = $department;
+        if (!empty($location)) $bindParams[] = $location;
+
+        $types_for_pending = str_repeat('s', count($bindParams));
+        $stmt = $db->prepare($pending_sql);
+        if ($stmt) {
+            $stmt->bind_param($types_for_pending, ...$bindParams);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($res) {
+                $r = $res->fetch_assoc();
+                $response['pending_exits_count'] = (int)($r['pending_exits'] ?? 0);
+            }
+            $stmt->close();
+        }
+
+    } catch (Exception $e) {
+        error_log("getGateStats error: " . $e->getMessage());
+    }
+
+    return $response;
+}
+
+// ============================================
+// STATISTICS QUERIES (REPLACED BY HELPER)
+// ============================================
 $today = date('Y-m-d');
 
-// Today's statistics
-$stats = ['total_entries' => 0, 'entries_in' => 0, 'entries_out' => 0, 'unique_people' => 0];
-try {
-    $stats_query = "SELECT 
-        COUNT(*) as total_entries,
-        SUM(CASE WHEN direction = 'IN' THEN 1 ELSE 0 END) as entries_in,
-        SUM(CASE WHEN direction = 'OUT' THEN 1 ELSE 0 END) as entries_out,
-        COUNT(DISTINCT id_number) as unique_people
-    FROM gate_logs
-    WHERE DATE(created_at) = ?";
-    
-    $stats_stmt = $db->prepare($stats_query);
-    if ($stats_stmt) {
-        $stats_stmt->bind_param("s", $today);
-        $stats_stmt->execute();
-        $stats_result = $stats_stmt->get_result();
-        $stats = $stats_result ? $stats_result->fetch_assoc() : $stats;
-    }
-} catch (Exception $e) {
-    error_log("Stats query failed: " . $e->getMessage());
-}
+// Use helper to get stats, breakdown and pending count (no department/location filters for overview)
+$gateStats = getGateStats($db, $today);
+$stats = $gateStats['stats'] ?? ['total_entries' => 0, 'entries_in' => 0, 'entries_out' => 0, 'unique_people' => 0];
+$breakdown = $gateStats['breakdown'] ?? [];
+$pending_exits_count = $gateStats['pending_exits_count'] ?? 0;
 
-// Pending exits count
-$pending_exits_count = 0;
-try {
-    $pending_query = "SELECT COUNT(*) as pending_exits 
-                     FROM gate_logs 
-                     WHERE direction = 'IN' 
-                     AND DATE(created_at) = CURDATE() 
-                     AND id_number NOT IN (
-                         SELECT id_number 
-                         FROM gate_logs 
-                         WHERE direction = 'OUT' 
-                         AND DATE(created_at) = CURDATE()
-                     )";
-    
-    $pending_stmt = $db->prepare($pending_query);
-    if ($pending_stmt) {
-        $pending_stmt->execute();
-        $pending_result = $pending_stmt->get_result();
-        $pending_data = $pending_result ? $pending_result->fetch_assoc() : ['pending_exits' => 0];
-        $pending_exits_count = $pending_data['pending_exits'] ?? 0;
-    }
-} catch (Exception $e) {
-    error_log("Pending exits query failed: " . $e->getMessage());
-}
-
-// Breakdown by person type
-$breakdown = [];
-try {
-    $breakdown_query = "SELECT person_type, COUNT(*) as count FROM gate_logs WHERE DATE(created_at) = ? GROUP BY person_type";
-    $breakdown_stmt = $db->prepare($breakdown_query);
-    if ($breakdown_stmt) {
-        $breakdown_stmt->bind_param("s", $today);
-        $breakdown_stmt->execute();
-        $breakdown_result = $breakdown_stmt->get_result();
-        
-        if ($breakdown_result) {
-            while ($row = $breakdown_result->fetch_assoc()) {
-                $breakdown[$row['person_type']] = $row['count'];
-            }
-        }
-    }
-} catch (Exception $e) {
-    error_log("Breakdown query failed: " . $e->getMessage());
-}
-
-// Get pending exits details for the modal
+// Get pending exits details for the modal (function already exists)
 $pending_exits_details = getPendingExits($db);
 
 // Function to sanitize output
@@ -291,6 +374,18 @@ function getPersonTypeIcon($type) {
         'visitor' => 'user-clock'
     ];
     return $icons[$type] ?? 'user';
+}
+
+// Debug function to check name resolution
+function debugNameResolution($log) {
+    $debug_info = [
+        'id_number' => $log['id_number'] ?? 'N/A',
+        'person_type' => $log['person_type'] ?? 'N/A',
+        'person_id' => $log['person_id'] ?? 'N/A',
+        'full_name' => $log['full_name'] ?? 'N/A',
+        'gl_name' => $log['name'] ?? 'N/A'
+    ];
+    return $debug_info;
 }
 ?>
 
@@ -747,8 +842,6 @@ function getPersonTypeIcon($type) {
                                 <th><i class="fas fa-user me-1"></i>Name</th>
                                 <th><i class="fas fa-tag me-1"></i>Type</th>
                                 <th><i class="fas fa-arrows-alt-h me-1"></i>Direction</th>
-                                <th><i class="fas fa-building me-1"></i>Department</th>
-                                <th><i class="fas fa-map-marker-alt me-1"></i>Location</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -762,6 +855,10 @@ function getPersonTypeIcon($type) {
                                 </tr>
                             <?php else: ?>
                                 <?php foreach ($logs as $log): ?>
+                                    <?php 
+                                    // Debug: Check what's happening with names
+                                    $debug_info = debugNameResolution($log);
+                                    ?>
                                     <tr class="log-row">
                                         <td>
                                             <small class="text-muted">
@@ -777,7 +874,17 @@ function getPersonTypeIcon($type) {
                                             <code class="text-primary"><?php echo sanitizeOutput($log['id_number']); ?></code>
                                         </td>
                                         <td>
-                                            <strong><?php echo sanitizeOutput($log['full_name'] ?? 'N/A'); ?></strong>
+                                            <strong>
+                                                <?php 
+                                                // Use the resolved full_name, fallback to gl.name, then 'Unknown'
+                                                $displayName = !empty($log['full_name']) && $log['full_name'] !== 'N/A' 
+                                                    ? $log['full_name'] 
+                                                    : (!empty($log['name']) 
+                                                        ? $log['name'] 
+                                                        : 'Unknown Person');
+                                                echo sanitizeOutput($displayName);
+                                                ?>
+                                            </strong>
                                         </td>
                                         <td>
                                             <span class="badge badge-<?php echo $log['person_type']; ?> rounded-pill">
@@ -791,8 +898,6 @@ function getPersonTypeIcon($type) {
                                                 <?php echo $log['direction'] === 'IN' ? 'ENTRY' : 'EXIT'; ?>
                                             </span>
                                         </td>
-                                        <td><?php echo sanitizeOutput($log['department'] ?? 'N/A'); ?></td>
-                                        <td><?php echo sanitizeOutput($log['location'] ?? 'N/A'); ?></td>
                                     </tr>
                                 <?php endforeach; ?>
                             <?php endif; ?>

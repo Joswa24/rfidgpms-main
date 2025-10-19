@@ -77,8 +77,9 @@
                                     <div class="form-group">
                                         <label for="inputTime"><b>ID Number: </b></label>
                                         <input name="rfid_number" type="text" id="rfid_number" class="form-control" 
-                                               autocomplete="off" placeholder="0000-000" 
-                                               title="Enter ID in format: 0000-000" required>
+                                               autocomplete="off" placeholder="0000-0000" 
+                                               title="Enter ID in format: 0000-0000" required
+                                               maxlength="9">
                                         <span class="visitor-error" id="visitor-error" style="color:red;font-size:10px;"></span>
                                     </div>
                                 </div>
@@ -107,7 +108,8 @@
                                     <div class="form-group">
                                         <label for="inputTime"><b>ID Number: </b></label>
                                         <input name="rfid_number" type="text" id="erfid_number" class="form-control e-id" 
-                                               autocomplete="off" placeholder="0000-000">
+                                               autocomplete="off" placeholder="0000-0000"
+                                               maxlength="9">
                                         <span class="evisitor-error" id="evisitor-error" style="color:red;font-size:10px;"></span>
                                     </div>
                                 </div>
@@ -147,7 +149,7 @@
         // Initialize DataTable
         $('#myDataTable').DataTable({ order: [[0, 'desc']] });
 
-        // Format ID number input (0000-000 format)
+        // Format ID number input (0000-0000 format)
         document.getElementById('erfid_number').addEventListener('input', function(e) {
             formatIDNumber(this);
         });
@@ -156,12 +158,12 @@
             formatIDNumber(this);
         });
 
-        // Helper function to format ID number as 0000-000
+        // Helper function to format ID number as 0000-0000
         function formatIDNumber(input) {
             let value = input.value.replace(/[^\d]/g, '');
             
             if (value.length > 4) {
-                value = value.substring(0, 4) + '-' + value.substring(4, 7);
+                value = value.substring(0, 4) + '-' + value.substring(4, 8);
             }
             
             input.value = value;
@@ -174,9 +176,9 @@
             document.getElementById('visitorForm').reset();
         }
 
-        // Validate ID number format
+        // Validate ID number format (0000-0000)
         function validateIDNumber(idNumber) {
-            const idRegex = /^\d{4}-\d{3}$/;
+            const idRegex = /^\d{4}-\d{4}$/;
             return idRegex.test(idNumber);
         }
 
@@ -200,7 +202,7 @@
             }
             
             if (!validateIDNumber(rfid_number)) {
-                $errorField.text('ID must be in format: 0000-000');
+                $errorField.text('ID must be in format: 0000-0000');
                 $('#rfid_number').focus();
                 return;
             }
@@ -278,7 +280,7 @@
                 inputField.focus();
                 return;
             } else if (!validateIDNumber(rfid_number)) {
-                document.getElementById('evisitor-error').innerHTML = 'ID must be in format: 0000-000';
+                document.getElementById('evisitor-error').innerHTML = 'ID must be in format: 0000-0000';
                 inputField.focus();
                 return;
             } else {

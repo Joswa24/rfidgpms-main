@@ -247,6 +247,103 @@ function getPhotoForResponse($userData) {
 }
 
 // ============================================
+// VISITOR FUNCTIONS
+// ============================================
+
+/**
+ * Check if visitor card exists and needs registration
+ */
+function checkVisitorCard($db, $barcode) {
+    $visitor_query = "SELECT id, rfid_number FROM visitor WHERE rfid_number = ? LIMIT 1";
+    $stmt = $db->prepare($visitor_query);
+    $stmt->bind_param("s", $barcode);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result->num_rows > 0) {
+        $visitor = $result->fetch_assoc();
+        $stmt->close();
+        
+        // Check if this visitor has already registered today
+        $today = date('Y-m-d');
+        $existingLog = $db->prepare("SELECT id FROM visitor_logs WHERE visitor_id = ? AND DATE(time_in) = ?");
+        $existingLog->bind_param("ss", $barcode, $today);
+        $existingLog->execute();
+        $logResult = $existingLog->get_result();
+        
+        if ($logResult->num_rows === 0) {
+            // Visitor card found but no registration today - require info
+            return ['requires_visitor_info' => true, 'visitor_id' => $barcode];
+        }
+        $existingLog->close();
+    }
+    $stmt->close();
+    
+    return ['requires_visitor_info' => false];
+}
+
+/**
+ * Process visitor information submission
+ */
+function processVisitorSubmission($db, $postData) {
+    $visitor_id = $postData['visitor_id'] ?? '';
+    $full_name = $postData['full_name'] ?? '';
+    $contact_number = $postData['contact_number'] ?? '';
+    $purpose = $postData['purpose'] ?? '';
+    $person_visiting = $postData['person_visiting'] ?? '';
+    $department = $postData['department'] ?? 'Main';
+    $location = $postData['location'] ?? 'Gate';
+    
+    // Validate required fields
+    if (empty($visitor_id) || empty($full_name) || empty($contact_number) || empty($purpose)) {
+        return ['success' => false, 'message' => 'Missing required fields'];
+    }
+    
+    try {
+        // First, verify this is a valid visitor card
+        $checkStmt = $db->prepare("SELECT id FROM visitor WHERE rfid_number = ?");
+        $checkStmt->bind_param("s", $visitor_id);
+        $checkStmt->execute();
+        $checkResult = $checkStmt->get_result();
+        
+        if ($checkResult->num_rows === 0) {
+            return ['success' => false, 'message' => 'Invalid visitor card ID'];
+        }
+        
+        // Insert visitor record
+        $stmt = $db->prepare("INSERT INTO visitor_logs 
+                             (visitor_id, full_name, contact_number, purpose, person_visiting, department, location, time_in) 
+                             VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
+        $stmt->bind_param("sssssss", $visitor_id, $full_name, $contact_number, $purpose, $person_visiting, $department, $location);
+        
+        if ($stmt->execute()) {
+            // Also insert into gate_logs
+            insertIntoGateLogs($db, 'visitor', 0, $visitor_id, $full_name, 'IN', $department, $location, date('Y-m-d H:i:s'));
+            
+            return [
+                'success' => true, 
+                'message' => 'Visitor access recorded successfully',
+                'full_name' => $full_name,
+                'id_number' => $visitor_id,
+                'department' => $department,
+                'role' => 'Visitor',
+                'photo' => getPhotoForResponse(['person_type' => 'visitor']),
+                'time_in_out' => 'Time In Recorded',
+                'alert_class' => 'alert-success',
+                'voice' => "Welcome {$full_name}. Time in recorded."
+            ];
+        } else {
+            return ['success' => false, 'message' => 'Failed to record visitor access'];
+        }
+        
+        $stmt->close();
+        $checkStmt->close();
+    } catch (Exception $e) {
+        return ['success' => false, 'message' => 'Database error: ' . $e->getMessage()];
+    }
+}
+
+// ============================================
 // MAIN GATE PROCESSING LOGIC
 // ============================================
 
@@ -254,15 +351,34 @@ function getPhotoForResponse($userData) {
 $barcode = $_POST['barcode'] ?? '';
 $current_department = $_POST['department'] ?? 'Main';
 $current_location = $_POST['location'] ?? 'Gate';
+$check_visitor = isset($_POST['check_visitor']) ? true : false;
+$is_visitor_submission = isset($_POST['is_visitor_submission']) ? true : false;
+
 $today = date('Y-m-d');
 $now = date('Y-m-d H:i:s');
 $current_time = date('H:i:s');
 $period = (date('H') < 12) ? 'AM' : 'PM';
 
+// Handle visitor information submission
+if ($is_visitor_submission) {
+    $result = processVisitorSubmission($db, $_POST);
+    echo json_encode($result);
+    exit;
+}
+
 // Validate barcode
 if (empty($barcode)) {
     echo json_encode(['error' => 'Invalid barcode']);
     exit;
+}
+
+// Check if this is a visitor card that needs registration
+if ($check_visitor) {
+    $visitorCheck = checkVisitorCard($db, $barcode);
+    if ($visitorCheck['requires_visitor_info']) {
+        echo json_encode(['requires_visitor_info' => true, 'visitor_id' => $visitorCheck['visitor_id']]);
+        exit;
+    }
 }
 
 // Search for person in all tables (students, instructors, personnel, visitors)
@@ -319,9 +435,14 @@ if ($result->num_rows > 0) {
         } else {
             $stmt->close();
             
-            // Check visitors table
-            $visitor_query = "SELECT *, 'visitor' as person_type, name as full_name FROM visitor WHERE id_number = ? LIMIT 1";
-            $stmt = $db->prepare($visitor_query);
+            // Check visitor logs for existing visitor (time out)
+            $visitor_log_query = "SELECT *, 'visitor' as person_type, full_name 
+                                 FROM visitor_logs 
+                                 WHERE visitor_id = ? 
+                                 AND DATE(time_in) = CURDATE() 
+                                 AND time_out IS NULL 
+                                 ORDER BY time_in DESC LIMIT 1";
+            $stmt = $db->prepare($visitor_log_query);
             $stmt->bind_param("s", $barcode);
             $stmt->execute();
             $result = $stmt->get_result();
@@ -369,6 +490,12 @@ $specific_log_tables = [
 $specific_table = $specific_log_tables[$person_type];
 $fk_column = $person_type . '_id';
 
+// For visitors, we use visitor_logs table instead of visitor_glogs
+if ($person_type === 'visitor') {
+    processVisitorTimeOut($db, $person, $current_department, $current_location);
+    exit;
+}
+
 // Check existing logs in the SPECIFIC log table for today
 $specific_log_query = "SELECT * FROM $specific_table 
               WHERE $fk_column = ? 
@@ -382,6 +509,13 @@ $specific_log_stmt->bind_param("isss", $person['id'], $today, $current_departmen
 $specific_log_stmt->execute();
 $specific_log_result = $specific_log_stmt->get_result();
 $existing_specific_log = $specific_log_result->fetch_assoc();
+
+// Track attendance type and times for consistent response format
+$attendanceType = 'time_in';
+$actualTimeIn = $now;
+$actualTimeOut = null;
+$displayTimeIn = date('h:i A', strtotime($current_time));
+$displayTimeOut = null;
 
 // Process attendance logic
 if ($existing_specific_log) {
@@ -403,7 +537,11 @@ if ($existing_specific_log) {
             // Also update gate_logs table
             updateGateLogs($db, $person_type, $person['id'], $person['id_number'], $person['full_name'], 'OUT', $current_department, $current_location, $now);
             
-            $response['time_out'] = date('h:i A', strtotime($current_time));
+            $attendanceType = 'time_out';
+            $actualTimeOut = $now;
+            $displayTimeOut = date('h:i A', strtotime($current_time));
+            
+            $response['time_out'] = $displayTimeOut;
             $response['time_in'] = !empty($existing_specific_log['time_in']) ? date('h:i A', strtotime($existing_specific_log['time_in'])) : 'N/A';
             $response['time_in_out'] = 'Time Out Recorded';
             $response['alert_class'] = 'alert-warning';
@@ -423,7 +561,7 @@ if ($existing_specific_log) {
             // Also update gate_logs table
             updateGateLogs($db, $person_type, $person['id'], $person['id_number'], $person['full_name'], 'IN', $current_department, $current_location, $now);
             
-            $response['time_in'] = date('h:i A', strtotime($current_time));
+            $response['time_in'] = $displayTimeIn;
             $response['time_in_out'] = 'Time In Recorded';
             $response['alert_class'] = 'alert-success';
             $response['voice'] = "Time in recorded for {$person['full_name']}";
@@ -456,7 +594,7 @@ if ($existing_specific_log) {
         // Also insert into gate_logs table
         insertIntoGateLogs($db, $person_type, $person['id'], $person['id_number'], $person['full_name'], 'IN', $current_department, $current_location, $now);
         
-        $response['time_in'] = date('h:i A', strtotime($current_time));
+        $response['time_in'] = $displayTimeIn;
         $response['time_in_out'] = 'Time In Recorded';
         $response['alert_class'] = 'alert-success';
         $response['voice'] = "Time in recorded for {$person['full_name']}";
@@ -470,9 +608,26 @@ if ($existing_specific_log) {
 // Close statements
 $specific_log_stmt->close();
 
+// ============================================
+// ENSURE CONSISTENT RESPONSE FORMAT
+// ============================================
+
+// Ensure consistent response format
+$response = array_merge($response, [
+    'attendance_type' => $attendanceType,
+    'status' => isset($response['error']) ? 'error' : 'success',
+    'actual_time_in' => $actualTimeIn,
+    'actual_time_out' => $actualTimeOut,
+    'display_time_in' => $displayTimeIn,
+    'display_time_out' => $displayTimeOut
+]);
+
 // Final response formatting
 if (isset($response['error'])) {
     $response['time_in_out'] = $response['error'];
+    $response['alert_class'] = 'alert-danger';
+} else {
+    $response['alert_class'] = $response['alert_class'] ?? 'alert-success';
 }
 
 echo json_encode($response);
@@ -481,6 +636,212 @@ exit;
 // ============================================
 // HELPER FUNCTIONS
 // ============================================
+
+/**
+ * Process visitor time out
+ */
+function processVisitorTimeOut($db, $visitor, $department, $location) {
+    $updateStmt = $db->prepare("UPDATE visitor_logs SET time_out = NOW() WHERE visitor_id = ? AND DATE(time_in) = CURDATE() AND time_out IS NULL");
+    $updateStmt->bind_param("s", $visitor['visitor_id']);
+    
+    if ($updateStmt->execute()) {
+        // Also update gate_logs
+        updateGateLogs($db, 'visitor', 0, $visitor['visitor_id'], $visitor['full_name'], 'OUT', $department, $location, date('Y-m-d H:i:s'));
+        
+        echo json_encode([
+            'full_name' => $visitor['full_name'],
+            'id_number' => $visitor['visitor_id'],
+            'department' => $department,
+            'role' => 'Visitor',
+            'photo' => getPhotoForResponse(['person_type' => 'visitor']),
+            'time_in_out' => 'Time Out Recorded',
+            'alert_class' => 'alert-warning',
+            'voice' => "Time out recorded for {$visitor['full_name']}",
+            'time_out' => date('h:i A'),
+            'time_in' => !empty($visitor['time_in']) ? date('h:i A', strtotime($visitor['time_in'])) : 'N/A'
+        ]);
+    } else {
+        echo json_encode(['error' => 'Failed to record time out']);
+    }
+    $updateStmt->close();
+}
+
+/**
+ * Ensure gate_stats table exists (will be created automatically if missing)
+ */
+function ensureGateStatsTableExists($db) {
+    $createSql = "
+    CREATE TABLE IF NOT EXISTS gate_stats (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        stat_date DATE NOT NULL,
+        department VARCHAR(255) NOT NULL,
+        location VARCHAR(255) NOT NULL,
+        students_in INT DEFAULT 0,
+        students_out INT DEFAULT 0,
+        instructors_in INT DEFAULT 0,
+        instructors_out INT DEFAULT 0,
+        personnel_in INT DEFAULT 0,
+        personnel_out INT DEFAULT 0,
+        visitors_in INT DEFAULT 0,
+        visitors_out INT DEFAULT 0,
+        total_in INT DEFAULT 0,
+        total_out INT DEFAULT 0,
+        hourly_counts TEXT DEFAULT '{}',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_stat (stat_date, department, location)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    ";
+    $db->query($createSql);
+}
+
+/**
+ * Record statistics for a gate event.
+ */
+function recordGateStats($db, $person_type, $action, $department, $location, $date, $time) {
+    // Safety defaults
+    $department = $department ?: 'N/A';
+    $location = $location ?: 'Gate';
+    $date = $date ?: date('Y-m-d');
+    $time = $time ?: date('H:i:s');
+
+    // Ensure table exists
+    ensureGateStatsTableExists($db);
+
+    // Map person_type and action to column names
+    $typeKey = strtolower($person_type);
+    $colMap = [
+        'student' => ['IN' => 'students_in', 'OUT' => 'students_out'],
+        'instructor' => ['IN' => 'instructors_in', 'OUT' => 'instructors_out'],
+        'personell' => ['IN' => 'personnel_in', 'OUT' => 'personnel_out'],
+        'personnel' => ['IN' => 'personnel_in', 'OUT' => 'personnel_out'],
+        'visitor' => ['IN' => 'visitors_in', 'OUT' => 'visitors_out']
+    ];
+
+    $colToInc = $colMap[$typeKey][$action] ?? null;
+    $totalCol = ($action === 'IN') ? 'total_in' : 'total_out';
+
+    // Get hour key for hourly_counts
+    $hour = date('H', strtotime($time));
+
+    // Start transaction to prevent race conditions
+    $db->begin_transaction();
+
+    try {
+        // Try to select existing row
+        $selectSql = "SELECT id, hourly_counts FROM gate_stats WHERE stat_date = ? AND department = ? AND location = ? FOR UPDATE";
+        $selectStmt = $db->prepare($selectSql);
+        $selectStmt->bind_param("sss", $date, $department, $location);
+        $selectStmt->execute();
+        $res = $selectStmt->get_result();
+
+        if ($res && $res->num_rows > 0) {
+            $row = $res->fetch_assoc();
+            $id = $row['id'];
+            $hourlyCounts = json_decode($row['hourly_counts'] ?: '{}', true);
+            if (!is_array($hourlyCounts)) $hourlyCounts = [];
+
+            // increment hour counter
+            $hourlyCounts[$hour] = ($hourlyCounts[$hour] ?? 0) + 1;
+
+            // Build UPDATE dynamically
+            $updates = [];
+            $params = [];
+            $types = '';
+
+            if ($colToInc) {
+                $updates[] = "$colToInc = $colToInc + 1";
+            }
+            $updates[] = "$totalCol = $totalCol + 1";
+
+            // prepare hourly_counts update
+            $hourly_json = json_encode($hourlyCounts);
+            $updates[] = "hourly_counts = ?";
+            $params[] = $hourly_json;
+            $types .= 's';
+
+            $updatesSql = implode(", ", $updates) . ", updated_at = NOW()";
+            $updateSql = "UPDATE gate_stats SET $updatesSql WHERE id = ?";
+
+            $updateStmt = $db->prepare($updateSql);
+            if ($updateStmt === false) {
+                throw new Exception("Prepare failed: " . $db->error);
+            }
+
+            // bind params (hourly_json, id) or just id if no hourly (but we always have hourly)
+            $params[] = $id;
+            $types .= 'i';
+            $updateStmt->bind_param($types, ...$params);
+            $updateStmt->execute();
+            $updateStmt->close();
+        } else {
+            // Insert new stats row
+            $hourlyCounts = [$hour => 1];
+            $hourly_json = json_encode($hourlyCounts);
+
+            // default counts
+            $students_in = $students_out = $instructors_in = $instructors_out = 0;
+            $personnel_in = $personnel_out = $visitors_in = $visitors_out = 0;
+            $total_in = $total_out = 0;
+
+            switch ($typeKey) {
+                case 'student':
+                    if ($action === 'IN') $students_in = 1;
+                    else $students_out = 1;
+                    break;
+                case 'instructor':
+                    if ($action === 'IN') $instructors_in = 1;
+                    else $instructors_out = 1;
+                    break;
+                case 'personell':
+                case 'personnel':
+                    if ($action === 'IN') $personnel_in = 1;
+                    else $personnel_out = 1;
+                    break;
+                case 'visitor':
+                    if ($action === 'IN') $visitors_in = 1;
+                    else $visitors_out = 1;
+                    break;
+                default:
+                    if ($action === 'IN') $total_in = 1;
+                    else $total_out = 1;
+                    break;
+            }
+
+            if ($action === 'IN') $total_in = ($total_in + $students_in + $instructors_in + $personnel_in + $visitors_in);
+            else $total_out = ($total_out + $students_out + $instructors_out + $personnel_out + $visitors_out);
+
+            $insertSql = "INSERT INTO gate_stats
+                (stat_date, department, location,
+                 students_in, students_out, instructors_in, instructors_out,
+                 personnel_in, personnel_out, visitors_in, visitors_out,
+                 total_in, total_out, hourly_counts, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
+
+            $insertStmt = $db->prepare($insertSql);
+            if ($insertStmt === false) {
+                throw new Exception("Prepare failed: " . $db->error);
+            }
+
+            $insertStmt->bind_param(
+                "sssiiiiiiiiiss",
+                $date, $department, $location,
+                $students_in, $students_out, $instructors_in, $instructors_out,
+                $personnel_in, $personnel_out, $visitors_in, $visitors_out,
+                $total_in, $total_out, $hourly_json
+            );
+            $insertStmt->execute();
+            $insertStmt->close();
+        }
+
+        $selectStmt->close();
+        $db->commit();
+    } catch (Exception $e) {
+        $db->rollback();
+        // Log the error but do not break the main flow
+        error_log("recordGateStats error: " . $e->getMessage());
+    }
+}
 
 /**
  * Function to update gate_logs for OUT action
@@ -511,6 +872,9 @@ function updateGateLogs($db, $person_type, $person_id, $id_number, $full_name, $
         $stmt->bind_param("sssi", $time_out, $direction, $direction, $existing_gate_log['id']);
         $stmt->execute();
         $stmt->close();
+
+        // Record stats for OUT
+        recordGateStats($db, $person_type, $action, $department, $location, $date, $time);
     } else {
         // Insert new record
         insertIntoGateLogs($db, $person_type, $person_id, $id_number, $full_name, $action, $department, $location, $now);
@@ -554,5 +918,8 @@ function insertIntoGateLogs($db, $person_type, $person_id, $id_number, $full_nam
         $stmt->execute();
         $stmt->close();
     }
+
+    // Record stats for IN/OUT
+    recordGateStats($db, $person_type, $action, $department, $location, $date, $time);
 }
 ?>

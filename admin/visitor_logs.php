@@ -1,278 +1,431 @@
 <?php
-//include 'auth.php'; // Include session validation
-?>
-<?php
-// Start session if not already started
 session_start();
-
 include 'header.php';
-
-// Initialize database connection
 include '../connection.php';
-
-// Check if form is submitted
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Convert posted dates to yyyy-mm-dd format
-    
-    $date1 = date('Y-m-d', strtotime($_POST['date1']));
-    $date2 = date('Y-m-d', strtotime($_POST['date2']));
-
-    // SQL query to fetch filtered data
-    $sql = "SELECT * FROM visitor_logs WHERE date_logged BETWEEN '$date1' AND '$date2' ORDER BY date_logged DESC";
-    $result = mysqli_query($db, $sql);
-
-    // Check if query was successful
-    if ($result) {
-        // Initialize array to store filtered data
-        $filtered_data = [];
-
-        // Fetch data row by row
-        while ($row = mysqli_fetch_assoc($result)) {
-            $filtered_data[] = $row; // Store row in array
-        }
-
-        // Store filtered data in session
-        $_SESSION['filtered_data'] = $filtered_data;
-    } else {
-        echo "Error: " . mysqli_error($db);
-    }
-}
-else {
-// Fetch all records from the database if no filtering is applied
-$sql = "SELECT * FROM visitor_logs ORDER BY date_logged DESC";
-$result = mysqli_query($db, $sql);
-if ($result) {
-    // Initialize array to store filtered data
-    $filtered_data = [];
-
-    // Fetch data row by row
-    while ($row = mysqli_fetch_assoc($result)) {
-        $filtered_data[] = $row; // Store row in array
-    }
-
-    // Store filtered data in session
-    $_SESSION['filtered_data'] = $filtered_data;
-} else {
-    echo "Error: " . mysqli_error($db);
-}
-}
-// Close database connection
-mysqli_close($db);
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
-<?php include 'header.php'; ?>
-
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visitor Logs</title>
+    <style>
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        .status-in {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status-out {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .table-responsive {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .action-buttons {
+            white-space: nowrap;
+        }
+        .photo-thumbnail {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+    </style>
+</head>
 <body>
     <div class="container-fluid position-relative bg-white d-flex p-0">
         <?php include 'sidebar.php'; ?>
         
         <div class="content">
-        <?php
-		include 'navbar.php';
-		?>
+            <?php include 'navbar.php'; ?>
 
             <div class="container-fluid pt-4 px-4">
                 <div class="col-sm-12 col-xl-12">
                     <div class="bg-light rounded h-100 p-4">
                         <div class="row">
                             <div class="col-9">
-                                <h6 class="mb-4">Visitor Logs</h6>
+                                <h6 class="mb-4">Visitor Logs Management</h6>
+                            </div>
+                            <div class="col-3 text-end">
+                                <button type="button" class="btn btn-success" onclick="exportToExcel()">
+                                    <i class="fas fa-file-excel me-2"></i>Export Excel
+                                </button>
                             </div>
                         </div>
-                        <br>
-                        <form id="filterForm" method="POST">
-                        <div class="row">
 
+                        <!-- Filter Form -->
+                        <form id="filterForm" method="GET" class="mb-4">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label for="date_from" class="form-label">Date From</label>
+                                    <input type="date" class="form-control" id="date_from" name="date_from" 
+                                           value="<?php echo $_GET['date_from'] ?? ''; ?>">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="date_to" class="form-label">Date To</label>
+                                    <input type="date" class="form-control" id="date_to" name="date_to"
+                                           value="<?php echo $_GET['date_to'] ?? ''; ?>">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="visitor_id" class="form-label">Visitor ID</label>
+                                    <input type="text" class="form-control" id="visitor_id" name="visitor_id"
+                                           value="<?php echo $_GET['visitor_id'] ?? ''; ?>" placeholder="Search by ID">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="status" class="form-label">Status</label>
+                                    <select class="form-select" id="status" name="status">
+                                        <option value="">All Status</option>
+                                        <option value="in" <?php echo (($_GET['status'] ?? '') == 'in') ? 'selected' : ''; ?>>Time In Only</option>
+                                        <option value="out" <?php echo (($_GET['status'] ?? '') == 'out') ? 'selected' : ''; ?>>Time Out Only</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-12 mt-3">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-search me-2"></i>Filter
+                                    </button>
+                                    <button type="button" class="btn btn-secondary" onclick="resetFilters()">
+                                        <i class="fas fa-sync me-2"></i>Reset
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
 
-                        
-
-        <div class="col-lg-3">
-            <label>Date:</label>
-            <input type="text" class="form-control" name="date1" placeholder="Start" id="date1" autocomplete="off" />
-        </div>
-        <div class="col-lg-3">
-            <label>To</label>
-            <input type="text" class="form-control" name="date2" placeholder="End" id="date2" autocomplete="off" />
-        </div>
-        <div class="col-lg-3 mt-4">
-            <label></label>
-            <button type="submit" class="btn btn-primary" id="btn_search"><i class="fa fa-search"></i> Filter</button>
-            <button type="button" id="reset" class="btn btn-warning"><i class="fa fa-sync"></i> Reset</button>
-        </div>
-
-
-                            <div class="col-lg-3 mt-4" style="text-align:right;">
-                                <label></label>
-                                <button type="button" class="btn btn-success" id="btn_print"><i class="fa fa-print"> Print</i></button> 
-            
-                            </div></form>
-                        </div>
-                        <hr>
                         <div class="table-responsive">
-                            <table class="table table-border" id="dataTable">
-                                <thead>
+                            <table class="table table-striped table-hover" id="visitorLogsTable">
+                                <thead class="table-dark sticky-top">
                                     <tr>
+                                        <th>#</th>
+                                        <th>Visitor ID</th>
                                         <th>Photo</th>
                                         <th>Full Name</th>
-                                        <th>Address</th>
+                                        <th>Contact Number</th>
+                                        <th>Purpose</th>
+                                        <th>Person Visiting</th>
+                                        <th>Department</th>
+                                        <th>Location</th>
                                         <th>Time In</th>
                                         <th>Time Out</th>
-                                        <th>Log Date</th>
-                                        <th>Purpose</th>
+                                        <th>Duration</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody id="load_data">
-    <?php
-    include '../connection.php';
+                                <tbody>
+                                    <?php
+                                    // Build query with filters
+                                    $whereConditions = [];
+                                    $params = [];
+                                    $types = '';
 
-    // Check if date1 and date2 are set (for initial load they might not be set)
-    if (isset($_POST['date1']) && isset($_POST['date2'])) {
-        // Convert posted dates to yyyy-mm-dd format
-        $date1 = date('Y-m-d', strtotime($_POST['date1']));
-        $date2 = date('Y-m-d', strtotime($_POST['date2']));
+                                    if (!empty($_GET['date_from'])) {
+                                        $whereConditions[] = "DATE(time_in) >= ?";
+                                        $params[] = $_GET['date_from'];
+                                        $types .= 's';
+                                    }
 
-        // SQL query to fetch filtered data
-        $sql = "SELECT * FROM visitor_logs WHERE date_logged BETWEEN '$date1' AND '$date2' ORDER BY date_logged DESC";
-        $result = mysqli_query($db, $sql);
+                                    if (!empty($_GET['date_to'])) {
+                                        $whereConditions[] = "DATE(time_in) <= ?";
+                                        $params[] = $_GET['date_to'];
+                                        $types .= 's';
+                                    }
 
-        // Check if query was successful
-        if ($result) {
-            // Start generating HTML output
-            $output = '';
+                                    if (!empty($_GET['visitor_id'])) {
+                                        $whereConditions[] = "visitor_id LIKE ?";
+                                        $params[] = '%' . $_GET['visitor_id'] . '%';
+                                        $types .= 's';
+                                    }
 
-            // Fetch data row by row
-            while ($row = mysqli_fetch_array($result)) {
-                $output .=  '<tr>';
-                $output .=  '<td><center><img src="uploads/' . $row['photo'] . '" width="50px" height="50px"></center></td>';
-                $output .= '<td>' . $row['name'] . '</td>';
-            
-                $output .= '<td>' . $row['address'] . '</td>';
-               
-                $output .= '<td>' . date("h:i A", strtotime($row['time_in'])) . '</td>';
+                                    if (!empty($_GET['status'])) {
+                                        if ($_GET['status'] == 'in') {
+                                            $whereConditions[] = "time_out IS NULL";
+                                        } elseif ($_GET['status'] == 'out') {
+                                            $whereConditions[] = "time_out IS NOT NULL";
+                                        }
+                                    }
 
-                if ($row['time_out'] === '?' || $row['time_out'] === '' || is_null($row['time_out'])) {
-                    $output .= '<td>' . $row['time_out'] . '</td>'; // Display as is
-                } else {
-                    $output .= '<td>' . date("h:i A", strtotime($row['time_out'])) . '</td>';
-                }
-                $output .= '<td>' . $row['date_logged'] . '</td>';
-                $output .= '<td>' . $row['purpose'] . '</td>';
-                $output .= '</tr>';
-            }
+                                    $whereClause = '';
+                                    if (!empty($whereConditions)) {
+                                        $whereClause = "WHERE " . implode(' AND ', $whereConditions);
+                                    }
 
-            // Output the generated HTML
-            echo $output;
-        } else {
-            // Error handling if query fails
-            echo '<tr><td colspan="9">No records found.</td></tr>';
-        }
+                                    $query = "SELECT * FROM visitor_logs $whereClause ORDER BY time_in DESC";
+                                    $stmt = $db->prepare($query);
 
-        // Close database connection
-        mysqli_close($db);
-    } else {
-        // If date1 and date2 are not set, fetch all records
-        $results = mysqli_query($db, "SELECT * FROM visitor_logs ORDER BY date_logged DESC");
+                                    if (!empty($params)) {
+                                        $stmt->bind_param($types, ...$params);
+                                    }
 
-        // Loop through all records and generate HTML output
-        while ($row = mysqli_fetch_array($results)) {
-            echo '<tr>';
-            echo '<td><center><img src="uploads/' . $row['photo'] . '" width="50px" height="50px"></center></td>';
-            echo '<td>' . $row['name'] . '</td>';
-            echo '<td>' . $row['address'] . '</td>';
-            echo '<td>' . date("h:i A", strtotime($row['time_in']))  . '</td>';
-            if ($row['time_out'] === '?' || $row['time_out'] === '' || is_null($row['time_out'])) {
-                echo'<td>' . $row['time_out'] . '</td>'; // Display as is
-            } else {
-                echo'<td>' . date("h:i A", strtotime($row['time_out'])) . '</td>';
-            }
-            echo '<td>' . $row['date_logged'] . '</td>';
-            echo '<td>' . $row['purpose'] . '</td>';
-            echo '</tr>';
-        }
+                                    $stmt->execute();
+                                    $result = $stmt->get_result();
 
-        // Close database connection
-        mysqli_close($db);
-    }
-    ?>
-</tbody>
+                                    $counter = 1;
+                                    if ($result->num_rows > 0) {
+                                        while ($row = $result->fetch_assoc()) {
+                                            $status = $row['time_out'] ? 'out' : 'in';
+                                            $statusText = $row['time_out'] ? 'Checked Out' : 'Checked In';
+                                            $statusClass = $row['time_out'] ? 'status-out' : 'status-in';
 
+                                            // Calculate duration
+                                            $duration = '';
+                                            if ($row['time_out']) {
+                                                $timeIn = new DateTime($row['time_in']);
+                                                $timeOut = new DateTime($row['time_out']);
+                                                $interval = $timeIn->diff($timeOut);
+                                                $duration = $interval->format('%hh %im');
+                                            }
+
+                                            // Format times
+                                            $timeInFormatted = date('M j, Y g:i A', strtotime($row['time_in']));
+                                            $timeOutFormatted = $row['time_out'] ? 
+                                                date('M j, Y g:i A', strtotime($row['time_out'])) : '-';
+                                    ?>
+                                            <tr>
+                                                <td><?php echo $counter++; ?></td>
+                                                <td><strong><?php echo htmlspecialchars($row['visitor_id']); ?></strong></td>
+                                                <td>
+                                                    <?php if (!empty($row['photo'])): ?>
+                                                        <img src="../admin/uploads/visitors/<?php echo $row['photo']; ?>" 
+                                                             alt="Visitor Photo" class="photo-thumbnail"
+                                                             onerror="this.src='../admin/uploads/students/default.png'">
+                                                    <?php else: ?>
+                                                        <img src="../admin/uploads/students/default.png" 
+                                                             alt="Default Photo" class="photo-thumbnail">
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td><?php echo htmlspecialchars($row['full_name']); ?></td>
+                                                <td><?php echo htmlspecialchars($row['contact_number']); ?></td>
+                                                <td><?php echo htmlspecialchars($row['purpose']); ?></td>
+                                                <td><?php echo htmlspecialchars($row['person_visiting'] ?? 'N/A'); ?></td>
+                                                <td><?php echo htmlspecialchars($row['department']); ?></td>
+                                                <td><?php echo htmlspecialchars($row['location']); ?></td>
+                                                <td><?php echo $timeInFormatted; ?></td>
+                                                <td><?php echo $timeOutFormatted; ?></td>
+                                                <td><?php echo $duration; ?></td>
+                                                <td>
+                                                    <span class="status-badge <?php echo $statusClass; ?>">
+                                                        <?php echo $statusText; ?>
+                                                    </span>
+                                                </td>
+                                                <td class="action-buttons">
+                                                    <?php if (!$row['time_out']): ?>
+                                                        <button class="btn btn-warning btn-sm" 
+                                                                onclick="forceTimeOut(<?php echo $row['id']; ?>, '<?php echo $row['full_name']; ?>')"
+                                                                title="Force Time Out">
+                                                            <i class="fas fa-sign-out-alt"></i>
+                                                        </button>
+                                                    <?php endif; ?>
+                                                    <button class="btn btn-info btn-sm" 
+                                                            onclick="viewDetails(<?php echo $row['id']; ?>)"
+                                                            title="View Details">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-danger btn-sm" 
+                                                            onclick="deleteLog(<?php echo $row['id']; ?>, '<?php echo $row['full_name']; ?>')"
+                                                            title="Delete Log">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                    <?php
+                                        }
+                                    } else {
+                                        echo '<tr><td colspan="14" class="text-center">No visitor logs found.</td></tr>';
+                                    }
+                                    
+                                    $stmt->close();
+                                    ?>
+                                </tbody>
                             </table>
                         </div>
+
                     </div>
                 </div>
             </div>
             <?php include 'footer.php'; ?>
-            
         </div>
-    
-        <script type="text/javascript">
-    $('#btn_print').on('click', function() {
-    // Get the date range values
-    var date1 = $('#date1').val();
-    var date2 = $('#date2').val();
-    
-    // Validate date range if needed
-    if (date1 && date2) {
-        // Create a form dynamically
-        var form = $('<form>', {
-            method: 'post',
-            action: 'vprint.php',
-            target: '_blank',
-            style: 'display:none;'
-        });
-        
-        // Add date inputs
-        $('<input>').attr({
-            type: 'hidden',
-            name: 'date1',
-            value: date1
-        }).appendTo(form);
-        
-        $('<input>').attr({
-            type: 'hidden',
-            name: 'date2',
-            value: date2
-        }).appendTo(form);
-        
-        // Add the form to the body and submit it
-        form.appendTo('body').submit().remove();
-    } else {
-        // If no date range is selected, just open the print page
-        window.open('vprint.php', '_blank');
-    }
-});
-</script>
-
-
-        <script>
-            $(function() {
-                $("#date1").datepicker();
-            });
-        </script>
-        <script>
-            $(function() {
-                $("#date2").datepicker();
-            });
-        </script>
-
-
-        <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top"><i class="bi bi-arrow-up"></i></a>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="lib/chart/chart.min.js"></script>
-    <script src="lib/easing/easing.min.js"></script>
-    <script src="lib/waypoints/waypoints.min.js"></script>
-    <script src="lib/owlcarousel/owl.carousel.min.js"></script>
-    <script src="lib/tempusdominus/js/moment.min.js"></script>
-    <script src="lib/tempusdominus/js/moment-timezone.min.js"></script>
-    <script src="lib/tempusdominus/js/tempusdominus-bootstrap-4.min.js"></script>
 
-    <!-- Template Javascript -->
-    <script src="js/main.js"></script>
-
-
-     
+    <!-- View Details Modal -->
+    <div class="modal fade" id="detailsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Visitor Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="detailsContent">
+                    <!-- Details will be loaded here -->
+                </div>
+            </div>
+        </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        function resetFilters() {
+            document.getElementById('filterForm').reset();
+            window.location.href = 'visitor_logs.php';
+        }
+
+        function viewDetails(logId) {
+            fetch(`get_visitor_details.php?id=${logId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const details = data.data;
+                        const modalContent = `
+                            <div class="row">
+                                <div class="col-md-4 text-center">
+                                    <img src="../admin/uploads/visitors/${details.photo || 'default.png'}" 
+                                         alt="Visitor Photo" class="img-fluid rounded"
+                                         onerror="this.src='../admin/uploads/students/default.png'">
+                                </div>
+                                <div class="col-md-8">
+                                    <table class="table table-bordered">
+                                        <tr>
+                                            <th>Visitor ID:</th>
+                                            <td>${details.visitor_id}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Full Name:</th>
+                                            <td>${details.full_name}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Contact Number:</th>
+                                            <td>${details.contact_number}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Purpose:</th>
+                                            <td>${details.purpose}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Person Visiting:</th>
+                                            <td>${details.person_visiting || 'N/A'}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Department:</th>
+                                            <td>${details.department}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Location:</th>
+                                            <td>${details.location}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Time In:</th>
+                                            <td>${new Date(details.time_in).toLocaleString()}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Time Out:</th>
+                                            <td>${details.time_out ? new Date(details.time_out).toLocaleString() : 'Still Checked In'}</td>
+                                        </tr>
+                                        ${details.time_out ? `
+                                        <tr>
+                                            <th>Duration:</th>
+                                            <td>${calculateDuration(details.time_in, details.time_out)}</td>
+                                        </tr>
+                                        ` : ''}
+                                    </table>
+                                </div>
+                            </div>
+                        `;
+                        document.getElementById('detailsContent').innerHTML = modalContent;
+                        new bootstrap.Modal(document.getElementById('detailsModal')).show();
+                    } else {
+                        alert('Error loading details');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error loading details');
+                });
+        }
+
+        function calculateDuration(timeIn, timeOut) {
+            const start = new Date(timeIn);
+            const end = new Date(timeOut);
+            const diff = end - start;
+            
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            
+            return `${hours}h ${minutes}m`;
+        }
+
+        function forceTimeOut(logId, visitorName) {
+            if (confirm(`Are you sure you want to force time out for ${visitorName}?`)) {
+                fetch('force_timeout.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `log_id=${logId}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Time out recorded successfully');
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error recording time out');
+                });
+            }
+        }
+
+        function deleteLog(logId, visitorName) {
+            if (confirm(`Are you sure you want to delete the log for ${visitorName}? This action cannot be undone.`)) {
+                fetch('delete_visitor_log.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `log_id=${logId}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Log deleted successfully');
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error deleting log');
+                });
+            }
+        }
+
+        function exportToExcel() {
+            const table = document.getElementById('visitorLogsTable');
+            const ws = XLSX.utils.table_to_sheet(table);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Visitor Logs");
+            
+            const date = new Date().toISOString().split('T')[0];
+            XLSX.writeFile(wb, `visitor_logs_${date}.xlsx`);
+        }
+
+        // Auto-refresh every 30 seconds for real-time updates
+        setInterval(() => {
+            if (!document.hidden) {
+                location.reload();
+            }
+        }, 30000);
+    </script>
 </body>
 </html>

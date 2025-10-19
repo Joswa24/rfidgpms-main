@@ -944,6 +944,59 @@ if (isset($db)) {
             font-size: 0.7rem;
             font-weight: bold;
         }
+        /* Visitor Modal Styles */
+            .visitor-photo-container {
+                background: var(--light-bg);
+                border-radius: 8px;
+                padding: 15px;
+                text-align: center;
+            }
+
+            .visitor-photo-preview {
+                width: 120px;
+                height: 120px;
+                border-radius: 8px;
+                object-fit: cover;
+                border: 2px solid var(--icon-color);
+                background: white;
+            }
+
+            #visitorInfoModal .form-label {
+                font-weight: 600;
+                color: var(--dark-text);
+                margin-bottom: 5px;
+            }
+
+            #visitorInfoModal .form-control,
+            #visitorInfoModal .form-select {
+                border: 2px solid var(--accent-color);
+                border-radius: 6px;
+                padding: 8px 12px;
+                font-size: 0.9rem;
+                transition: var(--transition);
+            }
+
+            #visitorInfoModal .form-control:focus,
+            #visitorInfoModal .form-select:focus {
+                border-color: var(--icon-color);
+                box-shadow: 0 0 0 3px rgba(92, 149, 233, 0.1);
+            }
+
+            #visitorInfoModal .modal-header {
+                border-bottom: 2px solid rgba(255, 193, 7, 0.3);
+            }
+
+            #visitorInfoModal .btn-warning {
+                background: linear-gradient(135deg, #ffc107, #fd7e14);
+                border: none;
+                color: white;
+                font-weight: 600;
+            }
+
+            #visitorInfoModal .btn-warning:hover {
+                background: linear-gradient(135deg, #e0a800, #dc6502);
+                transform: translateY(-1px);
+            }
     </style>
 </head>
 
@@ -980,6 +1033,84 @@ if (isset($db)) {
                 <div class="modal-footer">
                     <button type="button" class="btn btn-ok" data-bs-dismiss="modal">
                         <i class="fas fa-check me-2"></i>OK
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Visitor Information Modal -->
+    <div class="modal fade" id="visitorInfoModal" tabindex="-1" aria-labelledby="visitorInfoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title" id="visitorInfoModalLabel">
+                        <i class="fas fa-user-clock me-2"></i>Visitor Registration Required
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Please provide your information for gate access
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4 text-center mb-3">
+                            <div class="visitor-photo-container">
+                                <img id="visitorPhotoPreview" 
+                                    src="admin/uploads/students/default.png" 
+                                    alt="Visitor Photo" 
+                                    class="visitor-photo-preview">
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <form id="visitorInfoForm">
+                                <input type="hidden" id="visitorID" value="">
+                                
+                                <div class="mb-3">
+                                    <label for="fullName" class="form-label">Full Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="fullName" required 
+                                        placeholder="Enter your full name">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="contactNumber" class="form-label">Contact Number <span class="text-danger">*</span></label>
+                                    <input type="tel" class="form-control" id="contactNumber" required 
+                                        placeholder="Enter your contact number">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="purpose" class="form-label">Purpose of Visit <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="purpose" required>
+                                        <option value="">Select purpose...</option>
+                                        <option value="Meeting">Meeting</option>
+                                        <option value="Delivery">Delivery</option>
+                                        <option value="Maintenance">Maintenance</option>
+                                        <option value="Interview">Interview</option>
+                                        <option value="Training">Training</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3" id="otherPurposeContainer" style="display: none;">
+                                    <label for="otherPurpose" class="form-label">Specify Purpose</label>
+                                    <input type="text" class="form-control" id="otherPurpose" 
+                                        placeholder="Please specify your purpose">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="personVisiting" class="form-label">Person/Department Visiting</label>
+                                    <input type="text" class="form-control" id="personVisiting" 
+                                        placeholder="Who are you visiting?">
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-warning" id="submitVisitorInfo">
+                        <i class="fas fa-check me-2"></i>Submit & Record Access
                     </button>
                 </div>
             </div>
@@ -1100,15 +1231,12 @@ const roleIcons = {
 };
 
 // Scanner Initialization and Control Functions
+// Enhanced scanner initialization
 function initScanner() {
-    // Clear any existing scanner instance
     if (scanner) {
-        scanner.clear().catch(error => {
-            console.log("Scanner already cleared or not initialized");
-        });
+        scanner.clear().catch(console.error);
     }
     
-    // Create new scanner instance with configuration
     scanner = new Html5QrcodeScanner('largeReader', { 
         qrbox: {
             width: 300,
@@ -1120,61 +1248,29 @@ function initScanner() {
         showTorchButtonIfSupported: true
     });
     
-    // Render the scanner with success and error callbacks
+    // Remove the permission request image by hiding the element
+    const permissionElement = document.querySelector('#largeReader img');
+    if (permissionElement) {
+        permissionElement.style.display = 'none';
+    }
+    
     scanner.render(onScanSuccess, onScanError);
 }
 
-function stopScanner() {
-    if (scanner) {
-        scanner.clear().then(() => {
-            console.log("Scanner stopped successfully");
-        }).catch(err => {
-            console.error("Failed to stop scanner:", err);
-        });
-    }
-}
-
-function restartScanner() {
-    stopScanner();
-    initScanner();
-    document.querySelector('.scanner-overlay').style.display = 'flex';
-}
-
-// Scanner Event Handlers
-function onScanSuccess(decodedText) {
-    const now = Date.now();
-    
-    // Implement scan cooldown to prevent duplicate scans
-    if (now - lastScanTime < scanCooldown) {
-        console.log("Scan cooldown active - ignoring scan");
-        return;
-    }
-    
-    lastScanTime = now;
-    
-    // Hide scanner overlay during processing
-    document.querySelector('.scanner-overlay').style.display = 'none';
-    
-    // Process the scanned barcode
-    processBarcode(decodedText);
-}
-
 function onScanError(error) {
-    // Handle different types of scanner errors
-    if (error.includes('No MultiFormat Readers were able to detect the code')) {
-        console.log("No barcode detected - continuing scan");
-        return;
+    // Only log actual errors, not benign "no code found" errors
+    if (!error.includes('NotFoundException') && !error.includes('No MultiFormat Readers')) {
+        console.error('Scanner error:', error);
     }
     
-    console.error('Scanner error:', error);
-    
-    // Show error to user if it's not a benign error
-    if (!error.includes('NotFoundException') && !error.includes('No MultiFormat Readers')) {
-        showErrorMessage(`Scanner error: ${error}`);
+    // Hide any permission-related images
+    const permissionElement = document.querySelector('#largeReader img');
+    if (permissionElement) {
+        permissionElement.style.display = 'none';
     }
 }
-
     // Process scanned barcode
+    // Enhanced barcode processing for gate system
     function processBarcode(barcode) {
         console.log("🔍 Processing barcode:", barcode);
         
@@ -1189,99 +1285,389 @@ function onScanError(error) {
         `;
         
         // Disable inputs during processing
-        document.getElementById('manualIdInput').disabled = true;
-        document.getElementById('manualSubmitBtn').disabled = true;
+        setInputsDisabled(true);
         
-        // In your main.php, update the AJAX call to use the new process_gate.php
-$.ajax({
-    type: "POST",
-    url: "process_gate.php",
-    data: { 
-        barcode: barcode,
-        department: "<?php echo $department; ?>",
-        location: "<?php echo $location; ?>"
-    },
-    dataType: 'json',
-    timeout: 15000,
-    success: function(response) {
-        console.log("Gate Access Response:", response);
+        $.ajax({
+            type: "POST",
+            url: "process_gate.php",
+            data: { 
+                barcode: barcode,
+                department: "<?php echo $department; ?>",
+                location: "<?php echo $location; ?>"
+            },
+            dataType: 'json',
+            timeout: 15000,
+            success: function(response) {
+                handleGateScanSuccess(response, barcode);
+            },
+            error: function(xhr, status, error) {
+                handleGateScanError(xhr, status, error, barcode);
+            },
+            complete: function() {
+                setInputsDisabled(false);
+            }
+        });
+    }
+
+    // Enhanced success handler for gate system
+    function handleGateScanSuccess(response, originalBarcode) {
+        console.log("✅ GATE SUCCESS - Raw response:", response);
         
-        // Handle response
-        if (response.error) {
-            showErrorMessage(response.error);
+        if (!response || typeof response !== 'object') {
+            console.error("❌ Invalid response format");
+            showGateSuccessFallback(originalBarcode);
             return;
         }
         
-        // Success - show confirmation modal
-        playAccessSound(true);
+        if (response.error) {
+            console.log("❌ Server error:", response.error);
+            showErrorMessage(response.error);
+            speakMessage(response.error);
+            restartScanner();
+            return;
+        }
+
+        // Log successful person data retrieval
+        console.log("🎓 Person Data Retrieved:", {
+            name: response.full_name,
+            id: response.id_number,
+            department: response.department,
+            role: response.role,
+            photo: response.photo
+        });
+
+        // Update UI and show confirmation
         updateGateUI(response);
         updatePersonPhoto(response);
-        showConfirmationModal(response);
-    },
-    error: function(xhr, status, error) {
-        console.error("Scanner error:", error);
-        showErrorMessage("Scanner temporarily unavailable. Please try manual entry.");
+        showGateConfirmationModal(response);
     }
-});
+
+    // Enhanced error handler for gate system
+    function handleGateScanError(xhr, status, error, originalBarcode) {
+        console.error("❌ GATE AJAX ERROR:");
+        console.error("Status:", status);
+        console.error("Error:", error);
+        console.error("Response text:", xhr.responseText);
+        
+        // Try to parse response even if AJAX reports error
+        if (xhr.responseText && xhr.responseText.trim() !== '') {
+            try {
+                const parsedResponse = JSON.parse(xhr.responseText);
+                console.log("📦 Parsed response despite AJAX error:", parsedResponse);
+                
+                if (parsedResponse.error) {
+                    showErrorMessage(parsedResponse.error);
+                } else {
+                    updateGateUI(parsedResponse);
+                    updatePersonPhoto(parsedResponse);
+                    showGateConfirmationModal(parsedResponse);
+                    return;
+                }
+            } catch (e) {
+                console.log("❌ Could not parse response as JSON:", e.message);
+            }
+        }
+        
+        // Fallback to success since access was likely recorded
+        showGateSuccessFallback(originalBarcode);
     }
-// Fallback function if AJAX fails but access was recorded
-function showSuccessFallback(barcode) {
-    console.log("🔄 Using fallback success display");
-    
-    // Create a more detailed fallback response
-    const fallbackData = {
-        full_name: "Person",
-        id_number: barcode,
-        department: "<?php echo $department; ?>",
-        photo: "assets/img/2601828.png",
-        role: "User",
-        time_in_out: "Access Recorded Successfully",
-        alert_class: "alert-success",
-        access_type: "time_in"
-    };
-    
-    updateGateUI(fallbackData);
-    showConfirmationModal(fallbackData);
-    
-    document.querySelector('.scanner-overlay').style.display = 'none';
-}
+
+    function showGateSuccessFallback(barcode) {
+        console.log("🔄 Using gate fallback success display");
+        
+        const fallbackData = {
+            full_name: "Person",
+            id_number: barcode,
+            department: "<?php echo $department; ?>",
+            photo: "admin/uploads/students/default.png",
+            role: "User",
+            time_in_out: "Access Recorded Successfully",
+            alert_class: "alert-success",
+            access_type: "time_in"
+        };
+        
+        updateGateUI(fallbackData);
+        updatePersonPhoto(fallbackData);
+        showGateConfirmationModal(fallbackData);
+    }
+
+    function setInputsDisabled(disabled) {
+        document.getElementById('manualIdInput').disabled = disabled;
+        document.getElementById('manualSubmitBtn').disabled = disabled;
+    }
 
 // Update gate UI with access data
-function updateGateUI(data) {
-    const alertElement = document.getElementById('alert');
-    const inOutElement = document.getElementById('in_out');
-    
-    alertElement.classList.remove('alert-primary', 'alert-success', 'alert-warning', 'alert-danger', 'alert-info');
-    
-    // Use the correct response fields from process_gate.php
-    if (data.time_in_out === 'Time In Recorded' || data.time_in_out === 'TIME IN') {
-        alertElement.classList.add('alert-success');
-        inOutElement.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>ENTRY GRANTED - TIME IN RECORDED';
-    } else if (data.time_in_out === 'Time Out Recorded' || data.time_in_out === 'TIME OUT') {
-        alertElement.classList.add('alert-warning');
-        inOutElement.innerHTML = '<i class="fas fa-sign-out-alt me-2"></i>EXIT RECORDED - TIME OUT RECORDED';
-    } else if (data.error) {
-        alertElement.classList.add('alert-danger');
-        inOutElement.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i>${data.error}`;
-    } else if (data.time_in_out === 'Already timed out today') {
-        alertElement.classList.add('alert-info');
-        inOutElement.innerHTML = '<i class="fas fa-check-circle me-2"></i>ALREADY TIMED OUT TODAY';
-    } else {
-        alertElement.classList.add('alert-primary');
-        inOutElement.innerHTML = '<i class="fas fa-id-card me-2"></i>Scan Your ID Card for Gate Access';
+
+    function updateGateUI(data) {
+        const inOutElement = document.getElementById('in_out');
+        
+        // Use the correct response fields from process_gate.php
+        if (data.time_in_out === 'Time In Recorded' || data.time_in_out === 'TIME IN') {
+            inOutElement.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>ENTRY GRANTED - TIME IN RECORDED';
+            inOutElement.style.color = 'var(--icon-color)';
+        } else if (data.time_in_out === 'Time Out Recorded' || data.time_in_out === 'TIME OUT') {
+            inOutElement.innerHTML = '<i class="fas fa-sign-out-alt me-2"></i>EXIT RECORDED - TIME OUT RECORDED';
+            inOutElement.style.color = '#f72585';
+        } else if (data.error) {
+            inOutElement.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i>${data.error}`;
+            inOutElement.style.color = '#e74a3b';
+        } else if (data.time_in_out === 'Already timed out today') {
+            inOutElement.innerHTML = '<i class="fas fa-check-circle me-2"></i>ALREADY TIMED OUT TODAY';
+            inOutElement.style.color = '#6c757d';
+        } else {
+            inOutElement.innerHTML = '<i class="fas fa-id-card me-2"></i>Scan Your ID Card for Gate Access';
+            inOutElement.style.color = 'var(--icon-color)';
+        }
+        
+        // Update result display
+        if (data.time_in_out && !data.error) {
+            const alertClass = data.alert_class || 'alert-success';
+            document.getElementById('result').innerHTML = `
+                <div class="alert ${alertClass} py-2" role="alert">
+                    <i class="fas fa-check-circle me-2"></i>
+                    ${data.time_in_out}
+                </div>
+            `;
+        } else if (data.error) {
+            document.getElementById('result').innerHTML = `
+                <div class="alert alert-danger py-2" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    ${data.error}
+                </div>
+            `;
+        }
     }
-    
-    // Update result display
-    if (data.time_in_out) {
+    // Add this function to detect if scanned ID belongs to a visitor
+    function isVisitorID(barcode) {
+        // Check if the scanned ID exists in the visitor table
+        // We'll check this in process_gate.php, but for now use pattern
+        const visitorPattern = /^\d{4}-\d{4}$/;
+        return visitorPattern.test(barcode);
+    }
+
+    // Enhanced barcode processing function
+    function processBarcode(barcode) {
+        console.log("🔍 Processing barcode:", barcode);
+        
+        // Show processing state
         document.getElementById('result').innerHTML = `
-            <div class="alert ${data.alert_class || 'alert-success'} py-2" role="alert">
-                <i class="fas fa-check-circle me-2"></i>
-                ${data.time_in_out}
+            <div class="d-flex justify-content-center align-items-center">
+                <div class="spinner-border text-primary me-2" role="status" style="width: 1rem; height: 1rem;">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <span>Processing ID: ${barcode}</span>
             </div>
         `;
+        
+        // Disable inputs during processing
+        setInputsDisabled(true);
+        
+        $.ajax({
+            type: "POST",
+            url: "process_gate.php",
+            data: { 
+                barcode: barcode,
+                department: "<?php echo $department; ?>",
+                location: "<?php echo $location; ?>",
+                check_visitor: true // Flag to check if this is a visitor
+            },
+            dataType: 'json',
+            timeout: 15000,
+            success: function(response) {
+                // Check if server indicates this is a visitor that needs registration
+                if (response.requires_visitor_info) {
+                    console.log("🎫 Visitor card detected, showing info modal");
+                    showVisitorInfoModal(barcode);
+                } else {
+                    handleGateScanSuccess(response, barcode);
+                }
+            },
+            error: function(xhr, status, error) {
+                handleGateScanError(xhr, status, error, barcode);
+            },
+            complete: function() {
+                setInputsDisabled(false);
+            }
+        });
     }
-}
 
+    // Visitor Information Modal
+    function showVisitorInfoModal(visitorID) {
+        // Set the visitor ID
+        document.getElementById('visitorID').value = visitorID;
+        
+        // Reset form
+        document.getElementById('visitorInfoForm').reset();
+        document.getElementById('otherPurposeContainer').style.display = 'none';
+        
+        // Show modal
+        const visitorModal = new bootstrap.Modal(document.getElementById('visitorInfoModal'));
+        visitorModal.show();
+        
+        // Set up event listeners
+        setupVisitorModalEvents();
+    }
+
+    // Set up event listeners for visitor modal
+    function setupVisitorModalEvents() {
+        // Purpose dropdown change
+        document.getElementById('purpose').addEventListener('change', function() {
+            const otherContainer = document.getElementById('otherPurposeContainer');
+            otherContainer.style.display = this.value === 'Other' ? 'block' : 'none';
+        });
+        
+        // Form submission
+        document.getElementById('submitVisitorInfo').addEventListener('click', submitVisitorInfo);
+        
+        // Modal hidden event
+        document.getElementById('visitorInfoModal').addEventListener('hidden.bs.modal', function() {
+            restartScanner();
+        });
+    }
+
+    // Submit visitor information
+    function submitVisitorInfo() {
+        const form = document.getElementById('visitorInfoForm');
+        const submitBtn = document.getElementById('submitVisitorInfo');
+        
+        // Basic validation
+        const fullName = document.getElementById('fullName').value.trim();
+        const contactNumber = document.getElementById('contactNumber').value.trim();
+        const purpose = document.getElementById('purpose').value;
+        
+        if (!fullName) {
+            showVisitorAlert('Please enter your full name', 'danger');
+            document.getElementById('fullName').focus();
+            return;
+        }
+        
+        if (!contactNumber) {
+            showVisitorAlert('Please enter your contact number', 'danger');
+            document.getElementById('contactNumber').focus();
+            return;
+        }
+        
+        if (!purpose) {
+            showVisitorAlert('Please select purpose of visit', 'danger');
+            document.getElementById('purpose').focus();
+            return;
+        }
+        
+        if (purpose === 'Other' && !document.getElementById('otherPurpose').value.trim()) {
+            showVisitorAlert('Please specify your purpose', 'danger');
+            document.getElementById('otherPurpose').focus();
+            return;
+        }
+        
+        // Show loading state
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+        submitBtn.disabled = true;
+        
+        // Prepare data
+        const visitorData = {
+            visitor_id: document.getElementById('visitorID').value,
+            full_name: fullName,
+            contact_number: contactNumber,
+            purpose: purpose === 'Other' ? document.getElementById('otherPurpose').value.trim() : purpose,
+            person_visiting: document.getElementById('personVisiting').value.trim(),
+            department: "<?php echo $department; ?>",
+            location: "<?php echo $location; ?>",
+            is_visitor_submission: true // Flag to indicate this is visitor data submission
+        };
+        
+        // Send data to server
+        $.ajax({
+            type: "POST",
+            url: "process_gate.php", // Use the same file
+            data: visitorData,
+            dataType: 'json',
+            success: function(response) {
+                if (response.success) {
+                    // Show success message
+                    showVisitorAlert('Visitor access recorded successfully!', 'success');
+                    
+                    // Update UI with visitor data
+                    updateGateUI({
+                        full_name: visitorData.full_name,
+                        id_number: visitorData.visitor_id,
+                        department: visitorData.department,
+                        role: 'Visitor',
+                        photo: 'admin/uploads/students/default.png',
+                        time_in_out: 'Time In Recorded',
+                        alert_class: 'alert-success'
+                    });
+                    
+                    // Close modal after delay and show confirmation
+                    setTimeout(() => {
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('visitorInfoModal'));
+                        modal.hide();
+                        
+                        // Show confirmation modal
+                        showGateConfirmationModal({
+                            full_name: visitorData.full_name,
+                            id_number: visitorData.visitor_id,
+                            department: visitorData.department,
+                            role: 'Visitor',
+                            photo: 'admin/uploads/students/default.png',
+                            time_in_out: 'Time In Recorded'
+                        });
+                    }, 1500);
+                    
+                } else {
+                    showVisitorAlert(response.message || 'Error recording visitor access', 'danger');
+                    submitBtn.innerHTML = '<i class="fas fa-check me-2"></i>Submit & Record Access';
+                    submitBtn.disabled = false;
+                }
+            },
+            error: function(xhr, status, error) {
+                showVisitorAlert('Error processing visitor information. Please try again.', 'danger');
+                submitBtn.innerHTML = '<i class="fas fa-check me-2"></i>Submit & Record Access';
+                submitBtn.disabled = false;
+            }
+        });
+    }
+
+    // Helper function to show alerts in visitor modal
+    function showVisitorAlert(message, type) {
+        // Remove existing alerts
+        const existingAlert = document.querySelector('#visitorInfoModal .alert');
+        if (existingAlert) {
+            existingAlert.remove();
+        }
+        
+        const alertHTML = `
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        
+        document.querySelector('#visitorInfoModal .modal-body').insertAdjacentHTML('afterbegin', alertHTML);
+    }
+
+    // Enhanced manual input processing to handle visitors
+    function processManualInput() {
+        const idNumber = document.getElementById('manualIdInput').value.trim();
+        
+        if (!idNumber) {
+            showErrorMessage("Please enter ID number");
+            speakMessage("Please enter ID number");
+            return;
+        }
+        
+        // Basic ID format validation (0000-0000)
+        const idPattern = /^\d{4}-\d{4}$/;
+        if (!idPattern.test(idNumber)) {
+            showErrorMessage("Invalid ID format. Please use: 0000-0000");
+            return;
+        }
+        
+        showProcessingState(idNumber);
+        setInputsDisabled(true);
+        
+        // Process as barcode (will check if visitor in process_gate.php)
+        processBarcode(idNumber);
+    }
 // Enhanced photo update function with better error handling
 function updatePersonPhoto(data) {
     const photoElement = document.getElementById('pic');
@@ -1364,7 +1750,9 @@ function getPhotoPathByUserType(data) {
 }
 
 // ENHANCED: Show comprehensive confirmation modal
-function showConfirmationModal(data) {
+function showGateConfirmationModal(data) {
+    console.log("🎯 Showing gate confirmation modal with:", data);
+    
     const now = new Date();
     const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const dateString = now.toLocaleDateString([], { 
@@ -1396,25 +1784,15 @@ function showConfirmationModal(data) {
         statusText = data.error;
         voiceMessage = data.error;
     } else {
-        accessType = 'ACCESS DENIED';
-        statusClass = 'access-denied';
-        statusIcon = 'fas fa-times-circle';
-        statusText = 'ACCESS DENIED';
-        voiceMessage = "Access denied. Please contact administrator.";
+        accessType = 'ACCESS RECORDED';
+        statusClass = 'time-in';
+        statusIcon = 'fas fa-check-circle';
+        statusText = 'ACCESS RECORDED';
+        voiceMessage = "Access recorded successfully";
     }
 
-    // Set photo with fallback using correct paths
-    let photoPath = "admin/uploads/students/default.png";
-    if (data.photo) {
-        if (data.photo.startsWith('data:image')) {
-            photoPath = data.photo;
-        } else {
-            photoPath = getPhotoPathByUserType(data);
-        }
-    }
-    
-    // Use department_name if available, otherwise fallback to department
-    const departmentDisplay = data.department_name || data.department || 'N/A';
+    // Set photo with fallback
+    let photoPath = data.photo || "admin/uploads/students/default.png";
     
     // Update modal content
     const modalBody = document.querySelector('.confirmation-modal .modal-body');
@@ -1422,53 +1800,63 @@ function showConfirmationModal(data) {
         <!-- Photo Container -->
         <div class="person-photo-container">
             <img id="modalPersonPhoto" 
-                src="${photoPath}?t=${new Date().getTime()}" 
+                src="${photoPath}" 
                 alt="Person Photo" 
                 class="person-photo"
-                onerror="this.src='admin/uploads/students/default.png'">
+                onerror="this.src='assets/img/section/type.jpg'">
             ${data.role === 'Visitor' ? '<div class="visitor-badge">VISITOR</div>' : ''}
         </div>
 
-        <!-- Person Info Card -->
+        <!-- Person Name -->
+        <h4 id="modalPersonName" class="mb-3" style="color: var(--icon-color); font-weight: 600;">
+            ${data.full_name || 'Unknown Person'}
+        </h4>
+        
+        <!-- Person Information Card -->
         <div class="person-info-card">
-            <div class="person-name">${data.full_name || 'Unknown Person'}</div>
-            
-            <div class="person-details">
-                <div class="detail-item">
-                    <div class="detail-label">ID Number:</div>
-                    <div class="detail-value">${data.id_number || 'N/A'}</div>
+            <div class="row text-start">
+                <div class="col-6 mb-2">
+                    <strong><i class="fas fa-id-card me-1"></i> ID Number:</strong><br>
+                    <span id="modalPersonId" style="color: var(--dark-text); font-size: 0.95rem;">
+                        ${data.id_number || 'N/A'}
+                    </span>
                 </div>
-                
-                <div class="detail-item">
-                    <div class="detail-label">Role:</div>
-                    <div class="detail-value">
+                <div class="col-6 mb-2">
+                    <strong><i class="fas fa-user-tag me-1"></i> Role:</strong><br>
+                    <span id="modalPersonRole" style="color: var(--dark-text); font-size: 0.95rem;">
                         <i class="fas ${getRoleIcon(data.role)} me-1"></i>
                         ${data.role || 'N/A'}
-                    </div>
+                    </span>
                 </div>
-                
-                <div class="detail-item">
-                    <div class="detail-label">Department:</div>
-                    <div class="detail-value">${departmentDisplay}</div>
-                </div>
-                
-                <div class="detail-item">
-                    <div class="detail-label">Course/Position:</div>
-                    <div class="detail-value">${data.course || data.position || 'N/A'}</div>
-                </div>
+                <!-- REMOVED: Department and Location fields -->
             </div>
         </div>
-
+        
         <!-- Access Status -->
-        <div class="access-status ${statusClass}">
-            <i class="${statusIcon} status-icon"></i>
-            <span>${statusText}</span>
+        <div class="access-status ${statusClass} mt-3">
+            <i class="${statusIcon} me-2"></i>
+            <span id="modalAccessStatus" class="fw-bold">${statusText}</span>
         </div>
-
+        
         <!-- Time Display -->
-        <div class="time-display">
-            <div><i class="far fa-clock me-2"></i>${timeString}</div>
-            <div><i class="far fa-calendar me-2"></i>${dateString}</div>
+        <div class="time-display mt-3">
+            <div class="row">
+                <div class="col-6">
+                    <small class="text-muted">Time In</small>
+                    <div id="modalTimeIn" class="fw-bold text-primary">
+                        ${data.time_in || timeString}
+                    </div>
+                </div>
+                <div class="col-6">
+                    <small class="text-muted">Time Out</small>
+                    <div id="modalTimeOut" class="fw-bold text-primary">
+                        ${data.time_out || '-'}
+                    </div>
+                </div>
+            </div>
+            <div class="text-muted small mt-2">
+                <i class="far fa-calendar me-1"></i>${dateString}
+            </div>
         </div>
     `;
 
@@ -1479,32 +1867,43 @@ function showConfirmationModal(data) {
         ${accessType}
     `;
 
+    // Update modal footer button
+    const modalFooter = document.querySelector('.confirmation-modal .modal-footer');
+    modalFooter.innerHTML = `
+        <button type="button" class="btn btn-primary px-4 py-2" onclick="closeGateModalAndContinue()">
+            <i class="fas fa-check me-2"></i>Confirm & Continue
+        </button>
+    `;
+
     // Speak the message
     speakMessage(voiceMessage);
 
-    // Show modal with enhanced behavior
+    // Show modal
     const modalElement = document.getElementById('confirmationModal');
     const modal = new bootstrap.Modal(modalElement);
     
-    // Add event listener for modal close
-    modalElement.addEventListener('hidden.bs.modal', function () {
-        // Reset scanner overlay
-        document.querySelector('.scanner-overlay').style.display = 'flex';
-        document.getElementById('result').innerHTML = "";
-        
-        // Re-focus on manual input
-        document.getElementById('manualIdInput').focus();
-    });
-
     modal.show();
-    
-    // Auto-close modal after 5 seconds for smooth flow
-    setTimeout(() => {
-        if (modalElement.style.display !== 'none') {
-            modal.hide();
-        }
-    }, 5000);
+
+    // Hide scanner overlay while modal is open
+    document.querySelector('.scanner-overlay').style.display = 'none';
+
+    // Restart scanner once modal is closed
+    modalElement.addEventListener('hidden.bs.modal', function () {
+        console.log("🎯 Gate modal closed, restarting scanner");
+        restartScanner();
+    }, { once: true });
 }
+
+    // Function to close modal and continue
+    function closeGateModalAndContinue() {
+        const modalEl = document.getElementById('confirmationModal');
+        const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modalInstance.hide();
+
+        modalEl.addEventListener('hidden.bs.modal', function() {
+            restartScanner();
+        }, { once: true });
+    }
 
 // Helper function to get role icons
 function getRoleIcon(role) {
@@ -1553,31 +1952,42 @@ function speakMessage(message) {
     }
 }
 
-// Manual input processing
-function processManualInput() {
-    const idNumber = document.getElementById('manualIdInput').value.trim();
-    
-    if (!idNumber) {
-        showErrorMessage("Please enter ID number");
-        speakMessage("Please enter ID number");
-        return;
-    }
-    
-    document.getElementById('result').innerHTML = `
-        <div class="d-flex justify-content-center align-items-center">
-            <div class="spinner-border text-primary me-2" role="status" style="width: 1rem; height: 1rem;">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-            <span>Processing...</span>
-        </div>
-    `;
-    
-    document.getElementById('manualIdInput').disabled = true;
-    document.getElementById('manualSubmitBtn').disabled = true;
-    
-    processBarcode(idNumber);
-}
 
+// Enhanced manual input processing
+    function processManualInput() {
+        const idNumber = document.getElementById('manualIdInput').value.trim();
+        
+        if (!idNumber) {
+            showErrorMessage("Please enter ID number");
+            speakMessage("Please enter ID number");
+            return;
+        }
+        
+        // Basic ID format validation (0000-0000)
+        const idPattern = /^\d{4}-\d{4}$/;
+        if (!idPattern.test(idNumber)) {
+            showErrorMessage("Invalid ID format. Please use: 0000-0000");
+            return;
+        }
+        
+        showProcessingState(idNumber);
+        setInputsDisabled(true);
+        
+        // Process as barcode
+        processBarcode(idNumber);
+    }
+
+    // Add this helper function
+    function showProcessingState(idNumber) {
+        document.getElementById('result').innerHTML = `
+            <div class="d-flex justify-content-center align-items-center">
+                <div class="spinner-border text-primary me-2" role="status" style="width: 1rem; height: 1rem;">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <span>Processing ID: ${idNumber}</span>
+            </div>
+        `;
+    }
 // Time and Date Functions
 function startTime() {
     const today = new Date();
