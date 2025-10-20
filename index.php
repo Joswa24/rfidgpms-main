@@ -305,11 +305,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     header('X-Content-Type-Options: nosniff');
 
     // Return success response
+    // In the login success section of index.php, update the response:
     echo json_encode([
         'status' => 'success',
         'redirect' => $redirectUrl,
         'message' => 'Login successful',
-        'user_type' => $userType
+        'user_type' => $userType,
+        'instructor_id' => $userData['id'], // Add this
+        'instructor_name' => $userData['fullname'] // Add this
     ]);
     exit;
 }
@@ -1395,9 +1398,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 type: 'POST',
                 data: formData,
                 dataType: 'json',
+                // In the submitLoginForm() function in index.php, update the success handler:
                 success: function(response) {
                     Swal.close();
                     if (response.status === 'success') {
+                        // Store critical session data in localStorage as backup
+                        localStorage.setItem('instructor_id', response.instructor_id || '');
+                        localStorage.setItem('instructor_name', response.instructor_name || '');
+                        
                         Swal.fire({
                             icon: 'success',
                             title: 'Login Successful',

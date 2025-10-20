@@ -1,14 +1,17 @@
 <?php
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
+// Start session at the very beginning
+session_start();
+
+// Set timezone and include connection
 date_default_timezone_set('Asia/Manila');
 include 'connection.php';
 
 // Set MySQL timezone to match PHP
 mysqli_query($db, "SET time_zone = '+08:00'");
-
-
-session_start();
-include 'connection.php';
 
 // Check if user came from scanner
 $from_scanner = isset($_GET['from_scanner']) ? true : false;
@@ -21,18 +24,42 @@ $archive_message = '';
 $first_student_section = null;
 $first_student_year = null;
 
+// Check if instructor is logged in
+if (!isset($_SESSION['access']['instructor']['id'])) {
+    $_SESSION['scanner_error'] = "Please log in as instructor first";
+    header("Location: index.php");
+    exit();
+}
+
+// Function to clear session data
+function clearAttendanceSessionData() {
+    unset(
+        $_SESSION['instructor_session_id'], 
+        $_SESSION['instructor_login_time'],
+        $_SESSION['allowed_section'],
+        $_SESSION['allowed_year'],
+        $_SESSION['is_first_student'],
+        $_SESSION['attendance_saved'],
+        $_SESSION['timeout_time'],
+        $_SESSION['archive_message'],
+        $_SESSION['original_time_in']
+    );
+}
+
 // Handle logout action
 if (isset($_POST['logout_after_save'])) {
-    // Clear session data but keep success messages if needed
+    // Store success messages temporarily
     $saved_messages = [
         'timeout_time' => $_SESSION['timeout_time'] ?? '',
         'archive_message' => $_SESSION['archive_message'] ?? ''
     ];
     
+    // Clear all session data
+    session_unset();
     session_destroy();
-    session_start();
     
-    // Restore success messages for display on index page
+    // Start new session and restore messages
+    session_start();
     $_SESSION['attendance_success'] = true;
     $_SESSION['timeout_time'] = $saved_messages['timeout_time'];
     $_SESSION['archive_message'] = $saved_messages['archive_message'];
@@ -236,7 +263,13 @@ function getFirstStudentDetails($db) {
 }
 
 // Function to get attendance statistics
+// Function to get attendance statistics
 function getAttendanceStats($db, $year, $section) {
+    // If we don't have valid section/year, return empty stats
+    if ($year === 'N/A' || $section === 'N/A') {
+        return ['total_students' => 0, 'present_count' => 0, 'absent_count' => 0, 'attendance_rate' => 0, 'absent_rate' => 0];
+    }
+    
     $query = "SELECT 
                 COUNT(*) as total_students,
                 SUM(CASE WHEN EXISTS (
@@ -259,6 +292,11 @@ function getAttendanceStats($db, $year, $section) {
         $result = $stmt->get_result();
         $stats = $result->fetch_assoc();
         $stmt->close();
+        
+        // Ensure we have valid array
+        if (!$stats) {
+            return ['total_students' => 0, 'present_count' => 0, 'absent_count' => 0, 'attendance_rate' => 0, 'absent_rate' => 0];
+        }
         
         // Calculate percentages
         if ($stats['total_students'] > 0) {
@@ -283,6 +321,7 @@ if ($first_student) {
 }
 
 // Handle Save Attendance action
+// Handle Save Attendance action
 if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
     $instructor_id = $_SESSION['access']['instructor']['id'] ?? null;
     
@@ -293,8 +332,9 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
     }
 
     // Verify ID matches logged-in instructor
-    if ($_POST['id_number'] != ($_SESSION['access']['instructor']['id_number'] ?? '')) {
-        $_SESSION['scanner_error'] = "ID verification failed";
+    $instructor_id_number = $_SESSION['access']['instructor']['id_number'] ?? '';
+    if ($_POST['id_number'] != $instructor_id_number) {
+        $_SESSION['scanner_error'] = "ID verification failed. Expected: $instructor_id_number, Got: " . $_POST['id_number'];
         header("Location: students_logs.php");
         exit();
     }
@@ -308,7 +348,7 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
         $time_out_formatted = date('H:i:s');
         $current_date = date('Y-m-d');
 
-        // Get attendance stats
+        // Get attendance stats - ensure we have valid values
         $stats = getAttendanceStats($db, $first_student_year ?? 'N/A', $first_student_section ?? 'N/A');
         
         // 1. Save to instructor_attendance_summary
@@ -319,17 +359,28 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         $summary_stmt = $db->prepare($summary_sql);
+        
+        // Ensure we have non-null values for binding
+        $instructor_name = $_SESSION['access']['instructor']['fullname'] ?? 'Unknown Instructor';
+        $subject_name = $_SESSION['access']['subject']['name'] ?? 'General Subject';
+        $year_level = $first_student_year ?? 'N/A';
+        $section = $first_student_section ?? 'N/A';
+        $total_students = $stats['total_students'] ?? 0;
+        $present_count = $stats['present_count'] ?? 0;
+        $absent_count = $stats['absent_count'] ?? 0;
+        $attendance_rate = $stats['attendance_rate'] ?? 0;
+        
         $summary_stmt->bind_param(
             "issssiiidsss",
             $instructor_id,
-            $_SESSION['access']['instructor']['fullname'],
-            $_SESSION['access']['subject']['name'],
-            $first_student_year,
-            $first_student_section,
-            $stats['total_students'],
-            $stats['present_count'],
-            $stats['absent_count'],
-            $stats['attendance_rate'],
+            $instructor_name,
+            $subject_name,
+            $year_level,
+            $section,
+            $total_students,
+            $present_count,
+            $absent_count,
+            $attendance_rate,
             $current_date,
             $time_in_formatted,
             $time_out_formatted
@@ -352,7 +403,7 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
                 ?,
                 al.time_in,
                 al.time_out,
-                'Present',  -- Mark as Present
+                'Present',
                 ?,
                 ?,
                 ?,
@@ -364,13 +415,14 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
             WHERE DATE(al.time_in) = ?";
         
         $present_stmt = $db->prepare($present_archive_sql);
+        $location_name = $_SESSION['access']['subject']['name'] ?? 'Classroom';
         $present_stmt->bind_param(
             "sissss",
-            $_SESSION['access']['subject']['name'],
+            $location_name,
             $instructor_id,
-            $_SESSION['access']['instructor']['fullname'],
+            $instructor_name,
             $current_date,
-            $_SESSION['access']['subject']['name'],
+            $subject_name,
             $current_date
         );
         
@@ -379,48 +431,52 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
         }
         $present_stmt->close();
 
-        // 3. Archive ABSENT students (those who didn't scan)
-        $absent_archive_sql = "INSERT INTO archived_attendance_logs 
-            (student_id, id_number, fullname, department, location, time_in, time_out, 
-            status, instructor_id, instructor_name, session_date, year_level, section, subject_name)
-            SELECT 
-                s.id,
-                s.id_number,
-                s.fullname,
-                CONCAT(s.section, ' - ', s.year, ' Year'),
-                ?,
-                NULL,  -- No time_in for absent students
-                NULL,  -- No time_out for absent students
-                'Absent',  -- Mark as Absent
-                ?,
-                ?,
-                ?,
-                s.year,
-                s.section,
-                ?
-            FROM students s
-            WHERE s.section = ? AND s.year = ?
-            AND s.id NOT IN (
-                SELECT student_id FROM attendance_logs WHERE DATE(time_in) = ?
-            )";
-        
-        $absent_stmt = $db->prepare($absent_archive_sql);
-        $absent_stmt->bind_param(
-            "sissssss",
-            $_SESSION['access']['subject']['name'],
-            $instructor_id,
-            $_SESSION['access']['instructor']['fullname'],
-            $current_date,
-            $_SESSION['access']['subject']['name'],
-            $first_student_section,
-            $first_student_year,
-            $current_date
-        );
-        
-        if (!$absent_stmt->execute()) {
-            throw new Exception("Failed to archive absent students: " . $absent_stmt->error);
+        // 3. Archive ABSENT students (those who didn't scan) - only if we have section/year
+        if ($first_student_section && $first_student_year) {
+            $absent_archive_sql = "INSERT INTO archived_attendance_logs 
+                (student_id, id_number, fullname, department, location, time_in, time_out, 
+                status, instructor_id, instructor_name, session_date, year_level, section, subject_name)
+                SELECT 
+                    s.id,
+                    s.id_number,
+                    s.fullname,
+                    CONCAT(s.section, ' - ', s.year, ' Year'),
+                    ?,
+                    NULL,
+                    NULL,
+                    'Absent',
+                    ?,
+                    ?,
+                    ?,
+                    s.year,
+                    s.section,
+                    ?
+                FROM students s
+                WHERE s.section = ? AND s.year = ?
+                AND s.id NOT IN (
+                    SELECT student_id FROM attendance_logs WHERE DATE(time_in) = ?
+                )";
+            
+            $absent_stmt = $db->prepare($absent_archive_sql);
+            $absent_stmt->bind_param(
+                "sissssss",
+                $location_name,
+                $instructor_id,
+                $instructor_name,
+                $current_date,
+                $subject_name,
+                $first_student_section,
+                $first_student_year,
+                $current_date
+            );
+            
+            if (!$absent_stmt->execute()) {
+                throw new Exception("Failed to archive absent students: " . $absent_stmt->error);
+            }
+            $absent_stmt->close();
+        } else {
+            error_log("⚠️ Cannot archive absent students: No section/year data available");
         }
-        $absent_stmt->close();
 
         // 4. Clear current logs
         $delete_stmt = $db->prepare("DELETE FROM attendance_logs WHERE DATE(time_in) = ?");
@@ -432,20 +488,14 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
 
         $db->commit();
 
-        // Success handling with consistent time formatting
+        // Success handling
         $_SESSION['timeout_time'] = date('h:i A');
         $_SESSION['original_time_in'] = date('h:i A', strtotime($original_time_in));
         $_SESSION['attendance_saved'] = true;
-        $_SESSION['archive_message'] = "Attendance saved successfully! Present: {$stats['present_count']}, Absent: {$stats['absent_count']}";
+        $_SESSION['archive_message'] = "Attendance saved successfully! Present: {$present_count}, Absent: {$absent_count}";
         
-        // Clear all session data related to current attendance
-        unset(
-            $_SESSION['instructor_session_id'], 
-            $_SESSION['instructor_login_time'],
-            $_SESSION['allowed_section'],
-            $_SESSION['allowed_year'],
-            $_SESSION['is_first_student']
-        );
+        // Clear session data
+        clearAttendanceSessionData();
         
         header("Location: students_logs.php");
         exit();
@@ -460,21 +510,24 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
 }
 
 // Check if attendance was just saved
-if (isset($_SESSION['attendance_saved']) && $_SESSION['attendance_saved']) {
-    $attendance_saved = true;
-    $show_timeout_message = true;
-    $timeout_time = $_SESSION['timeout_time'] ?? '';
-    $archive_message = $_SESSION['archive_message'] ?? '';
-    
-    // Clear the session variables
-    unset(
-        $_SESSION['attendance_saved'], 
-        $_SESSION['timeout_time'], 
-        $_SESSION['archive_message'],
-        $_SESSION['first_student_section'],
-        $_SESSION['first_student_year']
-    );
-}
+
+    if (isset($_SESSION['attendance_saved']) && $_SESSION['attendance_saved']) {
+        $attendance_saved = true;
+        $show_timeout_message = true;
+        $timeout_time = $_SESSION['timeout_time'] ?? '';
+        $archive_message = $_SESSION['archive_message'] ?? '';
+        $original_time_in = $_SESSION['original_time_in'] ?? '';
+        
+        // Clear the session variables
+        unset(
+            $_SESSION['attendance_saved'], 
+            $_SESSION['timeout_time'], 
+            $_SESSION['archive_message'],
+            $_SESSION['first_student_section'],
+            $_SESSION['first_student_year'],
+            $_SESSION['original_time_in']
+        );
+    }
 
 // AJAX handler for real-time time display
 if (isset($_GET['ajax']) && isset($_GET['id_number'])) {
@@ -1042,7 +1095,7 @@ if (isset($_GET['ajax']) && isset($_GET['id_number'])) {
                 <!-- Student Attendance Tab -->
                 <div class="tab-pane fade show active" id="pills-students">
                     <?php if ($attendance_saved): ?>
-                        <div class="archived-message">
+                        <div class="archived-message" style="display: none;">
                             <h4>Attendance Records Archived</h4>
                             <p><?php echo htmlspecialchars($archive_message); ?></p>
                             <div class="session-timeline text-center mb-3">
@@ -1053,7 +1106,6 @@ if (isset($_GET['ajax']) && isset($_GET['id_number'])) {
                                             <div class="fw-bold text-primary">
                                                 <?php 
                                                 if (isset($_SESSION['original_time_in'])) {
-                                                    // Ensure proper timezone for displayed time
                                                     echo htmlspecialchars($_SESSION['original_time_in']);
                                                 } else {
                                                     echo 'N/A';
@@ -1190,17 +1242,25 @@ if (isset($_GET['ajax']) && isset($_GET['id_number'])) {
                                 <div class="instructor-details">
                                     <div>
                                         <span class="detail-label">Instructor:</span>
-                                        <span class="detail-value"><?php echo htmlspecialchars($_SESSION['access']['instructor']['fullname'] ?? 'N/A'); ?></span>
+                                        <span class="detail-value">
+                                            <?php 
+                                            if (isset($_SESSION['access']['instructor']['fullname'])) {
+                                                echo htmlspecialchars($_SESSION['access']['instructor']['fullname']);
+                                            } else {
+                                                echo 'Not logged in';
+                                            }
+                                            ?>
+                                        </span>
                                     </div>
                                     
-                                    <?php if (!empty($_SESSION['access']['subject']['name'])): ?>
+                                    <?php if (isset($_SESSION['access']['subject']['name'])): ?>
                                     <div>
                                         <span class="detail-label">Subject:</span>
                                         <span class="detail-value"><?php echo htmlspecialchars($_SESSION['access']['subject']['name']); ?></span>
                                     </div>
                                     <?php endif; ?>
                                     
-                                    <?php if (!empty($_SESSION['access']['subject']['time'])): ?>
+                                    <?php if (isset($_SESSION['access']['subject']['time'])): ?>
                                     <div>
                                         <span class="detail-label">Time:</span>
                                         <span class="detail-value"><?php echo htmlspecialchars($_SESSION['access']['subject']['time']); ?></span>
@@ -1260,13 +1320,15 @@ if (isset($_GET['ajax']) && isset($_GET['id_number'])) {
                         <div class="modal-body">
                             <div class="text-center mb-3">
                                 <h5>Verifying: <?php echo htmlspecialchars($_SESSION['access']['instructor']['fullname'] ?? 'Instructor'); ?></h5>
+                                <p class="text-muted">Your ID: <?php echo htmlspecialchars($_SESSION['access']['instructor']['id_number'] ?? 'N/A'); ?></p>
                                 <p class="text-muted">Scan your ID barcode or enter manually</p>
                             </div>
                             <form id="verifyForm" method="post">
                                 <div class="mb-3">
                                     <label for="idInput" class="form-label">ID Number</label>
                                     <input type="text" class="form-control" id="idInput" name="id_number" 
-                                        placeholder="Scan your ID barcode" required autofocus
+                                        placeholder="<?php echo htmlspecialchars($_SESSION['access']['instructor']['id_number'] ?? 'Scan your ID'); ?>" 
+                                        required autofocus
                                         data-scanner-input="true">
                                     <div class="form-text">Position cursor in field and scan your ID</div>
                                     <input type="hidden" name="save_attendance" value="1">
@@ -1379,21 +1441,61 @@ if (isset($_GET['ajax']) && isset($_GET['id_number'])) {
             }
         }
 
-        <?php if ($show_timeout_message): ?>
-            // Show success message if attendance was saved
-            Swal.fire({
-                icon: 'success',
-                title: 'Attendance Saved',
-                html: `<div class="text-center">
-                          <h5>Your time-out has been recorded</h5>
-                          <div class="timeout-display"><?php echo $timeout_time; ?></div>
-                          <p><?php echo $archive_message; ?></p>
-                          <p class="text-success"><i class="fas fa-check-circle me-2"></i>Classmates data has been saved to your instructor panel.</p>
-                       </div>`,
-                confirmButtonText: 'OK',
-                allowOutsideClick: false
-            });
-        <?php endif; ?>
+        <?php if ($show_timeout_message && $attendance_saved): ?>
+    // Show success message if attendance was saved
+    Swal.fire({
+        icon: 'success',
+        title: 'Attendance Saved Successfully!',
+        html: `<div class="text-center">
+                  <div class="mb-3">
+                      <i class="fas fa-check-circle text-success" style="font-size: 3rem;"></i>
+                  </div>
+                  <h5 class="mb-3">Your attendance session has been completed</h5>
+                  
+                  <div class="session-timeline mb-4">
+                      <div class="row justify-content-center">
+                          <div class="col-md-5">
+                              <div class="time-display bg-light p-3 rounded">
+                                  <small class="text-muted d-block">Time In</small>
+                                  <div class="fw-bold text-primary fs-5">
+                                      <?php echo !empty($original_time_in) ? htmlspecialchars($original_time_in) : 'N/A'; ?>
+                                  </div>
+                              </div>
+                          </div>
+                          <div class="col-md-2 d-flex align-items-center justify-content-center">
+                              <i class="fas fa-arrow-right text-muted"></i>
+                          </div>
+                          <div class="col-md-5">
+                              <div class="time-display bg-light p-3 rounded">
+                                  <small class="text-muted d-block">Time Out</small>
+                                  <div class="fw-bold text-primary fs-5">
+                                      <?php echo !empty($timeout_time) ? htmlspecialchars($timeout_time) : 'N/A'; ?>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+                  
+                  <div class="alert alert-success bg-success text-white border-0">
+                      <i class="fas fa-users me-2"></i>
+                      <?php echo htmlspecialchars($archive_message); ?>
+                  </div>
+                  
+                  <p class="text-muted">
+                      <i class="fas fa-info-circle me-2"></i>
+                      Class attendance data has been archived to your instructor panel.
+                  </p>
+               </div>`,
+        confirmButtonText: 'Continue',
+        confirmButtonColor: '#3085d6',
+        allowOutsideClick: false,
+        backdrop: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Optional: You can add any cleanup or redirect here if needed
+        }
+    });
+<?php endif; ?>
 
         // Auto-refresh the page every 30 seconds to update attendance status
         // Only refresh if attendance is not saved (when showing active data)

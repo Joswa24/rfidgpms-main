@@ -3,22 +3,17 @@ date_default_timezone_set('Asia/Manila');
 session_start();
 include 'connection.php';
 
-// Set MySQL timezone to match PHP
-mysqli_query($db, "SET time_zone = '+08:00'"); // Changed to Asia/Manila timezone
-
-header('Content-Type: application/json');
-
-// Enable error reporting for debugging
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
-$instructorLoginTime = $_SESSION['instructor_login_time'] ?? date('Y-m-d H:i:s');
-$attendanceSessionId = $_SESSION['attendance_session_id'] ?? null;
-
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    echo json_encode(['error' => 'Invalid request method']);
-    exit;
+// Session verification at the start
+if (!isset($_SESSION['access']['instructor']['id'])) {
+    echo json_encode([
+        'error' => 'Session expired. Please login again.',
+        'session_expired' => true
+    ]);
+    exit();
 }
+
+$instructor_id = $_SESSION['access']['instructor']['id'];
+$instructor_name = $_SESSION['access']['instructor']['fullname'];
 
 $barcode = $_POST['barcode'] ?? '';
 $department = $_POST['department'] ?? '';

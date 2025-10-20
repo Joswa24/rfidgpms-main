@@ -3,6 +3,48 @@ date_default_timezone_set('Asia/Manila');
 include 'connection.php';
 session_start();
 
+// Enhanced session verification and recovery
+function verifyInstructorSession() {
+    // Check if instructor session exists
+    if (!isset($_SESSION['access']['instructor']['id'])) {
+        error_log("❌ Instructor session missing in main1.php");
+        
+        // Try to recover from backup storage if available
+        if (isset($_POST['instructor_id_backup'])) {
+            $_SESSION['access']['instructor'] = [
+                'id' => $_POST['instructor_id_backup'],
+                'fullname' => $_POST['instructor_name_backup'] ?? 'Unknown Instructor',
+                'id_number' => $_POST['instructor_id_number_backup'] ?? ''
+            ];
+            error_log("✅ Session recovered from backup data");
+            return true;
+        }
+        
+        return false;
+    }
+    
+    // Validate that we have the required instructor data
+    if (empty($_SESSION['access']['instructor']['id'])) {
+        error_log("❌ Instructor ID is empty in session");
+        return false;
+    }
+    
+    error_log("✅ Instructor session verified: " . $_SESSION['access']['instructor']['id']);
+    return true;
+}
+
+// Verify session immediately
+if (!verifyInstructorSession()) {
+    // Log detailed session info for debugging
+    error_log("Session dump: " . print_r($_SESSION, true));
+    error_log("POST dump: " . print_r($_POST, true));
+    
+    // Redirect back to login with error
+    $_SESSION['login_error'] = "Session expired. Please login again.";
+    header("Location: index.php");
+    exit();
+}
+
 // Record instructor login time when opening the portal
 if (isset($_SESSION['access']['instructor']['id']) && !isset($_SESSION['instructor_login_time'])) {
     $instructor_id = $_SESSION['access']['instructor']['id'];

@@ -105,11 +105,107 @@ $fourthYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as coun
             position: relative;
             margin-bottom: 15px;
         }
-        .summary-card:hover {
-            transform: translateY(-5px);
-            transition: transform 0.3s ease;
-            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        
+        /* Modern Summary Cards - Matching Dashboard Style */
+        .stats-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+            border: none;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
         }
+
+        .stats-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+        }
+
+        .stats-card.text-info::before { background: linear-gradient(135deg, #36b9cc, #2e59d9); }
+        .stats-card.text-primary::before { background: linear-gradient(135deg, #4e73df, #2e59d9); }
+        .stats-card.text-danger::before { background: linear-gradient(135deg, #e74a3b, #be2617); }
+        .stats-card.text-success::before { background: linear-gradient(135deg, #1cc88a, #17a673); }
+        .stats-card.text-warning::before { background: linear-gradient(135deg, #f6c23e, #f4b619); }
+        .stats-card.text-secondary::before { background: linear-gradient(135deg, #858796, #6c757d); }
+
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        }
+
+        .stats-icon {
+            font-size: 2rem;
+            margin-bottom: 5px;
+            opacity: 0.8;
+        }
+
+        .stats-content h3 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+            color: #5a5c69;
+        }
+
+        .stats-content p {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .stats-detail {
+            font-size: 0.75rem;
+            color: #495057;
+            margin-top: 5px;
+        }
+
+        /* Ensure cards fit in one row */
+        .summary-cards-row .col-xl {
+            padding: 0 8px;
+        }
+
+        @media (max-width: 1400px) {
+            .summary-cards-row .col-xl {
+                flex: 0 0 20%;
+                max-width: 20%;
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .summary-cards-row .col-xl {
+                flex: 0 0 25%;
+                max-width: 25%;
+            }
+        }
+
+        @media (max-width: 992px) {
+            .summary-cards-row .col-xl {
+                flex: 0 0 33.333%;
+                max-width: 33.333%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .summary-cards-row .col-xl {
+                flex: 0 0 50%;
+                max-width: 50%;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .summary-cards-row .col-xl {
+                flex: 0 0 100%;
+                max-width: 100%;
+            }
+        }
+
         .filter-section {
             background-color: #f8f9fa;
             border-radius: 0.375rem;
@@ -177,69 +273,80 @@ $fourthYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as coun
                             </div>
                         </div>
 
-                        <!-- Summary Cards -->
-                        <div class="row mb-4">
-                            <div class="col-xl-2 col-md-4 col-sm-6">
-                                <div class="card bg-primary text-white summary-card mb-4">
-                                    <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <div class="fs-6 fw-bold">Total Students</div>
-                                                <div class="fs-4 fw-bold"><?php echo $totalStudents; ?></div>
-                                            </div>
-                                            <i class="fas fa-users fa-2x"></i>
+                        <!-- Modern Summary Cards -->
+                        <div class="row g-4 mb-4 summary-cards-row">
+                            <!-- Total Students -->
+                            <div class="col-xl">
+                                <div class="stats-card text-primary">
+                                    <div class="stats-icon">
+                                        <i class="fas fa-users"></i>
+                                    </div>
+                                    <div class="stats-content">
+                                        <h3><?php echo $totalStudents; ?></h3>
+                                        <p>Total Students</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 1st Year -->
+                            <div class="col-xl">
+                                <div class="stats-card text-info">
+                                    <div class="stats-icon">
+                                        <i class="fas fa-user-graduate"></i>
+                                    </div>
+                                    <div class="stats-content">
+                                        <h3><?php echo $firstYearCount; ?></h3>
+                                        <p>1st Year Students</p>
+                                        <div class="stats-detail">
+                                            <?php echo $firstYearCount > 0 ? round(($firstYearCount / $totalStudents) * 100, 1) : 0; ?>% of total
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-xl-2 col-md-4 col-sm-6">
-                                <div class="card bg-success text-white summary-card mb-4">
-                                    <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <div class="fs-6 fw-bold">1st Year</div>
-                                                <div class="fs-4 fw-bold"><?php echo $firstYearCount; ?></div>
-                                            </div>
-                                            <i class="fas fa-graduation-cap fa-2x"></i>
+
+                            <!-- 2nd Year -->
+                            <div class="col-xl">
+                                <div class="stats-card text-success">
+                                    <div class="stats-icon">
+                                        <i class="fas fa-user-graduate"></i>
+                                    </div>
+                                    <div class="stats-content">
+                                        <h3><?php echo $secondYearCount; ?></h3>
+                                        <p>2nd Year Students</p>
+                                        <div class="stats-detail">
+                                            <?php echo $secondYearCount > 0 ? round(($secondYearCount / $totalStudents) * 100, 1) : 0; ?>% of total
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-xl-2 col-md-4 col-sm-6">
-                                <div class="card bg-info text-white summary-card mb-4">
-                                    <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <div class="fs-6 fw-bold">2nd Year</div>
-                                                <div class="fs-4 fw-bold"><?php echo $secondYearCount; ?></div>
-                                            </div>
-                                            <i class="fas fa-graduation-cap fa-2x"></i>
+
+                            <!-- 3rd Year -->
+                            <div class="col-xl">
+                                <div class="stats-card text-warning">
+                                    <div class="stats-icon">
+                                        <i class="fas fa-user-graduate"></i>
+                                    </div>
+                                    <div class="stats-content">
+                                        <h3><?php echo $thirdYearCount; ?></h3>
+                                        <p>3rd Year Students</p>
+                                        <div class="stats-detail">
+                                            <?php echo $thirdYearCount > 0 ? round(($thirdYearCount / $totalStudents) * 100, 1) : 0; ?>% of total
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-xl-2 col-md-4 col-sm-6">
-                                <div class="card bg-warning text-dark summary-card mb-4">
-                                    <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <div class="fs-6 fw-bold">3rd Year</div>
-                                                <div class="fs-4 fw-bold"><?php echo $thirdYearCount; ?></div>
-                                            </div>
-                                            <i class="fas fa-graduation-cap fa-2x"></i>
-                                        </div>
+
+                            <!-- 4th Year -->
+                            <div class="col-xl">
+                                <div class="stats-card text-danger">
+                                    <div class="stats-icon">
+                                        <i class="fas fa-user-graduate"></i>
                                     </div>
-                                </div>
-                            </div>
-                            <div class="col-xl-2 col-md-4 col-sm-6">
-                                <div class="card bg-danger text-white summary-card mb-4">
-                                    <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <div class="fs-6 fw-bold">4th Year</div>
-                                                <div class="fs-4 fw-bold"><?php echo $fourthYearCount; ?></div>
-                                            </div>
-                                            <i class="fas fa-graduation-cap fa-2x"></i>
+                                    <div class="stats-content">
+                                        <h3><?php echo $fourthYearCount; ?></h3>
+                                        <p>4th Year Students</p>
+                                        <div class="stats-detail">
+                                            <?php echo $fourthYearCount > 0 ? round(($fourthYearCount / $totalStudents) * 100, 1) : 0; ?>% of total
                                         </div>
                                     </div>
                                 </div>
@@ -296,6 +403,7 @@ $fourthYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as coun
                         </div>
 
                         <hr>
+
 
                         <!-- Table View -->
                         <div class="view-content" id="tableView">
