@@ -836,14 +836,18 @@ function debugNameResolution($log) {
                 <div class="table-responsive">
                     <table class="table table-striped table-hover mb-0">
                         <thead>
-                            <tr>
-                                <th><i class="fas fa-clock me-1"></i>Time</th>
-                                <th><i class="fas fa-id-card me-1"></i>ID Number</th>
-                                <th><i class="fas fa-user me-1"></i>Name</th>
-                                <th><i class="fas fa-tag me-1"></i>Type</th>
-                                <th><i class="fas fa-arrows-alt-h me-1"></i>Direction</th>
-                            </tr>
-                        </thead>
+                        <tr>
+                            <th><i class="fas fa-calendar me-1"></i>Date</th>
+                            <th><i class="fas fa-id-card me-1"></i>ID Number</th>
+                            <th><i class="fas fa-user me-1"></i>Name</th>
+                            <th><i class="fas fa-tag me-1"></i>Type</th>
+                            <th>
+                                <div class="text-center">
+                                    <i class="fas fa-clock me-1"></i>Time
+                                </div>
+                            </th>
+                        </tr>
+                    </thead>
                         <tbody>
                             <?php if (empty($logs)): ?>
                                 <tr>
@@ -865,7 +869,7 @@ function debugNameResolution($log) {
                                                 <?php 
                                                     $timeValue = $log['created_at'] ?? null;
                                                     echo $timeValue 
-                                                        ? date('M j, Y h:i A', strtotime($timeValue)) 
+                                                        ? date('M j, Y', strtotime($timeValue)) 
                                                         : 'N/A';
                                                 ?>
                                             </small>
@@ -893,11 +897,37 @@ function debugNameResolution($log) {
                                             </span>
                                         </td>
                                         <td>
-                                            <span class="badge <?php echo $log['direction'] === 'IN' ? 'badge-entry' : 'badge-exit'; ?> rounded-pill">
-                                                <i class="fas fa-<?php echo $log['direction'] === 'IN' ? 'sign-in-alt' : 'sign-out-alt'; ?> me-1"></i>
-                                                <?php echo $log['direction'] === 'IN' ? 'ENTRY' : 'EXIT'; ?>
-                                            </span>
-                                        </td>
+                                        <div class="text-center d-flex justify-content-center">
+                                            <!-- Entrance Column -->
+                                            <div class="text-center pe-2 border-end">
+                                                <span class="badge badge-entry rounded-pill d-block mb-1">
+                                                    <i class="fas fa-sign-in-alt me-1"></i>IN
+                                                </span>
+                                                <small class="text-muted d-block">
+                                                    <?php 
+                                                        $timeIn = $log['time_in'] ?? null;
+                                                        echo $timeIn && $timeIn != '00:00:00' && $timeIn != '?' 
+                                                            ? date('h:i A', strtotime($timeIn)) 
+                                                            : '-';
+                                                    ?>
+                                                </small>
+                                            </div>
+                                            <!-- Exit Column -->
+                                            <div class="text-center ps-2">
+                                                <span class="badge badge-exit rounded-pill d-block mb-1">
+                                                    <i class="fas fa-sign-out-alt me-1"></i>OUT
+                                                </span>
+                                                <small class="text-muted d-block">
+                                                    <?php 
+                                                        $timeOut = $log['time_out'] ?? null;
+                                                        echo $timeOut && $timeOut != '00:00:00' && $timeOut != '?' 
+                                                            ? date('h:i A', strtotime($timeOut)) 
+                                                            : '-';
+                                                    ?>
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </td>
                                     </tr>
                                 <?php endforeach; ?>
                             <?php endif; ?>

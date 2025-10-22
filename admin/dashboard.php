@@ -38,10 +38,16 @@ if (!function_exists('formatTime')) {
     }
 }
 
-// Get dashboard statistics
+// =====================================================================
+// ENHANCED DASHBOARD STATISTICS USING YOUR GATE LOGS STRUCTURE
+// =====================================================================
+
+// Get dashboard statistics - INTEGRATED WITH YOUR GATE LOGS
 function getDashboardStats($db) {
     $stats = [
         'total_entrants_today' => 0,
+        'total_exits_today' => 0,
+        'current_inside' => 0,
         'visitors_today' => 0,
         'students_today' => 0,
         'instructors_today' => 0,
@@ -49,28 +55,74 @@ function getDashboardStats($db) {
         'blocked' => 0,
         'total_students' => 0,
         'total_instructors' => 0,
-        'total_staff' => 0
+        'total_staff' => 0,
+        'total_visitors_today' => 0,
+        'peak_hour' => 'N/A',
+        'avg_daily_entrants' => 0,
+        'pending_exits_count' => 0
     ];
 
     try {
-        // Total entrants today
-        $query = "SELECT COUNT(*) as total FROM gate_logs WHERE DATE(created_at) = CURDATE()";
+        $today = date('Y-m-d');
+        
+        // Total entries today (IN actions)
+        $query = "SELECT COUNT(*) as total FROM gate_logs WHERE DATE(created_at) = CURDATE() AND direction = 'IN'";
         $result = $db->query($query);
         if ($result) {
             $row = $result->fetch_assoc();
             $stats['total_entrants_today'] = $row['total'] ?? 0;
         }
 
+        // Total exits today (OUT actions)
+        $query = "SELECT COUNT(*) as total FROM gate_logs WHERE DATE(created_at) = CURDATE() AND direction = 'OUT'";
+        $result = $db->query($query);
+        if ($result) {
+            $row = $result->fetch_assoc();
+            $stats['total_exits_today'] = $row['total'] ?? 0;
+        }
+
+        // Current people inside (IN but not OUT today) - using your pending exits logic
+        $query = "SELECT COUNT(*) as total FROM gate_logs 
+                 WHERE direction = 'IN' 
+                 AND DATE(created_at) = CURDATE() 
+                 AND id_number NOT IN (
+                     SELECT id_number 
+                     FROM gate_logs 
+                     WHERE direction = 'OUT' 
+                     AND DATE(created_at) = CURDATE()
+                 )";
+        $result = $db->query($query);
+        if ($result) {
+            $row = $result->fetch_assoc();
+            $stats['current_inside'] = $row['total'] ?? 0;
+            $stats['pending_exits_count'] = $row['total'] ?? 0;
+        }
+
         // Visitors today
-        $query = "SELECT COUNT(*) as total FROM visitor_logs WHERE DATE(time_in) = CURDATE()";
+        $query = "SELECT COUNT(*) as total FROM gate_logs 
+                 WHERE DATE(created_at) = CURDATE() 
+                 AND person_type = 'visitor' 
+                 AND direction = 'IN'";
         $result = $db->query($query);
         if ($result) {
             $row = $result->fetch_assoc();
             $stats['visitors_today'] = $row['total'] ?? 0;
+            $stats['total_visitors_today'] = $row['total'] ?? 0;
         }
 
-        // Students present today
-        $query = "SELECT COUNT(DISTINCT student_id) as total FROM students_glogs WHERE date_logged = CURDATE() AND (time_out IS NULL OR time_out = '00:00:00')";
+        // Students present today (using your specific table structure)
+        $query = "SELECT COUNT(DISTINCT gl.id_number) as total 
+                 FROM gate_logs gl
+                 WHERE gl.person_type = 'student' 
+                 AND DATE(gl.created_at) = CURDATE() 
+                 AND gl.direction = 'IN'
+                 AND gl.id_number NOT IN (
+                     SELECT id_number 
+                     FROM gate_logs 
+                     WHERE direction = 'OUT' 
+                     AND DATE(created_at) = CURDATE()
+                     AND person_type = 'student'
+                 )";
         $result = $db->query($query);
         if ($result) {
             $row = $result->fetch_assoc();
@@ -78,7 +130,7 @@ function getDashboardStats($db) {
         }
 
         // Total students
-        $query = "SELECT COUNT(*) as total FROM students";
+        $query = "SELECT COUNT(*) as total FROM students WHERE status != 'Blocked'";
         $result = $db->query($query);
         if ($result) {
             $row = $result->fetch_assoc();
@@ -86,7 +138,18 @@ function getDashboardStats($db) {
         }
 
         // Instructors present today
-        $query = "SELECT COUNT(DISTINCT instructor_id) as total FROM instructor_glogs WHERE date_logged = CURDATE() AND (time_out IS NULL OR time_out = '00:00:00')";
+        $query = "SELECT COUNT(DISTINCT gl.id_number) as total 
+                 FROM gate_logs gl
+                 WHERE gl.person_type = 'instructor' 
+                 AND DATE(gl.created_at) = CURDATE() 
+                 AND gl.direction = 'IN'
+                 AND gl.id_number NOT IN (
+                     SELECT id_number 
+                     FROM gate_logs 
+                     WHERE direction = 'OUT' 
+                     AND DATE(created_at) = CURDATE()
+                     AND person_type = 'instructor'
+                 )";
         $result = $db->query($query);
         if ($result) {
             $row = $result->fetch_assoc();
@@ -94,7 +157,7 @@ function getDashboardStats($db) {
         }
 
         // Total instructors
-        $query = "SELECT COUNT(*) as total FROM instructor";
+        $query = "SELECT COUNT(*) as total FROM instructor WHERE status != 'Blocked'";
         $result = $db->query($query);
         if ($result) {
             $row = $result->fetch_assoc();
@@ -102,7 +165,18 @@ function getDashboardStats($db) {
         }
 
         // Staff present today
-        $query = "SELECT COUNT(DISTINCT personell_id) as total FROM personell_glogs WHERE date_logged = CURDATE() AND (time_out IS NULL OR time_out = '00:00:00')";
+        $query = "SELECT COUNT(DISTINCT gl.id_number) as total 
+                 FROM gate_logs gl
+                 WHERE gl.person_type = 'personell' 
+                 AND DATE(gl.created_at) = CURDATE() 
+                 AND gl.direction = 'IN'
+                 AND gl.id_number NOT IN (
+                     SELECT id_number 
+                     FROM gate_logs 
+                     WHERE direction = 'OUT' 
+                     AND DATE(created_at) = CURDATE()
+                     AND person_type = 'personell'
+                 )";
         $result = $db->query($query);
         if ($result) {
             $row = $result->fetch_assoc();
@@ -125,6 +199,33 @@ function getDashboardStats($db) {
             $stats['blocked'] = $row['total'] ?? 0;
         }
 
+        // Peak hour analysis from gate_logs
+        $query = "SELECT HOUR(created_at) as hour, COUNT(*) as count 
+                 FROM gate_logs 
+                 WHERE DATE(created_at) = CURDATE() 
+                 AND direction = 'IN'
+                 GROUP BY HOUR(created_at) 
+                 ORDER BY count DESC 
+                 LIMIT 1";
+        $result = $db->query($query);
+        if ($result && $result->num_rows > 0) {
+            $row = $result->fetch_assoc();
+            $stats['peak_hour'] = date('g A', strtotime($row['hour'] . ':00'));
+        }
+
+        // Average daily entrants (last 7 days)
+        $query = "SELECT AVG(daily_total) as avg_daily 
+                 FROM (SELECT DATE(created_at) as date, COUNT(*) as daily_total 
+                       FROM gate_logs 
+                       WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) 
+                       AND direction = 'IN'
+                       GROUP BY DATE(created_at)) as daily_totals";
+        $result = $db->query($query);
+        if ($result) {
+            $row = $result->fetch_assoc();
+            $stats['avg_daily_entrants'] = round($row['avg_daily'] ?? 0);
+        }
+
     } catch (Exception $e) {
         error_log("Dashboard stats error: " . $e->getMessage());
     }
@@ -132,19 +233,29 @@ function getDashboardStats($db) {
     return $stats;
 }
 
-// Get today's logs
+// Get today's logs with enhanced data - SIMPLIFIED VERSION
 function getTodaysLogs($db) {
     $query = "SELECT 
-                gl.name as full_name,
-                gl.person_type as role,
-                gl.location,
+                gl.id_number,
+                COALESCE(
+                    s.fullname,
+                    i.fullname,
+                    CONCAT_WS(' ', p.first_name, COALESCE(p.middle_name, ''), p.last_name),
+                    v.name,
+                    gl.name
+                ) as full_name,
+                gl.person_type,
                 gl.time_in,
                 gl.time_out,
                 gl.created_at
               FROM gate_logs gl
+              LEFT JOIN students s ON gl.person_type = 'student' AND gl.person_id = s.id
+              LEFT JOIN instructor i ON gl.person_type = 'instructor' AND gl.person_id = i.id
+              LEFT JOIN personell p ON gl.person_type = 'personell' AND gl.person_id = p.id
+              LEFT JOIN visitor v ON gl.person_type = 'visitor' AND gl.person_id = v.id
               WHERE DATE(gl.created_at) = CURDATE()
               ORDER BY gl.created_at DESC
-              LIMIT 50";
+              LIMIT 100";
     
     try {
         return $db->query($query);
@@ -154,33 +265,46 @@ function getTodaysLogs($db) {
     }
 }
 
-// Get weekly entrants data for line chart
+// Get weekly entrants data for line chart - INTEGRATED
 function getWeeklyEntrants($db) {
     $weeklyData = [];
     
     try {
-        // Get last 7 days including today
+        // Get last 7 days including today with detailed stats
         for ($i = 6; $i >= 0; $i--) {
             $date = date('Y-m-d', strtotime("-$i days"));
             $dayName = date('D', strtotime($date));
             
-            $query = "SELECT COUNT(*) as total FROM gate_logs WHERE DATE(created_at) = '$date'";
+            // Get total entrants (IN actions)
+            $query = "SELECT COUNT(*) as total FROM gate_logs WHERE DATE(created_at) = '$date' AND direction = 'IN'";
             $result = $db->query($query);
-            
+            $total = 0;
             if ($result) {
                 $row = $result->fetch_assoc();
-                $weeklyData[] = [
-                    'day' => $dayName,
-                    'date' => $date,
-                    'total' => $row['total'] ?? 0
-                ];
-            } else {
-                $weeklyData[] = [
-                    'day' => $dayName,
-                    'date' => $date,
-                    'total' => 0
-                ];
+                $total = $row['total'] ?? 0;
             }
+            
+            // Get breakdown by type
+            $breakdown = [];
+            $types = ['student', 'instructor', 'personell', 'visitor'];
+            foreach ($types as $type) {
+                $typeQuery = "SELECT COUNT(*) as count FROM gate_logs 
+                             WHERE DATE(created_at) = '$date' 
+                             AND person_type = '$type' 
+                             AND direction = 'IN'";
+                $typeResult = $db->query($typeQuery);
+                if ($typeResult) {
+                    $typeRow = $typeResult->fetch_assoc();
+                    $breakdown[$type] = $typeRow['count'] ?? 0;
+                }
+            }
+            
+            $weeklyData[] = [
+                'day' => $dayName,
+                'date' => $date,
+                'total' => $total,
+                'breakdown' => $breakdown
+            ];
         }
     } catch (Exception $e) {
         error_log("Weekly entrants error: " . $e->getMessage());
@@ -189,48 +313,52 @@ function getWeeklyEntrants($db) {
     return $weeklyData;
 }
 
-// Get entrants distribution for pie chart
+// Get entrants distribution for pie chart - INTEGRATED
 function getEntrantsDistribution($db) {
     $distribution = [];
     
     try {
-        // Get counts for each person type
+        // Get counts for each person type for today (IN actions only)
         $query = "SELECT 
                     person_type,
                     COUNT(*) as total
                   FROM gate_logs 
                   WHERE DATE(created_at) = CURDATE()
+                  AND direction = 'IN'
                   GROUP BY person_type";
         
         $result = $db->query($query);
         
         if ($result) {
             while ($row = $result->fetch_assoc()) {
+                $type = ucfirst($row['person_type']);
+                if ($type == 'Personell') $type = 'Staff';
+                
                 $distribution[] = [
-                    'type' => ucfirst($row['person_type']),
+                    'type' => $type,
                     'total' => $row['total'] ?? 0
                 ];
             }
         }
         
-        // If no data for today, get from all time for demo
-        if (empty($distribution)) {
-            $query = "SELECT 
-                        person_type,
-                        COUNT(*) as total
-                      FROM gate_logs 
-                      GROUP BY person_type
-                      LIMIT 10";
-            
-            $result = $db->query($query);
-            
-            if ($result) {
-                while ($row = $result->fetch_assoc()) {
-                    $distribution[] = [
-                        'type' => ucfirst($row['person_type']),
-                        'total' => $row['total'] ?? 0
-                    ];
+        // Ensure we have all types even if zero
+        $allTypes = [
+            ['type' => 'Students', 'total' => 0],
+            ['type' => 'Instructors', 'total' => 0],
+            ['type' => 'Staff', 'total' => 0],
+            ['type' => 'Visitors', 'total' => 0]
+        ];
+        
+        foreach ($allTypes as $defaultType) {
+            $found = false;
+            foreach ($distribution as $existing) {
+                if ($existing['type'] === $defaultType['type']) {
+                    $found = true;
+                    break;
                 }
+            }
+            if (!$found) {
+                $distribution[] = $defaultType;
             }
         }
         
@@ -241,11 +369,75 @@ function getEntrantsDistribution($db) {
     return $distribution;
 }
 
+// Get real-time activity feed
+// Get real-time activity feed - USING CALCULATED TIME FIELD
+function getRecentActivity($db) {
+    $activity = [];
+    
+    try {
+        $query = "SELECT 
+                    gl.id_number,
+                    COALESCE(
+                        s.fullname,
+                        i.fullname,
+                        CONCAT_WS(' ', p.first_name, COALESCE(p.middle_name, ''), p.last_name),
+                        v.name,
+                        gl.name
+                    ) as full_name,
+                    gl.person_type as role,
+                    gl.direction as action,
+                    CASE 
+                        WHEN gl.direction = 'IN' THEN gl.time_in
+                        WHEN gl.direction = 'OUT' THEN gl.time_out
+                        ELSE gl.created_at
+                    END as display_time,
+                    gl.location
+                  FROM gate_logs gl
+                  LEFT JOIN students s ON gl.person_type = 'student' AND gl.person_id = s.id
+                  LEFT JOIN instructor i ON gl.person_type = 'instructor' AND gl.person_id = i.id
+                  LEFT JOIN personell p ON gl.person_type = 'personell' AND gl.person_id = p.id
+                  LEFT JOIN visitor v ON gl.person_type = 'visitor' AND gl.person_id = v.id
+                  WHERE DATE(gl.created_at) = CURDATE()
+                  ORDER BY gl.created_at DESC
+                  LIMIT 10";
+        
+        $result = $db->query($query);
+        
+        if ($result) {
+            while ($row = $result->fetch_assoc()) {
+                $activity[] = [
+                    'full_name' => $row['full_name'],
+                    'role' => ucfirst($row['role']),
+                    'action' => $row['action'],
+                    'time' => formatTime($row['display_time']),
+                    'location' => $row['location']
+                ];
+            }
+        }
+    } catch (Exception $e) {
+        error_log("Recent activity error: " . $e->getMessage());
+    }
+    
+    return $activity;
+}
+
 // Get data
 $stats = getDashboardStats($db);
 $logsResult = getTodaysLogs($db);
 $weeklyData = getWeeklyEntrants($db);
 $entrantsDistribution = getEntrantsDistribution($db);
+$recentActivity = getRecentActivity($db);
+
+// Helper function to get icons for person types (from your existing function)
+function getPersonTypeIcon($type) {
+    $icons = [
+        'student' => 'user-graduate',
+        'instructor' => 'chalkboard-teacher',
+        'personell' => 'user-tie',
+        'visitor' => 'user-clock'
+    ];
+    return $icons[$type] ?? 'user';
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -270,6 +462,7 @@ $entrantsDistribution = getEntrantsDistribution($db);
             --warning-color: #f6c23e;
             --danger-color: #e74a3b;
             --success-color: #1cc88a;
+            --info-color: #36b9cc;
             --border-radius: 15px;
             --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
             --transition: all 0.3s ease;
@@ -330,6 +523,7 @@ $entrantsDistribution = getEntrantsDistribution($db);
         .stats-card.text-success::before { background: linear-gradient(135deg, #1cc88a, #17a673); }
         .stats-card.text-warning::before { background: linear-gradient(135deg, #f6c23e, #f4b619); }
         .stats-card.text-secondary::before { background: linear-gradient(135deg, #858796, #6c757d); }
+        .stats-card.text-dark::before { background: linear-gradient(135deg, #5a5c69, #373840); }
 
         .stats-icon {
             font-size: 2rem;
@@ -357,6 +551,13 @@ $entrantsDistribution = getEntrantsDistribution($db);
             margin-top: 5px;
         }
 
+        .stats-trend {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: rgba(0,0,0,0.05);
+        }
+
         .table th {
             background: linear-gradient(135deg, var(--icon-color), #4361ee);
             color: white;
@@ -381,6 +582,37 @@ $entrantsDistribution = getEntrantsDistribution($db);
             border-radius: 8px;
             padding: 6px 10px;
         }
+
+        .badge-entry {
+            background: linear-gradient(135deg, #4cc9f0, #4361ee);
+            color: white;
+        }
+
+        .badge-exit {
+            background: linear-gradient(135deg, #f72585, #7209b7);
+            color: white;
+        }
+
+        .badge-student {
+            background: linear-gradient(135deg, #4cc9f0, #4361ee);
+            color: white;
+        }
+
+        .badge-instructor {
+            background: linear-gradient(135deg, #f6c23e, #f4a261);
+            color: white;
+        }
+
+        .badge-personell {
+            background: linear-gradient(135deg, #e74a3b, #d62828);
+            color: white;
+        }
+
+        .badge-visitor {
+            background: linear-gradient(135deg, #6c757d, #495057);
+            color: white;
+        }
+
 
         .btn {
             border-radius: 8px;
@@ -458,6 +690,37 @@ $entrantsDistribution = getEntrantsDistribution($db);
             text-align: center;
         }
 
+        /* Activity feed */
+        .activity-feed {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .activity-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            transition: var(--transition);
+        }
+
+        .activity-item:hover {
+            background-color: rgba(92, 149, 233, 0.05);
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-badge {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 10px;
+        }
+
+        .activity-badge.in { background-color: var(--success-color); }
+        .activity-badge.out { background-color: var(--warning-color); }
+
         /* Hover logs */
         .hover-logs {
             display: none;
@@ -503,6 +766,12 @@ $entrantsDistribution = getEntrantsDistribution($db);
                 padding: 15px;
             }
         }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
     </style>
 </head>
 
@@ -526,17 +795,36 @@ $entrantsDistribution = getEntrantsDistribution($db);
                         </div>
                         <hr>
 
-                        <!-- Statistics Cards -->
+                        <!-- Enhanced Statistics Cards -->
                         <div class="row g-4 mb-4">
                             <!-- Total Entrants -->
                             <div class="col-sm-6 col-md-4 col-xl-2">
                                 <div class="stats-card text-info">
                                     <div class="stats-icon">
-                                        <i class="fas fa-users"></i>
+                                        <i class="fas fa-sign-in-alt"></i>
                                     </div>
                                     <div class="stats-content">
                                         <h3><?php echo sanitizeOutput($stats['total_entrants_today']); ?></h3>
                                         <p>Total Entrants Today</p>
+                                        <div class="stats-detail">
+                                            Exits: <?php echo sanitizeOutput($stats['total_exits_today']); ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Instructors Count -->
+                            <div class="col-sm-6 col-md-4 col-xl-2">
+                                <div class="stats-card text-warning">
+                                    <div class="stats-icon">
+                                        <i class="fas fa-chalkboard-teacher"></i>
+                                    </div>
+                                    <div class="stats-content">
+                                        <h3><?php echo sanitizeOutput($stats['instructors_today']); ?></h3>
+                                        <p>Instructors Present</p>
+                                        <div class="stats-detail">
+                                            Total: <?php echo sanitizeOutput($stats['total_instructors']); ?>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -551,21 +839,34 @@ $entrantsDistribution = getEntrantsDistribution($db);
                                     <div class="stats-content">
                                         <h3><?php echo sanitizeOutput($stats['visitors_today']); ?></h3>
                                         <p>Visitors Today</p>
+                                        <div class="stats-detail">
+                                            Gate: <?php echo sanitizeOutput($stats['total_visitors_today']); ?>
+                                        </div>
                                     </div>
                                     <div id="visitorLogs" class="hover-logs">
                                         <h6 class="mb-3"><i class="fas fa-users me-2"></i>Today's Visitors</h6>
                                         <ul class="list-unstyled">
                                             <?php
-                                            $visitorQuery = "SELECT full_name, contact_number as department FROM visitor_logs WHERE DATE(time_in) = CURDATE() ORDER BY time_in DESC LIMIT 10";
+                                            $visitorQuery = "SELECT 
+                                                gl.id_number,
+                                                COALESCE(v.name, gl.name) as full_name,
+                                                gl.department
+                                              FROM gate_logs gl
+                                              LEFT JOIN visitor v ON gl.person_type = 'visitor' AND gl.person_id = v.id
+                                              WHERE DATE(gl.created_at) = CURDATE() 
+                                              AND gl.person_type = 'visitor'
+                                              AND gl.direction = 'IN'
+                                              ORDER BY gl.created_at DESC LIMIT 10";
                                             $visitorResult = $db->query($visitorQuery);
                                             if ($visitorResult && $visitorResult->num_rows > 0) {
                                                 while ($row = $visitorResult->fetch_assoc()) {
                                                     echo '<li class="mb-2">';
                                                     echo '<div class="d-flex align-items-center">';
-                                                    echo '<img src="../admin/uploads/students/default.png" alt="Visitor Photo">';
+                                                    echo '<img src="admin/uploads/students/default.png" alt="Visitor Photo">';
                                                     echo '<div>';
                                                     echo '<b>' . sanitizeOutput($row["full_name"]) . '</b><br>';
-                                                    echo '<small class="text-muted">' . sanitizeOutput($row["department"]) . '</small>';
+                                                    echo '<small class="text-muted">' . sanitizeOutput($row["id_number"]) . '</small><br>';
+                                                    echo '<small class="text-info">' . sanitizeOutput($row["department"]) . '</small>';
                                                     echo '</div>';
                                                     echo '</div>';
                                                     echo '</li>';
@@ -595,61 +896,7 @@ $entrantsDistribution = getEntrantsDistribution($db);
                                 </div>
                             </div>
 
-                            <!-- Blocked -->
-                            <div class="col-sm-6 col-md-4 col-xl-2">
-                                <div class="stats-card text-danger position-relative"
-                                    onmouseover="showBlockLogs()" onmouseout="hideBlockLogs()">
-                                    <div class="stats-icon">
-                                        <i class="fas fa-ban"></i>
-                                    </div>
-                                    <div class="stats-content">
-                                        <h3><?php echo sanitizeOutput($stats['blocked']); ?></h3>
-                                        <p>Blocked Personnel</p>
-                                    </div>
-                                    <div id="blockLogs" class="hover-logs">
-                                        <h6 class="mb-3"><i class="fas fa-ban me-2"></i>Blocked Personnel</h6>
-                                        <ul class="list-unstyled">
-                                            <?php
-                                            $blockedQuery = "SELECT CONCAT(first_name, ' ', last_name) as full_name, department, 'Staff' as role FROM personell WHERE status = 'Block' LIMIT 10";
-                                            $blockedResult = $db->query($blockedQuery);
-                                            if ($blockedResult && $blockedResult->num_rows > 0) {
-                                                while ($row = $blockedResult->fetch_assoc()) {
-                                                    echo '<li class="mb-2">';
-                                                    echo '<div class="d-flex align-items-center">';
-                                                    echo '<img src="../admin/uploads/personell/default.png" alt="Blocked Photo">';
-                                                    echo '<div>';
-                                                    echo '<b>' . sanitizeOutput($row["full_name"]) . '</b><br>';
-                                                    echo '<small class="text-muted">' . sanitizeOutput($row["role"]) . ' - ' . sanitizeOutput($row["department"]) . '</small>';
-                                                    echo '</div>';
-                                                    echo '</div>';
-                                                    echo '</li>';
-                                                }
-                                            } else {
-                                                echo '<li><div class="text-center text-muted py-3"><i class="fas fa-check-circle fa-2x mb-2"></i><br>No blocked personnel</div></li>';
-                                            }
-                                            ?>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Instructors -->
-                            <div class="col-sm-6 col-md-4 col-xl-2">
-                                <div class="stats-card text-warning">
-                                    <div class="stats-icon">
-                                        <i class="fas fa-chalkboard-teacher"></i>
-                                    </div>
-                                    <div class="stats-content">
-                                        <h3><?php echo sanitizeOutput($stats['instructors_today']); ?></h3>
-                                        <p>Instructors Present</p>
-                                        <div class="stats-detail">
-                                            Total: <?php echo sanitizeOutput($stats['total_instructors']); ?>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Staff -->
+                            <!-- Personnel and Staff -->
                             <div class="col-sm-6 col-md-4 col-xl-2">
                                 <div class="stats-card text-secondary">
                                     <div class="stats-icon">
@@ -657,16 +904,32 @@ $entrantsDistribution = getEntrantsDistribution($db);
                                     </div>
                                     <div class="stats-content">
                                         <h3><?php echo sanitizeOutput($stats['staff_today']); ?></h3>
-                                        <p>Staff Present</p>
+                                        <p>Personnel & Staff</p>
                                         <div class="stats-detail">
                                             Total: <?php echo sanitizeOutput($stats['total_staff']); ?>
                                         </div>
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Peak Hour -->
+                            <div class="col-sm-6 col-md-4 col-xl-2">
+                                <div class="stats-card text-dark">
+                                    <div class="stats-icon">
+                                        <i class="fas fa-chart-line"></i>
+                                    </div>
+                                    <div class="stats-content">
+                                        <h3><?php echo sanitizeOutput($stats['peak_hour']); ?></h3>
+                                        <p>Peak Hour Today</p>
+                                        <div class="stats-detail">
+                                            Avg: <?php echo sanitizeOutput($stats['avg_daily_entrants']); ?>/day
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Charts Section -->
+                        <!-- Enhanced Charts Section -->
                         <div class="row g-4 mb-4">
                             <!-- Weekly Entrants Line Chart -->
                             <div class="col-lg-8">
@@ -676,7 +939,7 @@ $entrantsDistribution = getEntrantsDistribution($db);
                                 </div>
                             </div>
 
-                            <!-- Entrants Distribution Pie Chart -->
+                            <!-- Entrants Distribution & Activity -->
                             <div class="col-lg-4">
                                 <div class="chart-container">
                                     <h5 class="chart-title"><i class="fas fa-chart-pie me-2"></i>Entrants Distribution</h5>
@@ -685,9 +948,47 @@ $entrantsDistribution = getEntrantsDistribution($db);
                             </div>
                         </div>
 
-                        <!-- Today's Entrance Logs -->
+                        <!-- Real-time Activity & Detailed Logs -->
                         <div class="row g-4">
-                            <div class="col-12">
+                            <!-- Recent Activity -->
+                            <div class="col-lg-4">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h5 class="card-title"><i class="fas fa-list-alt me-2"></i>Recent Activity</h5>
+                                        <hr>
+                                        <div class="activity-feed">
+                                            <?php if (!empty($recentActivity)): ?>
+                                                <?php foreach ($recentActivity as $activity): ?>
+                                                    <div class="activity-item">
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="activity-badge <?php echo strtolower($activity['action']); ?>"></span>
+                                                            <div class="flex-grow-1">
+                                                                <strong><?php echo sanitizeOutput($activity['full_name']); ?></strong>
+                                                                <div class="d-flex justify-content-between">
+                                                                    <small class="text-muted"><?php echo sanitizeOutput($activity['role']); ?></small>
+                                                                    <small class="text-<?php echo $activity['action'] == 'IN' ? 'success' : 'warning'; ?>">
+                                                                        <?php echo $activity['action']; ?>
+                                                                    </small>
+                                                                </div>
+                                                                <small class="text-info"><?php echo sanitizeOutput($activity['location']); ?></small>
+                                                                <small class="text-muted d-block"><?php echo $activity['time']; ?></small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            <?php else: ?>
+                                                <div class="text-center text-muted py-4">
+                                                    <i class="fas fa-inbox fa-2x mb-2"></i><br>
+                                                    No recent activity
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Today's Entrance Logs - SIMPLIFIED TABLE -->
+                            <div class="col-lg-8">
                                 <div class="card">
                                     <div class="card-body">
                                         <h5 class="card-title"><i class="fas fa-clock me-2"></i>Today's Entrance Logs</h5>
@@ -696,11 +997,11 @@ $entrantsDistribution = getEntrantsDistribution($db);
                                             <table class="table table-hover" id="logsTable">
                                                 <thead>
                                                     <tr>
+                                                        <th>ID Number</th>
                                                         <th>Full Name</th>
                                                         <th>Role</th>
-                                                        <th>Location</th>
-                                                        <th>Entrance</th>
-                                                        <th>Exit</th>
+                                                        <th>Time In</th>
+                                                        <th>Time Out</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -710,15 +1011,37 @@ $entrantsDistribution = getEntrantsDistribution($db);
                                                     } else {
                                                         if ($logsResult->num_rows > 0) {
                                                             while ($row = $logsResult->fetch_assoc()) { 
-                                                                $timein = formatTime($row['time_in']);
-                                                                $timeout = formatTime($row['time_out']);
+                                                                $timeIn = formatTime($row['time_in']);
+                                                                $timeOut = formatTime($row['time_out']);
                                                     ?>
                                                                 <tr>
-                                                                    <td><?php echo sanitizeOutput($row['full_name']); ?></td>
-                                                                    <td><span class="badge bg-primary"><?php echo sanitizeOutput($row['role']); ?></span></td>
-                                                                    <td><?php echo sanitizeOutput($row['location']); ?></td>
-                                                                    <td><span class="badge bg-success"><?php echo $timein; ?></span></td>
-                                                                    <td><span class="badge bg-secondary"><?php echo $timeout; ?></span></td>
+                                                                    <td><code class="text-primary"><?php echo sanitizeOutput($row['id_number']); ?></code></td>
+                                                                    <td><strong><?php echo sanitizeOutput($row['full_name']); ?></strong></td>
+                                                                    <td>
+                                                                        <span class="badge badge-<?php echo $row['person_type']; ?> rounded-pill">
+                                                                            <i class="fas fa-<?php echo getPersonTypeIcon($row['person_type']); ?> me-1"></i>
+                                                                            <?php echo ucfirst($row['person_type']); ?>
+                                                                        </span>
+                                                                    </td>
+                                                                    <td>
+                                                                        <span class="badge badge-entry rounded-pill">
+                                                                            <i class="fas fa-sign-in-alt me-1"></i>
+                                                                            <?php echo $timeIn; ?>
+                                                                        </span>
+                                                                    </td>
+                                                                    <td>
+                                                                        <?php if ($timeOut != '-'): ?>
+                                                                            <span class="badge badge-exit rounded-pill">
+                                                                                <i class="fas fa-sign-out-alt me-1"></i>
+                                                                                <?php echo $timeOut; ?>
+                                                                            </span>
+                                                                        <?php else: ?>
+                                                                            <span class="badge badge-warning rounded-pill">
+                                                                                <i class="fas fa-clock me-1"></i>
+                                                                                Still Inside
+                                                                            </span>
+                                                                        <?php endif; ?>
+                                                                    </td>
                                                                 </tr>
                                                     <?php 
                                                             }
@@ -770,25 +1093,36 @@ $entrantsDistribution = getEntrantsDistribution($db);
             drawEntrantsDistributionChart();
         }
 
-            function drawWeeklyEntrantsChart() {
+        function drawWeeklyEntrantsChart() {
             // Weekly entrants data from PHP
             const weeklyData = <?php echo json_encode($weeklyData); ?>;
             
             const data = new google.visualization.DataTable();
             data.addColumn('string', 'Day');
-            data.addColumn('number', 'Entrants');
+            data.addColumn('number', 'Total Entrants');
+            data.addColumn('number', 'Students');
+            data.addColumn('number', 'Instructors');
+            data.addColumn('number', 'Staff');
+            data.addColumn('number', 'Visitors');
             
             weeklyData.forEach(day => {
-                data.addRow([day.day, parseInt(day.total)]);
+                data.addRow([
+                    day.day, 
+                    parseInt(day.total),
+                    parseInt(day.breakdown.student || 0),
+                    parseInt(day.breakdown.instructor || 0),
+                    parseInt(day.breakdown.personell || 0),
+                    parseInt(day.breakdown.visitor || 0)
+                ]);
             });
 
             const options = {
                 title: '',
                 curveType: 'function',
-                legend: { position: 'none' },
-                colors: ['#5c95e9'],
+                legend: { position: 'bottom' },
+                colors: ['#5c95e9', '#1cc88a', '#f6c23e', '#e74a3b', '#36b9cc'],
                 backgroundColor: 'transparent',
-                chartArea: {width: '85%', height: '75%', top: 20, bottom: 60},
+                chartArea: {width: '85%', height: '70%', top: 20, bottom: 80},
                 hAxis: {
                     textStyle: {color: '#5a5c69', fontSize: 12},
                     gridlines: { color: 'transparent' },
@@ -818,7 +1152,7 @@ $entrantsDistribution = getEntrantsDistribution($db);
                     bold: true
                 },
                 lineWidth: 3,
-                pointSize: 6,
+                pointSize: 5,
                 animation: {
                     startup: true,
                     duration: 1000,
@@ -831,73 +1165,86 @@ $entrantsDistribution = getEntrantsDistribution($db);
         }
 
         function drawEntrantsDistributionChart() {
-        // Entrants distribution data from PHP
-        const distributionData = <?php echo json_encode($entrantsDistribution); ?>;
-        
-        const data = new google.visualization.DataTable();
-        data.addColumn('string', 'Person Type');
-        data.addColumn('number', 'Count');
-        
-        distributionData.forEach(item => {
-            data.addRow([item.type, parseInt(item.total)]);
-        });
+            // Entrants distribution data from PHP
+            const distributionData = <?php echo json_encode($entrantsDistribution); ?>;
+            
+            const data = new google.visualization.DataTable();
+            data.addColumn('string', 'Person Type');
+            data.addColumn('number', 'Count');
+            
+            // Filter out zero values for better visualization
+            const nonZeroData = distributionData.filter(item => item.total > 0);
+            
+            if (nonZeroData.length === 0) {
+                // If all zeros, show a message
+                document.getElementById('entrantsDistributionChart').innerHTML = 
+                    '<div class="text-center text-muted py-5"><i class="fas fa-chart-pie fa-3x mb-3"></i><br>No data available for today</div>';
+                return;
+            }
+            
+            nonZeroData.forEach(item => {
+                data.addRow([item.type, parseInt(item.total)]);
+            });
 
-        const options = {
-            title: '',
-            pieHole: 0,
-            backgroundColor: 'transparent',
-            chartArea: {
-                width: '95%', 
-                height: '85%', 
-                top: 20, 
-                left: 10,
-                right: 10,
-                bottom: 20
-            },
-            legend: {
-                position: 'none' // Remove the legend completely
-            },
-            pieSliceText: 'label', // Show labels (Instructor, Students, etc.) in slices
-            tooltip: {
-                text: 'percentage',
-                showColorCode: true
-            },
-            slices: {
-                0: { color: '#5c95e9' },
-                1: { color: '#4e73df' },
-                2: { color: '#1cc88a' },
-                3: { color: '#36b9cc' },
-                4: { color: '#f6c23e' },
-                5: { color: '#e74a3b' }
-            },
-            titleTextStyle: {
-                color: '#5a5c69',
-                fontSize: 16,
-                bold: true
-            },
-            pieSliceTextStyle: {
-                color: 'white',
-                fontSize: 12,
-                bold: true,
-                fontName: 'Arial'
-            },
-            pieSliceBorderColor: 'transparent', // Remove border lines
-            pieSliceBorderWidth: 0, // Remove border width
-            is3D: false,
-            pieStartAngle: 0,
-            sliceVisibilityThreshold: 0 // Show all slices even if very small
-        };
+            const options = {
+                title: '',
+                pieHole: 0.4,
+                backgroundColor: 'transparent',
+                chartArea: {
+                    width: '95%', 
+                    height: '85%', 
+                    top: 20, 
+                    left: 10,
+                    right: 10,
+                    bottom: 20
+                },
+                legend: {
+                    position: 'labeled',
+                    textStyle: {
+                        color: '#5a5c69',
+                        fontSize: 12
+                    }
+                },
+                pieSliceText: 'value',
+                tooltip: {
+                    text: 'percentage',
+                    showColorCode: true
+                },
+                slices: {
+                    0: { color: '#5c95e9' },
+                    1: { color: '#1cc88a' },
+                    2: { color: '#f6c23e' },
+                    3: { color: '#e74a3b' },
+                    4: { color: '#36b9cc' }
+                },
+                titleTextStyle: {
+                    color: '#5a5c69',
+                    fontSize: 16,
+                    bold: true
+                },
+                pieSliceTextStyle: {
+                    color: 'white',
+                    fontSize: 12,
+                    bold: true,
+                    fontName: 'Arial'
+                },
+                pieSliceBorderColor: 'transparent',
+                pieSliceBorderWidth: 0,
+                is3D: false,
+                pieStartAngle: 0,
+                sliceVisibilityThreshold: 0
+            };
 
-        // Format the data to show labels with percentages
-        const formatter = new google.visualization.NumberFormat({
-            pattern: '#,##0'
-        });
-        
-        formatter.format(data, 1);
+            const formatter = new google.visualization.NumberFormat({
+                pattern: '#,##0'
+            });
+            
+            formatter.format(data, 1);
 
-        const chart = new google.visualization.PieChart(document.getElementById('entrantsDistributionChart'));
-        chart.draw(data, options);
-    }
+            const chart = new google.visualization.PieChart(document.getElementById('entrantsDistributionChart'));
+            chart.draw(data, options);
+        }
+
         // Redraw charts on window resize
         window.addEventListener('resize', function() {
             drawCharts();
@@ -908,22 +1255,24 @@ $entrantsDistribution = getEntrantsDistribution($db);
     $(document).ready(function() {
         // Initialize DataTable for logs
         $('#logsTable').DataTable({
-            order: [[3, 'desc']],
-            pageLength: 10,
-            responsive: true
+            order: [[3, 'desc']], // Order by Time In (newest first)
+            pageLength: 15,
+            responsive: true,
+            language: {
+                search: "Search logs:",
+                lengthMenu: "Show _MENU_ entries",
+                info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                paginate: {
+                    previous: "Previous",
+                    next: "Next"
+                }
+            }
         });
 
-        // Auto-refresh logs every 30 seconds
+        // Auto-refresh dashboard every 60 seconds
         setInterval(function() {
-            $.ajax({
-                url: 'refresh_logs.php',
-                type: 'GET',
-                success: function(data) {
-                    // Update the logs table if needed
-                    console.log('Logs refreshed');
-                }
-            });
-        }, 30000);
+            window.location.reload();
+        }, 60000);
     });
 
     // Hover log functions
@@ -943,22 +1292,6 @@ $entrantsDistribution = getEntrantsDistribution($db);
         }, 300);
     }
 
-    function showBlockLogs() {
-        const hoverLog = document.getElementById('blockLogs');
-        const card = hoverLog.parentElement;
-        const rect = card.getBoundingClientRect();
-        
-        hoverLog.style.top = (rect.bottom + 10) + 'px';
-        hoverLog.style.left = rect.left + 'px';
-        hoverLog.style.display = 'block';
-    }
-
-    function hideBlockLogs() {
-        setTimeout(() => {
-            document.getElementById('blockLogs').style.display = 'none';
-        }, 300);
-    }
-
     // Close hover logs when clicking outside
     document.addEventListener('click', function(e) {
         if (!e.target.closest('.stats-card')) {
@@ -968,6 +1301,6 @@ $entrantsDistribution = getEntrantsDistribution($db);
         }
     });
 
-</script>
+    </script>
 </body>
 </html>
