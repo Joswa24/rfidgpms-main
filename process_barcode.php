@@ -28,17 +28,22 @@ if (empty($barcode)) {
 $barcode = trim($barcode);
 
 try {
+    // Get current time in Asia/Manila timezone
+    $currentDateTime = date('Y-m-d H:i:s');
+    $currentTime = date('h:i A');
+    $currentDate = date('Y-m-d');
+
     // Query student information
-    $sql = "SELECT s.*, d.department_name 
-            FROM students s 
-            LEFT JOIN department d ON s.department_id = d.department_id 
+    $sql = "SELECT s.*, d.department_name
+            FROM students s
+            LEFT JOIN department d ON s.department_id = d.department_id
             WHERE s.id_number = ?";
     $stmt = $db->prepare($sql);
-    
+
     if (!$stmt) {
         throw new Exception("Prepare failed: " . $db->error);
     }
-    
+
     $stmt->bind_param("s", $barcode);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -49,125 +54,135 @@ try {
     }
 
     $student = $result->fetch_assoc();
-    
-    // Get student photo path using the same logic as students.php
     $photoPath = getStudentPhoto($student['photo']);
 
-    // Determine if this is time in or time out
-    $attendanceCheck = "SELECT * FROM attendance_logs 
-                       WHERE id_number = ? AND DATE(time_in) = CURDATE() 
-                       ORDER BY time_in DESC LIMIT 1";
-    $stmtCheck = $db->prepare($attendanceCheck);
-    
-    if (!$stmtCheck) {
-        throw new Exception("Prepare failed: " . $db->error);
-    }
-    
-    $stmtCheck->bind_param("s", $barcode);
+    // IMPROVED LOGIC: Check for today's attendance records
+    $checkQuery = "SELECT id, time_in, time_out 
+                  FROM attendance_logs 
+                  WHERE student_id = ? 
+                  AND DATE(time_in) = ? 
+                  ORDER BY time_in DESC 
+                  LIMIT 1";
+    $stmtCheck = $db->prepare($checkQuery);
+    $stmtCheck->bind_param("is", $student['id'], $currentDate);
     $stmtCheck->execute();
-    $attendanceResult = $stmtCheck->get_result();
+    $existingResult = $stmtCheck->get_result();
 
-    $attendanceType = 'time_in';
-    $timeInOut = 'Time In Recorded';
-    $alertClass = 'alert-success';
-    $voiceMessage = 'Time in recorded';
-    $existingRecord = null;
-    $newTimeIn = null;
-    $newTimeOut = null;
+    $response = [];
 
-    if ($attendanceResult->num_rows > 0) {
-        $existingRecord = $attendanceResult->fetch_assoc();
-        // If time_out is null, this should be time out
-        if (empty($existingRecord['time_out'])) {
-            $attendanceType = 'time_out';
-            $timeInOut = 'Time Out Recorded';
-            $alertClass = 'alert-warning';
-            $voiceMessage = 'Time out recorded';
+    if ($existingResult->num_rows > 0) {
+        // Student has existing record today
+        $existing = $existingResult->fetch_assoc();
+        
+        if ($existing['time_out'] === null || empty($existing['time_out'])) {
+            // TIME OUT: Student has time-in but no time-out → record time-out
+            $updateQuery = "UPDATE attendance_logs 
+                          SET time_out = ?, instructor_id_out = ?
+                          WHERE id = ?";
+            $stmtUpdate = $db->prepare($updateQuery);
+            $stmtUpdate->bind_param("sii", $currentDateTime, $instructor_id, $existing['id']);
+            
+            if ($stmtUpdate->execute()) {
+                $response = [
+                    'full_name' => $student['fullname'],
+                    'id_number' => $student['id_number'],
+                    'department' => $student['department_name'],
+                    'year_level' => $student['year'],
+                    'section' => $student['section'],
+                    'photo' => $photoPath,
+                    'time_in_out' => 'Time Out Recorded Successfully',
+                    'alert_class' => 'alert-warning',
+                    'attendance_type' => 'time_out',
+                    'role' => 'Student',
+                    'voice' => 'Time out recorded successfully',
+                    'status' => 'success',
+                    'display_time_in' => date('h:i A', strtotime($existing['time_in'])),
+                    'display_time_out' => $currentTime,
+                    'actual_time_in' => $existing['time_in'],
+                    'actual_time_out' => $currentDateTime
+                ];
+            } else {
+                throw new Exception("Failed to record time out");
+            }
+            $stmtUpdate->close();
+        } else {
+            // TIME IN: Student already has both time-in and time-out today → create new time-in
+            $insertQuery = "INSERT INTO attendance_logs 
+                           (student_id, id_number, time_in, department, location, instructor_id) 
+                           VALUES (?, ?, ?, ?, ?, ?)";
+            $stmtInsert = $db->prepare($insertQuery);
+            $stmtInsert->bind_param("issssi", 
+                $student['id'], 
+                $student['id_number'],
+                $currentDateTime, 
+                $department, 
+                $location,
+                $instructor_id
+            );
+            
+            if ($stmtInsert->execute()) {
+                $response = [
+                    'full_name' => $student['fullname'],
+                    'id_number' => $student['id_number'],
+                    'department' => $student['department_name'],
+                    'year_level' => $student['year'],
+                    'section' => $student['section'],
+                    'photo' => $photoPath,
+                    'time_in_out' => 'Time In Recorded Successfully',
+                    'alert_class' => 'alert-success',
+                    'attendance_type' => 'time_in',
+                    'role' => 'Student',
+                    'voice' => 'Time in recorded successfully',
+                    'status' => 'success',
+                    'display_time_in' => $currentTime,
+                    'display_time_out' => null,
+                    'actual_time_in' => $currentDateTime,
+                    'actual_time_out' => null
+                ];
+            } else {
+                throw new Exception("Failed to record time in");
+            }
+            $stmtInsert->close();
         }
-    }
-
-    // Record attendance
-    if ($attendanceType === 'time_in') {
-       $insertSql = "INSERT INTO attendance_logs (student_id, id_number, time_in, department, location, instructor_id) 
-              VALUES (?, ?, NOW(), ?, ?, ?)";  // Added instructor_id
-        $stmtInsert = $db->prepare($insertSql);
-        
-        if (!$stmtInsert) {
-            throw new Exception("Prepare failed: " . $db->error);
-        }
-        
-        $stmtInsert->bind_param("isssi", 
-        $student['id'],           // student_id
-        $student['id_number'],    // id_number
-        $department,              // department
-        $location,                // location
-        $instructor_id            // instructor_id from session
-    );
-        
-        if (!$stmtInsert->execute()) {
-            throw new Exception("Insert failed: " . $stmtInsert->error);
-        }
-        
-        // Get the newly inserted record's time_in
-        $newTimeIn = date('Y-m-d H:i:s');
-        
     } else {
-        // Time out - update existing record
-        $updateSql = "UPDATE attendance_logs SET time_out = NOW() 
-                      WHERE id_number = ? AND DATE(time_in) = CURDATE() AND time_out IS NULL 
-                      ORDER BY time_in DESC LIMIT 1";
-        $stmtUpdate = $db->prepare($updateSql);
+        // TIME IN: No records today → create first time-in
+        $insertQuery = "INSERT INTO attendance_logs 
+                       (student_id, id_number, time_in, department, location, instructor_id) 
+                       VALUES (?, ?, ?, ?, ?, ?)";
+        $stmtInsert = $db->prepare($insertQuery);
+        $stmtInsert->bind_param("issssi", 
+            $student['id'], 
+            $student['id_number'],
+            $currentDateTime, 
+            $department, 
+            $location,
+            $instructor_id
+        );
         
-        if (!$stmtUpdate) {
-            throw new Exception("Prepare failed: " . $stmtUpdate->error);
+        if ($stmtInsert->execute()) {
+            $response = [
+                'full_name' => $student['fullname'],
+                'id_number' => $student['id_number'],
+                'department' => $student['department_name'],
+                'year_level' => $student['year'],
+                'section' => $student['section'],
+                'photo' => $photoPath,
+                'time_in_out' => 'Time In Recorded Successfully',
+                'alert_class' => 'alert-success',
+                'attendance_type' => 'time_in',
+                'role' => 'Student',
+                'voice' => 'Time in recorded successfully',
+                'status' => 'success',
+                'display_time_in' => $currentTime,
+                'display_time_out' => null,
+                'actual_time_in' => $currentDateTime,
+                'actual_time_out' => null
+            ];
+        } else {
+            throw new Exception("Failed to record time in");
         }
-        
-        $stmtUpdate->bind_param("s", $barcode);
-        
-        if (!$stmtUpdate->execute()) {
-            throw new Exception("Update failed: " . $stmtUpdate->error);
-        }
-        
-        // Get the updated time_out
-        $newTimeOut = date('Y-m-d H:i:s');
+        $stmtInsert->close();
     }
-
-    // Fetch the complete updated record to get accurate times
-    $finalCheckSql = "SELECT * FROM attendance_logs 
-                     WHERE id_number = ? AND DATE(time_in) = CURDATE() 
-                     ORDER BY time_in DESC LIMIT 1";
-    $stmtFinal = $db->prepare($finalCheckSql);
-    $stmtFinal->bind_param("s", $barcode);
-    $stmtFinal->execute();
-    $finalResult = $stmtFinal->get_result();
-    $finalRecord = $finalResult->fetch_assoc();
-
-    // Prepare response data with accurate times
-    $actualTimeIn = $finalRecord['time_in'] ?? $newTimeIn;
-    $actualTimeOut = $finalRecord['time_out'] ?? $newTimeOut;
-
-    // Format times for display
-    $displayTimeIn = date('h:i A', strtotime($actualTimeIn));
-    $displayTimeOut = $actualTimeOut ? date('h:i A', strtotime($actualTimeOut)) : null;
-
-    $response = [
-        'full_name' => $student['fullname'],
-        'id_number' => $student['id_number'],
-        'department' => $student['department_name'],
-        'year_level' => $student['year'],
-        'section' => $student['section'],
-        'photo' => $photoPath,
-        'time_in_out' => $timeInOut,
-        'alert_class' => $alertClass,
-        'attendance_type' => $attendanceType,
-        'role' => 'Student',
-        'voice' => $voiceMessage,
-        'status' => 'success',
-        'actual_time_in' => $actualTimeIn,
-        'actual_time_out' => $actualTimeOut,
-        'display_time_in' => $displayTimeIn,
-        'display_time_out' => $displayTimeOut
-    ];
 
     echo json_encode($response);
 
@@ -176,12 +191,11 @@ try {
     echo json_encode(['error' => 'System error: ' . $e->getMessage()]);
 }
 
-// Helper function to get student photo - MATCHING YOUR students.php LOGIC
+// Helper function to get student photo
 function getStudentPhoto($photo) {
     $basePath = 'uploads/students/';
     $defaultPhoto = 'assets/img/2601828.png';
 
-    // If no photo or file does not exist → return default
     if (empty($photo) || !file_exists($basePath . $photo)) {
         return $defaultPhoto;
     }

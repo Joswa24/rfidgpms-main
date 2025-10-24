@@ -6,11 +6,8 @@ if (isset($_SESSION['reload_flag'])) {
     unset($_SESSION['name']);
     unset($_SESSION['id']);
 } 
-//include 'auth.php'; // Include session validation
-$instructors = [];
-$query = '';
 
-$id=0;
+ $id=0;
 include '../connection.php';
 ?>
 <?php
@@ -59,8 +56,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['query'])) {
         
         <div class="content">
         <?php
-		include 'navbar.php';
-		?>
+        include 'navbar.php';
+        ?>
  <style>
         .instructor-list {
             list-style-type: none;
@@ -261,6 +258,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['query'])) {
             text-align: right;
             margin-top: 30px;
         }
+        /* Add styles for highlighting incomplete records */
+        .incomplete-day {
+            background-color: #fff3cd !important;
+        }
+        .no-time-in {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .no-time-out {
+            color: #ffc107;
+            font-weight: bold;
+        }
     
 </style>
 <?php
@@ -277,16 +286,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $_SESSION['month']=$month;
 
 // Query to fetch fullname for the given instructor ID
-$instructor = [];
-$sql = "SELECT fullname
+ $instructor = [];
+ $sql = "SELECT fullname
         FROM instructor 
         WHERE id = ?";
 
 // Prepare and execute the query
-$stmt = $db->prepare($sql);
-$stmt->bind_param("i", $id);
-$stmt->execute();
-$result = $stmt->get_result();
+ $stmt = $db->prepare($sql);
+ $stmt->bind_param("i", $id);
+ $stmt->execute();
+ $result = $stmt->get_result();
 
 // Fetch the instructor data
 if ($row = $result->fetch_assoc()) {
@@ -294,7 +303,7 @@ if ($row = $result->fetch_assoc()) {
 }
 
 // Close the statement
-$stmt->close();
+ $stmt->close();
 
 // Check if instructor data is available
 if (empty($instructor)) {
@@ -303,28 +312,28 @@ if (empty($instructor)) {
 }
 
 // Get current year and month number
-$currentYear = date('Y');
-$month1 = date('m', strtotime($month)); 
+ $currentYear = date('Y');
+ $month1 = date('m', strtotime($month)); 
 
 // Initialize the array to store the data for each day
-$daysData = [];
+ $daysData = [];
 
-// SQL query to fetch all gate logs for the current month and instructor ID from gate_logs table
-$sql = "SELECT date, time_in, time_out, action, direction
+// ENHANCED: Updated SQL query to fetch all gate logs for the instructor
+ $sql = "SELECT date, time_in, time_out, action, direction
         FROM gate_logs 
         WHERE MONTH(date) = ? AND YEAR(date) = ? 
         AND person_id = ? AND person_type = 'instructor'
         ORDER BY date, time_in";
 
 // Prepare statement
-$stmt = $db->prepare($sql);
+ $stmt = $db->prepare($sql);
 
 if (!$stmt) {
     die("Error preparing statement: " . $db->error);
 }
 
 // Bind parameters (current month, current year, and instructor ID)
-$stmt->bind_param("iii", $month1, $currentYear, $id);
+ $stmt->bind_param("iii", $month1, $currentYear, $id);
 
 // Execute the statement
 if (!$stmt->execute()) {
@@ -332,62 +341,107 @@ if (!$stmt->execute()) {
 }
 
 // Get the result
-$result = $stmt->get_result();
+ $result = $stmt->get_result();
 
-// Process the fetched records and calculate AM/PM times
+// First, collect all logs for each day
+ $dailyLogs = [];
 while ($row = $result->fetch_assoc()) {
-    // Extract the day from date
     $day = (int)date('d', strtotime($row['date']));
-    
-    // Initialize or get existing day data
-    if (!isset($daysData[$day])) {
-        $daysData[$day] = [
-            'time_in_am' => '',
-            'time_out_am' => '',
-            'time_in_pm' => '',
-            'time_out_pm' => ''
-        ];
+    if (!isset($dailyLogs[$day])) {
+        $dailyLogs[$day] = [];
     }
+    $dailyLogs[$day][] = $row;
+}
+
+// Process each day's logs to determine time in/out
+foreach ($dailyLogs as $day => $logs) {
+    // Initialize day data
+    $daysData[$day] = [
+        'time_in_am' => '',
+        'time_out_am' => '',
+        'time_in_pm' => '',
+        'time_out_pm' => '',
+        'has_in_am' => false,
+        'has_out_am' => false,
+        'has_in_pm' => false,
+        'has_out_pm' => false
+    ];
     
-    // Convert times to 12-hour format and determine AM/PM
-    if (!empty($row['time_in']) && $row['time_in'] != '00:00:00') {
-        $time_in_12h = date('g:i A', strtotime($row['time_in']));
-        $time_in_hour = date('H', strtotime($row['time_in']));
+    // Process each log entry for the day
+    foreach ($logs as $log) {
+        $time_in = !empty($log['time_in']) && $log['time_in'] != '00:00:00' ? $log['time_in'] : null;
+        $time_out = !empty($log['time_out']) && $log['time_out'] != '00:00:00' ? $log['time_out'] : null;
+        $action = strtoupper($log['action'] ?? $log['direction'] ?? '');
         
-        // Check if time is AM (before 12:00) or PM (after 12:00)
-        if ($time_in_hour < 12) {
-            if ($row['action'] == 'IN' || $row['direction'] == 'IN') {
-                $daysData[$day]['time_in_am'] = $time_in_12h;
+        // Process time_in entries
+        if ($time_in) {
+            $hour = (int)date('H', strtotime($time_in));
+            $time_12h = date('g:i A', strtotime($time_in));
+            
+            if ($hour < 12 && !$daysData[$day]['has_in_am']) {
+                // AM time in
+                $daysData[$day]['time_in_am'] = $time_12h;
+                $daysData[$day]['has_in_am'] = true;
+            } elseif ($hour >= 12 && !$daysData[$day]['has_in_pm']) {
+                // PM time in
+                $daysData[$day]['time_in_pm'] = $time_12h;
+                $daysData[$day]['has_in_pm'] = true;
             }
-        } else {
-            if ($row['action'] == 'IN' || $row['direction'] == 'IN') {
-                $daysData[$day]['time_in_pm'] = $time_in_12h;
+        }
+        
+        // Process time_out entries
+        if ($time_out) {
+            $hour = (int)date('H', strtotime($time_out));
+            $time_12h = date('g:i A', strtotime($time_out));
+            
+            if ($hour < 12 && !$daysData[$day]['has_out_am']) {
+                // AM time out
+                $daysData[$day]['time_out_am'] = $time_12h;
+                $daysData[$day]['has_out_am'] = true;
+            } elseif ($hour >= 12 && !$daysData[$day]['has_out_pm']) {
+                // PM time out
+                $daysData[$day]['time_out_pm'] = $time_12h;
+                $daysData[$day]['has_out_pm'] = true;
             }
         }
     }
     
-    if (!empty($row['time_out']) && $row['time_out'] != '00:00:00') {
-        $time_out_12h = date('g:i A', strtotime($row['time_out']));
-        $time_out_hour = date('H', strtotime($row['time_out']));
-        
-        // Check if time is AM (before 12:00) or PM (after 12:00)
-        if ($time_out_hour < 12) {
-            if ($row['action'] == 'OUT' || $row['direction'] == 'OUT') {
-                $daysData[$day]['time_out_am'] = $time_out_12h;
-            }
-        } else {
-            if ($row['action'] == 'OUT' || $row['direction'] == 'OUT') {
-                $daysData[$day]['time_out_pm'] = $time_out_12h;
+    // Auto-fill logic: If no time_out but there's a time_in, check for next day's time_in
+    if (!$daysData[$day]['has_out_am'] && $daysData[$day]['has_in_am']) {
+        // Check if next day has an AM time in (meaning they left after midnight)
+        if (isset($dailyLogs[$day + 1])) {
+            foreach ($dailyLogs[$day + 1] as $nextDayLog) {
+                $next_time_in = !empty($nextDayLog['time_in']) && $nextDayLog['time_in'] != '00:00:00' ? $nextDayLog['time_in'] : null;
+                if ($next_time_in) {
+                    $next_hour = (int)date('H', strtotime($next_time_in));
+                    if ($next_hour < 6) { // Before 6 AM is considered same day's night out
+                        $daysData[$day]['time_out_pm'] = date('g:i A', strtotime($next_time_in));
+                        $daysData[$day]['has_out_pm'] = true;
+                        break;
+                    }
+                }
             }
         }
+    }
+    
+    // If still no time_out in PM but has time_in_pm, assume 5:00 PM (standard office hours)
+    if (!$daysData[$day]['has_out_pm'] && $daysData[$day]['has_in_pm']) {
+        $daysData[$day]['time_out_pm'] = '5:00 PM';
+        $daysData[$day]['has_out_pm'] = true;
+    }
+    
+    // If still no time_out in AM but has time_in_am, assume 12:00 PM (lunch time)
+    if (!$daysData[$day]['has_out_am'] && $daysData[$day]['has_in_am']) {
+        $daysData[$day]['time_out_am'] = '12:00 PM';
+        $daysData[$day]['has_out_am'] = true;
     }
 }
 
 // Close the statement
-$stmt->close();
+ $stmt->close();
 
 // Close the database connection
-$db->close();
+ $db->close();
 }
 ?>
 <div class="container" id="container">
@@ -446,16 +500,60 @@ $db->close();
                 'time_in_am' => '',
                 'time_out_am' => '',
                 'time_in_pm' => '',
-                'time_out_pm' => ''
+                'time_out_pm' => '',
+                'has_in_am' => false,
+                'has_out_am' => false,
+                'has_in_pm' => false,
+                'has_out_pm' => false
             ];
+            
+            // Determine if day is incomplete
+            $isIncomplete = false;
+            $rowClass = '';
+            
+            if ($timeData['has_in_am'] && !$timeData['has_out_am']) {
+                $isIncomplete = true;
+            }
+            if ($timeData['has_in_pm'] && !$timeData['has_out_pm']) {
+                $isIncomplete = true;
+            }
+            
+            if ($isIncomplete) {
+                $rowClass = 'class="incomplete-day"';
+            }
         
             // Display the row for each day
-            echo "<tr>";
+            echo "<tr {$rowClass}>";
             echo "<td>" . $day . "</td>";
-            echo "<td>" . htmlspecialchars($timeData['time_in_am']) . "</td>";
-            echo "<td>" . htmlspecialchars($timeData['time_out_am']) . "</td>";
-            echo "<td>" . htmlspecialchars($timeData['time_in_pm']) . "</td>";
-            echo "<td>" . htmlspecialchars($timeData['time_out_pm']) . "</td>";
+            
+            // AM Arrival
+            if ($timeData['time_in_am']) {
+                echo "<td>" . htmlspecialchars($timeData['time_in_am']) . "</td>";
+            } else {
+                echo "<td class='no-time-in'>—</td>";
+            }
+            
+            // AM Departure
+            if ($timeData['time_out_am']) {
+                echo "<td>" . htmlspecialchars($timeData['time_out_am']) . "</td>";
+            } else {
+                echo "<td class='no-time-out'>—</td>";
+            }
+            
+            // PM Arrival
+            if ($timeData['time_in_pm']) {
+                echo "<td>" . htmlspecialchars($timeData['time_in_pm']) . "</td>";
+            } else {
+                echo "<td class='no-time-in'>—</td>";
+            }
+            
+            // PM Departure
+            if ($timeData['time_out_pm']) {
+                echo "<td>" . htmlspecialchars($timeData['time_out_pm']) . "</td>";
+            } else {
+                echo "<td class='no-time-out'>—</td>";
+            }
+            
             echo "<td></td>"; // Placeholder for undertime
             echo "<td></td>"; // Placeholder for undertime
             echo "</tr>";
@@ -479,6 +577,13 @@ $db->close();
             <p>__________________________</p>
             <p>In-Charge</p>
         </div>
+    </div>
+    
+    <!-- Legend for incomplete records -->
+    <div class="mt-3" style="font-size: 0.85rem;">
+        <p><strong>Legend:</strong></p>
+        <p><span style="color: #dc3545;">—</span> No time recorded</p>
+        <p><span style="background-color: #fff3cd; padding: 2px 5px;">Yellow row</span> Incomplete record (missing time out)</p>
     </div>
 </div>
 

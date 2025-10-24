@@ -1,17 +1,16 @@
 <?php
-session_start();
 include '../connection.php';
 
-header('Content-Type: application/json');
-
+// Check if query parameter is set
 if (isset($_GET['query'])) {
     $query = trim($_GET['query']);
     
-    // SQL query to fetch instructors from instructor table
+    // Prepare SQL statement to search for instructors
     $sql = "SELECT id, fullname 
             FROM instructor 
             WHERE fullname LIKE ? 
-            LIMIT 10"; // Limit results to 10
+            ORDER BY fullname 
+            LIMIT 10";
     
     $stmt = $db->prepare($sql);
     $searchTerm = "%" . $query . "%";
@@ -24,11 +23,16 @@ if (isset($_GET['query'])) {
         $instructors[] = $row;
     }
     
-    $stmt->close();
-    $db->close();
-    
+    // Return results as JSON
+    header('Content-Type: application/json');
     echo json_encode($instructors);
+    
+    $stmt->close();
 } else {
+    // Return error if no query provided
+    header('Content-Type: application/json');
     echo json_encode(['error' => 'No query provided']);
 }
+
+ $db->close();
 ?>

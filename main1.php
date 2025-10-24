@@ -44,7 +44,19 @@ if (!verifyInstructorSession()) {
     header("Location: index.php");
     exit();
 }
+        // When instructor logs out, revert their active swaps
+        function revertInstructorSwaps($db, $instructor_id) {
+            $query = "UPDATE schedule_swaps SET is_active = FALSE 
+                    WHERE instructor_id = ? AND is_active = TRUE";
+            $stmt = $db->prepare($query);
+            $stmt->bind_param("i", $instructor_id);
+            $stmt->execute();
+        }
 
+        // Call this when instructor logs out
+        if (isset($_SESSION['access']['instructor']['id'])) {
+            revertInstructorSwaps($db, $_SESSION['access']['instructor']['id']);
+        }
 // Record instructor login time when opening the portal
 if (isset($_SESSION['access']['instructor']['id']) && !isset($_SESSION['instructor_login_time'])) {
     $instructor_id = $_SESSION['access']['instructor']['id'];
@@ -143,9 +155,9 @@ if (isset($_SESSION['access']['force_redirect'])) {
 }
 
 // Fetch data from the about table
-$logo1 = $nameo = $address = $logo2 = "";
-$sql = "SELECT * FROM about LIMIT 1";
-$result = $db->query($sql);
+ $logo1 = $nameo = $address = $logo2 = "";
+ $sql = "SELECT * FROM about LIMIT 1";
+ $result = $db->query($sql);
 
 if ($result && $result->num_rows > 0) {
     $row = $result->fetch_assoc();
@@ -981,6 +993,7 @@ let barcodeBuffer = '';
 let lastScanTime = 0;
 const scanCooldown = 1000; // 1 second cooldown between scans
 let scanner = null;
+let scanTime = null; // Store the exact time when scan occurred
 
 // ========= SCANNER FUNCTIONS =========
     function initScanner() {
@@ -1048,9 +1061,29 @@ let scanner = null;
         return i;
     }
 
+    // Function to get current time in the same format as the clock display
+    function getCurrentTimeString() {
+        const now = new Date();
+        let h = now.getHours();
+        let m = now.getMinutes();
+        let s = now.getSeconds();
+        let period = h >= 12 ? 'PM' : 'AM';
+        
+        h = h % 12;
+        h = h ? h : 12;
+        
+        m = checkTime(m);
+        s = checkTime(s);
+        
+        return h + ":" + m + ":" + s + " " + period;
+    }
+
 // ========= BARCODE PROCESSING FUNCTIONS =========
     function processBarcode(barcode) {
         console.log("🔍 Processing barcode:", barcode);
+        
+        // Store the exact time when the scan occurred
+        scanTime = getCurrentTimeString();
         
         // Validate barcode format
         if (!isValidBarcode(barcode)) {
@@ -1194,7 +1227,6 @@ function showConfirmationModal(data) {
     console.log("🎯 Showing confirmation modal with:", data);
     
     const now = new Date();
-    const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const dateString = now.toLocaleDateString([], { 
         weekday: 'long', 
         year: 'numeric', 
@@ -1203,7 +1235,7 @@ function showConfirmationModal(data) {
     });
 
     // Update modal content with sanitized data
-    updateModalContent(data, timeString, dateString);
+    updateModalContent(data, dateString);
     
     // Show modal using Bootstrap
     const modalElement = document.getElementById('confirmationModal');
@@ -1225,7 +1257,7 @@ function showConfirmationModal(data) {
     }
 }
 
-    function updateModalContent(data, timeString, dateString) {
+    function updateModalContent(data, dateString) {
         // Sanitize and set text content (prevents XSS)
         document.getElementById('modalStudentName').textContent = sanitizeHTML(data.full_name || 'Student Name');
         document.getElementById('modalStudentId').textContent = sanitizeHTML(data.id_number || 'N/A');
@@ -1253,16 +1285,16 @@ function showConfirmationModal(data) {
                 timeOutElement.textContent = data.display_time_out;
                 timeOutElement.style.color = ''; // Reset to default color
             } else {
-                // Fallback to current time (this should rarely happen)
-                timeOutElement.textContent = timeString;
+                // Use the scan time for time out
+                timeOutElement.textContent = scanTime || getCurrentTimeString();
             }
         } else {
             // For time-in or other events
             if (data.display_time_in) {
                 timeInElement.textContent = data.display_time_in;
             } else {
-                // Fallback to current time
-                timeInElement.textContent = timeString;
+                // Use the scan time for time in
+                timeInElement.textContent = scanTime || getCurrentTimeString();
             }
             
             if (data.display_time_out) {
@@ -1376,6 +1408,9 @@ function processManualInput() {
         showErrorMessage("Invalid ID format. Please use: 0000-0000");
         return;
     }
+    
+    // Store the exact time when the manual input occurred
+    scanTime = getCurrentTimeString();
     
     showProcessingState(idNumber);
     setInputsDisabled(true);

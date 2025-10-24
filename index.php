@@ -156,6 +156,7 @@ function validateInstructor($db, $id_number, $room) {
         ],
         'room_data' => $room
     ];
+    
 }
 
 // =====================================================================
@@ -316,6 +317,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     ]);
     exit;
 }
+
 ?>
 
 <!DOCTYPE html>

@@ -3,30 +3,129 @@ include('../connection.php');
 date_default_timezone_set('Asia/Manila');
 session_start();
 
-    // Function to send JSON response
-    function jsonResponse($status, $message, $data = []) {
-        // Clear any previous output
-        if (ob_get_length()) ob_clean();
-        
-        header('Content-Type: application/json');
+// Function to send JSON response
+function jsonResponse($status, $message, $data = []) {
+    // Clear any previous output
+    if (ob_get_length()) ob_clean();
+    
+    header('Content-Type: application/json');
+    echo json_encode([
+        'status' => $status,
+        'message' => $message,
+        'data' => $data
+    ]);
+    exit;
+}
+// Get the action from the request
+ $action = isset($_GET['action']) ? $_GET['action'] : '';
+
+// Function to find schedules for swapping
+if ($action == 'find_schedules_for_swap') {
+    $instructor1 = $_POST['instructor1'];
+    $instructor2 = $_POST['instructor2'];
+    $room = $_POST['room'];
+    $day = $_POST['day'];
+    
+    // Find schedule for first instructor
+    $stmt1 = $db->prepare("SELECT * FROM room_schedules WHERE instructor = ? AND room_name = ? AND day = ?");
+    $stmt1->bind_param("sss", $instructor1, $room, $day);
+    $stmt1->execute();
+    $result1 = $stmt1->get_result();
+    $schedule1 = $result1->fetch_assoc();
+    
+    // Find schedule for second instructor
+    $stmt2 = $db->prepare("SELECT * FROM room_schedules WHERE instructor = ? AND room_name = ? AND day = ?");
+    $stmt2->bind_param("sss", $instructor2, $room, $day);
+    $stmt2->execute();
+    $result2 = $stmt2->get_result();
+    $schedule2 = $result2->fetch_assoc();
+    
+    if ($schedule1 && $schedule2) {
         echo json_encode([
-            'status' => $status,
-            'message' => $message,
-            'data' => $data
+            'status' => 'success',
+            'schedule1' => $schedule1,
+            'schedule2' => $schedule2
+        ]);
+    } else {
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Could not find schedules for both instructors in the specified room and day.'
+        ]);
+    }
+}
+
+// Function to swap schedules
+if ($action == 'swap_schedules') {
+    $schedule1_id = $_POST['schedule1_id'];
+    $schedule2_id = $_POST['schedule2_id'];
+    
+    // Get the schedules
+    $stmt1 = $db->prepare("SELECT * FROM room_schedules WHERE id = ?");
+    $stmt1->bind_param("i", $schedule1_id);
+    $stmt1->execute();
+    $result1 = $stmt1->get_result();
+    $schedule1 = $result1->fetch_assoc();
+    
+    $stmt2 = $db->prepare("SELECT * FROM room_schedules WHERE id = ?");
+    $stmt2->bind_param("i", $schedule2_id);
+    $stmt2->execute();
+    $result2 = $stmt2->get_result();
+    $schedule2 = $result2->fetch_assoc();
+    
+    if (!$schedule1 || !$schedule2) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'One or both schedules not found.'
         ]);
         exit;
     }
-
-    // Function to validate and sanitize input
-    function sanitizeInput($db, $input) {
-        return mysqli_real_escape_string($db, trim($input));
-    }
-
-    // Function to handle file uploads
-    function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'], $maxSize = 2 * 1024 * 1024) {
-
-        $file = $_FILES[$fileInput];
     
+    // Store the original times
+    $schedule1_start_time = $schedule1['start_time'];
+    $schedule1_end_time = $schedule1['end_time'];
+    $schedule2_start_time = $schedule2['start_time'];
+    $schedule2_end_time = $schedule2['end_time'];
+    
+    // Begin transaction
+    $db->begin_transaction();
+    
+    try {
+        // Update schedule 1 with schedule 2's time
+        $stmt = $db->prepare("UPDATE room_schedules SET start_time = ?, end_time = ? WHERE id = ?");
+        $stmt->bind_param("ssi", $schedule2_start_time, $schedule2_end_time, $schedule1_id);
+        $stmt->execute();
+        
+        // Update schedule 2 with schedule 1's time
+        $stmt = $db->prepare("UPDATE room_schedules SET start_time = ?, end_time = ? WHERE id = ?");
+        $stmt->bind_param("ssi", $schedule1_start_time, $schedule1_end_time, $schedule2_id);
+        $stmt->execute();
+        
+        // Commit the transaction
+        $db->commit();
+        
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Schedules swapped successfully!'
+        ]);
+    } catch (Exception $e) {
+        // Rollback the transaction if something went wrong
+        $db->rollback();
+        
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Failed to swap schedules: ' . $e->getMessage()
+        ]);
+    }
+}
+// Function to validate and sanitize input
+function sanitizeInput($db, $input) {
+    return mysqli_real_escape_string($db, trim($input));
+}
+
+// Function to handle file uploads
+function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'], $maxSize = 2 * 1024 * 1024) {
+    $file = $_FILES[$fileInput];
+
     // Check file type
     $fileInfo = finfo_open(FILEINFO_MIME_TYPE);
     $mimeType = finfo_file($fileInfo, $file['tmp_name']);
@@ -58,8 +157,8 @@ session_start();
     }
 }
 
-        // Check if this is an AJAX request for specific operations
-       $validAjaxActions = [
+// Check if this is an AJAX request for specific operations
+$validAjaxActions = [
     'add_department', 'update_department', 'delete_department', 
     'add_room', 'update_room', 'delete_room',
     'add_role', 'update_role', 'delete_role',
@@ -68,11 +167,16 @@ session_start();
     'add_instructor', 'update_instructor', 'delete_instructor',
     'add_subject', 'update_subject', 'delete_subject',
     'add_schedule', 'update_schedule', 'delete_schedule',
-    'add_visitor', 'update_visitor', 'delete_visitor'  
-        ];
-        $isAjaxRequest = isset($_GET['action']) && in_array($_GET['action'], $validAjaxActions);
+    'add_visitor', 'update_visitor', 'delete_visitor',
+    // SIMPLIFIED SWAP SCHEDULE ACTIONS - Only these 6 are needed
+    'get_all_rooms', 'get_instructors_by_room', 'get_room_days',
+    'get_instructor_schedule', 'swap_time_schedule', 'get_active_swaps', 'revert_swap',
+    'find_all_schedules_for_swap'
+];
 
-    if ($isAjaxRequest) {
+$isAjaxRequest = isset($_GET['action']) && in_array($_GET['action'], $validAjaxActions);
+
+if ($isAjaxRequest) {
     // For AJAX requests, handle specific actions
     switch ($_GET['action']) {
         // ============================
@@ -1770,6 +1874,312 @@ session_start();
                             jsonResponse('error', 'Failed to delete visitor card: ' . $stmt->error);
                         }
                         break;
+
+                // ===================================
+        // SWAP SCHEDULE OPERATIONS - SIMPLIFIED
+        // ===================================
+        case 'get_all_rooms':
+            // Get all rooms that have schedules
+            $query = "SELECT DISTINCT rs.room_name 
+                      FROM room_schedules rs 
+                      ORDER BY rs.room_name";
+            
+            $result = $db->query($query);
+            $rooms = [];
+            while ($row = $result->fetch_assoc()) {
+                $rooms[] = $row;
+            }
+            
+            jsonResponse('success', 'Rooms retrieved successfully', $rooms);
+            break;
+
+        case 'get_instructors_by_room':
+            $room_name = sanitizeInput($db, $_GET['room_name']);
+            
+            $query = "SELECT DISTINCT i.id as instructor_id, rs.instructor as instructor_name 
+                      FROM room_schedules rs 
+                      JOIN instructor i ON rs.instructor = i.fullname 
+                      WHERE rs.room_name = ? 
+                      ORDER BY rs.instructor";
+            
+            $stmt = $db->prepare($query);
+            $stmt->bind_param("s", $room_name);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            $instructors = [];
+            while ($row = $result->fetch_assoc()) {
+                $instructors[] = $row;
+            }
+            
+            jsonResponse('success', 'Instructors retrieved successfully', $instructors);
+            break;
+
+        case 'get_room_days':
+            $room_name = sanitizeInput($db, $_GET['room_name']);
+            
+            $query = "SELECT DISTINCT day 
+                      FROM room_schedules 
+                      WHERE room_name = ? 
+                      ORDER BY FIELD(day, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday')";
+            
+            $stmt = $db->prepare($query);
+            $stmt->bind_param("s", $room_name);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            $days = [];
+            while ($row = $result->fetch_assoc()) {
+                $days[] = $row;
+            }
+            
+            jsonResponse('success', 'Days retrieved successfully', $days);
+            break;
+
+        case 'get_instructor_schedule':
+            $instructor_id = (int)$_GET['instructor_id'];
+            $room_name = sanitizeInput($db, $_GET['room_name']);
+            $day = sanitizeInput($db, $_GET['day']);
+            
+            // Get instructor name first
+            $instructor_query = "SELECT fullname FROM instructor WHERE id = ?";
+            $instructor_stmt = $db->prepare($instructor_query);
+            $instructor_stmt->bind_param("i", $instructor_id);
+            $instructor_stmt->execute();
+            $instructor_result = $instructor_stmt->get_result();
+            $instructor = $instructor_result->fetch_assoc();
+            
+            if (!$instructor) {
+                jsonResponse('error', 'Instructor not found');
+            }
+            
+            $query = "SELECT rs.*, i.fullname as instructor_fullname 
+                      FROM room_schedules rs 
+                      JOIN instructor i ON rs.instructor = i.fullname 
+                      WHERE i.id = ? AND rs.room_name = ? AND rs.day = ? 
+                      LIMIT 1";
+            
+            $stmt = $db->prepare($query);
+            $stmt->bind_param("iss", $instructor_id, $room_name, $day);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $schedule = $result->fetch_assoc();
+            
+            if ($schedule) {
+                jsonResponse('success', 'Schedule retrieved successfully', $schedule);
+            } else {
+                jsonResponse('error', 'Schedule not found for the selected criteria');
+            }
+            break;
+
+        case 'swap_time_schedule':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                jsonResponse('error', 'Invalid request method');
+            }
+
+            // Validate required fields
+            $required = [
+                'instructor1_id', 'instructor2_id', 'room_name', 'day',
+                'instructor1_original_start', 'instructor1_original_end',
+                'instructor2_original_start', 'instructor2_original_end',
+                'swap_date', 'expires_hours'
+            ];
+            
+            foreach ($required as $field) {
+                if (empty($_POST[$field])) {
+                    jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
+                }
+            }
+
+            // Sanitize inputs
+            $instructor1_id = (int)$_POST['instructor1_id'];
+            $instructor2_id = (int)$_POST['instructor2_id'];
+            $room_name = sanitizeInput($db, $_POST['room_name']);
+            $day = sanitizeInput($db, $_POST['day']);
+            $instructor1_original_start = sanitizeInput($db, $_POST['instructor1_original_start']);
+            $instructor1_original_end = sanitizeInput($db, $_POST['instructor1_original_end']);
+            $instructor2_original_start = sanitizeInput($db, $_POST['instructor2_original_start']);
+            $instructor2_original_end = sanitizeInput($db, $_POST['instructor2_original_end']);
+            $swap_date = sanitizeInput($db, $_POST['swap_date']);
+            $expires_hours = (int)$_POST['expires_hours'];
+
+            // Validate instructors are different
+            if ($instructor1_id === $instructor2_id) {
+                jsonResponse('error', 'Cannot swap schedule with the same instructor');
+            }
+
+            // Get instructor names
+            $instructor_query = "SELECT fullname FROM instructor WHERE id IN (?, ?)";
+            $instructor_stmt = $db->prepare($instructor_query);
+            $instructor_stmt->bind_param("ii", $instructor1_id, $instructor2_id);
+            $instructor_stmt->execute();
+            $instructor_result = $instructor_stmt->get_result();
+            
+            $instructors = [];
+            while ($row = $instructor_result->fetch_assoc()) {
+                $instructors[] = $row['fullname'];
+            }
+            
+            if (count($instructors) !== 2) {
+                jsonResponse('error', 'One or both instructors not found');
+            }
+
+            $instructor1_name = $instructors[0];
+            $instructor2_name = $instructors[1];
+
+            // Get original schedule details for both instructors
+            $schedule_query = "SELECT * FROM room_schedules 
+                              WHERE instructor = ? AND room_name = ? AND day = ? 
+                              AND start_time = ? AND end_time = ?";
+            
+            // Get instructor1 schedule
+            $stmt1 = $db->prepare($schedule_query);
+            $stmt1->bind_param("sssss", $instructor1_name, $room_name, $day, $instructor1_original_start, $instructor1_original_end);
+            $stmt1->execute();
+            $instructor1_schedule = $stmt1->get_result()->fetch_assoc();
+            
+            if (!$instructor1_schedule) {
+                jsonResponse('error', 'Instructor 1 schedule not found');
+            }
+
+            // Get instructor2 schedule
+            $stmt2 = $db->prepare($schedule_query);
+            $stmt2->bind_param("sssss", $instructor2_name, $room_name, $day, $instructor2_original_start, $instructor2_original_end);
+            $stmt2->execute();
+            $instructor2_schedule = $stmt2->get_result()->fetch_assoc();
+            
+            if (!$instructor2_schedule) {
+                jsonResponse('error', 'Instructor 2 schedule not found');
+            }
+
+            // Calculate expiration time
+            $expires_at = date('Y-m-d H:i:s', strtotime("+$expires_hours hours"));
+
+            // Create swap record
+            $swap_query = "INSERT INTO schedule_swaps 
+                          (instructor1_id, instructor2_id, instructor1_name, instructor2_name,
+                           room_name, day,
+                           instructor1_original_start, instructor1_original_end,
+                           instructor2_original_start, instructor2_original_end,
+                           instructor1_subject, instructor2_subject,
+                           instructor1_section, instructor2_section,
+                           instructor1_year_level, instructor2_year_level,
+                           swap_date, expires_at, is_active, created_at) 
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, NOW())";
+            
+            $swap_stmt = $db->prepare($swap_query);
+            $swap_stmt->bind_param("iissssssssssssssss",
+                $instructor1_id, $instructor2_id, $instructor1_name, $instructor2_name,
+                $room_name, $day,
+                $instructor1_original_start, $instructor1_original_end,
+                $instructor2_original_start, $instructor2_original_end,
+                $instructor1_schedule['subject'], $instructor2_schedule['subject'],
+                $instructor1_schedule['section'], $instructor2_schedule['section'],
+                $instructor1_schedule['year_level'], $instructor2_schedule['year_level'],
+                $swap_date, $expires_at
+            );
+
+            if ($swap_stmt->execute()) {
+                jsonResponse('success', 'Time schedules swapped successfully! The swap will be active until ' . date('M j, Y g:i A', strtotime($expires_at)));
+            } else {
+                jsonResponse('error', 'Failed to swap time schedules: ' . $swap_stmt->error);
+            }
+            break;
+
+        case 'get_active_swaps':
+            $query = "SELECT ss.*, 
+                             TIMEDIFF(ss.expires_at, NOW()) as time_remaining
+                      FROM schedule_swaps ss 
+                      WHERE ss.is_active = TRUE AND ss.expires_at > NOW() 
+                      ORDER BY ss.expires_at ASC";
+            
+            $result = $db->query($query);
+            $swaps = [];
+            
+            while ($row = $result->fetch_assoc()) {
+                $swaps[] = $row;
+            }
+            
+            jsonResponse('success', 'Active swaps retrieved successfully', $swaps);
+            break;
+
+        case 'revert_swap':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                jsonResponse('error', 'Invalid request method');
+            }
+
+            $swap_id = (int)$_POST['swap_id'];
+            
+            // Verify swap exists and is active
+            $check_stmt = $db->prepare("SELECT id FROM schedule_swaps WHERE id = ? AND is_active = TRUE");
+            $check_stmt->bind_param("i", $swap_id);
+            $check_stmt->execute();
+            $check_result = $check_stmt->get_result();
+            
+            if ($check_result->num_rows === 0) {
+                jsonResponse('error', 'Active swap not found');
+            }
+
+            // Deactivate the swap
+            $stmt = $db->prepare("UPDATE schedule_swaps SET is_active = FALSE WHERE id = ?");
+            $stmt->bind_param("i", $swap_id);
+            
+            if ($stmt->execute()) {
+                jsonResponse('success', 'Schedule swap reverted successfully');
+            } else {
+                jsonResponse('error', 'Failed to revert schedule swap: ' . $stmt->error);
+            }
+            break;
+
+        // Legacy swap functions - keep for compatibility but mark as deprecated
+        case 'get_available_schedules':
+        case 'swap_schedule':
+        case 'get_instructor_rooms_legacy':
+        case 'get_available_days':
+        case 'get_available_instructors':
+        case 'quick_swap_schedule':
+            jsonResponse('error', 'This function is deprecated. Please use the new time swap functionality.');
+            break;
+            // Add this new case to your transac.php file
+        case 'find_all_schedules_for_swap':
+            $instructor1 = $_POST['instructor1'];
+            $instructor2 = $_POST['instructor2'];
+            $room = $_POST['room'];
+            $day = $_POST['day'];
+            
+            // Get all schedules for instructor 1
+            $stmt1 = $db->prepare("SELECT * FROM room_schedules WHERE instructor = ? AND room_name = ? AND day = ? ORDER BY start_time");
+            $stmt1->bind_param("sss", $instructor1, $room, $day);
+            $stmt1->execute();
+            $result1 = $stmt1->get_result();
+            $instructor1_schedules = [];
+            while ($row = $result1->fetch_assoc()) {
+                $instructor1_schedules[] = $row;
+            }
+            
+            // Get all schedules for instructor 2
+            $stmt2 = $db->prepare("SELECT * FROM room_schedules WHERE instructor = ? AND room_name = ? AND day = ? ORDER BY start_time");
+            $stmt2->bind_param("sss", $instructor2, $room, $day);
+            $stmt2->execute();
+            $result2 = $stmt2->get_result();
+            $instructor2_schedules = [];
+            while ($row = $result2->fetch_assoc()) {
+                $instructor2_schedules[] = $row;
+            }
+            
+            if (empty($instructor1_schedules) || empty($instructor2_schedules)) {
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => 'One or both instructors do not have schedules in the selected room and day.'
+                ]);
+            } else {
+                echo json_encode([
+                    'status' => 'success',
+                    'instructor1_schedules' => $instructor1_schedules,
+                    'instructor2_schedules' => $instructor2_schedules
+                ]);
+            }
+            break;
 
         default:
             jsonResponse('error', 'Invalid action');

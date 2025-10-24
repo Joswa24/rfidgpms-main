@@ -1,443 +1,309 @@
 <?php
-//session_start();
-
-// Check if required session variables are set
-if (!isset($_SESSION['id']) || !isset($_SESSION['name']) || !isset($_SESSION['month'])) {
-    // Alternatively, check for GET parameters if passed that way
-    if (!isset($_GET['id']) || !isset($_GET['name']) || !isset($_GET['month'])) {
-        die("Error: Required data is missing. Please go back and try again.");
-    } else {
-        // If GET parameters are present, use them
-        $id = filter_var($_GET['id'], FILTER_VALIDATE_INT);
-        $name = htmlspecialchars($_GET['name'], ENT_QUOTES, 'UTF-8');
-        $month = htmlspecialchars($_GET['month'], ENT_QUOTES, 'UTF-8');
-    }
-} else {
-    // Use session variables
-    $id = filter_var($_SESSION['id'], FILTER_VALIDATE_INT);
-    $name = htmlspecialchars($_SESSION['name'], ENT_QUOTES, 'UTF-8');
-    $month = htmlspecialchars($_SESSION['month'], ENT_QUOTES, 'UTF-8');
-}
-
-// Validate the ID
-if (!$id) {
-    die("Invalid personnel ID.");
-}
-
-// Include the database connection
+session_start();
 include '../connection.php';
 
-// Query to fetch personnel details
-$personnel = [];
-$sql = "SELECT first_name, last_name FROM personell WHERE id = ?";
-$stmt = $db->prepare($sql);
-if (!$stmt) {
-    die("Error preparing statement: " . $db->error);
-}
-
-$stmt->bind_param("i", $id);
-if (!$stmt->execute()) {
-    die("Error executing query: " . $stmt->error);
-}
-
-$result = $stmt->get_result();
-
-if ($row = $result->fetch_assoc()) {
-    $personnel = $row;
-} else {
-    die("No personnel found with ID: $id");
-}
-$stmt->close();
+// Get session data
+ $name = $_SESSION['name'] ?? '';
+ $month = $_SESSION['month'] ?? '';
+ $id = $_SESSION['id'] ?? 0;
 
 // Get current year and month number
-$currentYear = date('Y');
-$monthNum = date('m', strtotime($month));
-if (!$monthNum) {
-    die("Invalid month format. Please use a valid month name (e.g., 'January').");
-}
+ $currentYear = date('Y');
+ $month1 = date('m', strtotime($month)); 
 
 // Initialize the array to store the data for each day
-$daysData = [];
+ $daysData = [];
 
-// SQL query to fetch all logs for the specified month and personnel ID
-$sql = "SELECT date_logged, time_in_am, time_out_am, time_in_pm, time_out_pm 
-        FROM personell_logs 
-        WHERE MONTH(date_logged) = ? AND YEAR(date_logged) = ? AND personnel_id = ?
-        ORDER BY date_logged";
+// ENHANCED: Updated SQL query to fetch all gate logs for the instructor
+ $sql = "SELECT date, time_in, time_out, action, direction
+        FROM gate_logs 
+        WHERE MONTH(date) = ? AND YEAR(date) = ? 
+        AND person_id = ? AND person_type = 'instructor'
+        ORDER BY date, time_in";
 
-$stmt = $db->prepare($sql);
-if (!$stmt) {
-    die("Error preparing statement: " . $db->error);
-}
+// Prepare statement
+ $stmt = $db->prepare($sql);
+ $stmt->bind_param("iii", $month1, $currentYear, $id);
+ $stmt->execute();
+ $result = $stmt->get_result();
 
-$stmt->bind_param("iii", $monthNum, $currentYear, $id);
-
-if (!$stmt->execute()) {
-    die("Error executing query: " . $stmt->error);
-}
-
-$result = $stmt->get_result();
-
+// First, collect all logs for each day
+ $dailyLogs = [];
 while ($row = $result->fetch_assoc()) {
-    $day = (int)date('d', strtotime($row['date_logged']));
-    
-    // Format times properly
-    $row['time_in_am'] = (!empty($row['time_in_am']) && $row['time_in_am'] != '?') ? date('h:i A', strtotime($row['time_in_am'])) : '';
-    $row['time_out_am'] = (!empty($row['time_out_am']) && $row['time_out_am'] != '?') ? date('h:i A', strtotime($row['time_out_am'])) : '';
-    $row['time_in_pm'] = (!empty($row['time_in_pm']) && $row['time_in_pm'] != '?') ? date('h:i A', strtotime($row['time_in_pm'])) : '';
-    $row['time_out_pm'] = (!empty($row['time_out_pm']) && $row['time_out_pm'] != '?') ? date('h:i A', strtotime($row['time_out_pm'])) : '';
-    
-    $daysData[$day] = $row;
+    $day = (int)date('d', strtotime($row['date']));
+    if (!isset($dailyLogs[$day])) {
+        $dailyLogs[$day] = [];
+    }
+    $dailyLogs[$day][] = $row;
 }
 
-$stmt->close();
-$db->close();
+// Process each day's logs to determine time in/out
+foreach ($dailyLogs as $day => $logs) {
+    // Initialize day data
+    $daysData[$day] = [
+        'time_in_am' => '',
+        'time_out_am' => '',
+        'time_in_pm' => '',
+        'time_out_pm' => '',
+        'has_in_am' => false,
+        'has_out_am' => false,
+        'has_in_pm' => false,
+        'has_out_pm' => false
+    ];
+    
+    // Process each log entry for the day
+    foreach ($logs as $log) {
+        $time_in = !empty($log['time_in']) && $log['time_in'] != '00:00:00' ? $log['time_in'] : null;
+        $time_out = !empty($log['time_out']) && $log['time_out'] != '00:00:00' ? $log['time_out'] : null;
+        $action = strtoupper($log['action'] ?? $log['direction'] ?? '');
+        
+        // Process time_in entries
+        if ($time_in) {
+            $hour = (int)date('H', strtotime($time_in));
+            $time_12h = date('g:i A', strtotime($time_in));
+            
+            if ($hour < 12 && !$daysData[$day]['has_in_am']) {
+                // AM time in
+                $daysData[$day]['time_in_am'] = $time_12h;
+                $daysData[$day]['has_in_am'] = true;
+            } elseif ($hour >= 12 && !$daysData[$day]['has_in_pm']) {
+                // PM time in
+                $daysData[$day]['time_in_pm'] = $time_12h;
+                $daysData[$day]['has_in_pm'] = true;
+            }
+        }
+        
+        // Process time_out entries
+        if ($time_out) {
+            $hour = (int)date('H', strtotime($time_out));
+            $time_12h = date('g:i A', strtotime($time_out));
+            
+            if ($hour < 12 && !$daysData[$day]['has_out_am']) {
+                // AM time out
+                $daysData[$day]['time_out_am'] = $time_12h;
+                $daysData[$day]['has_out_am'] = true;
+            } elseif ($hour >= 12 && !$daysData[$day]['has_out_pm']) {
+                // PM time out
+                $daysData[$day]['time_out_pm'] = $time_12h;
+                $daysData[$day]['has_out_pm'] = true;
+            }
+        }
+    }
+    
+    // Auto-fill logic: If no time_out but there's a time_in, check for next day's time_in
+    if (!$daysData[$day]['has_out_am'] && $daysData[$day]['has_in_am']) {
+        // Check if next day has an AM time in (meaning they left after midnight)
+        if (isset($dailyLogs[$day + 1])) {
+            foreach ($dailyLogs[$day + 1] as $nextDayLog) {
+                $next_time_in = !empty($nextDayLog['time_in']) && $nextDayLog['time_in'] != '00:00:00' ? $nextDayLog['time_in'] : null;
+                if ($next_time_in) {
+                    $next_hour = (int)date('H', strtotime($next_time_in));
+                    if ($next_hour < 6) { // Before 6 AM is considered same day's night out
+                        $daysData[$day]['time_out_pm'] = date('g:i A', strtotime($next_time_in));
+                        $daysData[$day]['has_out_pm'] = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
+    // If still no time_out in PM but has time_in_pm, assume 5:00 PM (standard office hours)
+    if (!$daysData[$day]['has_out_pm'] && $daysData[$day]['has_in_pm']) {
+        $daysData[$day]['time_out_pm'] = '5:00 PM';
+        $daysData[$day]['has_out_pm'] = true;
+    }
+    
+    // If still no time_out in AM but has time_in_am, assume 12:00 PM (lunch time)
+    if (!$daysData[$day]['has_out_am'] && $daysData[$day]['has_in_am']) {
+        $daysData[$day]['time_out_am'] = '12:00 PM';
+        $daysData[$day]['has_out_am'] = true;
+    }
+}
+
+ $stmt->close();
+ $db->close();
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Daily Time Record - <?php echo $name; ?> - <?php echo $month; ?> <?php echo $currentYear; ?></title>
+    <title>DTR Print</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
+        @media print {
+            body { margin: 0; }
+            .no-print { display: none; }
         }
-
         .container {
             width: 100%;
             max-width: 800px;
             margin: 0 auto;
-            box-sizing: border-box;
+            border: 1px solid #000;
             padding: 20px;
+            box-sizing: border-box;
         }
-
         .header {
             text-align: center;
             margin-bottom: 20px;
         }
-
         .header h1 {
             font-size: 20px;
             text-decoration: underline;
-            margin: 10px 0;
         }
-
-        .header h4, .header h5 {
+        .header h3 {
             margin: 5px 0;
         }
-
-        .header h5 {
-            font-size: 10px;
-            text-align: left;
-        }
-
         .info-table {
             width: 100%;
             margin-bottom: 10px;
-            border-collapse: collapse;
         }
-
         .info-table th, .info-table td {
             border: none;
             padding: 5px;
-            text-align: left;
-            font-size: 12px;
         }
-
+        .info-table th {
+            text-align: left;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
-            font-size: 11px;
         }
-
         th, td {
             border: 1px solid #000;
             padding: 5px;
             text-align: center;
         }
-
         .footer {
             margin-top: 20px;
-            font-size: 12px;
         }
-
         .footer p {
+            font-size: 14px;
             text-align: justify;
-            margin: 5px 0;
         }
-
-        .in-charge {
+        .footer .in-charge {
             text-align: right;
             margin-top: 30px;
         }
-
-        /* Print-specific styles */
-        @media print {
-            body {
-                font-size: 10px;
-            }
-
-            .container {
-                padding: 10px;
-            }
-
-            th, td {
-                padding: 3px;
-                font-size: 9px;
-            }
-
-            .header h1 {
-                font-size: 16px;
-            }
-
-            @page {
-                size: A4;
-                margin: 10mm;
-            }
-
-            .page-break {
-                page-break-after: always;
-            }
+        .no-time-in {
+            color: #dc3545;
+            font-weight: bold;
         }
-
-        /* Two-column layout for printing */
-        .table-wrapper {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            justify-content: space-between;
-        }
-
-        .table-column {
-            flex: 1;
-            min-width: 48%;
-        }
-
-        @media print {
-            .table-wrapper {
-                display: block;
-            }
-            
-            .table-column {
-                page-break-after: always;
-                margin-bottom: 20mm;
-            }
-            
-            .table-column:last-child {
-                page-break-after: auto;
-            }
+        .no-time-out {
+            color: #ffc107;
+            font-weight: bold;
         }
     </style>
 </head>
-<body onload="window.print()">
-    <div class="table-wrapper">
-        <!-- Original Copy -->
-        <div class="table-column">
-            <div class="container">
-                <div class="header">
-                    <h5>Civil Service Form No. 48</h5>
-                    <h4>DAILY TIME RECORD</h4>
-                    <h1><?php echo $name; ?></h1>
-                </div>
-
-                <table class="info-table">
-                    <tr>
-                        <th style="width: 30%">For the month of</th>
-                        <td style="width: 40%"><?php echo $month; ?></td>
-                        <td style="width: 30%"><?php echo $currentYear; ?></td>
-                    </tr>
-                    <tr>
-                        <th>Official hours for:</th>
-                        <td>Regular Days: 8:00 AM - 5:00 PM</td>
-                        <td>Saturdays: 8:00 AM - 12:00 PM</td>
-                    </tr>
-                </table>
-
-                <table>
-                    <thead>
-                        <tr>
-                            <th rowspan="2" style="width: 10%">Day</th>
-                            <th colspan="2" style="width: 30%">A.M.</th>
-                            <th colspan="2" style="width: 30%">P.M.</th>
-                            <th colspan="2" style="width: 30%">Undertime</th>
-                        </tr>
-                        <tr>
-                            <th style="width: 15%">Arrival</th>
-                            <th style="width: 15%">Departure</th>
-                            <th style="width: 15%">Arrival</th>
-                            <th style="width: 15%">Departure</th>
-                            <th style="width: 15%">Hours</th>
-                            <th style="width: 15%">Minutes</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php 
-                        $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $monthNum, $currentYear);
-                        for ($day = 1; $day <= $daysInMonth; $day++): 
-                            $date = "$currentYear-$monthNum-$day";
-                            $dayOfWeek = date('N', strtotime($date));
-                            $isSaturday = ($dayOfWeek == 6);
-                            $isSunday = ($dayOfWeek == 7);
-                        ?>
-                            <tr>
-                                <td><?php echo $day; ?></td>
-                                <td><?php echo isset($daysData[$day]['time_in_am']) ? $daysData[$day]['time_in_am'] : ''; ?></td>
-                                <td><?php echo isset($daysData[$day]['time_out_am']) ? $daysData[$day]['time_out_am'] : ''; ?></td>
-                                <td><?php 
-                                    if ($isSaturday || $isSunday) {
-                                        echo ''; // No PM for Saturdays and Sundays
-                                    } else {
-                                        echo isset($daysData[$day]['time_in_pm']) ? $daysData[$day]['time_in_pm'] : '';
-                                    }
-                                ?></td>
-                                <td><?php 
-                                    if ($isSaturday || $isSunday) {
-                                        echo ''; // No PM for Saturdays and Sundays
-                                    } else {
-                                        echo isset($daysData[$day]['time_out_pm']) ? $daysData[$day]['time_out_pm'] : '';
-                                    }
-                                ?></td>
-                                <td></td>
-                                <td></td>
-                            </tr>
-                        <?php endfor; ?>
-                        <!-- Fill remaining rows if month has less than 31 days -->
-                        <?php if ($daysInMonth < 31): ?>
-                            <?php for ($day = $daysInMonth + 1; $day <= 31; $day++): ?>
-                                <tr>
-                                    <td><?php echo $day; ?></td>
-                                    <td></td>
-                                    <td></td>
-                                    <td></td>
-                                    <td></td>
-                                    <td></td>
-                                    <td></td>
-                                </tr>
-                            <?php endfor; ?>
-                        <?php endif; ?>
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <th>Total</th>
-                            <td colspan="6"></td>
-                        </tr>
-                    </tfoot>
-                </table>
-                
-                <div class="footer">
-                    <p>I CERTIFY on my honor that the above is a true and correct report of the hours of work performed, record of which was made daily at the time of arrival and departure from the office.</p>
-                    <div class="in-charge">
-                        <p>__________________________</p>
-                        <p><strong>In-Charge</strong></p>
-                    </div>
-                    <p style="text-align: center; margin-top: 20px;">(Original Copy)</p>
-                </div>
-            </div>
+<body>
+    <div class="container">
+        <div class="header">
+            <h5>Civil Service Form No. 48</h5>
+            <h4>DAILY TIME RECORD</h4>
+            <h1><?php echo htmlspecialchars($name); ?></h1>
         </div>
 
-        <!-- Duplicate Copy -->
-        <div class="table-column">
-            <div class="container">
-                <div class="header">
-                    <h5>Civil Service Form No. 48</h5>
-                    <h4>DAILY TIME RECORD</h4>
-                    <h1><?php echo $name; ?></h1>
-                </div>
+        <table class="info-table">
+            <tr>
+                <th>For the month of</th>
+                <td><?php echo htmlspecialchars($month); ?></td>
+                <td><?php echo $currentYear; ?></td>
+                <td></td>
+            </tr>
+            <tr>
+                <th>Official hours of arrival and departure:</th>
+                <td>Regular Days: _______________</td>
+                <td>Saturdays: _______________</td>
+                <td></td>
+            </tr>
+        </table>
 
-                <table class="info-table">
-                    <tr>
-                        <th style="width: 30%">For the month of</th>
-                        <td style="width: 40%"><?php echo $month; ?></td>
-                        <td style="width: 30%"><?php echo $currentYear; ?></td>
-                    </tr>
-                    <tr>
-                        <th>Official hours for:</th>
-                        <td>Regular Days: 8:00 AM - 5:00 PM</td>
-                        <td>Saturdays: 8:00 AM - 12:00 PM</td>
-                    </tr>
-                </table>
-
-                <table>
-                    <thead>
-                        <tr>
-                            <th rowspan="2" style="width: 10%">Day</th>
-                            <th colspan="2" style="width: 30%">A.M.</th>
-                            <th colspan="2" style="width: 30%">P.M.</th>
-                            <th colspan="2" style="width: 30%">Undertime</th>
-                        </tr>
-                        <tr>
-                            <th style="width: 15%">Arrival</th>
-                            <th style="width: 15%">Departure</th>
-                            <th style="width: 15%">Arrival</th>
-                            <th style="width: 15%">Departure</th>
-                            <th style="width: 15%">Hours</th>
-                            <th style="width: 15%">Minutes</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php 
-                        for ($day = 1; $day <= $daysInMonth; $day++): 
-                            $date = "$currentYear-$monthNum-$day";
-                            $dayOfWeek = date('N', strtotime($date));
-                            $isSaturday = ($dayOfWeek == 6);
-                            $isSunday = ($dayOfWeek == 7);
-                        ?>
-                            <tr>
-                                <td><?php echo $day; ?></td>
-                                <td><?php echo isset($daysData[$day]['time_in_am']) ? $daysData[$day]['time_in_am'] : ''; ?></td>
-                                <td><?php echo isset($daysData[$day]['time_out_am']) ? $daysData[$day]['time_out_am'] : ''; ?></td>
-                                <td><?php 
-                                    if ($isSaturday || $isSunday) {
-                                        echo ''; // No PM for Saturdays and Sundays
-                                    } else {
-                                        echo isset($daysData[$day]['time_in_pm']) ? $daysData[$day]['time_in_pm'] : '';
-                                    }
-                                ?></td>
-                                <td><?php 
-                                    if ($isSaturday || $isSunday) {
-                                        echo ''; // No PM for Saturdays and Sundays
-                                    } else {
-                                        echo isset($daysData[$day]['time_out_pm']) ? $daysData[$day]['time_out_pm'] : '';
-                                    }
-                                ?></td>
-                                <td></td>
-                                <td></td>
-                            </tr>
-                        <?php endfor; ?>
-                        <!-- Fill remaining rows if month has less than 31 days -->
-                        <?php if ($daysInMonth < 31): ?>
-                            <?php for ($day = $daysInMonth + 1; $day <= 31; $day++): ?>
-                                <tr>
-                                    <td><?php echo $day; ?></td>
-                                    <td></td>
-                                    <td></td>
-                                    <td></td>
-                                    <td></td>
-                                    <td></td>
-                                    <td></td>
-                                </tr>
-                            <?php endfor; ?>
-                        <?php endif; ?>
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <th>Total</th>
-                            <td colspan="6"></td>
-                        </tr>
-                    </tfoot>
-                </table>
+        <table>
+            <thead>
+                <tr>
+                    <th rowspan="2">Days</th>
+                    <th colspan="2">A.M.</th>
+                    <th colspan="2">P.M.</th>
+                    <th colspan="2">Undertime</th>
+                </tr>
+                <tr>
+                    <th>Arrival</th>
+                    <th>Departure</th>
+                    <th>Arrival</th>
+                    <th>Departure</th>
+                    <th>Hours</th>
+                    <th>Minutes</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php
+            // Loop through all the days of the month (1 to 31)
+            for ($day = 1; $day <= 31; $day++) {
+                // Check if time data exists for this day
+                $timeData = isset($daysData[$day]) ? $daysData[$day] : [
+                    'time_in_am' => '',
+                    'time_out_am' => '',
+                    'time_in_pm' => '',
+                    'time_out_pm' => '',
+                    'has_in_am' => false,
+                    'has_out_am' => false,
+                    'has_in_pm' => false,
+                    'has_out_pm' => false
+                ];
+            
+                // Display the row for each day
+                echo "<tr>";
+                echo "<td>" . $day . "</td>";
                 
-                <div class="footer">
-                    <p>I CERTIFY on my honor that the above is a true and correct report of the hours of work performed, record of which was made daily at the time of arrival and departure from the office.</p>
-                    <div class="in-charge">
-                        <p>__________________________</p>
-                        <p><strong>In-Charge</strong></p>
-                    </div>
-                    <p style="text-align: center; margin-top: 20px;">(Duplicate Copy)</p>
-                </div>
+                // AM Arrival
+                if ($timeData['time_in_am']) {
+                    echo "<td>" . htmlspecialchars($timeData['time_in_am']) . "</td>";
+                } else {
+                    echo "<td class='no-time-in'>—</td>";
+                }
+                
+                // AM Departure
+                if ($timeData['time_out_am']) {
+                    echo "<td>" . htmlspecialchars($timeData['time_out_am']) . "</td>";
+                } else {
+                    echo "<td class='no-time-out'>—</td>";
+                }
+                
+                // PM Arrival
+                if ($timeData['time_in_pm']) {
+                    echo "<td>" . htmlspecialchars($timeData['time_in_pm']) . "</td>";
+                } else {
+                    echo "<td class='no-time-in'>—</td>";
+                }
+                
+                // PM Departure
+                if ($timeData['time_out_pm']) {
+                    echo "<td>" . htmlspecialchars($timeData['time_out_pm']) . "</td>";
+                } else {
+                    echo "<td class='no-time-out'>—</td>";
+                }
+                
+                echo "<td></td>"; // Placeholder for undertime
+                echo "<td></td>"; // Placeholder for undertime
+                echo "</tr>";
+            }
+            ?>
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th>Total</th>
+                    <td colspan="6"></td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <div class="footer">
+            <p>
+                I CERTIFY on my honor that the above is a true and correct report of the hours of work performed, record of which was made daily at the time of arrival and departure from the office.
+            </p>
+            <div class="in-charge">
+                <p>__________________________</p>
+                <p>In-Charge</p>
             </div>
         </div>
     </div>

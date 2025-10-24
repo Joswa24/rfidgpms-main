@@ -1095,7 +1095,7 @@ if (isset($_GET['ajax']) && isset($_GET['id_number'])) {
                 <!-- Student Attendance Tab -->
                 <div class="tab-pane fade show active" id="pills-students">
                     <?php if ($attendance_saved): ?>
-                        <div class="archived-message" style="display: none;">
+                        <div class="archived-message">
                             <h4>Attendance Records Archived</h4>
                             <p><?php echo htmlspecialchars($archive_message); ?></p>
                             <div class="session-timeline text-center mb-3">
@@ -1105,8 +1105,8 @@ if (isset($_GET['ajax']) && isset($_GET['id_number'])) {
                                             <small class="text-muted">Time In</small>
                                             <div class="fw-bold text-primary">
                                                 <?php 
-                                                if (isset($_SESSION['original_time_in'])) {
-                                                    echo htmlspecialchars($_SESSION['original_time_in']);
+                                                if (!empty($original_time_in)) {
+                                                    echo htmlspecialchars($original_time_in);
                                                 } else {
                                                     echo 'N/A';
                                                 }
@@ -1442,60 +1442,60 @@ if (isset($_GET['ajax']) && isset($_GET['id_number'])) {
         }
 
         <?php if ($show_timeout_message && $attendance_saved): ?>
-    // Show success message if attendance was saved
-    Swal.fire({
-        icon: 'success',
-        title: 'Attendance Saved Successfully!',
-        html: `<div class="text-center">
-                  <div class="mb-3">
-                      <i class="fas fa-check-circle text-success" style="font-size: 3rem;"></i>
-                  </div>
-                  <h5 class="mb-3">Your attendance session has been completed</h5>
-                  
-                  <div class="session-timeline mb-4">
-                      <div class="row justify-content-center">
-                          <div class="col-md-5">
-                              <div class="time-display bg-light p-3 rounded">
-                                  <small class="text-muted d-block">Time In</small>
-                                  <div class="fw-bold text-primary fs-5">
-                                      <?php echo !empty($original_time_in) ? htmlspecialchars($original_time_in) : 'N/A'; ?>
+        // Show success message if attendance was saved
+        Swal.fire({
+            icon: 'success',
+            title: 'Attendance Saved Successfully!',
+            html: `<div class="text-center">
+                      <div class="mb-3">
+                          <i class="fas fa-check-circle text-success" style="font-size: 3rem;"></i>
+                      </div>
+                      <h5 class="mb-3">Your attendance session has been completed</h5>
+                      
+                      <div class="session-timeline mb-4">
+                          <div class="row justify-content-center">
+                              <div class="col-md-5">
+                                  <div class="time-display bg-light p-3 rounded">
+                                      <small class="text-muted d-block">Time In</small>
+                                      <div class="fw-bold text-primary fs-5">
+                                          <?php echo !empty($original_time_in) ? htmlspecialchars($original_time_in) : 'N/A'; ?>
+                                      </div>
                                   </div>
                               </div>
-                          </div>
-                          <div class="col-md-2 d-flex align-items-center justify-content-center">
-                              <i class="fas fa-arrow-right text-muted"></i>
-                          </div>
-                          <div class="col-md-5">
-                              <div class="time-display bg-light p-3 rounded">
-                                  <small class="text-muted d-block">Time Out</small>
-                                  <div class="fw-bold text-primary fs-5">
-                                      <?php echo !empty($timeout_time) ? htmlspecialchars($timeout_time) : 'N/A'; ?>
+                              <div class="col-md-2 d-flex align-items-center justify-content-center">
+                                  <i class="fas fa-arrow-right text-muted"></i>
+                              </div>
+                              <div class="col-md-5">
+                                  <div class="time-display bg-light p-3 rounded">
+                                      <small class="text-muted d-block">Time Out</small>
+                                      <div class="fw-bold text-primary fs-5">
+                                          <?php echo !empty($timeout_time) ? htmlspecialchars($timeout_time) : 'N/A'; ?>
+                                      </div>
                                   </div>
                               </div>
                           </div>
                       </div>
-                  </div>
-                  
-                  <div class="alert alert-success bg-success text-white border-0">
-                      <i class="fas fa-users me-2"></i>
-                      <?php echo htmlspecialchars($archive_message); ?>
-                  </div>
-                  
-                  <p class="text-muted">
-                      <i class="fas fa-info-circle me-2"></i>
-                      Class attendance data has been archived to your instructor panel.
-                  </p>
-               </div>`,
-        confirmButtonText: 'Continue',
-        confirmButtonColor: '#3085d6',
-        allowOutsideClick: false,
-        backdrop: true
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // Optional: You can add any cleanup or redirect here if needed
-        }
-    });
-<?php endif; ?>
+                      
+                      <div class="alert alert-success bg-success text-white border-0">
+                          <i class="fas fa-users me-2"></i>
+                          <?php echo htmlspecialchars($archive_message); ?>
+                      </div>
+                      
+                      <p class="text-muted">
+                          <i class="fas fa-info-circle me-2"></i>
+                          Class attendance data has been archived to your instructor panel.
+                      </p>
+                   </div>`,
+            confirmButtonText: 'Continue',
+            confirmButtonColor: '#3085d6',
+            allowOutsideClick: false,
+            backdrop: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Optional: You can add any cleanup or redirect here if needed
+            }
+        });
+        <?php endif; ?>
 
         // Auto-refresh the page every 30 seconds to update attendance status
         // Only refresh if attendance is not saved (when showing active data)
@@ -1505,18 +1505,6 @@ if (isset($_GET['ajax']) && isset($_GET['id_number'])) {
         }, 30000);
         <?php endif; ?>
     });
-
-    // Function to format time consistently (matches main1.php format)
-    function formatTimeForDisplay(dateTimeString) {
-        if (!dateTimeString) return '-';
-        
-        const date = new Date(dateTimeString);
-        return date.toLocaleTimeString('en-PH', { 
-            hour: '2-digit', 
-            minute: '2-digit',
-            hour12: true 
-        });
-    }
 </script>
 </body>
 </html>
@@ -1524,4 +1512,3 @@ if (isset($_GET['ajax']) && isset($_GET['id_number'])) {
 if (isset($db)) {
     mysqli_close($db);
 }
-?>

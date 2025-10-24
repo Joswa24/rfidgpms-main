@@ -318,7 +318,7 @@ function processVisitorSubmission($db, $postData) {
         
         if ($stmt->execute()) {
             // Also insert into gate_logs
-            insertIntoGateLogs($db, 'visitor', 0, $visitor_id, $full_name, 'IN', $department, $location, date('Y-m-d H:i:s'));
+        insertIntoGateLogs($db, 'visitor', 0, $visitor_id, $full_name, 'IN', $department, $location, date('Y-m-d H:i:s'), 'N/A');
             
             return [
                 'success' => true, 
@@ -470,7 +470,7 @@ $response = [
     'department' => $person['department'] ?? $person['department_name'] ?? 'N/A',
     'photo' => $photo_data,
     'section' => $person['section'] ?? 'N/A',
-    'year_level' => $person['year'] ?? 'N/A',
+    'year_level' => $person['year_level'] ?? $person['year'] ?? 'N/A',
     'role' => ucfirst($person_type),
     'time_in' => '',
     'time_out' => '',
@@ -592,7 +592,7 @@ if ($existing_specific_log) {
     
     if ($insert_specific_stmt->execute()) {
         // Also insert into gate_logs table
-        insertIntoGateLogs($db, $person_type, $person['id'], $person['id_number'], $person['full_name'], 'IN', $current_department, $current_location, $now);
+insertIntoGateLogs($db, $person_type, $person['id'], $person['id_number'], $person['full_name'], 'IN', $current_department, $current_location, $now, $response['year_level']);
         
         $response['time_in'] = $displayTimeIn;
         $response['time_in_out'] = 'Time In Recorded';
@@ -877,14 +877,14 @@ function updateGateLogs($db, $person_type, $person_id, $id_number, $full_name, $
         recordGateStats($db, $person_type, $action, $department, $location, $date, $time);
     } else {
         // Insert new record
-        insertIntoGateLogs($db, $person_type, $person_id, $id_number, $full_name, $action, $department, $location, $now);
+    insertIntoGateLogs($db, $person_type, $person_id, $id_number, $full_name, $action, $department, $location, $now, $year_level);
     }
 }
 
 /**
  * Function to insert into gate_logs
  */
-function insertIntoGateLogs($db, $person_type, $person_id, $id_number, $full_name, $action, $department, $location, $now) {
+function insertIntoGateLogs($db, $person_type, $person_id, $id_number, $full_name, $action, $department, $location, $now, $year_level = null) {
     $time = date('H:i:s');
     $date = date('Y-m-d');
     $direction = strtoupper($action);
@@ -896,27 +896,56 @@ function insertIntoGateLogs($db, $person_type, $person_id, $id_number, $full_nam
     $time_in = ($action === 'IN') ? $time : '00:00:00';
     $time_out = ($action === 'OUT') ? $time : '00:00:00';
     
-    $insert_query = "INSERT INTO gate_logs (person_type, person_id, id_number, name, action, time_in, time_out, date, location, department, direction) 
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    $stmt = $db->prepare($insert_query);
-    
-    if ($stmt) {
-        $stmt->bind_param(
-            "sisssssssss", 
-            $person_type, 
-            $person_id, 
-            $id_number, 
-            $full_name, 
-            $direction, 
-            $time_in, 
-            $time_out, 
-            $date, 
-            $location, 
-            $department, 
-            $direction
-        );
-        $stmt->execute();
-        $stmt->close();
+    // If year_level is provided, include it in the insert
+    if ($year_level !== null) {
+        $insert_query = "INSERT INTO gate_logs (person_type, person_id, id_number, name, year_level, action, time_in, time_out, date, location, department, direction) 
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $stmt = $db->prepare($insert_query);
+        
+        if ($stmt) {
+            $stmt->bind_param(
+                "sissssssssss", 
+                $person_type, 
+                $person_id, 
+                $id_number, 
+                $full_name, 
+                $year_level,
+                $direction, 
+                $time_in, 
+                $time_out, 
+                $date, 
+                $location, 
+                $department, 
+                $direction,
+                
+            );
+            $stmt->execute();
+            $stmt->close();
+        }
+    } else {
+        // Original insert without year_level
+        $insert_query = "INSERT INTO gate_logs (person_type, person_id, id_number, name, action, time_in, time_out, date, location, department, direction) 
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $stmt = $db->prepare($insert_query);
+        
+        if ($stmt) {
+            $stmt->bind_param(
+                "sisssssssss", 
+                $person_type, 
+                $person_id, 
+                $id_number, 
+                $full_name, 
+                $direction, 
+                $time_in, 
+                $time_out, 
+                $date, 
+                $location, 
+                $department, 
+                $direction
+            );
+            $stmt->execute();
+            $stmt->close();
+        }
     }
 
     // Record stats for IN/OUT

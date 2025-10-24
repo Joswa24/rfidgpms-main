@@ -98,39 +98,132 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                         
                         // Check password (ONLY hashed - remove plain text check)
                         if (password_verify($password, $user['password'])) {
-                            // Successful login with hashed password
-                            $_SESSION['login_attempts'] = 0;
-                            $_SESSION['lockout_time'] = 0;
-                            $_SESSION['user_id'] = $user['id'];
-                            $_SESSION['username'] = $user['username'];
-                            $_SESSION['email'] = $user['email'];
-                            $_SESSION['logged_in'] = true;
+                        // Log successful login
+                        try {
+                            // Get location from IP
+                            $ipAddress = $_SERVER['REMOTE_ADDR'];
+                            $location = 'Unknown';
                             
-                            // Regenerate session ID to prevent session fixation
-                            session_regenerate_id(true);
-                            
-                            // Set secure session cookie parameters
-                            session_set_cookie_params([
-                                'lifetime' => 0,
-                                'path' => '/',
-                                'domain' => $_SERVER['HTTP_HOST'],
-                                'secure' => isset($_SERVER['HTTPS']), // Use HTTPS if available
-                                'httponly' => true,
-                                'samesite' => 'Strict'
-                            ]);
-                            
-                            header('Location: dashboard.php');
-                            exit();
-                        } else {
-                            $_SESSION['login_attempts']++;
-                            $attemptsLeft = $maxAttempts - $_SESSION['login_attempts'];
-                            if ($attemptsLeft > 0) {
-                                $error = "Invalid username or password. Attempts remaining: " . $attemptsLeft;
-                            } else {
-                                $_SESSION['lockout_time'] = time();
-                                $error = "Too many failed attempts. Please wait 30 seconds before trying again.";
+                            // Try to get location from IP using a free API
+                            if (function_exists('file_get_contents') && $ipAddress !== '127.0.0.1' && $ipAddress !== '::1') {
+                                $context = stream_context_create([
+                                    'http' => [
+                                        'timeout' => 5,
+                                        'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                                    ]
+                                ]);
+                                
+                                // Try ip-api.com first
+                                $ipData = @file_get_contents("http://ip-api.com/json/{$ipAddress}", false, $context);
+                                if ($ipData) {
+                                    $ipInfo = json_decode($ipData);
+                                    if ($ipInfo && $ipInfo->status === 'success') {
+                                        $location = $ipInfo->city . ', ' . $ipInfo->regionName . ', ' . $ipInfo->country;
+                                    }
+                                }
+                                
+                                // If ip-api.com fails, try ipinfo.io
+                                if ($location === 'Unknown') {
+                                    $ipData = @file_get_contents("https://ipinfo.io/{$ipAddress}/json", false, $context);
+                                    if ($ipData) {
+                                        $ipInfo = json_decode($ipData);
+                                        if ($ipInfo && isset($ipInfo->city)) {
+                                            $location = $ipInfo->city . ', ' . ($ipInfo->region ?? '') . ', ' . ($ipInfo->country ?? '');
+                                        }
+                                    }
+                                }
                             }
+                            
+                            $stmt = $db->prepare("INSERT INTO admin_access_logs (admin_id, username, login_time, ip_address, user_agent, location, activity, status) VALUES (?, ?, NOW(), ?, ?, ?, 'Login', 'success')");
+                            if ($stmt) {
+                                $userAgent = $_SERVER['HTTP_USER_AGENT'];
+                                $stmt->bind_param("issss", $user['id'], $user['username'], $ipAddress, $userAgent, $location);
+                                $stmt->execute();
+                            }
+                        } catch (Exception $e) {
+                            error_log("Failed to log successful login: " . $e->getMessage());
                         }
+                        
+                        // Rest of your successful login code...
+                        $_SESSION['login_attempts'] = 0;
+                        $_SESSION['lockout_time'] = 0;
+                        $_SESSION['user_id'] = $user['id'];
+                        $_SESSION['username'] = $user['username'];
+                        $_SESSION['email'] = $user['email'];
+                        $_SESSION['logged_in'] = true;
+                        
+                        // Regenerate session ID to prevent session fixation
+                        session_regenerate_id(true);
+                        
+                        // Set secure session cookie parameters
+                        session_set_cookie_params([
+                            'lifetime' => 0,
+                            'path' => '/',
+                            'domain' => $_SERVER['HTTP_HOST'],
+                            'secure' => isset($_SERVER['HTTPS']), // Use HTTPS if available
+                            'httponly' => true,
+                            'samesite' => 'Strict'
+                        ]);
+                        
+                        header('Location: dashboard.php');
+                        exit();
+                    } else {
+                        // Log failed login attempt
+                        try {
+                            // Get location from IP
+                            $ipAddress = $_SERVER['REMOTE_ADDR'];
+                            $location = 'Unknown';
+                            
+                            // Try to get location from IP using a free API
+                            if (function_exists('file_get_contents') && $ipAddress !== '127.0.0.1' && $ipAddress !== '::1') {
+                                $context = stream_context_create([
+                                    'http' => [
+                                        'timeout' => 5,
+                                        'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                                    ]
+                                ]);
+                                
+                                // Try ip-api.com first
+                                $ipData = @file_get_contents("http://ip-api.com/json/{$ipAddress}", false, $context);
+                                if ($ipData) {
+                                    $ipInfo = json_decode($ipData);
+                                    if ($ipInfo && $ipInfo->status === 'success') {
+                                        $location = $ipInfo->city . ', ' . $ipInfo->regionName . ', ' . $ipInfo->country;
+                                    }
+                                }
+                                
+                                // If ip-api.com fails, try ipinfo.io
+                                if ($location === 'Unknown') {
+                                    $ipData = @file_get_contents("https://ipinfo.io/{$ipAddress}/json", false, $context);
+                                    if ($ipData) {
+                                        $ipInfo = json_decode($ipData);
+                                        if ($ipInfo && isset($ipInfo->city)) {
+                                            $location = $ipInfo->city . ', ' . ($ipInfo->region ?? '') . ', ' . ($ipInfo->country ?? '');
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            $stmt = $db->prepare("INSERT INTO admin_access_logs (admin_id, username, login_time, ip_address, user_agent, location, activity, status) VALUES (0, ?, NOW(), ?, ?, ?, 'Failed Login', 'failed')");
+                            if ($stmt) {
+                                $userAgent = $_SERVER['HTTP_USER_AGENT'];
+                                $stmt->bind_param("ssss", $username, $ipAddress, $userAgent, $location);
+                                $stmt->execute();
+                            }
+                        } catch (Exception $e) {
+                            error_log("Failed to log failed login: " . $e->getMessage());
+                        }
+                        
+                        // Rest of your failed login code...
+                        $_SESSION['login_attempts']++;
+                        $attemptsLeft = $maxAttempts - $_SESSION['login_attempts'];
+                        if ($attemptsLeft > 0) {
+                            $error = "Invalid username or password. Attempts remaining: " . $attemptsLeft;
+                        } else {
+                            $_SESSION['lockout_time'] = time();
+                            $error = "Too many failed attempts. Please wait 30 seconds before trying again.";
+                        }
+                    }
                     } else {
                         $_SESSION['login_attempts']++;
                         $attemptsLeft = $maxAttempts - $_SESSION['login_attempts'];
@@ -149,6 +242,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         }
     }
 }
+
 
 // Check if user is currently locked out
 $isLockedOut = ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime);

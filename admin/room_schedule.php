@@ -18,8 +18,8 @@ include '../connection.php';
 //     ADD COLUMN IF NOT EXISTS instructor VARCHAR(255) NOT NULL AFTER department");
 
 // --- FETCH FOR EDIT ---
-$edit_mode = false;
-$edit_data = null;
+ $edit_mode = false;
+ $edit_data = null;
 if (isset($_GET['edit'])) {
     $edit_mode = true;
     $id = (int)$_GET['edit'];
@@ -31,21 +31,21 @@ if (isset($_GET['edit'])) {
 }
 
 // --- GET ALL SCHEDULES ---
-$schedules = $db->query("SELECT * FROM room_schedules ORDER BY room_name, day, start_time");
+ $schedules = $db->query("SELECT * FROM room_schedules ORDER BY room_name, day, start_time");
 
 // --- GET FILTER OPTIONS ---
-$departments = $db->query("SELECT DISTINCT department FROM room_schedules ORDER BY department");
-$rooms = $db->query("SELECT DISTINCT room_name FROM room_schedules ORDER BY room_name");
-$subjects = $db->query("SELECT DISTINCT subject FROM room_schedules ORDER BY subject");
-$year_levels = $db->query("SELECT DISTINCT year_level FROM room_schedules ORDER BY year_level");
-$days = $db->query("SELECT DISTINCT day FROM room_schedules ORDER BY FIELD(day, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')");
-$instructors = $db->query("SELECT DISTINCT instructor FROM room_schedules ORDER BY instructor");
+ $departments = $db->query("SELECT DISTINCT department FROM room_schedules ORDER BY department");
+ $rooms = $db->query("SELECT DISTINCT room_name FROM room_schedules ORDER BY room_name");
+ $subjects = $db->query("SELECT DISTINCT subject FROM room_schedules ORDER BY subject");
+ $year_levels = $db->query("SELECT DISTINCT year_level FROM room_schedules ORDER BY year_level");
+ $days = $db->query("SELECT DISTINCT day FROM room_schedules ORDER BY FIELD(day, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')");
+ $instructors = $db->query("SELECT DISTINCT instructor FROM room_schedules ORDER BY instructor");
 
 // --- GET ALL OPTIONS FOR ADD MODAL ---
-$all_departments = $db->query("SELECT * FROM department WHERE department_name != 'Main' ORDER BY department_name");
-$all_rooms = $db->query("SELECT * FROM rooms ORDER BY room");
-$all_subjects = $db->query("SELECT * FROM subjects ORDER BY subject_name");
-$all_instructors = $db->query("SELECT * FROM instructor ORDER BY fullname");
+ $all_departments = $db->query("SELECT * FROM department WHERE department_name != 'Main' ORDER BY department_name");
+ $all_rooms = $db->query("SELECT * FROM rooms ORDER BY room");
+ $all_subjects = $db->query("SELECT * FROM subjects ORDER BY subject_name");
+ $all_instructors = $db->query("SELECT * FROM instructor ORDER BY fullname");
 ?>
 
 <!DOCTYPE html>
@@ -135,6 +135,138 @@ $all_instructors = $db->query("SELECT * FROM instructor ORDER BY fullname");
             color: #6c757d;
             font-style: italic;
         }
+        .swap-preview {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .schedule-card {
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .schedule-card.highlight {
+            border-color: #4e73df;
+            background-color: #e7f1ff;
+        }
+        .swap-arrow {
+            font-size: 2rem;
+            color: #4e73df;
+            text-align: center;
+            margin: 10px 0;
+        }
+        /* Flip Card Styles */
+        .schedule-flip-card {
+            background-color: transparent;
+            width: 100%;
+            height: 180px;
+            perspective: 1000px;
+            margin-bottom: 15px;
+            cursor: pointer;
+        }
+
+        .schedule-flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .schedule-flip-card:hover .schedule-flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .schedule-flip-card-front, .schedule-flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .schedule-flip-card-front {
+            background-color: #f8f9fa;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+        }
+
+        .schedule-flip-card-back {
+            background-color: #4e73df;
+            color: white;
+            transform: rotateY(180deg);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 15px;
+        }
+
+        .schedule-flip-card.selected .schedule-flip-card-front {
+            border: 2px solid #4e73df;
+            background-color: #e7f1ff;
+        }
+
+        .schedule-flip-card.selected .schedule-flip-card-back {
+            background-color: #2e59d9;
+        }
+
+        .schedule-info {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            justify-content: space-between;
+        }
+
+        .schedule-info h6 {
+            margin-bottom: 10px;
+        }
+
+        .schedule-info p {
+            margin: 5px 0;
+            font-size: 0.9rem;
+        }
+
+        .time-badge {
+            background-color: #4e73df;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .schedule-flip-card.selected .time-badge {
+            background-color: #2e59d9;
+        }
+
+        .schedule-flip-card-front h6 {
+            margin: 5px 0;
+            font-weight: bold;
+        }
+
+        .schedule-flip-card-front p {
+            margin: 3px 0;
+            font-size: 0.85rem;
+        }
+
+        .select-schedule-btn {
+            margin-top: 10px;
+        }
+
+        .schedule-card {
+            max-height: 400px;
+            overflow-y: auto;
+        }
     </style>
 </head>
 
@@ -152,10 +284,13 @@ $all_instructors = $db->query("SELECT * FROM instructor ORDER BY fullname");
                 <div class="col-sm-12 col-xl-12">
                     <div class="bg-light rounded h-100 p-4">
                         <div class="row">
-                            <div class="col-9">
+                            <div class="col-7">
                                 <h6 class="mb-4">Manage Room Schedules</h6>
                             </div>
-                            <div class="col-3">
+                            <div class="col-5 text-end">
+                                <button type="button" class="btn btn-outline-info m-2" data-bs-toggle="modal" data-bs-target="#swapScheduleModal">
+                                    <i class="fas fa-exchange-alt"></i> Swap Schedule
+                                </button>
                                 <button type="button" class="btn btn-outline-warning m-2" data-bs-toggle="modal" data-bs-target="#scheduleModal">
                                     <i class="fas fa-plus-circle"></i> Add Schedule
                                 </button>
@@ -666,6 +801,135 @@ $all_instructors = $db->query("SELECT * FROM instructor ORDER BY fullname");
                                 <button type="submit" id="btn-editschedule" class="btn btn-outline-primary">Update</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Swap Schedule Modal -->
+            <div class="modal fade" id="swapScheduleModal" tabindex="-1" aria-labelledby="swapScheduleModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="swapScheduleModalLabel">
+                                <i class="fas fa-exchange-alt"></i> Swap Instructor Schedules
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="section-header p-2 mb-3 rounded">
+                                <strong>SELECT SCHEDULES TO SWAP</strong>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label><b>First Instructor:</b></label>
+                                        <select class="form-control" id="swap_instructor1" required>
+                                            <option value="">Select First Instructor</option>
+                                            <?php 
+                                            $all_instructors->data_seek(0);
+                                            while ($instructor = $all_instructors->fetch_assoc()): ?>
+                                                <option value="<?= htmlspecialchars($instructor['fullname']) ?>">
+                                                    <?= htmlspecialchars($instructor['fullname']) ?>
+                                                </option>
+                                            <?php endwhile; ?>
+                                        </select>
+                                        <span class="error-message" id="swap_instructor1-error"></span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label><b>Second Instructor:</b></label>
+                                        <select class="form-control" id="swap_instructor2" required>
+                                            <option value="">Select Second Instructor</option>
+                                            <?php 
+                                            $all_instructors->data_seek(0);
+                                            while ($instructor = $all_instructors->fetch_assoc()): ?>
+                                                <option value="<?= htmlspecialchars($instructor['fullname']) ?>">
+                                                    <?= htmlspecialchars($instructor['fullname']) ?>
+                                                </option>
+                                            <?php endwhile; ?>
+                                        </select>
+                                        <span class="error-message" id="swap_instructor2-error"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label><b>Room:</b></label>
+                                        <select class="form-control" id="swap_room" required>
+                                            <option value="">Select Room</option>
+                                            <?php 
+                                            $all_rooms->data_seek(0);
+                                            while ($room = $all_rooms->fetch_assoc()): ?>
+                                                <option value="<?= htmlspecialchars($room['room']) ?>">
+                                                    <?= htmlspecialchars($room['room']) ?>
+                                                </option>
+                                            <?php endwhile; ?>
+                                        </select>
+                                        <span class="error-message" id="swap_room-error"></span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label><b>Day:</b></label>
+                                        <select class="form-control" id="swap_day" required>
+                                            <option value="">Select Day</option>
+                                            <?php
+                                            $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                                            foreach ($days as $day) {
+                                                echo "<option value='$day'>$day</option>";
+                                            }
+                                            ?>
+                                        </select>
+                                        <span class="error-message" id="swap_day-error"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-12 text-center">
+                                    <button type="button" class="btn btn-info" id="findSchedulesBtn">
+                                        <i class="fas fa-search"></i> Find Schedules
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div id="swapPreview" class="swap-preview" style="display: none;">
+                                <h6 class="mb-3">Schedule Preview</h6>
+                                <div class="row">
+                                    <div class="col-md-5">
+                                        <div class="schedule-card" id="schedule1Card">
+                                            <h6 class="text-center">First Instructor Schedule</h6>
+                                            <div id="schedule1Details">
+                                                <!-- Schedule details will be populated here -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="swap-arrow">
+                                            <i class="fas fa-exchange-alt"></i>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <div class="schedule-card" id="schedule2Card">
+                                            <h6 class="text-center">Second Instructor Schedule</h6>
+                                            <div id="schedule2Details">
+                                                <!-- Schedule details will be populated here -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-info" id="confirmSwapBtn" disabled>
+                                <i class="fas fa-exchange-alt"></i> Confirm Swap
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1384,6 +1648,343 @@ $all_instructors = $db->query("SELECT * FROM instructor ORDER BY fullname");
             // Reset edit modal when closed
             $('#editscheduleModal').on('hidden.bs.modal', function () {
                 $('.error-message').text('');
+            });
+
+
+            // ==========
+            // SWAP SCHEDULE FUNCTIONALITY
+            // ==========
+
+            // Store schedule data for swap
+            let instructor1Schedules = [];
+            let instructor2Schedules = [];
+            let selectedSchedule1 = null;
+            let selectedSchedule2 = null;
+
+            // Find schedules button click handler
+            $('#findSchedulesBtn').click(function() {
+                // Clear previous results and errors
+                $('.error-message').text('');
+                $('#swapPreview').hide();
+                $('#confirmSwapBtn').prop('disabled', true);
+                instructor1Schedules = [];
+                instructor2Schedules = [];
+                selectedSchedule1 = null;
+                selectedSchedule2 = null;
+                
+                // Get form values
+                const instructor1 = $('#swap_instructor1').val();
+                const instructor2 = $('#swap_instructor2').val();
+                const room = $('#swap_room').val();
+                const day = $('#swap_day').val();
+                
+                // Validation
+                let isValid = true;
+                
+                if (!instructor1) {
+                    $('#swap_instructor1-error').text('Please select the first instructor');
+                    isValid = false;
+                }
+                
+                if (!instructor2) {
+                    $('#swap_instructor2-error').text('Please select the second instructor');
+                    isValid = false;
+                }
+                
+                if (instructor1 === instructor2) {
+                    $('#swap_instructor1-error, #swap_instructor2-error').text('Please select two different instructors');
+                    isValid = false;
+                }
+                
+                if (!room) {
+                    $('#swap_room-error').text('Please select a room');
+                    isValid = false;
+                }
+                
+                if (!day) {
+                    $('#swap_day-error').text('Please select a day');
+                    isValid = false;
+                }
+                
+                if (!isValid) return;
+                
+                // Show loading state
+                $(this).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Searching...');
+                $(this).prop('disabled', true);
+                
+                // Find schedules via AJAX
+                $.ajax({
+                    type: "POST",
+                    url: "transac.php?action=find_all_schedules_for_swap",
+                    data: {
+                        instructor1: instructor1,
+                        instructor2: instructor2,
+                        room: room,
+                        day: day
+                    },
+                    dataType: 'json',
+                    success: function(response) {
+                        // Reset button state
+                        $('#findSchedulesBtn').html('<i class="fas fa-search"></i> Find Schedules');
+                        $('#findSchedulesBtn').prop('disabled', false);
+                        
+                        if (response.status === 'success') {
+                            if (response.instructor1_schedules && response.instructor2_schedules) {
+                                instructor1Schedules = response.instructor1_schedules;
+                                instructor2Schedules = response.instructor2_schedules;
+                                
+                                // Display schedule details
+                                displayAllSchedules(instructor1Schedules, instructor2Schedules);
+                                
+                                // Show the preview section
+                                $('#swapPreview').slideDown();
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Schedules Not Found',
+                                    text: 'Could not find schedules for both instructors in the specified room and day.'
+                                });
+                            }
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: response.message || 'An error occurred while finding schedules'
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        // Reset button state
+                        $('#findSchedulesBtn').html('<i class="fas fa-search"></i> Find Schedules');
+                        $('#findSchedulesBtn').prop('disabled', false);
+                        
+                        console.error('AJAX Error:', error);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'An error occurred while finding schedules'
+                        });
+                    }
+                });
+            });
+
+            // Function to display all schedules in flip cards
+            function displayAllSchedules(schedules1, schedules2) {
+                // Format time for display
+                const formatTime = function(time) {
+                    const [hours, minutes] = time.split(':');
+                    const h = parseInt(hours);
+                    const ampm = h >= 12 ? 'PM' : 'AM';
+                    const displayHours = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+                    return `${displayHours}:${minutes} ${ampm}`;
+                };
+                
+                // Clear previous content
+                $('#schedule1Details').empty();
+                $('#schedule2Details').empty();
+                
+                // Create flip cards for instructor 1
+                if (schedules1.length > 0) {
+                    schedules1.forEach((schedule, index) => {
+                        const cardHtml = `
+                            <div class="schedule-flip-card ${index === 0 ? 'selected' : ''}" data-schedule-id="${schedule.id}" data-instructor="1">
+                                <div class="schedule-flip-card-inner">
+                                    <div class="schedule-flip-card-front">
+                                        <div class="time-badge">${formatTime(schedule.start_time)} - ${formatTime(schedule.end_time)}</div>
+                                        <h6>${schedule.subject}</h6>
+                                        <p>Section: ${schedule.section}</p>
+                                        <p>Year: ${schedule.year_level}</p>
+                                    </div>
+                                    <div class="schedule-flip-card-back">
+                                        <div class="schedule-info">
+                                            <h6>${schedule.subject}</h6>
+                                            <p>Section: ${schedule.section}</p>
+                                            <p>Year: ${schedule.year_level}</p>
+                                            <p>Time: ${formatTime(schedule.start_time)} - ${formatTime(schedule.end_time)}</p>
+                                            <button class="btn btn-sm btn-outline-primary select-schedule-btn">Select This Schedule</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        $('#schedule1Details').append(cardHtml);
+                    });
+                    
+                    // Select the first schedule by default
+                    selectedSchedule1 = schedules1[0];
+                } else {
+                    $('#schedule1Details').html('<p class="text-muted">No schedules found for this instructor</p>');
+                }
+                
+                // Create flip cards for instructor 2
+                if (schedules2.length > 0) {
+                    schedules2.forEach((schedule, index) => {
+                        const cardHtml = `
+                            <div class="schedule-flip-card ${index === 0 ? 'selected' : ''}" data-schedule-id="${schedule.id}" data-instructor="2">
+                                <div class="schedule-flip-card-inner">
+                                    <div class="schedule-flip-card-front">
+                                        <div class="time-badge">${formatTime(schedule.start_time)} - ${formatTime(schedule.end_time)}</div>
+                                        <h6>${schedule.subject}</h6>
+                                        <p>Section: ${schedule.section}</p>
+                                        <p>Year: ${schedule.year_level}</p>
+                                    </div>
+                                    <div class="schedule-flip-card-back">
+                                        <div class="schedule-info">
+                                            <h6>${schedule.subject}</h6>
+                                            <p>Section: ${schedule.section}</p>
+                                            <p>Year: ${schedule.year_level}</p>
+                                            <p>Time: ${formatTime(schedule.start_time)} - ${formatTime(schedule.end_time)}</p>
+                                            <button class="btn btn-sm btn-outline-primary select-schedule-btn">Select This Schedule</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        $('#schedule2Details').append(cardHtml);
+                    });
+                    
+                    // Select the first schedule by default
+                    selectedSchedule2 = schedules2[0];
+                } else {
+                    $('#schedule2Details').html('<p class="text-muted">No schedules found for this instructor</p>');
+                }
+                
+                // Check if we have at least one schedule for each instructor
+                if (selectedSchedule1 && selectedSchedule2) {
+                    $('#confirmSwapBtn').prop('disabled', false);
+                }
+            }
+
+            // Handle click on schedule cards
+            $(document).on('click', '.schedule-flip-card', function() {
+                const instructor = $(this).data('instructor');
+                const scheduleId = $(this).data('schedule-id');
+                
+                // Remove selected class from all cards for this instructor
+                $(`.schedule-flip-card[data-instructor="${instructor}"]`).removeClass('selected');
+                
+                // Add selected class to this card
+                $(this).addClass('selected');
+                
+                // Update selected schedule
+                if (instructor == 1) {
+                    selectedSchedule1 = instructor1Schedules.find(s => s.id == scheduleId);
+                } else {
+                    selectedSchedule2 = instructor2Schedules.find(s => s.id == scheduleId);
+                }
+                
+                // Enable confirm button if both schedules are selected
+                if (selectedSchedule1 && selectedSchedule2) {
+                    $('#confirmSwapBtn').prop('disabled', false);
+                }
+            });
+
+            // Handle click on select schedule button
+            $(document).on('click', '.select-schedule-btn', function(e) {
+                e.stopPropagation();
+                $(this).closest('.schedule-flip-card').click();
+            });
+
+            // Confirm swap button click handler
+            $('#confirmSwapBtn').click(function() {
+                if (!selectedSchedule1 || !selectedSchedule2) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Please select schedules for both instructors.'
+                    });
+                    return;
+                }
+                
+                // Show confirmation dialog
+                const formatTime = function(time) {
+                    const [hours, minutes] = time.split(':');
+                    const h = parseInt(hours);
+                    const ampm = h >= 12 ? 'PM' : 'AM';
+                    const displayHours = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+                    return `${displayHours}:${minutes} ${ampm}`;
+                };
+                
+                Swal.fire({
+                    title: 'Confirm Schedule Swap',
+                    html: `
+                        <p>Are you sure you want to swap the time schedules for these instructors?</p>
+                        <div class="text-left">
+                            <p><strong>${selectedSchedule1.instructor}</strong> will now teach at ${formatTime(selectedSchedule2.start_time)} - ${formatTime(selectedSchedule2.end_time)}</p>
+                            <p><strong>${selectedSchedule2.instructor}</strong> will now teach at ${formatTime(selectedSchedule1.start_time)} - ${formatTime(selectedSchedule1.end_time)}</p>
+                        </div>
+                    `,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Yes, swap schedules',
+                    cancelButtonText: 'Cancel'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Show loading state
+                        $(this).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Swapping...');
+                        $(this).prop('disabled', true);
+                        
+                        // Perform the swap via AJAX
+                        $.ajax({
+                            type: "POST",
+                            url: "transac.php?action=swap_schedules",
+                            data: {
+                                schedule1_id: selectedSchedule1.id,
+                                schedule2_id: selectedSchedule2.id
+                            },
+                            dataType: 'json',
+                            success: function(response) {
+                                // Reset button state
+                                $('#confirmSwapBtn').html('<i class="fas fa-exchange-alt"></i> Confirm Swap');
+                                $('#confirmSwapBtn').prop('disabled', false);
+                                
+                                if (response.status === 'success') {
+                                    Swal.fire({
+                                        icon: 'success',
+                                        title: 'Success!',
+                                        text: response.message,
+                                        showConfirmButton: true
+                                    }).then(() => {
+                                        $('#swapScheduleModal').modal('hide');
+                                        location.reload();
+                                    });
+                                } else {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Error!',
+                                        text: response.message
+                                    });
+                                }
+                            },
+                            error: function(xhr, status, error) {
+                                // Reset button state
+                                $('#confirmSwapBtn').html('<i class="fas fa-exchange-alt"></i> Confirm Swap');
+                                $('#confirmSwapBtn').prop('disabled', false);
+                                
+                                console.error('AJAX Error:', error);
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error',
+                                    text: 'An error occurred while swapping schedules'
+                                });
+                            }
+                        });
+                    }
+                });
+            });
+
+            // Reset swap modal when closed
+            $('#swapScheduleModal').on('hidden.bs.modal', function () {
+                $(this).find('form')[0].reset();
+                $('.error-message').text('');
+                $('#swapPreview').hide();
+                $('#confirmSwapBtn').prop('disabled', true);
+                instructor1Schedules = [];
+                instructor2Schedules = [];
+                selectedSchedule1 = null;
+                selectedSchedule2 = null;
             });
         });
     </script>

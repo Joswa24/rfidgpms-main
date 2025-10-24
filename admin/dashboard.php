@@ -57,7 +57,6 @@ function getDashboardStats($db) {
         'total_instructors' => 0,
         'total_staff' => 0,
         'total_visitors_today' => 0,
-        'peak_hour' => 'N/A',
         'avg_daily_entrants' => 0,
         'pending_exits_count' => 0
     ];
@@ -65,7 +64,7 @@ function getDashboardStats($db) {
     try {
         $today = date('Y-m-d');
         
-        // Total entries today (IN actions)
+        // Total entries today (IN actions) - CHANGED: This now shows total entries only
         $query = "SELECT COUNT(*) as total FROM gate_logs WHERE DATE(created_at) = CURDATE() AND direction = 'IN'";
         $result = $db->query($query);
         if ($result) {
@@ -199,21 +198,7 @@ function getDashboardStats($db) {
             $stats['blocked'] = $row['total'] ?? 0;
         }
 
-        // Peak hour analysis from gate_logs
-        $query = "SELECT HOUR(created_at) as hour, COUNT(*) as count 
-                 FROM gate_logs 
-                 WHERE DATE(created_at) = CURDATE() 
-                 AND direction = 'IN'
-                 GROUP BY HOUR(created_at) 
-                 ORDER BY count DESC 
-                 LIMIT 1";
-        $result = $db->query($query);
-        if ($result && $result->num_rows > 0) {
-            $row = $result->fetch_assoc();
-            $stats['peak_hour'] = date('g A', strtotime($row['hour'] . ':00'));
-        }
-
-        // Average daily entrants (last 7 days)
+        // Average daily entrants (last 7 days) - CHANGED: Now using only IN actions
         $query = "SELECT AVG(daily_total) as avg_daily 
                  FROM (SELECT DATE(created_at) as date, COUNT(*) as daily_total 
                        FROM gate_logs 
@@ -275,7 +260,7 @@ function getWeeklyEntrants($db) {
             $date = date('Y-m-d', strtotime("-$i days"));
             $dayName = date('D', strtotime($date));
             
-            // Get total entrants (IN actions)
+            // Get total entrants (IN actions) - CHANGED: Only counting IN actions
             $query = "SELECT COUNT(*) as total FROM gate_logs WHERE DATE(created_at) = '$date' AND direction = 'IN'";
             $result = $db->query($query);
             $total = 0;
@@ -284,7 +269,7 @@ function getWeeklyEntrants($db) {
                 $total = $row['total'] ?? 0;
             }
             
-            // Get breakdown by type
+            // Get breakdown by type - CHANGED: Only counting IN actions
             $breakdown = [];
             $types = ['student', 'instructor', 'personell', 'visitor'];
             foreach ($types as $type) {
@@ -313,63 +298,86 @@ function getWeeklyEntrants($db) {
     return $weeklyData;
 }
 
-// Get entrants distribution for pie chart - INTEGRATED
-function getEntrantsDistribution($db) {
+// NEW FUNCTION: Get all students year level distribution from students table
+// NEW FUNCTION: Get all students year level distribution from students table
+function getStudentYearLevelDistribution($db) {
     $distribution = [];
     
     try {
-        // Get counts for each person type for today (IN actions only)
+        // Get student distribution by year level from students table
         $query = "SELECT 
-                    person_type,
+                    COALESCE(year) as year_level,
                     COUNT(*) as total
-                  FROM gate_logs 
-                  WHERE DATE(created_at) = CURDATE()
-                  AND direction = 'IN'
-                  GROUP BY person_type";
+                  FROM students 
+                  WHERE department_id = '33'
+                  GROUP BY year_level
+                  ORDER BY year_level";
         
         $result = $db->query($query);
         
         if ($result) {
             while ($row = $result->fetch_assoc()) {
-                $type = ucfirst($row['person_type']);
-                if ($type == 'Personell') $type = 'Staff';
+                $yearLevel = $row['year_level'];
+                // Format year level for display - FIXED: Remove "Year" prefix
+                switch($yearLevel) {
+                    case '1': $displayLevel = '1st Year'; break;
+                    case '2': $displayLevel = '2nd Year'; break;
+                    case '3': $displayLevel = '3rd Year'; break;
+                    case '4': $displayLevel = '4th Year'; break;
+                    case 'Not Specified': $displayLevel = 'Not Specified'; break;
+                    default: $displayLevel = $yearLevel; // Just show the value as is
+                }
                 
                 $distribution[] = [
-                    'type' => $type,
-                    'total' => $row['total'] ?? 0
+                    'type' => $displayLevel,
+                    'total' => $row['total'] ?? 0,
+                    'year_level' => $yearLevel
                 ];
             }
         }
         
-        // Ensure we have all types even if zero
-        $allTypes = [
-            ['type' => 'Students', 'total' => 0],
-            ['type' => 'Instructors', 'total' => 0],
-            ['type' => 'Staff', 'total' => 0],
-            ['type' => 'Visitors', 'total' => 0]
+        // Ensure we have all year levels even if zero
+        $allYearLevels = [
+            ['type' => '1st Year', 'total' => 0, 'year_level' => '1'],
+            ['type' => '2nd Year', 'total' => 0, 'year_level' => '2'],
+            ['type' => '3rd Year', 'total' => 0, 'year_level' => '3'],
+            ['type' => '4th Year', 'total' => 0, 'year_level' => '4'],
+            ['type' => 'Not Specified', 'total' => 0, 'year_level' => 'Not Specified']
         ];
         
-        foreach ($allTypes as $defaultType) {
+        foreach ($allYearLevels as $defaultLevel) {
             $found = false;
             foreach ($distribution as $existing) {
-                if ($existing['type'] === $defaultType['type']) {
+                if ($existing['year_level'] === $defaultLevel['year_level']) {
                     $found = true;
                     break;
                 }
             }
             if (!$found) {
-                $distribution[] = $defaultType;
+                $distribution[] = $defaultLevel;
             }
         }
         
+        // Sort by year level to maintain consistent order
+        usort($distribution, function($a, $b) {
+            if ($a['year_level'] == 'Not Specified') return 1;
+            if ($b['year_level'] == 'Not Specified') return -1;
+            return $a['year_level'] <=> $b['year_level'];
+        });
+        
     } catch (Exception $e) {
-        error_log("Entrants distribution error: " . $e->getMessage());
+        error_log("Student year level distribution error: " . $e->getMessage());
     }
     
     return $distribution;
 }
 
-// Get real-time activity feed
+// Get entrants distribution for pie chart - UPDATED: Now shows ALL students year level distribution
+function getEntrantsDistribution($db) {
+    // Use the new function to get ALL students year level distribution
+    return getStudentYearLevelDistribution($db);
+}
+
 // Get real-time activity feed - USING CALCULATED TIME FIELD
 function getRecentActivity($db) {
     $activity = [];
@@ -495,7 +503,10 @@ function getPersonTypeIcon($type) {
             transform: translateY(-5px);
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
         }
-
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        }
         .stats-card {
             background: white;
             border-radius: var(--border-radius);
@@ -681,6 +692,8 @@ function getPersonTypeIcon($type) {
             padding: 25px;
             margin-bottom: 20px;
             height: 400px;
+            position: relative;
+            overflow: hidden;
         }
 
         .chart-title {
@@ -688,6 +701,178 @@ function getPersonTypeIcon($type) {
             font-weight: 600;
             margin-bottom: 20px;
             text-align: center;
+            font-size: 1.1rem;
+        }
+
+        /* Enhanced Pie Chart Styles */
+        /* Enhanced Pie Chart Styles */
+.pie-chart-wrapper {
+    position: relative;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.pie-chart-container {
+    width: 100%;
+    height: 70%; /* Reduced from 75% to make room for legend */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 220px; /* Adjusted minimum height */
+}
+
+.chart-legend {
+    position: relative;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    padding: 8px 5px; /* Reduced padding */
+    max-height: none !important;
+    overflow: visible !important;
+    margin-top: 10px; /* Reduced from 20px to move legend up */
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.75rem;
+    color: var(--dark-text);
+    padding: 5px 6px; /* Slightly reduced padding */
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    background: rgba(248, 249, 252, 0.7);
+    border: 1px solid rgba(0,0,0,0.05);
+}
+
+.legend-item:hover {
+    background-color: rgba(92, 149, 233, 0.1);
+    border-color: rgba(92, 149, 233, 0.3);
+}
+
+.legend-color {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 6px; /* Reduced margin */
+    flex-shrink: 0;
+}
+
+.legend-text {
+    line-height: 1.2;
+    flex: 1;
+}
+
+.legend-text strong {
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.legend-text small {
+    font-size: 0.65rem;
+    color: #6c757d;
+}
+
+/* Adjust chart container for better proportions */
+.chart-container {
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    padding: 20px;
+    margin-bottom: 20px;
+    height: 440px; /* Slightly reduced height */
+    position: relative;
+    overflow: hidden;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .chart-legend {
+        grid-template-columns: 1fr;
+        gap: 6px;
+        margin-top: 8px; /* Reduced for mobile */
+    }
+    
+    .pie-chart-container {
+        height: 60%; /* Adjusted for mobile */
+        min-height: 180px;
+    }
+    
+    .chart-container {
+        height: 380px; /* Reduced for mobile */
+        padding: 15px;
+    }
+}
+
+/* For very small screens */
+@media (max-width: 480px) {
+    .chart-legend {
+        grid-template-columns: 1fr;
+        gap: 4px;
+        margin-top: 6px; /* Further reduced for small screens */
+    }
+    
+    .legend-item {
+        padding: 4px 5px;
+    }
+    
+    .pie-chart-container {
+        height: 55%;
+        min-height: 160px;
+    }
+}
+
+        /* Custom tooltip styling */
+        .google-visualization-tooltip {
+            border-radius: 12px !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+            border: none !important;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            color: white !important;
+            font-family: 'Inter', sans-serif !important;
+            font-size: 14px !important;
+            padding: 15px !important;
+        }
+
+        .google-visualization-tooltip-item-list {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .google-visualization-tooltip-item {
+            margin: 5px 0 !important;
+            padding: 0 !important;
+        }
+
+        .google-visualization-tooltip-item span {
+            color: white !important;
+            font-weight: 500 !important;
+        }
+
+        .google-visualization-tooltip-square {
+            border-radius: 4px !important;
+        }
+
+        /* Scrollbar for legend */
+        .chart-legend::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .chart-legend::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .chart-legend::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 10px;
+        }
+
+        .chart-legend::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
         }
 
         /* Activity feed */
@@ -765,12 +950,49 @@ function getPersonTypeIcon($type) {
                 height: 300px;
                 padding: 15px;
             }
+            
+            .chart-legend {
+                position: relative;
+                bottom: auto;
+                margin-top: 10px;
+            }
         }
 
         @keyframes pulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.05); }
             100% { transform: scale(1); }
+        }
+
+        /* Modern tooltip styles */
+        .google-visualization-tooltip {
+            border-radius: 12px !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+            border: none !important;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            color: white !important;
+            font-family: 'Inter', sans-serif !important;
+            font-size: 14px !important;
+            padding: 15px !important;
+        }
+
+        .google-visualization-tooltip-item-list {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .google-visualization-tooltip-item {
+            margin: 5px 0 !important;
+            padding: 0 !important;
+        }
+
+        .google-visualization-tooltip-item span {
+            color: white !important;
+            font-weight: 500 !important;
+        }
+
+        .google-visualization-tooltip-square {
+            border-radius: 4px !important;
         }
     </style>
 </head>
@@ -791,13 +1013,17 @@ function getPersonTypeIcon($type) {
                         <div class="row">
                             <div class="col-12">
                                 <h6 class="mb-4"><i class="fas fa-tachometer-alt me-2"></i>Dashboard Overview</h6>
+                                <div class="alert alert-info d-flex align-items-center">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <span>Today's data as of <?php echo date('F j, Y'); ?></span>
+                                </div>
                             </div>
                         </div>
                         <hr>
 
                         <!-- Enhanced Statistics Cards -->
                         <div class="row g-4 mb-4">
-                            <!-- Total Entrants -->
+                            <!-- Total Entrants - CHANGED: Now shows only total entries without deducting exits -->
                             <div class="col-sm-6 col-md-4 col-xl-2">
                                 <div class="stats-card text-info">
                                     <div class="stats-icon">
@@ -807,7 +1033,7 @@ function getPersonTypeIcon($type) {
                                         <h3><?php echo sanitizeOutput($stats['total_entrants_today']); ?></h3>
                                         <p>Total Entrants Today</p>
                                         <div class="stats-detail">
-                                            Exits: <?php echo sanitizeOutput($stats['total_exits_today']); ?>
+                                            Total Entries: <?php echo sanitizeOutput($stats['total_entrants_today']); ?>
                                         </div>
                                     </div>
                                 </div>
@@ -912,17 +1138,17 @@ function getPersonTypeIcon($type) {
                                 </div>
                             </div>
 
-                            <!-- Peak Hour -->
+                            <!-- Current Inside Count -->
                             <div class="col-sm-6 col-md-4 col-xl-2">
                                 <div class="stats-card text-dark">
                                     <div class="stats-icon">
-                                        <i class="fas fa-chart-line"></i>
+                                        <i class="fas fa-users"></i>
                                     </div>
                                     <div class="stats-content">
-                                        <h3><?php echo sanitizeOutput($stats['peak_hour']); ?></h3>
-                                        <p>Peak Hour Today</p>
+                                        <h3><?php echo sanitizeOutput($stats['current_inside']); ?></h3>
+                                        <p>Currently Inside</p>
                                         <div class="stats-detail">
-                                            Avg: <?php echo sanitizeOutput($stats['avg_daily_entrants']); ?>/day
+                                            Pending Exits: <?php echo sanitizeOutput($stats['pending_exits_count']); ?>
                                         </div>
                                     </div>
                                 </div>
@@ -930,20 +1156,25 @@ function getPersonTypeIcon($type) {
                         </div>
 
                         <!-- Enhanced Charts Section -->
+                        <!-- Enhanced Charts Section -->
                         <div class="row g-4 mb-4">
                             <!-- Weekly Entrants Line Chart -->
-                            <div class="col-lg-8">
+                            <div class="col-lg-7"> <!-- Reduced from col-lg-8 to make room for larger pie -->
                                 <div class="chart-container">
                                     <h5 class="chart-title"><i class="fas fa-chart-line me-2"></i>Weekly Entrants Trend</h5>
                                     <div id="weeklyEntrantsChart" style="height: 100%;"></div>
                                 </div>
                             </div>
 
-                            <!-- Entrants Distribution & Activity -->
-                            <div class="col-lg-4">
+                            <!-- Student Year Level Distribution - ENHANCED PIE CHART -->
+                            <div class="col-lg-5"> <!-- Increased from col-lg-4 for larger pie -->
                                 <div class="chart-container">
-                                    <h5 class="chart-title"><i class="fas fa-chart-pie me-2"></i>Entrants Distribution</h5>
-                                    <div id="entrantsDistributionChart" style="height: 100%;"></div>
+                                    <h5 class="chart-title"><i class="fas fa-chart-pie me-2"></i>Student Distribution by Year Level</h5>
+                                    <div class="pie-chart-wrapper">
+                                        <div id="entrantsDistributionChart" class="pie-chart-container"></div>
+                                        <!-- Custom Legend -->
+                                        <div class="chart-legend" id="pieChartLegend"></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1165,84 +1396,134 @@ function getPersonTypeIcon($type) {
         }
 
         function drawEntrantsDistributionChart() {
-            // Entrants distribution data from PHP
+            // Entrants distribution data from PHP - IMPROVED VERSION
             const distributionData = <?php echo json_encode($entrantsDistribution); ?>;
             
             const data = new google.visualization.DataTable();
-            data.addColumn('string', 'Person Type');
-            data.addColumn('number', 'Count');
+            data.addColumn('string', 'Year Level');
+            data.addColumn('number', 'Student Count');
             
-            // Filter out zero values for better visualization
-            const nonZeroData = distributionData.filter(item => item.total > 0);
-            
-            if (nonZeroData.length === 0) {
-                // If all zeros, show a message
-                document.getElementById('entrantsDistributionChart').innerHTML = 
-                    '<div class="text-center text-muted py-5"><i class="fas fa-chart-pie fa-3x mb-3"></i><br>No data available for today</div>';
-                return;
-            }
-            
-            nonZeroData.forEach(item => {
-                data.addRow([item.type, parseInt(item.total)]);
+            // Calculate total for percentage calculation
+            let totalStudents = 0;
+            distributionData.forEach(item => {
+                totalStudents += parseInt(item.total);
             });
+            
+            // Filter out zero values and prepare data
+            const filteredData = distributionData.filter(item => parseInt(item.total) > 0);
+            
+            // If all data is zero, show a placeholder
+            if (filteredData.length === 0) {
+                data.addRow(['No Data Available', 1]);
+            } else {
+                // Add data with simplified labels
+                filteredData.forEach(item => {
+                    data.addRow([item.type, parseInt(item.total)]);
+                });
+            }
 
             const options = {
                 title: '',
-                pieHole: 0.4,
+                pieHole: 0.3,
                 backgroundColor: 'transparent',
                 chartArea: {
                     width: '95%', 
-                    height: '85%', 
-                    top: 20, 
-                    left: 10,
-                    right: 10,
-                    bottom: 20
+                    height: '80%', // Increased chart area since legend is smaller
+                    top: 10, 
+                    left: 0,
+                    right: 0,
+                    bottom: 10
                 },
                 legend: {
-                    position: 'labeled',
-                    textStyle: {
-                        color: '#5a5c69',
-                        fontSize: 12
-                    }
+                    position: 'none'
                 },
-                pieSliceText: 'value',
-                tooltip: {
-                    text: 'percentage',
-                    showColorCode: true
-                },
-                slices: {
-                    0: { color: '#5c95e9' },
-                    1: { color: '#1cc88a' },
-                    2: { color: '#f6c23e' },
-                    3: { color: '#e74a3b' },
-                    4: { color: '#36b9cc' }
-                },
-                titleTextStyle: {
-                    color: '#5a5c69',
-                    fontSize: 16,
-                    bold: true
-                },
-                pieSliceTextStyle: {
-                    color: 'white',
-                    fontSize: 12,
-                    bold: true,
-                    fontName: 'Arial'
-                },
-                pieSliceBorderColor: 'transparent',
-                pieSliceBorderWidth: 0,
+                pieSliceText: 'none',
+                colors: ['#5c95e9', '#1cc88a', '#f6c23e', '#e74a3b', '#6c757d', '#8e44ad', '#3498db'],
+                pieSliceBorderColor: 'white',
+                pieSliceBorderWidth: 2,
                 is3D: false,
                 pieStartAngle: 0,
-                sliceVisibilityThreshold: 0
+                sliceVisibilityThreshold: 0,
+                enableInteractivity: true,
+                tooltip: { 
+                    trigger: 'focus',
+                    showColorCode: true,
+                    text: 'both',
+                    isHtml: true
+                }
             };
 
-            const formatter = new google.visualization.NumberFormat({
-                pattern: '#,##0'
+            const chart = new google.visualization.PieChart(document.getElementById('entrantsDistributionChart'));
+            
+            // Create custom legend with better layout
+            function createCustomLegend() {
+                const legendContainer = document.getElementById('pieChartLegend');
+                legendContainer.innerHTML = '';
+                
+                // Use grid layout for better space utilization
+                legendContainer.style.display = 'grid';
+                legendContainer.style.gridTemplateColumns = 'repeat(2, 1fr)';
+                legendContainer.style.gap = '6px'; // Reduced gap
+                legendContainer.style.maxHeight = 'none';
+                legendContainer.style.overflow = 'visible';
+                legendContainer.style.padding = '5px'; // Reduced padding
+                
+                const dataToShow = filteredData.length === 0 ? distributionData : filteredData;
+                
+                dataToShow.forEach((item, index) => {
+                    const percentage = totalStudents > 0 ? ((item.total / totalStudents) * 100).toFixed(1) : '0';
+                    const legendItem = document.createElement('div');
+                    legendItem.className = 'legend-item';
+                    legendItem.style.margin = '1px 0'; // Reduced margin
+                    legendItem.style.padding = '4px 5px'; // Reduced padding
+                    legendItem.style.borderRadius = '5px';
+                    legendItem.style.transition = 'all 0.2s ease';
+                    
+                    legendItem.innerHTML = `
+                        <div class="d-flex align-items-center">
+                            <span class="legend-color" style="background-color: ${options.colors[index % options.colors.length]}; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; flex-shrink: 0;"></span>
+                            <div class="legend-text" style="flex: 1;">
+                                <div style="font-size: 0.68rem; font-weight: 600; line-height: 1.1;">${item.type}</div>
+                                <div style="font-size: 0.62rem; color: #6c757d; line-height: 1.1;">${item.total} (${percentage}%)</div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    legendContainer.appendChild(legendItem);
+                });
+            }
+            
+            // Enhanced hover functionality
+            google.visualization.events.addListener(chart, 'onmouseover', function(e) {
+                if (filteredData.length === 0) return;
+                
+                const sliceIndex = e.row;
+                const sliceLabel = filteredData[sliceIndex].type;
+                const sliceValue = filteredData[sliceIndex].total;
+                const percentage = ((sliceValue / totalStudents) * 100).toFixed(1);
+                
+                // Highlight corresponding legend item
+                const legendItems = document.querySelectorAll('.legend-item');
+                legendItems.forEach((item, index) => {
+                    if (index === sliceIndex) {
+                        item.style.backgroundColor = 'rgba(92, 149, 233, 0.15)';
+                        item.style.transform = 'scale(1.02)';
+                    }
+                });
             });
             
-            formatter.format(data, 1);
-
-            const chart = new google.visualization.PieChart(document.getElementById('entrantsDistributionChart'));
+            google.visualization.events.addListener(chart, 'onmouseout', function(e) {
+                // Remove highlight from legend items
+                const legendItems = document.querySelectorAll('.legend-item');
+                legendItems.forEach(item => {
+                    item.style.backgroundColor = 'transparent';
+                    item.style.transform = 'scale(1)';
+                });
+            });
+            
+            // Draw chart and create legend
             chart.draw(data, options);
+            createCustomLegend();
         }
 
         // Redraw charts on window resize
@@ -1299,6 +1580,13 @@ function getPersonTypeIcon($type) {
                 log.style.display = 'none';
             });
         }
+    });
+    // Add this to your pie chart function for custom tooltips
+    google.visualization.events.addListener(chart, 'ready', function() {
+        const tooltips = document.querySelectorAll('.google-visualization-tooltip');
+        tooltips.forEach(tooltip => {
+            // You can customize the tooltip content here if needed
+        });
     });
 
     </script>
