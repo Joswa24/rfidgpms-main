@@ -348,15 +348,18 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
         $time_out_formatted = date('H:i:s');
         $current_date = date('Y-m-d');
 
+        // Get room location from session
+        $room_location = $_SESSION['access']['room']['room'] ?? 'Classroom';
+        
         // Get attendance stats - ensure we have valid values
         $stats = getAttendanceStats($db, $first_student_year ?? 'N/A', $first_student_section ?? 'N/A');
         
-        // 1. Save to instructor_attendance_summary
+        // 1. Save to instructor_attendance_summary (UPDATED WITH ROOM)
         $summary_sql = "INSERT INTO instructor_attendance_summary 
-            (instructor_id, instructor_name, subject_name, year_level, section, 
+            (instructor_id, instructor_name, subject_name, year_level, section, room,
             total_students, present_count, absent_count, attendance_rate, 
             session_date, time_in, time_out) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         $summary_stmt = $db->prepare($summary_sql);
         
@@ -371,12 +374,13 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
         $attendance_rate = $stats['attendance_rate'] ?? 0;
         
         $summary_stmt->bind_param(
-            "issssiiidsss",
+            "isssssiiidsss",
             $instructor_id,
             $instructor_name,
             $subject_name,
             $year_level,
             $section,
+            $room_location, // ADDED ROOM PARAMETER
             $total_students,
             $present_count,
             $absent_count,
@@ -391,10 +395,10 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
         }
         $summary_stmt->close();
 
-        // 2. Archive PRESENT students (those who scanned)
+        // 2. Archive PRESENT students (those who scanned) - UPDATED WITH ROOM
         $present_archive_sql = "INSERT INTO archived_attendance_logs 
             (student_id, id_number, fullname, department, location, time_in, time_out, 
-            status, instructor_id, instructor_name, session_date, year_level, section, subject_name)
+            status, instructor_id, instructor_name, session_date, year_level, section, subject_name, room)
             SELECT 
                 al.student_id,
                 s.id_number,
@@ -409,6 +413,7 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
                 ?,
                 s.year,
                 s.section,
+                ?,
                 ?
             FROM attendance_logs al
             JOIN students s ON al.student_id = s.id
@@ -417,12 +422,13 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
         $present_stmt = $db->prepare($present_archive_sql);
         $location_name = $_SESSION['access']['subject']['name'] ?? 'Classroom';
         $present_stmt->bind_param(
-            "sissss",
+            "sisssss",
             $location_name,
             $instructor_id,
             $instructor_name,
             $current_date,
             $subject_name,
+            $room_location, // ADDED ROOM PARAMETER
             $current_date
         );
         
@@ -431,11 +437,11 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
         }
         $present_stmt->close();
 
-        // 3. Archive ABSENT students (those who didn't scan) - only if we have section/year
+        // 3. Archive ABSENT students (those who didn't scan) - UPDATED WITH ROOM
         if ($first_student_section && $first_student_year) {
             $absent_archive_sql = "INSERT INTO archived_attendance_logs 
                 (student_id, id_number, fullname, department, location, time_in, time_out, 
-                status, instructor_id, instructor_name, session_date, year_level, section, subject_name)
+                status, instructor_id, instructor_name, session_date, year_level, section, subject_name, room)
                 SELECT 
                     s.id,
                     s.id_number,
@@ -450,6 +456,7 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
                     ?,
                     s.year,
                     s.section,
+                    ?,
                     ?
                 FROM students s
                 WHERE s.section = ? AND s.year = ?
@@ -459,12 +466,13 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
             
             $absent_stmt = $db->prepare($absent_archive_sql);
             $absent_stmt->bind_param(
-                "sissssss",
+                "sisssssss",
                 $location_name,
                 $instructor_id,
                 $instructor_name,
                 $current_date,
                 $subject_name,
+                $room_location, // ADDED ROOM PARAMETER
                 $first_student_section,
                 $first_student_year,
                 $current_date
@@ -492,7 +500,7 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
         $_SESSION['timeout_time'] = date('h:i A');
         $_SESSION['original_time_in'] = date('h:i A', strtotime($original_time_in));
         $_SESSION['attendance_saved'] = true;
-        $_SESSION['archive_message'] = "Attendance saved successfully! Present: {$present_count}, Absent: {$absent_count}";
+        $_SESSION['archive_message'] = "Attendance saved successfully! Present: {$present_count}, Absent: {$absent_count}, Room: {$room_location}";
         
         // Clear session data
         clearAttendanceSessionData();
@@ -508,7 +516,6 @@ if (isset($_POST['save_attendance']) && isset($_POST['id_number'])) {
         exit();
     }
 }
-
 // Check if attendance was just saved
 
     if (isset($_SESSION['attendance_saved']) && $_SESSION['attendance_saved']) {

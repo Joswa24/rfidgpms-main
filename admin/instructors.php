@@ -1,9 +1,16 @@
 <?php
-include 'header.php';
+session_start();
 include '../connection.php';
 
-// Check if user is logged in and has admin privileges
-// Add your admin authentication here
+// Display success/error messages
+if (isset($_SESSION['success_message'])) {
+    echo '<div class="alert alert-success">' . $_SESSION['success_message'] . '</div>';
+    unset($_SESSION['success_message']);
+}
+if (isset($_SESSION['error_message'])) {
+    echo '<div class="alert alert-danger">' . $_SESSION['error_message'] . '</div>';
+    unset($_SESSION['error_message']);
+}
 
 // Simple instructor photo display function
 function getInstructorPhoto($photo) {
@@ -17,108 +24,20 @@ function getInstructorPhoto($photo) {
 
     return $basePath . $photo;
 }
-
-// Handle form submissions
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    if (isset($_POST['add_account'])) {
-        // Add new account
-        $instructor_id = $_POST['instructor_id'];
-        $username = $_POST['username'];
-        $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
-        
-        $stmt = $db->prepare("INSERT INTO instructor_accounts (instructor_id, username, password) VALUES (?, ?, ?)");
-        $stmt->bind_param("iss", $instructor_id, $username, $password);
-        
-        if ($stmt->execute()) {
-            $_SESSION['success_message'] = "Account created successfully!";
-        } else {
-            $_SESSION['error_message'] = "Error creating account: " . $db->error;
-        }
-        $stmt->close();
-        
-        // Redirect to prevent form resubmission
-        header("Location: manage_instructor_accounts.php");
-        exit;
-        
-    } elseif (isset($_POST['update_account'])) {
-        // Update existing account
-        $account_id = $_POST['account_id'];
-        $username = $_POST['username'];
-        
-        if (!empty($_POST['password'])) {
-            $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
-            $stmt = $db->prepare("UPDATE instructor_accounts SET username = ?, password = ? WHERE id = ?");
-            $stmt->bind_param("ssi", $username, $password, $account_id);
-        } else {
-            $stmt = $db->prepare("UPDATE instructor_accounts SET username = ? WHERE id = ?");
-            $stmt->bind_param("si", $username, $account_id);
-        }
-        
-        if ($stmt->execute()) {
-            $_SESSION['success_message'] = "Account updated successfully!";
-        } else {
-            $_SESSION['error_message'] = "Error updating account: " . $db->error;
-        }
-        $stmt->close();
-        
-        // Redirect to prevent form resubmission
-        header("Location: manage_instructor_accounts.php");
-        exit;
-        
-    } elseif (isset($_POST['delete_account'])) {
-        // Delete account
-        $account_id = $_POST['account_id'];
-        
-        $stmt = $db->prepare("DELETE FROM instructor_accounts WHERE id = ?");
-        $stmt->bind_param("i", $account_id);
-        
-        if ($stmt->execute()) {
-            $_SESSION['success_message'] = "Account deleted successfully!";
-        } else {
-            $_SESSION['error_message'] = "Error deleting account: " . $db->error;
-        }
-        $stmt->close();
-        
-        // Redirect to prevent form resubmission
-        header("Location: manage_instructor_accounts.php");
-        exit;
-    }
-}
-
-// Fetch all instructors for dropdown (only those without accounts)
- $instructors_result = $db->query("
-    SELECT i.*, d.department_name 
-    FROM instructor i 
-    LEFT JOIN department d ON i.department_id = d.department_id 
-    WHERE i.id NOT IN (SELECT instructor_id FROM instructor_accounts)
-    ORDER BY i.fullname
-");
-
-// CORRECTED: Fetch all instructor accounts with instructor details
- $accounts_query = "
-    SELECT ia.*, i.fullname, i.id_number, i.department_id, d.department_name, i.photo
-    FROM instructor_accounts ia 
-    INNER JOIN instructor i ON ia.instructor_id = i.id 
-    LEFT JOIN department d ON i.department_id = d.department_id 
-    ORDER BY i.fullname
-";
- $accounts_result = $db->query($accounts_query);
-
-// Check for query errors
-if (!$accounts_result) {
-    die("Query failed: " . $db->error);
-}
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
+<?php include 'header.php'; ?>
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Instructor Accounts Management</title>
+    <title>Manage Instructors</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
         :root {
             --primary-color: #e1e7f0ff;
@@ -175,7 +94,6 @@ if (!$accounts_result) {
         .table-responsive {
             border-radius: var(--border-radius);
             overflow: hidden;
-            min-height: 400px;
         }
 
         .badge {
@@ -219,7 +137,7 @@ if (!$accounts_result) {
             font-size: 0.9rem;
         }
 
-        /* Add Account Button */
+        /* Add Instructor Button */
         .btn-add {
             background: linear-gradient(135deg, var(--warning-color), #f4b619);
             color: white;
@@ -295,21 +213,18 @@ if (!$accounts_result) {
             color: white;
         }
 
-        .btn-confirm {
-            background: linear-gradient(135deg, var(--danger-color), #d73525);
-            color: white;
-            box-shadow: 0 4px 15px rgba(231, 74, 59, 0.3);
-        }
-
-        .btn-confirm:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(231, 74, 59, 0.4);
-            color: white;
-        }
-
         .btn-sm {
             padding: 8px 15px;
             font-size: 0.875rem;
+        }
+
+        .btn-del {
+            transition: all 0.3s ease;
+        }
+
+        .btn-del:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
         }
 
         .modal-content {
@@ -372,12 +287,6 @@ if (!$accounts_result) {
             border-left: 4px solid #dc3545;
         }
 
-        .alert-info {
-            background-color: #d1ecf1;
-            color: #0c5460;
-            border-left: 4px solid #0c5460;
-        }
-
         .back-to-top {
             background: linear-gradient(135deg, var(--accent-color), var(--secondary-color)) !important;
             border: none;
@@ -395,7 +304,7 @@ if (!$accounts_result) {
             transform: translateY(-3px);
         }
 
-        h4.mb-0 {
+        h6.mb-4 {
             color: var(--dark-text);
             font-weight: 700;
             font-size: 1.25rem;
@@ -412,9 +321,58 @@ if (!$accounts_result) {
             transition: var(--transition);
         }
 
+        .error-message {
+            color: var(--danger-color);
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        .instructor-photo {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #dee2e6;
+            transition: var(--transition);
+        }
+
+        .instructor-photo:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .upload-img-btn {
+            cursor: pointer;
+            display: block;
+            position: relative;
+        }
+
+        .preview-1 {
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .preview-1:hover {
+            opacity: 0.8;
+        }
+
+        .file-uploader {
+            position: relative;
+            margin-bottom: 15px;
+        }
+
+        .section-header {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+
         /* SweetAlert customization */
         .swal2-popup {
             border-radius: var(--border-radius) !important;
+            font-family: inherit !important;
         }
 
         /* Button container styling */
@@ -432,41 +390,7 @@ if (!$accounts_result) {
             justify-content: center;
         }
 
-        /* Password field styling */
-        .password-field {
-            position: relative;
-        }
-
-        .toggle-password {
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            cursor: pointer;
-            color: var(--dark-text);
-        }
-
-        .status-badge {
-            font-size: 0.8rem;
-            padding: 0.35em 0.65em;
-        }
-
-        /* Instructor photo styling */
-        .instructor-photo {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid #dee2e6;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            transition: var(--transition);
-        }
-
-        .instructor-photo:hover {
-            transform: scale(1.05);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-        }
-
+        /* Photo preview container */
         .photo-preview-container {
             position: relative;
             display: inline-block;
@@ -477,12 +401,14 @@ if (!$accounts_result) {
         }
     </style>
 </head>
+
 <body>
     <div class="container-fluid position-relative bg-white d-flex p-0">
         <!-- Sidebar Start -->
         <?php include 'sidebar.php'; ?>
         <!-- Sidebar End -->
 
+        <!-- Content Start -->
         <div class="content">
             <?php include 'navbar.php'; ?>
 
@@ -491,111 +417,73 @@ if (!$accounts_result) {
                     <div class="bg-light rounded h-100 p-4">
                         <div class="row">
                             <div class="col-9">
-                                <h6 class="mb-4">Instructor Accounts Management</h6>
+                                <h6 class="mb-4">Manage Instructors</h6>
                             </div>
                             <div class="col-3 d-flex justify-content-end">
-                                <button type="button" class="btn btn-add" data-bs-toggle="modal" data-bs-target="#addAccountModal">
-                                    <i class="fas fa-plus-circle"></i> Add New Account
+                                <button type="button" class="btn btn-add" data-bs-toggle="modal" data-bs-target="#instructorModal">
+                                    <i class="fas fa-plus-circle"></i> Add Instructor
                                 </button>
                             </div>
                         </div>
                         <hr>
-                        
-                        <!-- Success/Error Messages -->
-                        <?php if (isset($_SESSION['success_message'])): ?>
-                            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                <i class="fas fa-check-circle me-2"></i><?php echo $_SESSION['success_message']; ?>
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                            <?php unset($_SESSION['success_message']); ?>
-                        <?php endif; ?>
-                        
-                        <?php if (isset($_SESSION['error_message'])): ?>
-                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                                <i class="fas fa-exclamation-circle me-2"></i><?php echo $_SESSION['error_message']; ?>
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                            <?php unset($_SESSION['error_message']); ?>
-                        <?php endif; ?>
-                        
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle me-2"></i>
-                            Manage instructor login accounts here. Each instructor can have one account to access the system.
-                        </div>
-                        
                         <div class="table-responsive">
-                            <table class="table table-border" id="accountsTable">
+                            <table class="table table-border" id="myDataTable">
                                 <thead>
                                     <tr>
                                         <th scope="col">Photo</th>
-                                        <th scope="col">Instructor</th>
                                         <th scope="col">ID Number</th>
+                                        <th scope="col">Full Name</th>
                                         <th scope="col">Department</th>
-                                        <th scope="col">Username</th>
-                                        <th scope="col">Last Login</th>
-                                        <th scope="col">Status</th>
                                         <th scope="col">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php if ($accounts_result && $accounts_result->num_rows > 0): ?>
-                                        <?php while ($account = $accounts_result->fetch_assoc()): ?>
-                                            <?php 
-                                            // Get instructor photo path
-                                            $photoPath = getInstructorPhoto($account['photo']);
-                                            ?>
-                                            <tr class="table-<?php echo $account['id'];?>">
-                                                <td>
-                                                    <center>
-                                                        <div class="photo-preview-container">
-                                                            <img class="photo instructor-photo" src="<?php echo $photoPath; ?>" 
-                                                                onerror="this.onerror=null; this.src='../assets/img/default-avatar.png';"
-                                                                alt="<?php echo htmlspecialchars($account['fullname']); ?>">
-                                                        </div>
-                                                    </center>
-                                                </td>
-                                                <td>
-                                                    <strong><?php echo htmlspecialchars($account['fullname']); ?></strong>
-                                                </td>
-                                                <td><?php echo htmlspecialchars($account['id_number']); ?></td>
-                                                <td><?php echo htmlspecialchars($account['department_name'] ?? 'N/A'); ?></td>
-                                                <td><?php echo htmlspecialchars($account['username']); ?></td>
-                                                <td>
-                                                    <?php echo $account['last_login'] ? date('M j, Y g:i A', strtotime($account['last_login'])) : 'Never'; ?>
-                                                </td>
-                                                <td>
-                                                    <span class="badge bg-success status-badge">Active</span>
-                                                </td>
-                                                <td width="14%">
-                                                    <div class="action-buttons">
-                                                        <button class="btn btn-sm btn-edit edit-btn" 
-                                                                data-id="<?php echo $account['id']; ?>"
-                                                                data-instructor-id="<?php echo $account['instructor_id']; ?>"
-                                                                data-username="<?php echo htmlspecialchars($account['username']); ?>"
-                                                                data-fullname="<?php echo htmlspecialchars($account['fullname']); ?>"
-                                                                data-photo="<?php echo htmlspecialchars($photoPath); ?>">
-                                                            <i class="fas fa-edit"></i> Edit 
-                                                        </button>
-                                                        <button class="btn btn-sm btn-delete delete-btn" 
-                                                                data-id="<?php echo $account['id']; ?>"
-                                                                data-username="<?php echo htmlspecialchars($account['username']); ?>"
-                                                                data-instructor="<?php echo htmlspecialchars($account['fullname']); ?>">
-                                                            <i class="fas fa-trash"></i> Delete 
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        <?php endwhile; ?>
-                                    <?php else: ?>
-                                        <tr>
-                                            <td colspan="8" class="text-center py-4">
-                                                <div class="d-flex flex-column align-items-center">
-                                                    <i class="fas fa-user-slash text-muted mb-2" style="font-size: 2rem;"></i>
-                                                    <p class="text-muted">No instructor accounts found. Click "Add New Account" to create one.</p>
+                                    <?php 
+                                    $results = mysqli_query($db, "SELECT i.*, d.department_name 
+                                                                FROM instructor i 
+                                                                LEFT JOIN department d 
+                                                                ON i.department_id = d.department_id 
+                                                                ORDER BY i.id DESC"); 
+                                    
+                                    if ($results === false) {
+                                        die("Query failed: " . mysqli_error($db));
+                                    }
+                                    
+                                    while ($row = mysqli_fetch_array($results)) { 
+                                        $photoPath = getInstructorPhoto($row['photo']);
+                                    ?>
+                                    <tr class="table-<?php echo $row['id'];?>" data-instructor-id="<?php echo $row['id'];?>">
+                                        <input class="department_id" type="hidden" value="<?php echo $row['department_id']; ?>" />
+                                        <input class="id_number" type="hidden" value="<?php echo htmlspecialchars($row['id_number']); ?>" />
+                                        <input class="fullname" type="hidden" value="<?php echo htmlspecialchars($row['fullname']); ?>" />
+
+                                        <td>
+                                            <center>
+                                                <div class="photo-preview-container">
+                                                    <img class="photo instructor-photo" src="<?php echo $photoPath; ?>" 
+                                                        onerror="this.onerror=null; this.src='../assets/img/default-avatar.png';"
+                                                        alt="<?php echo htmlspecialchars($row['fullname']); ?>">
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    <?php endif; ?>
+                                            </center>
+                                        </td>
+                                        <td class="instructor_id"><?php echo htmlspecialchars($row['id_number']); ?></td>
+                                        <td><?php echo htmlspecialchars($row['fullname']); ?></td>
+                                        <td><?php echo htmlspecialchars($row['department_name']); ?></td>
+                                        <td width="16%">
+                                            <div class="action-buttons">
+                                                <button data-id="<?php echo $row['id'];?>" 
+                                                        class="btn btn-sm btn-edit e_instructor_id">
+                                                    <i class="fas fa-edit"></i> Edit 
+                                                </button>
+                                                <button instructor_name="<?php echo htmlspecialchars($row['fullname']); ?>" 
+                                                        data-id="<?php echo $row['id']; ?>" 
+                                                        class="btn btn-sm btn-delete d_instructor_id">
+                                                    <i class="fas fa-trash"></i> Delete 
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <?php } ?>
                                 </tbody>
                             </table>
                         </div>
@@ -603,172 +491,165 @@ if (!$accounts_result) {
                 </div>
             </div>
 
-            <!-- Add Account Modal -->
-            <div class="modal fade" id="addAccountModal" tabindex="-1" aria-labelledby="addAccountModalLabel" aria-hidden="true">
-                <div class="modal-dialog">
+            <!-- Add Instructor Modal -->
+            <div class="modal fade" id="instructorModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title" id="addAccountModalLabel">
-                                <i class="fas fa-plus-circle"></i> Add Instructor Account
+                            <h5 class="modal-title" id="exampleModalLabel">
+                                <i class="fas fa-plus-circle"></i> New Instructor
                             </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <form method="POST" id="addAccountForm">
+                        <form id="instructorForm" role="form" method="post" action="" enctype="multipart/form-data">
                             <div class="modal-body">
-                                <div class="col-lg-11 mb-2 mt-1" id="mgs-account" style="margin-left: 4%"></div>
-                                <div class="mb-3">
-                                    <label for="instructor_id" class="form-label">Choose an Instructor</label>
-                                    <select class="form-select" id="instructor_id" name="instructor_id" required>
-                                        <option value="">Choose an instructor...</option>
-                                        <?php if ($instructors_result && $instructors_result->num_rows > 0): ?>
-                                            <?php while ($instructor = $instructors_result->fetch_assoc()): ?>
-                                                <option value="<?php echo $instructor['id']; ?>" 
-                                                        data-fullname="<?php echo htmlspecialchars($instructor['fullname']); ?>"
-                                                        data-department="<?php echo htmlspecialchars($instructor['department_name'] ?? 'N/A'); ?>"
-                                                        data-photo="<?php echo getInstructorPhoto($instructor['photo']); ?>">
-                                                    <?php echo htmlspecialchars($instructor['fullname'] . ' - ' . $instructor['id_number'] . ' (' . ($instructor['department_name'] ?? 'No Department') . ')'); ?>
-                                                </option>
-                                            <?php endwhile; ?>
-                                        <?php else: ?>
-                                            <option value="" disabled>No available instructors without accounts</option>
-                                        <?php endif; ?>
-                                    </select>
-                                    <div class="form-text">Only instructors without existing accounts are shown.</div>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label class="form-label">Selected Instructor Info</label>
-                                    <div class="card bg-light">
-                                        <div class="card-body py-2">
-                                            <div class="d-flex align-items-center">
-                                                <img id="selectedPhoto" src="../assets/img/default-avatar.png" 
-                                                     class="instructor-photo me-3" alt="Instructor Photo">
-                                                <div>
-                                                    <small>
-                                                        <strong>Name:</strong> <span id="selectedFullname">-</span><br>
-                                                        <strong>Department:</strong> <span id="selectedDepartment">-</span>
-                                                    </small>
+                                <div class="col-lg-12 mt-1" id="mgs-instructor"></div>
+                                <div class="row justify-content-md-center">
+                                    <div id="msg-instructor"></div>
+                                    <div class="col-sm-12 col-md-12 col-lg-10">
+                                        <div class="section-header p-2 mb-3 rounded">
+                                            <strong>INSTRUCTOR INFORMATION</strong>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-lg-3 col-md-6 col-sm-12" id="up_img">
+                                                <div class="file-uploader">
+                                                    <label for="photo" class="upload-img-btn" style="cursor: pointer;">
+                                                        <img class="preview-1" src="../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg"
+                                                            style="width: 140px!important; height: 130px!important; position: absolute; border: 1px solid gray; top: 25%;"
+                                                            title="Upload Photo.." />
+                                                    </label>
+                                                    <input type="file" id="photo" name="photo" class="upload-field-1" 
+                                                            style="opacity: 0; position: absolute; z-index: -1;" accept="image/*">
+                                                    <span class="error-message" id="photo-error"></span>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-lg-4 col-md-6 col-sm-12">
+                                                <div class="form-group">
+                                                    <label><b>Department:</b></label>
+                                                    <select required class="form-control dept_ID" name="department_id" id="department_id" autocomplete="off">
+                                                        <option value="">Select Department</option>
+                                                        <?php
+                                                            $sql = "SELECT * FROM department ORDER BY department_name";
+                                                            $result = $db->query($sql);
+                                                            while ($dept = $result->fetch_assoc()) {
+                                                                echo "<option value='{$dept['department_id']}'>{$dept['department_name']}</option>";
+                                                            }
+                                                        ?>
+                                                    </select>
+                                                    <span class="error-message" id="department_id-error"></span>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-lg-5 col-md-6 col-sm-12" id="idnumberz">
+                                                <div class="form-group">
+                                                    <label><b>ID Number:</b></label>
+                                                    <input required type="text" class="form-control" name="id_number" id="id_number" autocomplete="off" placeholder="0000-0000">
+                                                    <span class="error-message" id="id_number-error"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row mb-3 mt-1">
+                                            <div class="col-lg-3 col-md-6 col-sm-12">
+                                                <div class="form-group">
+                                                    <!-- empty -->
+                                                </div>
+                                            </div>
+                                            <div class="col-lg-9 col-md-6 col-sm-12 mt-1">
+                                                <div class="form-group">
+                                                    <label><b>Full Name:</b></label>
+                                                    <input required type="text" class="form-control" name="fullname" id="fullname" autocomplete="off">
+                                                    <span class="error-message" id="fullname-error"></span>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                
-                                <div class="mb-3">
-                                    <label for="username" class="form-label">Username</label>
-                                    <input type="text" class="form-control" id="username" name="username" required 
-                                           placeholder="Enter username for login">
-                                    <div class="form-text">This will be used for logging into the system.</div>
-                                </div>
-                                <div class="mb-3 password-field">
-                                    <label for="password" class="form-label">Password</label>
-                                    <input type="password" class="form-control" id="password" name="password" required 
-                                           placeholder="Enter password">
-                                    <span class="toggle-password" onclick="togglePassword('password')">
-                                        <i class="fas fa-eye"></i>
-                                    </span>
-                                </div>
-                                <div class="mb-3 password-field">
-                                    <label for="confirm_password" class="form-label">Confirm Password</label>
-                                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required 
-                                           placeholder="Confirm password">
-                                    <span class="toggle-password" onclick="togglePassword('confirm_password')">
-                                        <i class="fas fa-eye"></i>
-                                    </span>
-                                </div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-close-modal" data-bs-dismiss="modal">Cancel</button>
-                                <button type="submit" class="btn btn-save" name="add_account">Create Account</button>
+                                <button type="button" class="btn btn-close-modal" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" id="btn-instructor" class="btn btn-save">Save</button>
                             </div>
                         </form>
                     </div>
                 </div>
             </div>
 
-            <!-- Edit Account Modal -->
-            <div class="modal fade" id="editAccountModal" tabindex="-1" aria-labelledby="editAccountModalLabel" aria-hidden="true">
-                <div class="modal-dialog">
+            <!-- Edit Instructor Modal -->
+            <div class="modal fade" id="editinstructorModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title" id="editAccountModalLabel">
-                                <i class="fas fa-edit"></i> Edit Instructor Account
+                            <h5 class="modal-title">
+                                <i class="fas fa-edit"></i> Edit Instructor
                             </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <form method="POST" id="editAccountForm">
-                            <input type="hidden" id="edit_account_id" name="account_id">
-                            <input type="hidden" id="edit_instructor_id" name="instructor_id">
-                            <div class="modal-body">
-                                <div class="col-lg-11 mb-2 mt-1" id="mgs-editaccount" style="margin-left: 4%"></div>
-                                <div class="mb-3">
-                                    <label class="form-label">Instructor</label>
-                                    <div class="card bg-light">
-                                        <div class="card-body py-2">
-                                            <div class="d-flex align-items-center">
-                                                <img id="editPhoto" src="../assets/img/default-avatar.png" 
-                                                     class="instructor-photo me-3" alt="Instructor Photo">
-                                                <div>
-                                                    <strong id="edit_instructor_name">-</strong>
+                        <form id="editInstructorForm" class="edit-form" role="form" method="post" action="" enctype="multipart/form-data">
+                            <div class="modal-body" id="editModal">
+                                <div class="col-lg-12 mt-1" id="mgs-editinstructor"></div>
+                                <div class="row justify-content-md-center">
+                                    <div id="msg-editinstructor"></div>
+                                    <div class="col-sm-12 col-md-12 col-lg-10">
+                                        <div class="section-header p-2 mb-3 rounded">
+                                            <strong>INSTRUCTOR INFORMATION</strong>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-lg-3 col-md-6 col-sm-12" id="up_img">
+                                                <div class="file-uploader">
+                                                    <label name="upload-label" class="upload-img-btn">
+                                                        <input type="file" id="editPhoto" name="photo" class="upload-field-1" style="display:none;" accept="image/*" title="Upload Photo.."/>
+                                                        <input type="hidden" id="capturedImage" name="capturedImage" class="capturedImage">
+                                                        <img class="preview-1 edit-photo" src="" style="width: 140px!important;height: 130px!important;position: absolute;border: 1px solid gray;top: 25%" title="Upload Photo.." />
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-lg-4 col-md-6 col-sm-12">
+                                                <div class="form-group">
+                                                    <label><b>Department:</b></label>
+                                                    <select class="form-control dept_ID" name="department_id" id="edepartment_id" autocomplete="off">
+                                                        <option class="edit-dept-val" value=""></option>
+                                                        <?php
+                                                            $sql = "SELECT * FROM department ORDER BY department_name";
+                                                            $result = $db->query($sql);
+                                                            while ($dept = $result->fetch_assoc()) {
+                                                                echo "<option value='{$dept['department_id']}'>{$dept['department_name']}</option>";
+                                                            }
+                                                        ?>
+                                                    </select>
+                                                    <span class="error-message" id="edepartment_id-error"></span>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-lg-5 col-md-6 col-sm-12" id="idnumberz">
+                                                <div class="form-group">
+                                                    <label><b>ID Number:</b></label>
+                                                    <input required type="text" class="form-control edit-idnumber" name="id_number" id="eid_number" autocomplete="off" placeholder="0000-0000">
+                                                    <span class="error-message" id="eid_number-error"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row mb-3 mt-1">
+                                            <div class="col-lg-3 col-md-6 col-sm-12">
+                                                <div class="form-group">
+                                                    <!-- empty -->
+                                                </div>
+                                            </div>
+                                            <div class="col-lg-9 col-md-6 col-sm-12 mt-1">
+                                                <div class="form-group">
+                                                    <label><b>Full Name:</b></label>
+                                                    <input type="text" class="form-control edit-fullname" name="fullname" id="efullname" autocomplete="off">
+                                                    <span class="error-message" id="efullname-error"></span>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="mb-3">
-                                    <label for="edit_username" class="form-label">Username</label>
-                                    <input type="text" class="form-control" id="edit_username" name="username" required>
-                                </div>
-                                <div class="mb-3 password-field">
-                                    <label for="edit_password" class="form-label">New Password (leave blank to keep current)</label>
-                                    <input type="password" class="form-control" id="edit_password" name="password" 
-                                           placeholder="Enter new password to change">
-                                    <span class="toggle-password" onclick="togglePassword('edit_password')">
-                                        <i class="fas fa-eye"></i>
-                                    </span>
-                                </div>
-                                <div class="mb-3 password-field">
-                                    <label for="edit_confirm_password" class="form-label">Confirm New Password</label>
-                                    <input type="password" class="form-control" id="edit_confirm_password" name="confirm_password" 
-                                           placeholder="Confirm new password">
-                                    <span class="toggle-password" onclick="togglePassword('edit_confirm_password')">
-                                        <i class="fas fa-eye"></i>
-                                    </span>
-                                </div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-close-modal" data-bs-dismiss="modal">Cancel</button>
-                                <button type="submit" class="btn btn-update" name="update_account">Update Account</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Delete Confirmation Modal -->
-            <div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-labelledby="deleteAccountModalLabel" aria-hidden="true">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="deleteAccountModalLabel">
-                                <i class="fas fa-trash"></i> Confirm Deletion
-                            </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <form method="POST" id="deleteAccountForm">
-                            <input type="hidden" id="delete_account_id" name="account_id">
-                            <div class="modal-body">
-                                <p>Are you sure you want to delete the account for <strong id="delete_instructor_name"></strong>?</p>
-                                <p class="text-danger">
-                                    <i class="fas fa-exclamation-triangle me-2"></i>
-                                    This action cannot be undone. The instructor will no longer be able to access the system.
-                                </p>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-close-modal" data-bs-dismiss="modal">No</button>
-                                <button type="submit" class="btn btn-confirm" name="delete_account">
-                                    <i class="fas fa-trash me-1"></i>Yes, Delete
-                                </button>
+                                <input type="hidden" id="edit_instructorid" name="instructor_id" class="edit-id">
+                                <button type="button" class="btn btn-close-modal" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" id="btn-editinstructor" class="btn btn-update">Update</button>
                             </div>
                         </form>
                     </div>
@@ -777,7 +658,6 @@ if (!$accounts_result) {
 
             <?php include 'footer.php'; ?>
         </div>
-
          <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top"><i class="bi bi-arrow-up"></i></a>
     </div>
 
@@ -787,119 +667,432 @@ if (!$accounts_result) {
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="lib/chart/chart.min.js"></script>
-    <script src="lib/easing/easing.min.js"></script>
-    <script src="lib/waypoints/waypoints.min.js"></script>
-    <script src="lib/owlcarousel/owl.carousel.min.js"></script>
-    <script src="lib/tempusdominus/js/moment.min.js"></script>
-    <script src="lib/tempusdominus/js/moment-timezone.min.js"></script>
-    <script src="lib/tempusdominus/js/tempusdominus-bootstrap-4.min.js"></script>
-
-    <!-- Template Javascript -->
     <script src="js/main.js"></script>
+
     <script>
-    $(document).ready(function() {
-        // Initialize DataTable
-        var dataTable = $('#accountsTable').DataTable({
-            order: [[1, 'asc']], // Sort by instructor name
-            stateSave: true,
-            columnDefs: [
-                { orderable: false, targets: [7] } // Disable sorting on actions column
-            ]
-        });
+        $(document).ready(function() {
+            // Initialize DataTable
+            var dataTable = $('#myDataTable').DataTable({
+                order: [[0, 'desc']],
+                stateSave: true
+            });
 
-        // Toggle password visibility
-        function togglePassword(fieldId) {
-            const field = document.getElementById(fieldId);
-            const icon = field.nextElementSibling.querySelector('i');
-            
-            if (field.type === 'password') {
-                field.type = 'text';
-                icon.classList.remove('fa-eye');
-                icon.classList.add('fa-eye-slash');
-            } else {
-                field.type = 'password';
-                icon.classList.remove('fa-eye-slash');
-                icon.classList.add('fa-eye');
+            // Reset form function
+            function resetForm() {
+                $('.error-message').text('');
+                $('#instructorForm')[0].reset();
+                $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
             }
-        }
 
-        // Update selected instructor info in add modal
-        document.getElementById('instructor_id').addEventListener('change', function() {
-            const selectedOption = this.options[this.selectedIndex];
-            const fullname = selectedOption.getAttribute('data-fullname') || '-';
-            const department = selectedOption.getAttribute('data-department') || '-';
-            const photo = selectedOption.getAttribute('data-photo') || '../assets/img/default-avatar.png';
-            
-            document.getElementById('selectedFullname').textContent = fullname;
-            document.getElementById('selectedDepartment').textContent = department;
-            document.getElementById('selectedPhoto').src = photo;
-        });
+            // Format ID number input as user types
+            $('#id_number, #eid_number').on('input', function() {
+                var value = $(this).val().replace(/-/g, '');
+                if (value.length > 4) {
+                    value = value.substring(0, 4) + '-' + value.substring(4, 8);
+                }
+                $(this).val(value);
+            });
 
-        // Form validation
-        document.getElementById('addAccountForm').addEventListener('submit', function(e) {
-            const password = document.getElementById('password').value;
-            const confirmPassword = document.getElementById('confirm_password').value;
-            
-            if (password !== confirmPassword) {
+            // Enhanced AJAX error handling
+            function handleAjaxError(xhr, status, error, defaultMessage = 'An error occurred') {
+                console.error('AJAX Error:', status, error);
+                console.error('Response:', xhr.responseText);
+                
+                let errorMessage = defaultMessage;
+                
+                try {
+                    if (xhr.responseText) {
+                        const errorResponse = JSON.parse(xhr.responseText);
+                        if (errorResponse.message) {
+                            errorMessage = errorResponse.message;
+                        }
+                    }
+                } catch (e) {
+                    // If not JSON, check for server errors
+                    if (xhr.status === 500) {
+                        errorMessage = 'Internal Server Error - Check server logs';
+                    } else if (xhr.responseText.includes('error') || xhr.responseText.includes('Error')) {
+                        errorMessage = 'Server Error: ' + xhr.responseText.substring(0, 200);
+                    }
+                }
+                
+                return errorMessage;
+            }
+
+            // ==========
+            // READ (EDIT INSTRUCTOR)
+            // ==========
+            $(document).on('click', '.e_instructor_id', function() {
+                const id = $(this).data('id');
+                
+                // Retrieve data from the selected row
+                const $row = $(this).closest('tr');
+                const $getphoto = $row.find('.photo').attr('src');
+                const $getidnumber = $row.find('.instructor_id').text();
+                const $getdept = $row.find('.department_id').val();
+                const $getfullname = $row.find('.fullname').val();
+
+                console.log('Editing instructor:', id, $getidnumber, $getfullname);
+
+                // Populate edit form
+                $('#edit_instructorid').val(id);
+                $('.edit-photo').attr('src', $getphoto);
+                $('#eid_number').val($getidnumber);
+                $('#edepartment_id').val($getdept);
+                $('#efullname').val($getfullname);
+                $('.capturedImage').val($getphoto);
+                
+                // Clear any previous error messages
+                $('.error-message').text('');
+                
+                // Show modal
+                $('#editinstructorModal').modal('show');
+            });
+
+            // ==============
+            // CREATE (ADD INSTRUCTOR)
+            // ==============
+            $('#instructorForm').submit(function(e) {
                 e.preventDefault();
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Password Mismatch',
-                    text: 'Password and confirmation do not match.'
-                });
-            }
-        });
+                
+                $('.error-message').text('');
+                const department_id = $('#department_id').val();
+                const id_number = $('#id_number').val().trim();
+                const fullname = $('#fullname').val().trim();
+                const photo = $('#photo')[0].files[0];
+                let isValid = true;
 
-        document.getElementById('editAccountForm').addEventListener('submit', function(e) {
-            const password = document.getElementById('edit_password').value;
-            const confirmPassword = document.getElementById('edit_confirm_password').value;
-            
-            if (password !== confirmPassword) {
+                // Validation
+                if (!department_id) { 
+                    $('#department_id-error').text('Department is required'); 
+                    isValid = false; 
+                }
+                if (!id_number) { 
+                    $('#id_number-error').text('ID Number is required'); 
+                    isValid = false; 
+                } else if (!/^\d{4}-\d{4}$/.test(id_number)) {
+                    $('#id_number-error').text('Invalid ID format. Must be in 0000-0000 format'); 
+                    isValid = false; 
+                }
+                if (!fullname) { 
+                    $('#fullname-error').text('Full name is required'); 
+                    isValid = false; 
+                }
+                
+                // Photo validation
+                if (photo) {
+                    const validFormats = ['image/jpeg', 'image/png', 'image/jpg'];
+                    const maxSize = 2 * 1024 * 1024; // 2MB
+                    
+                    if (!validFormats.includes(photo.type)) {
+                        $('#photo-error').text('Only JPG, JPEG and PNG formats are allowed');
+                        isValid = false;
+                    }
+                    
+                    if (photo.size > maxSize) {
+                        $('#photo-error').text('File size must be less than 2MB');
+                        isValid = false;
+                    }
+                }
+                
+                if (!isValid) return;
+
+                // Show loading state
+                $('#btn-instructor').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
+                $('#btn-instructor').prop('disabled', true);
+
+                var formData = new FormData(this);
+
+                $.ajax({
+                    type: "POST",
+                    url: "transac.php?action=add_instructor",
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    dataType: 'json',
+                    success: function(response) {
+                        // Reset button state
+                        $('#btn-instructor').html('Save');
+                        $('#btn-instructor').prop('disabled', false);
+                        
+                        if (response.status === 'success') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Success!',
+                                text: response.message,
+                                showConfirmButton: false,
+                                timer: 1500
+                            }).then(() => {
+                                $('#instructorModal').modal('hide');
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error!',
+                                text: response.message
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        // Reset button state
+                        $('#btn-instructor').html('Save');
+                        $('#btn-instructor').prop('disabled', false);
+                        
+                        const errorMessage = handleAjaxError(xhr, status, error, 'Failed to save instructor');
+                        
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            html: '<div style="text-align: left;">' + 
+                                  '<strong>Error Details:</strong><br>' +
+                                  errorMessage + 
+                                  '<br><br><small>Check browser console for more details.</small>' +
+                                  '</div>'
+                        });
+                    }
+                });
+            });
+
+            // ==========
+            // UPDATE INSTRUCTOR
+            // ==========
+            $('#editInstructorForm').submit(function(e) {
                 e.preventDefault();
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Password Mismatch',
-                    text: 'Password and confirmation do not match.'
+                
+                const id = $('#edit_instructorid').val();
+                const department_id = $('#edepartment_id').val();
+                const id_number = $('#eid_number').val().trim();
+                const fullname = $('#efullname').val().trim();
+                const photo = $('#editPhoto')[0].files[0];
+
+                // Validation
+                let isValid = true;
+                if (!department_id) { 
+                    $('#edepartment_id-error').text('Department is required'); 
+                    isValid = false; 
+                } else { 
+                    $('#edepartment_id-error').text(''); 
+                }
+                if (!id_number) { 
+                    $('#eid_number-error').text('ID Number is required'); 
+                    isValid = false; 
+                } else if (!/^\d{4}-\d{4}$/.test(id_number)) {
+                    $('#eid_number-error').text('Invalid ID format. Must be in 0000-0000 format'); 
+                    isValid = false; 
+                } else { 
+                    $('#eid_number-error').text(''); 
+                }
+                if (!fullname) { 
+                    $('#efullname-error').text('Full name is required'); 
+                    isValid = false; 
+                } else { 
+                    $('#efullname-error').text(''); 
+                }
+                
+                // Photo validation for update
+                if (photo) {
+                    const validFormats = ['image/jpeg', 'image/png', 'image/jpg'];
+                    const maxSize = 2 * 1024 * 1024;
+                    
+                    if (!validFormats.includes(photo.type)) {
+                        $('#photo-error').text('Only JPG, JPEG and PNG formats are allowed');
+                        isValid = false;
+                    }
+                    
+                    if (photo.size > maxSize) {
+                        $('#photo-error').text('File size must be less than 2MB');
+                        isValid = false;
+                    }
+                }
+                
+                if (!isValid) return;
+
+                // Show loading state
+                $('#btn-editinstructor').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
+                $('#btn-editinstructor').prop('disabled', true);
+
+                var formData = new FormData(this);
+                formData.append('instructor_id', id);
+
+                $.ajax({
+                    type: "POST",
+                    url: "transac.php?action=update_instructor",
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    dataType: 'json',
+                    success: function(response) {
+                        // Reset button state
+                        $('#btn-editinstructor').html('Update');
+                        $('#btn-editinstructor').prop('disabled', false);
+                        
+                        if (response.status === 'success') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Success!',
+                                text: response.message,
+                                showConfirmButton: false,
+                                timer: 1500
+                            }).then(() => {
+                                $('#editinstructorModal').modal('hide');
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Error!',
+                                text: response.message,
+                                icon: 'error'
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        // Reset button state
+                        $('#btn-editinstructor').html('Update');
+                        $('#btn-editinstructor').prop('disabled', false);
+                        
+                        const errorMessage = handleAjaxError(xhr, status, error, 'Failed to update instructor');
+                        
+                        Swal.fire({
+                            title: 'Error!',
+                            html: '<div style="text-align: left;">' + 
+                                  '<strong>Error Details:</strong><br>' +
+                                  errorMessage + 
+                                  '<br><br><small>Check browser console for more details.</small>' +
+                                  '</div>',
+                            icon: 'error'
+                        });
+                    }
                 });
+            });
+
+            // Handle delete button click
+            $(document).on('click', '.d_instructor_id', function() {
+                var instructorId = $(this).data('id');
+                var instructorName = $(this).attr('instructor_name');
+                
+                Swal.fire({
+                    title: 'Delete Instructor?',
+                    text: "Are you sure you want to delete instructor: " + instructorName,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Yes, delete it!',
+                    cancelButtonText: 'Cancel'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Show loading
+                        Swal.fire({
+                            title: 'Deleting...',
+                            text: 'Please wait',
+                            allowOutsideClick: false,
+                            didOpen: () => {
+                                Swal.showLoading();
+                            }
+                        });
+
+                        $.ajax({
+                            url: 'transac.php?action=delete_instructor',
+                            type: 'POST',
+                            data: { 
+                                id: instructorId 
+                            },
+                            dataType: 'json',
+                            success: function(response) {
+                                if (response.status === 'success') {
+                                    Swal.fire({
+                                        title: 'Deleted!',
+                                        text: response.message,
+                                        icon: 'success',
+                                        timer: 1500,
+                                        showConfirmButton: false
+                                    }).then(() => {
+                                        location.reload();
+                                    });
+                                } else {
+                                    Swal.fire({
+                                        title: 'Error!',
+                                        text: response.message,
+                                        icon: 'error'
+                                    });
+                                }
+                            },
+                            error: function(xhr, status, error) {
+                                const errorMessage = handleAjaxError(xhr, status, error, 'Failed to delete instructor');
+                                
+                                Swal.fire({
+                                    title: 'Error!',
+                                    html: '<div style="text-align: left;">' + 
+                                          '<strong>Error Details:</strong><br>' +
+                                          errorMessage + 
+                                          '<br><br><small>Check browser console for more details.</small>' +
+                                          '</div>',
+                                    icon: 'error'
+                                });
+                            }
+                        });
+                    }
+                });
+            });
+
+            // Reset modal when closed
+            $('#instructorModal').on('hidden.bs.modal', function () {
+                resetForm();
+            });
+
+            $('#editinstructorModal').on('hidden.bs.modal', function () {
+                $('.error-message').text('');
+            });
+
+            // Image preview functionality for both forms
+            $(document).on('change', '[class^=upload-field-]', function() {
+                readURL(this);
+            });
+
+            // Click handler for edit photo upload
+            $(document).on('click', '.edit-photo', function() {
+                $('#editPhoto').click();
+            });
+
+            function readURL(input) {
+                if (input.files && input.files[0]) {
+                    const file = input.files[0];
+                    const validFormats = ['image/jpeg', 'image/png', 'image/jpg'];
+                    const maxSize = 2 * 1024 * 1024; // 2MB
+
+                    // Validate file format
+                    if (!validFormats.includes(file.type)) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Invalid Format',
+                            text: 'Only JPG and PNG formats are allowed.',
+                        });
+                        input.value = ''; // Reset the input
+                        return;
+                    }
+
+                    // Validate file size
+                    if (file.size > maxSize) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'File Too Large',
+                            text: 'Maximum file size is 2MB.',
+                        });
+                        input.value = ''; // Reset the input
+                        return;
+                    }
+
+                    // Preview the image
+                    var reader = new FileReader();
+                    reader.onload = function (e) {
+                        // Find the closest preview image
+                        $(input).closest('.file-uploader').find('.preview-1').attr('src', e.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                }
             }
         });
-
-        // Handle edit button clicks
-        $(document).on('click', '.edit-btn', function() {
-            const accountId = $(this).attr('data-id');
-            const instructorId = $(this).attr('data-instructor-id');
-            const username = $(this).attr('data-username');
-            const fullname = $(this).attr('data-fullname');
-            const photo = $(this).attr('data-photo');
-            
-            $('#edit_account_id').val(accountId);
-            $('#edit_instructor_id').val(instructorId);
-            $('#edit_instructor_name').text(fullname);
-            $('#edit_username').val(username);
-            $('#editPhoto').attr('src', photo);
-            
-            // Clear password fields
-            $('#edit_password').val('');
-            $('#edit_confirm_password').val('');
-            
-            // Show the modal
-            $('#editAccountModal').modal('show');
-        });
-
-        // Handle delete button clicks
-        $(document).on('click', '.delete-btn', function() {
-            const accountId = $(this).attr('data-id');
-            const username = $(this).attr('data-username');
-            const instructorName = $(this).attr('data-instructor');
-            
-            $('#delete_account_id').val(accountId);
-            $('#delete_instructor_name').text(`${instructorName} (${username})`);
-            
-            // Show the modal
-            $('#deleteAccountModal').modal('show');
-        });
-    });
     </script>
 </body>
 </html>

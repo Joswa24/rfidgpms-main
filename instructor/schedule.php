@@ -1,176 +1,207 @@
 <?php
-// Enable error reporting for debugging
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-
-// ✅ Session & Role Check - MUST BE AT THE VERY TOP
+include 'header.php';   
+include '../connection.php';
 session_start();
 
-// Debug session data
-error_log("=== SCHEDULE ACCESS ===");
-error_log("Session ID: " . session_id());
-error_log("Session data: " . print_r($_SESSION, true));
-
-// Check if essential session variables exist
-if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true || 
-    !isset($_SESSION['role']) || $_SESSION['role'] !== 'instructor' ||
-    !isset($_SESSION['instructor_id'])) {
-    
-    error_log("SESSION VALIDATION FAILED - Redirecting to index");
+// Session & Role Check
+if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true || $_SESSION['role'] !== 'instructor') {
     header("Location: index.php");
     exit();
 }
 
-error_log("SESSION VALIDATION PASSED - Loading schedule");
-
-// ✅ Timeout (15 minutes)
-if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > 900)) {
-    session_unset();
-    session_destroy();
-    header("Location: index.php?timeout=1");
-    exit();
-}
-$_SESSION['last_activity'] = time();
-
-// ✅ Hijack Prevention
-if (!isset($_SESSION['user_agent'])) {
-    $_SESSION['user_agent'] = $_SERVER['HTTP_USER_AGENT'];
-} else {
-    if ($_SESSION['user_agent'] !== $_SERVER['HTTP_USER_AGENT']) {
-        session_unset();
-        session_destroy();
-        header("Location: index.php?hijack=1");
-        exit();
-    }
-}
-
-// Now include other files
-include '../connection.php';
-
-// Check database connection
-if (!$db || $db->connect_error) {
-    die("Database connection failed: " . ($db->connect_error ?? 'Unknown error'));
-}
-
-// ✅ Fetch Instructor Information
-$instructor_info = null;
-$instructor_id = $_SESSION['instructor_id'];
-
-// Get instructor details
-$stmt = $db->prepare("
-    SELECT i.fullname, i.id_number, d.department_name
-    FROM instructor i 
-    LEFT JOIN department d ON i.department_id = d.department_id 
-    WHERE i.id = ?
-");
-
-if ($stmt) {
-    $stmt->bind_param("i", $instructor_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    
-    if ($result->num_rows > 0) {
-        $instructor_info = $result->fetch_assoc();
-    } else {
-        // Instructor not found in database - logout user
-        session_unset();
-        session_destroy();
-        header("Location: index.php?error=instructor_not_found");
-        exit();
-    }
-    $stmt->close();
-} else {
-    die("Database error: " . $db->error);
-}
-
-// ✅ Fetch Instructor Schedules
-// ✅ Fetch Instructor Schedules
-$schedules = [];
-$filtered_schedules = [];
+ $instructor_id = $_SESSION['instructor_id'];
 
 // Get instructor's fullname
-$instructor_name = $_SESSION['fullname'];
+ $instructor_name = $_SESSION['fullname'];
 
-// Get all schedules for the instructor (using name instead of ID)
-$stmt = $db->prepare("
-    SELECT rs.*, d.department_name 
-    FROM room_schedules rs
-    LEFT JOIN department d ON rs.department = d.department_name
-    WHERE rs.instructor = ?
-    ORDER BY FIELD(rs.day,'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'),
-             rs.start_time ASC
-");
+// Handle filters
+ $filter_day = isset($_GET['day']) ? $_GET['day'] : '';
+ $filter_subject = isset($_GET['subject']) ? $_GET['subject'] : '';
+ $filter_room = isset($_GET['room']) ? $_GET['room'] : '';
+ $filter_section = isset($_GET['section']) ? $_GET['section'] : '';
+ $filter_year = isset($_GET['year']) ? $_GET['year'] : '';
 
-if ($stmt) {
-    $stmt->bind_param("s", $instructor_name);
-    $stmt->execute();
-    $schedules = $stmt->get_result();
-    $stmt->close();
+// Get current week dates for navigation
+ $current_week_start = date('Y-m-d', strtotime('monday this week'));
+ $current_week_end = date('Y-m-d', strtotime('sunday this week'));
+
+// Handle week navigation
+ $week_offset = isset($_GET['week']) ? (int)$_GET['week'] : 0;
+ $display_week_start = date('Y-m-d', strtotime("$week_offset week", strtotime($current_week_start)));
+ $display_week_end = date('Y-m-d', strtotime("$week_offset week", strtotime($current_week_end)));
+
+// Get instructor's schedule for the selected week
+ $schedule_query = "
+    SELECT 
+        id,
+        subject,
+        room_name,
+        section,
+        start_time,
+        end_time,
+        day,
+        year_level
+    FROM room_schedules
+    WHERE instructor = ?
+";
+
+ $params = [$instructor_name];
+ $types = "s";
+
+// Apply filters
+if ($filter_day) {
+    $schedule_query .= " AND day = ?";
+    $params[] = $filter_day;
+    $types .= "s";
 }
 
-// Apply filters if any
-$filter_day = $_GET['day'] ?? '';
-$filter_room = $_GET['room'] ?? '';
-$filter_subject = $_GET['subject'] ?? '';
-
-if ($filter_day || $filter_room || $filter_subject) {
-    $filter_conditions = [];
-    $params = [];
-    $types = '';
-    
-    if ($filter_day) {
-        $filter_conditions[] = "rs.day = ?";
-        $params[] = $filter_day;
-        $types .= 's';
-    }
-    
-    if ($filter_room) {
-        $filter_conditions[] = "rs.room_name = ?";
-        $params[] = $filter_room;
-        $types .= 's';
-    }
-    
-    if ($filter_subject) {
-        $filter_conditions[] = "rs.subject = ?";
-        $params[] = $filter_subject;
-        $types .= 's';
-    }
-    
-    $where_clause = "rs.instructor = ?";
-    $params = array_merge([$instructor_name], $params);
-    $types = 's' . $types;
-    
-    if (!empty($filter_conditions)) {
-        $where_clause .= " AND " . implode(" AND ", $filter_conditions);
-    }
-    
-    $stmt = $db->prepare("
-        SELECT rs.*, d.department_name 
-        FROM room_schedules rs
-        LEFT JOIN department d ON rs.department = d.department_name
-        WHERE $where_clause
-        ORDER BY FIELD(rs.day,'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'),
-                 rs.start_time ASC
-    ");
-    
-    if ($stmt) {
-        $stmt->bind_param($types, ...$params);
-        $stmt->execute();
-        $filtered_schedules = $stmt->get_result();
-        $stmt->close();
-    }
-} else {
-    $filtered_schedules = $schedules;
+if ($filter_subject) {
+    $schedule_query .= " AND subject LIKE ?";
+    $params[] = "%$filter_subject%";
+    $types .= "s";
 }
 
-// Update the filter option queries too:
-$days = $db->query("SELECT DISTINCT day FROM room_schedules WHERE instructor = '$instructor_name' ORDER BY FIELD(day,'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday')");
-$rooms = $db->query("SELECT DISTINCT room_name FROM room_schedules WHERE instructor = '$instructor_name' ORDER BY room_name");
-$subjects = $db->query("SELECT DISTINCT subject FROM room_schedules WHERE instructor = '$instructor_name' ORDER BY subject");
-// Check if header.php exists before including
-if (!file_exists('header.php')) {
-    die("Header file not found. Please check file structure.");
+if ($filter_room) {
+    $schedule_query .= " AND room_name LIKE ?";
+    $params[] = "%$filter_room%";
+    $types .= "s";
+}
+
+if ($filter_section) {
+    $schedule_query .= " AND section LIKE ?";
+    $params[] = "%$filter_section%";
+    $types .= "s";
+}
+
+if ($filter_year) {
+    $schedule_query .= " AND year_level = ?";
+    $params[] = $filter_year;
+    $types .= "s";
+}
+
+ $schedule_query .= " ORDER BY FIELD(day,'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'),
+             start_time ASC";
+
+ $schedule_data = [];
+ $schedule_stmt = $db->prepare($schedule_query);
+if ($schedule_stmt) {
+    $schedule_stmt->bind_param($types, ...$params);
+    $schedule_stmt->execute();
+    $result = $schedule_stmt->get_result();
+    
+    while ($row = $result->fetch_assoc()) {
+        $schedule_data[] = $row;
+    }
+    $schedule_stmt->close();
+}
+
+// Get today's day for highlighting
+ $today_day = date("l");
+
+// Group schedule by day
+ $schedule_by_day = [];
+foreach ($schedule_data as $class) {
+    $schedule_by_day[$class['day']][] = $class;
+}
+
+// Days of the week
+ $days_of_week = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+// Get unique values for filter dropdowns
+ $unique_subjects = [];
+ $unique_rooms = [];
+ $unique_sections = [];
+ $unique_years = [];
+
+foreach ($schedule_data as $class) {
+    if (!in_array($class['subject'], $unique_subjects)) $unique_subjects[] = $class['subject'];
+    if (!in_array($class['room_name'], $unique_rooms)) $unique_rooms[] = $class['room_name'];
+    if (!in_array($class['section'], $unique_sections)) $unique_sections[] = $class['section'];
+    if (!in_array($class['year_level'], $unique_years)) $unique_years[] = $class['year_level'];
+}
+
+sort($unique_subjects);
+sort($unique_rooms);
+sort($unique_sections);
+sort($unique_years);
+
+// Handle print view
+if (isset($_GET['print']) && $_GET['print'] == '1') {
+    header('Content-Type: text/html; charset=utf-8');
+    ?>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Class Schedule - Print View</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .print-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 15px; }
+            .print-header h1 { margin: 0; color: #333; }
+            .print-header .subtitle { color: #666; margin: 5px 0; }
+            .schedule-card { border: 1px solid #ddd; border-radius: 8px; margin-bottom: 20px; padding: 15px; }
+            .day-header { background: #f8f9fa; padding: 10px; border-radius: 5px; font-weight: bold; margin-bottom: 10px; }
+            .class-item { border-left: 3px solid #007bff; padding-left: 15px; margin-bottom: 15px; }
+            .class-time { font-weight: bold; color: #007bff; }
+            .class-details { margin-top: 5px; color: #666; }
+            .print-footer { margin-top: 30px; text-align: center; color: #666; font-size: 12px; }
+            @media print {
+                body { margin: 0; }
+                .no-print { display: none !important; }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="print-header">
+            <h1>CLASS SCHEDULE</h1>
+            <div class="subtitle">Instructor: <?php echo htmlspecialchars($instructor_name); ?></div>
+            <div class="subtitle">Week: <?php echo date('F j', strtotime($display_week_start)); ?> - <?php echo date('F j, Y', strtotime($display_week_end)); ?></div>
+            <div class="subtitle">Generated on: <?php echo date('F j, Y g:i A'); ?></div>
+        </div>
+
+        <?php foreach ($days_of_week as $day): ?>
+            <?php if (isset($schedule_by_day[$day]) && !empty($schedule_by_day[$day])): ?>
+                <div class="schedule-card">
+                    <div class="day-header">
+                        <?php echo $day; ?>
+                        <?php if ($day === $today_day): ?>
+                            <span style="background: #28a745; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;">TODAY</span>
+                        <?php endif; ?>
+                    </div>
+                    <?php foreach ($schedule_by_day[$day] as $class): ?>
+                        <div class="class-item">
+                            <div class="class-time">
+                                <?php echo date("g:i A", strtotime($class['start_time'])); ?> - <?php echo date("g:i A", strtotime($class['end_time'])); ?>
+                            </div>
+                            <div><strong><?php echo htmlspecialchars($class['subject']); ?></strong></div>
+                            <div class="class-details">
+                                Room: <?php echo htmlspecialchars($class['room_name']); ?> | 
+                                Section: <?php echo htmlspecialchars($class['section']); ?> | 
+                                Year: <?php echo htmlspecialchars($class['year_level']); ?>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        <?php endforeach; ?>
+
+        <div class="print-footer">
+            Generated by RFID Attendance System | <?php echo date('Y'); ?>
+        </div>
+
+        <script>
+            window.onload = function() {
+                window.print();
+                setTimeout(function() {
+                    window.close();
+                }, 500);
+            };
+        </script>
+    </body>
+    </html>
+    <?php
+    exit();
 }
 ?>
 <!DOCTYPE html>
@@ -178,90 +209,340 @@ if (!file_exists('header.php')) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Schedule - RFID System</title>
+    <title>Instructor Schedule - RFID System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <style>
         :root {
-            --primary-color: #87abe0ff;
-            --secondary-color: #6c8bc7;
+            --primary-color: #e1e7f0ff;
+            --secondary-color: #b0caf0ff;
+            --accent-color: #f3f5fcff;
+            --icon-color: #5c95e9ff;
+            --light-bg: #f8f9fc;
+            --dark-text: #54555cff;
+            --warning-color: #f6c23e;
+            --danger-color: #e74a3b;
+            --success-color: #1cc88a;
+            --info-color: #36b9cc;
+            --border-radius: 15px;
+            --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            --transition: all 0.3s ease;
+            --sidebar-bg: #79abf7ff;
+            --sidebar-hover: #b2d7fdff;
+            --sidebar-active: #4361ee;
         }
-        
+
         body {
-            font-family: 'Heebo', sans-serif;
-            background-color: #f8f9fa;
-            margin: 0;
-            padding: 0;
+            background: linear-gradient(135deg, var(--icon-color), var(--secondary-color));
+            font-family: 'Inter', sans-serif;
+            color: var(--dark-text);
         }
-        
+
+        .content {
+            background: transparent;
+        }
+
+        .bg-light {
+            background-color: var(--light-bg) !important;
+            border-radius: var(--border-radius);
+        }
+
+        .card {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            background: white;
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        }
+
+        .stats-card {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 20px 15px;
+            box-shadow: var(--box-shadow);
+            transition: var(--transition);
+            border: none;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        }
+
+        .stats-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+        }
+
+        .stats-card.text-info::before { background: linear-gradient(135deg, #36b9cc, #2e59d9); }
+        .stats-card.text-primary::before { background: linear-gradient(135deg, #4e73df, #2e59d9); }
+        .stats-card.text-danger::before { background: linear-gradient(135deg, #e74a3b, #be2617); }
+        .stats-card.text-success::before { background: linear-gradient(135deg, #1cc88a, #17a673); }
+        .stats-card.text-warning::before { background: linear-gradient(135deg, #f6c23e, #f4b619); }
+        .stats-card.text-secondary::before { background: linear-gradient(135deg, #858796, #6c757d); }
+        .stats-card.text-dark::before { background: linear-gradient(135deg, #5a5c69, #373840); }
+
+        .stats-icon {
+            font-size: 2rem;
+            margin-bottom: 5px;
+            opacity: 0.8;
+        }
+
+        .stats-content h3 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+            color: var(--dark-text);
+        }
+
+        .stats-content p {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .stats-detail {
+            font-size: 0.75rem;
+            color: #495057;
+            margin-top: 5px;
+        }
+
+        /* Modern Sidebar Styles */
         .sidebar {
-            background-color: var(--primary-color);
+            background: linear-gradient(135deg, var(--icon-color), var(--secondary-color));
             min-height: 100vh;
             position: fixed;
             top: 0;
             left: 0;
-            width: 250px;
+            width: 260px;
             z-index: 1000;
-            padding-top: 56px;
-            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            padding-top: 0;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
-        
+
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+        }
+
+        .sidebar-logo {
+            width: 60px;
+            height: 60px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar-logo i {
+            font-size: 24px;
+            color: white;
+        }
+
+        .sidebar-title {
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .sidebar-subtitle {
+            color: rgba(255,255,255,0.6);
+            font-size: 12px;
+            margin: 5px 0 0;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 20px 0;
+            overflow-y: auto;
+        }
+
+        .sidebar .nav {
+            flex-direction: column;
+            padding: 0 15px;
+        }
+
+        .sidebar .nav-item {
+            margin-bottom: 5px;
+            position: relative;
+        }
+
         .sidebar .nav-link {
-            color: #fff;
-            padding: 12px 20px;
-            margin: 4px 0;
-            border-radius: 5px;
+            color: rgba(255,255,255,0.8);
+            padding: 12px 15px;
+            margin: 0;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            font-weight: 500;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sidebar .nav-link i {
+            margin-right: 12px;
+            font-size: 18px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .sidebar .nav-link:hover {
+            background-color: var(--sidebar-hover);
+            color: white;
+            transform: translateX(5px);
+        }
+
+        .sidebar .nav-link.active {
+            background: linear-gradient(135deg, var(--sidebar-active), #2e59d9);
+            color: white;
+            box-shadow: 0 5px 15px rgba(67, 97, 238, 0.3);
+        }
+
+        .sidebar .nav-link.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: white;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .sidebar-footer {
+            padding: 15px;
+        }
+
+        .sidebar-profile {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.05);
             transition: all 0.3s ease;
         }
-        
-        .sidebar .nav-link:hover, .sidebar .nav-link.active {
-            background-color: var(--secondary-color);
-            transform: translateX(5px);
+
+        .sidebar-profile:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .sidebar-profile-img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--icon-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            margin-right: 12px;
+        }
+
+        .sidebar-profile-info {
+            flex: 1;
+        }
+
+        .sidebar-profile-name {
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .sidebar-profile-role {
+            color: rgba(255,255,255,0.6);
+            font-size: 12px;
+            margin: 0;
+        }
+
+        .sidebar-profile-toggle {
+            color: rgba(255,255,255,0.6);
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-profile-toggle:hover {
+            color: white;
+        }
+
+        /* Mobile sidebar toggle */
+        .sidebar-toggle {
+            display: none;
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 1001;
+            background: var(--sidebar-bg);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: var(--box-shadow);
+            cursor: pointer;
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
         }
         
         .navbar {
-            background-color: var(--primary-color);
+            background: linear-gradient(180deg,  #1a252f 100%,var(--icon-color) 0%,);
             padding: 10px 20px;
-            margin-left: 250px;
-            width: calc(100% - 250px);
+            margin-left: 260px;
+            width: calc(100% - 260px);
             position: fixed;
             top: 0;
-            z-index: 999;
+            z-index: 998;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         
         .main-content {
-            margin-left: 250px;
+            margin-left: 260px;
             padding: 20px;
             margin-top: 56px;
             min-height: calc(100vh - 56px);
         }
-        
-        .card-dashboard {
-            border: none;
-            border-radius: 10px;
-            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s;
-            margin-bottom: 20px;
-            overflow: hidden;
-        }
-        
-        .card-dashboard:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.15);
-        }
-        
-        .bg-primary-custom {
-            background-color: var(--primary-color);
-            color: white;
-        }
-        
+
         .welcome-header {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            background: linear-gradient(135deg, var(--icon-color), var(--secondary-color));
             color: white;
             padding: 30px;
-            border-radius: 15px;
+            border-radius: var(--border-radius);
             margin-bottom: 25px;
             position: relative;
             overflow: hidden;
@@ -307,83 +588,261 @@ if (!file_exists('header.php')) {
             backdrop-filter: blur(10px);
         }
         
-        .filter-section {
-            background-color: #e9ecef;
+        .list-group-item {
+            border: none;
+            border-bottom: 1px solid #e9ecef;
+            padding: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .list-group-item:hover {
+            background-color: #f8f9fa;
+            transform: translateX(5px);
+        }
+        
+        .list-group-item:last-child {
+            border-bottom: none;
+        }
+        
+        .attendance-badge {
+            font-size: 0.75rem;
+            padding: 4px 8px;
             border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 25px;
         }
         
-        .schedule-icon {
-            width: 50px;
-            height: 50px;
+        .attendance-progress {
+            height: 6px;
+            margin-top: 5px;
+        }
+        
+        .class-status-indicator {
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
-            background: var(--primary-color);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 1.2rem;
-            margin: 0 auto;
+            display: inline-block;
+            margin-right: 5px;
         }
         
-        .time-badge {
-            background-color: #e9ecef;
-            color: #495057;
-            padding: 0.5rem 0.75rem;
-            border-radius: 0.5rem;
-            font-size: 0.9rem;
-            font-weight: 500;
+        .status-in-progress {
+            background-color: #28a745;
+            animation: pulse 2s infinite;
         }
         
-        .current-day {
-            background-color: #d4edda !important;
-            border-left: 4px solid #28a745;
+        .status-upcoming {
+            background-color: #17a2b8;
         }
         
-        .day-highlight {
-            font-weight: bold;
-            color: var(--primary-color);
+        .status-completed {
+            background-color: #6c757d;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
         }
         
         .table th {
-            background-color: var(--primary-color);
+            background: linear-gradient(135deg, var(--icon-color), #4361ee);
             color: white;
+            font-weight: 600;
             border: none;
             padding: 15px 12px;
         }
-        
+
         .table td {
             padding: 12px;
+            border-color: rgba(0,0,0,0.05);
             vertical-align: middle;
         }
-        
+
+        .table-responsive {
+            border-radius: var(--border-radius);
+            overflow: hidden;
+        }
+
+        .badge {
+            font-size: 0.85em;
+            border-radius: 8px;
+            padding: 6px 10px;
+        }
+
+        .btn {
+            border-radius: 8px;
+            font-weight: 500;
+            transition: var(--transition);
+            border: none;
+        }
+
         .btn-outline-primary {
-            border-color: var(--primary-color);
-            color: var(--primary-color);
+            border-color: var(--icon-color);
+            color: var(--icon-color);
         }
         
         .btn-outline-primary:hover {
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
+            background-color: var(--icon-color);
+            border-color: var(--icon-color);
             color: white;
         }
+
+        .time-badge {
+            background-color: #e9ecef;
+            color: #495057;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+        }
         
-        .filter-badge {
-            background-color: var(--primary-color);
+        .attendance-stats {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        
+        .view-attendance-btn {
+            transition: all 0.3s ease;
+        }
+        
+        .view-attendance-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        /* Schedule specific styles */
+        .schedule-card {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: var(--transition);
+        }
+
+        .schedule-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        }
+
+        .day-header {
+            background: linear-gradient(135deg, var(--icon-color), #4361ee);
             color: white;
-            padding: 0.35rem 0.75rem;
-            border-radius: 20px;
+            padding: 12px 20px;
+            border-radius: var(--border-radius);
+            margin-bottom: 15px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .day-header.today {
+            background: linear-gradient(135deg, var(--success-color), #17a673);
+        }
+
+        .class-item {
+            background: #f8f9fa;
+            border-radius: var(--border-radius);
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid var(--icon-color);
+            transition: var(--transition);
+        }
+
+        .class-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .class-time {
+            font-weight: 600;
+            color: var(--icon-color);
+            margin-bottom: 5px;
+        }
+
+        .class-subject {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .class-details {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .class-room {
+            background: rgba(92, 149, 233, 0.1);
+            color: var(--icon-color);
+            padding: 4px 8px;
+            border-radius: 4px;
             font-size: 0.85rem;
-            margin-left: 5px;
         }
-        
+
+        .class-section {
+            background: rgba(92, 149, 233, 0.1);
+            color: var(--icon-color);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        .week-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .week-display {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 10px 20px;
+            box-shadow: var(--box-shadow);
+            font-weight: 600;
+            color: var(--dark-text);
+        }
+
+        .empty-day {
+            text-align: center;
+            padding: 30px;
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        /* Filter Section Styles */
+        .filter-section {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: var(--box-shadow);
+        }
+
+        .filter-badge {
+            background-color: var(--info-color);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            margin-right: 5px;
+        }
+
         @media (max-width: 768px) {
             .sidebar {
-                width: 100%;
-                position: relative;
-                min-height: auto;
-                margin-bottom: 20px;
+                transform: translateX(-100%);
+                width: 280px;
+            }
+            
+            .sidebar.active {
+                transform: translateX(0);
+            }
+            
+            .sidebar-toggle {
+                display: block;
+            }
+            
+            .sidebar-overlay.active {
+                display: block;
             }
             
             .navbar, .main-content {
@@ -404,44 +863,62 @@ if (!file_exists('header.php')) {
     </style>
 </head>
 <body>
-    <!-- Sidebar -->
-    <div class="sidebar d-none d-md-block">
-        <div class="d-flex flex-column align-items-center align-items-sm-start px-3 pt-4 text-white">
-            <a href="#" class="d-flex align-items-center pb-3 mb-md-0 me-md-auto text-white text-decoration-none">
-                <span class="fs-5 d-none d-sm-inline">Instructor Panel</span>
-            </a>
-            <ul class="nav nav-pills flex-column mb-sm-auto mb-0 align-items-center align-items-sm-start w-100" id="menu">
-                <li class="nav-item w-100">
-                    <a href="dashboard.php" class="nav-link"><i class="fas fa-tachometer-alt me-2"></i> Dashboard</a>
+    <!-- Modern Sidebar Toggle Button (Mobile) -->
+    <button class="sidebar-toggle" id="sidebarToggle">
+        <i class="fas fa-bars"></i>
+    </button>
+    
+    <!-- Sidebar Overlay (Mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Modern Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <img src="../uploads/it.png" alt="Institution Logo" class="header-logo me-3" style="width: 80px; height: 80px; border-radius: 10px; border: 3px solid rgba(255,255,255,0.3);">
+            </div>
+            <h5 class="sidebar-title">Instructor Portal</h5>
+            <p class="sidebar-subtitle">RFID Attendance System</p>
+        </div>
+        
+        <div class="sidebar-nav">
+            <ul class="nav">
+                <li class="nav-item">
+                    <a href="dashboard.php" class="nav-link">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Dashboard</span>
+                    </a>
                 </li>
-                <li class="nav-item w-100">
-                    <a href="attendance.php" class="nav-link"><i class="fas fa-clipboard-check me-2"></i> Attendance</a>
+                <li class="nav-item">
+                    <a href="attendance.php" class="nav-link">
+                        <i class="fas fa-clipboard-check"></i>
+                        <span>Attendance</span>
+                    </a>
                 </li>
-                <li class="nav-item w-100">
-                    <a href="schedule.php" class="nav-link active"><i class="fas fa-calendar-alt me-2"></i> Schedule</a>
-                </li>
-                <li class="nav-item w-100">
-                    <a href="profile.php" class="nav-link"><i class="fas fa-user me-2"></i> Profile</a>
-                </li>
-                <li class="nav-item w-100">
-                    <a href="logout.php" class="nav-link"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
+                <li class="nav-item">
+                    <a href="schedule.php" class="nav-link active">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span>Schedule</span>
+                    </a>
                 </li>
             </ul>
+        </div>
+        <div class="sidebar-footer">
         </div>
     </div>
 
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-light">
         <div class="container-fluid">
-            <button class="navbar-toggler d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu">
+            <button class="navbar-toggler d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <div class="collapse navbar-collapse" id="navbarContent">
                 <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle text-white" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-user-circle me-1"></i> 
-                            <?php echo htmlspecialchars($_SESSION['fullname'] ?? 'Instructor'); ?>
+                            <?php echo htmlspecialchars($_SESSION['fullname']); ?>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="profile.php"><i class="fas fa-user me-2"></i>Profile</a></li>
@@ -454,249 +931,356 @@ if (!file_exists('header.php')) {
         </div>
     </nav>
 
-    <!-- Mobile Sidebar -->
-    <div class="collapse d-md-none" id="sidebarMenu">
-        <div class="bg-primary-custom p-3">
-            <ul class="nav flex-column">
-                <li class="nav-item"><a href="dashboard.php" class="nav-link text-white"><i class="fas fa-tachometer-alt me-2"></i> Dashboard</a></li>
-                <li class="nav-item"><a href="attendance.php" class="nav-link text-white"><i class="fas fa-clipboard-check me-2"></i> Attendance</a></li>
-                <li class="nav-item"><a href="schedule.php" class="nav-link text-white active"><i class="fas fa-calendar-alt me-2"></i> Schedule</a></li>
-                <li class="nav-item"><a href="profile.php" class="nav-link text-white"><i class="fas fa-user me-2"></i> Profile</a></li>
-                <li class="nav-item"><a href="logout.php" class="nav-link text-white"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
-            </ul>
-        </div>
-    </div>
-
     <!-- Main Content -->
     <div class="main-content">
-        <!-- Welcome Header -->
-        <div class="welcome-header">
-            <div class="welcome-content">
-                <div class="row align-items-center">
-                    <div class="col-md-8">
-                        <div class="instructor-avatar">
-                            <i class="fas fa-calendar-alt"></i>
-                        </div>
-                        <h2 class="mb-2">My Teaching Schedule</h2>
-                        <div class="mb-3">
-                            <span class="info-badge">
-                                <i class="fas fa-user me-1"></i>
-                                <?php echo htmlspecialchars($_SESSION['fullname']); ?>
-                            </span>
-                            <span class="info-badge">
-                                <i class="fas fa-building me-1"></i>
-                                Department: <?php echo htmlspecialchars($_SESSION['department']); ?>
-                            </span>
-                        </div>
-                        <p class="mb-0"><i class="fas fa-calendar-day me-2"></i>Today is <?php echo date('l, F j, Y'); ?></p>
-                    </div>
-                    <div class="col-md-4 text-md-end">
-                        <div class="card bg-light bg-opacity-50 border-0">
-                            <div class="card-body text-dark">
-                                <h6 class="card-title"><i class="fas fa-clock me-2"></i>Current Time</h6>
-                                <h4 id="current-time" class="mb-0"><?php echo date('g:i A'); ?></h4>
-                                <small id="current-date"><?php echo date('M j, Y'); ?></small>
+        <div class="container-fluid pt-4 px-4">
+            <div class="col-sm-12 col-xl-12">
+                <div class="bg-light rounded h-100 p-4">
+                    <!-- Enhanced Welcome Header -->
+                    <div class="welcome-header">
+                        <div class="welcome-content">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div>
+                                            <h2 class="mb-1">Class Schedule</h2>
+                                            <p class="mb-0">View and manage your teaching schedule</p>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <span class="info-badge">
+                                            <i class="fas fa-id-card me-1"></i>
+                                            ID: <?php echo htmlspecialchars($_SESSION['id_number'] ?? 'N/A'); ?>
+                                        </span>
+                                        <span class="info-badge">
+                                            <i class="fas fa-building me-1"></i>
+                                            Department: <?php echo htmlspecialchars($_SESSION['department']); ?>
+                                        </span>
+                                        <span class="info-badge">
+                                            <i class="fas fa-chalkboard-teacher me-1"></i>
+                                            <?php echo count($schedule_data); ?> Classes This Week
+                                        </span>
+                                    </div>
+                                    <p class="mb-0"><i class="fas fa-calendar-day me-2"></i>Today is <?php echo date('l, F j, Y'); ?></p>
+                                </div>
+                                <div class="col-md-4 text-md-end">
+                                    <div class="card bg-light bg-opacity-50 border-0">
+                                        <div class="card-body text-dark">
+                                            <h6 class="card-title"><i class="fas fa-clock me-2"></i>Current Time</h6>
+                                            <h4 id="current-time" class="mb-0"><?php echo date('g:i A'); ?></h4>
+                                            <small id="current-date"><?php echo date('M j, Y'); ?></small>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
 
-        <!-- Filter Section -->
-        <div class="filter-section">
-            <form method="GET" id="filterForm">
-                <div class="row">
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label class="form-label"><b><i class="fas fa-calendar-day me-2"></i>Filter by Day:</b></label>
-                            <select class="form-control" name="day" id="filter_day">
-                                <option value="">All Days</option>
-                                <?php while ($day = $days->fetch_assoc()): ?>
-                                    <option value="<?= htmlspecialchars($day['day']) ?>" <?= ($filter_day == $day['day']) ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars($day['day']) ?>
-                                    </option>
-                                <?php endwhile; ?>
-                            </select>
+                    <!-- Filter Section -->
+                    <div class="filter-section">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5><i class="fas fa-filter me-2"></i>Filter Schedule</h5>
+                            <div class="d-flex gap-2">
+                                <a href="schedule.php?print=1&<?php echo http_build_query($_GET); ?>" target="_blank" class="btn btn-outline-success btn-sm">
+                                    <i class="fas fa-print me-1"></i>Print Schedule
+                                </a>
+                            </div>
                         </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label class="form-label"><b><i class="fas fa-door-open me-2"></i>Filter by Room:</b></label>
-                            <select class="form-control" name="room" id="filter_room">
-                                <option value="">All Rooms</option>
-                                <?php 
-                                $rooms->data_seek(0);
-                                while ($room = $rooms->fetch_assoc()): ?>
-                                    <option value="<?= htmlspecialchars($room['room_name']) ?>" <?= ($filter_room == $room['room_name']) ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars($room['room_name']) ?>
-                                    </option>
-                                <?php endwhile; ?>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label class="form-label"><b><i class="fas fa-book me-2"></i>Filter by Subject:</b></label>
-                            <select class="form-control" name="subject" id="filter_subject">
-                                <option value="">All Subjects</option>
-                                <?php 
-                                $subjects->data_seek(0);
-                                while ($subject = $subjects->fetch_assoc()): ?>
-                                    <option value="<?= htmlspecialchars($subject['subject']) ?>" <?= ($filter_subject == $subject['subject']) ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars($subject['subject']) ?>
-                                    </option>
-                                <?php endwhile; ?>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div class="row mt-3">
-                    <div class="col-md-12 d-flex justify-content-between align-items-center">
-                        <div id="activeFilters" class="d-flex flex-wrap gap-2">
-                            <?php if ($filter_day): ?>
-                                <span class="filter-badge">
-                                    Day: <?= htmlspecialchars($filter_day) ?>
-                                    <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.7rem;" onclick="removeFilter('day')"></button>
-                                </span>
-                            <?php endif; ?>
-                            <?php if ($filter_room): ?>
-                                <span class="filter-badge">
-                                    Room: <?= htmlspecialchars($filter_room) ?>
-                                    <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.7rem;" onclick="removeFilter('room')"></button>
-                                </span>
-                            <?php endif; ?>
-                            <?php if ($filter_subject): ?>
-                                <span class="filter-badge">
-                                    Subject: <?= htmlspecialchars($filter_subject) ?>
-                                    <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.7rem;" onclick="removeFilter('subject')"></button>
-                                </span>
-                            <?php endif; ?>
-                        </div>
-                        <div>
-                            <button type="submit" class="btn btn-primary me-2">
-                                <i class="fas fa-filter me-2"></i>Apply Filters
-                            </button>
-                            <a href="schedule.php" class="btn btn-outline-secondary">
-                                <i class="fas fa-refresh me-2"></i>Reset
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </form>
-        </div>
+                        
+                        <form method="GET" action="schedule.php" id="filterForm">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label for="day" class="form-label"><i class="fas fa-calendar-day me-1"></i>Day</label>
+                                    <select class="form-select" id="day" name="day">
+                                        <option value="">All Days</option>
+                                        <?php foreach ($days_of_week as $day): ?>
+                                            <option value="<?php echo $day; ?>" <?php echo ($filter_day == $day) ? 'selected' : ''; ?>>
+                                                <?php echo $day; ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-3">
+                                    <label for="subject" class="form-label"><i class="fas fa-book me-1"></i>Subject</label>
+                                    <select class="form-select" id="subject" name="subject">
+                                        <option value="">All Subjects</option>
+                                        <?php foreach ($unique_subjects as $subject): ?>
+                                            <option value="<?php echo htmlspecialchars($subject); ?>" <?php echo ($filter_subject == $subject) ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($subject); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-3">
+                                    <label for="room" class="form-label"><i class="fas fa-door-open me-1"></i>Room</label>
+                                    <select class="form-select" id="room" name="room">
+                                        <option value="">All Rooms</option>
+                                        <?php foreach ($unique_rooms as $room): ?>
+                                            <option value="<?php echo htmlspecialchars($room); ?>" <?php echo ($filter_room == $room) ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($room); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-3">
+                                    <label for="section" class="form-label"><i class="fas fa-users me-1"></i>Section</label>
+                                    <select class="form-select" id="section" name="section">
+                                        <option value="">All Sections</option>
+                                        <?php foreach ($unique_sections as $section): ?>
+                                            <option value="<?php echo htmlspecialchars($section); ?>" <?php echo ($filter_section == $section) ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($section); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
 
-        <!-- Schedule Table -->
-        <div class="card card-dashboard">
-            <div class="card-header bg-primary-custom d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-calendar-alt me-2"></i>
-                    Teaching Schedule
-                    <span class="badge bg-light text-dark ms-2">
-                        <?php echo $filtered_schedules ? $filtered_schedules->num_rows : 0; ?> classes
-                    </span>
-                </h5>
-                <button type="button" class="btn btn-light btn-sm" onclick="printSchedule()">
-                    <i class="fas fa-print me-2"></i>Print Schedule
-                </button>
-            </div>
-            <div class="card-body">
-                <?php if ($filtered_schedules && $filtered_schedules->num_rows > 0): ?>
-                    <div class="table-responsive">
-                        <table class="table table-hover" id="scheduleTable">
-                            <thead>
-                                <tr>
-                                    <th>Icon</th>
-                                    <th>Day</th>
-                                    <th>Time</th>
-                                    <th>Subject</th>
-                                    <th>Room</th>
-                                    <th>Year Level</th>
-                                    <th>Section</th>
-                                    <th>Department</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php 
-                                $today = date('l');
-                                while ($schedule = $filtered_schedules->fetch_assoc()): 
-                                    $isToday = ($schedule['day'] == $today) ? 'current-day' : '';
-                                ?>
-                                    <tr class="<?= $isToday ?>">
-                                        <td>
-                                            <div class="schedule-icon">
-                                                <i class="fas fa-calendar-check"></i>
-                                            </div>
-                                        </td>
-                                        <td class="day-highlight">
-                                            <strong><?= htmlspecialchars($schedule['day']) ?></strong>
-                                            <?php if ($isToday): ?>
-                                                <br><span class="badge bg-success">Today</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <span class="time-badge">
-                                                <?= date("g:i A", strtotime($schedule['start_time'])) ?> - 
-                                                <?= date("g:i A", strtotime($schedule['end_time'])) ?>
+                                <div class="col-md-3">
+                                    <label for="year" class="form-label"><i class="fas fa-graduation-cap me-1"></i>Year Level</label>
+                                    <select class="form-select" id="year" name="year">
+                                        <option value="">All Years</option>
+                                        <?php foreach ($unique_years as $year): ?>
+                                            <option value="<?php echo htmlspecialchars($year); ?>" <?php echo ($filter_year == $year) ? 'selected' : ''; ?>>
+                                                Year <?php echo htmlspecialchars($year); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+
+                                <div class="col-12">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="d-flex gap-2">
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="fas fa-search me-2"></i>Apply Filters
+                                            </button>
+                                            <a href="schedule.php" class="btn btn-secondary">
+                                                <i class="fas fa-refresh me-2"></i>Reset
+                                            </a>
+                                        </div>
+                                        
+                                        <div class="d-flex gap-2">
+                                            <a href="schedule.php?week=<?php echo $week_offset - 1; ?><?php echo !empty($_GET) ? '&' . http_build_query($_GET, '', '&') : ''; ?>" class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-chevron-left me-1"></i>Previous Week
+                                            </a>
+                                            <a href="schedule.php?week=<?php echo $week_offset + 1; ?><?php echo !empty($_GET) ? '&' . http_build_query($_GET, '', '&') : ''; ?>" class="btn btn-outline-primary btn-sm">
+                                                Next Week<i class="fas fa-chevron-right ms-1"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Active Filters Display -->
+                                <?php if ($filter_day || $filter_subject || $filter_room || $filter_section || $filter_year): ?>
+                                <div class="col-12">
+                                    <div class="d-flex align-items-center flex-wrap gap-2 p-3 bg-light rounded">
+                                        <small class="text-muted me-2"><i class="fas fa-filter me-1"></i>Active Filters:</small>
+                                        <?php if ($filter_day): ?>
+                                            <span class="filter-badge">
+                                                <i class="fas fa-calendar-day me-1"></i>
+                                                Day: <?php echo htmlspecialchars($filter_day); ?>
                                             </span>
-                                        </td>
-                                        <td>
-                                            <strong><?= htmlspecialchars($schedule['subject']) ?></strong>
-                                        </td>
-                                        <td><?= htmlspecialchars($schedule['room_name']) ?></td>
-                                        <td><?= htmlspecialchars($schedule['year_level']) ?></td>
-                                        <td><?= htmlspecialchars($schedule['section']) ?></td>
-                                        <td><?= htmlspecialchars($schedule['department_name'] ?? $schedule['department']) ?></td>
-                                    </tr>
-                                <?php endwhile; ?>
-                            </tbody>
-                        </table>
+                                        <?php endif; ?>
+                                        <?php if ($filter_subject): ?>
+                                            <span class="filter-badge">
+                                                <i class="fas fa-book me-1"></i>
+                                                Subject: <?php echo htmlspecialchars($filter_subject); ?>
+                                            </span>
+                                        <?php endif; ?>
+                                        <?php if ($filter_room): ?>
+                                            <span class="filter-badge">
+                                                <i class="fas fa-door-open me-1"></i>
+                                                Room: <?php echo htmlspecialchars($filter_room); ?>
+                                            </span>
+                                        <?php endif; ?>
+                                        <?php if ($filter_section): ?>
+                                            <span class="filter-badge">
+                                                <i class="fas fa-users me-1"></i>
+                                                Section: <?php echo htmlspecialchars($filter_section); ?>
+                                            </span>
+                                        <?php endif; ?>
+                                        <?php if ($filter_year): ?>
+                                            <span class="filter-badge">
+                                                <i class="fas fa-graduation-cap me-1"></i>
+                                                Year: <?php echo htmlspecialchars($filter_year); ?>
+                                            </span>
+                                        <?php endif; ?>
+                                        
+                                        <?php if (!empty($schedule_data)): ?>
+                                            <span class="filter-badge bg-success">
+                                                <i class="fas fa-check-circle me-1"></i>
+                                                <?php echo count($schedule_data); ?> Classes Found
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                <?php endif; ?>
+                            </div>
+                        </form>
                     </div>
-                <?php else: ?>
-                    <div class="text-center py-5">
-                        <i class="fas fa-calendar-times text-muted mb-3" style="font-size: 4rem;"></i>
-                        <h4 class="text-muted">No Classes Found</h4>
-                        <p class="text-muted">
-                            <?php if ($filter_day || $filter_room || $filter_subject): ?>
-                                No classes match your current filters. Try adjusting your filter criteria.
-                            <?php else: ?>
-                                You don't have any classes scheduled yet.
-                            <?php endif; ?>
-                        </p>
-                        <?php if ($filter_day || $filter_room || $filter_subject): ?>
-                            <a href="schedule.php" class="btn btn-primary">
-                                <i class="fas fa-refresh me-2"></i>Clear Filters
-                            </a>
-                        <?php endif; ?>
+
+                    <!-- Week Display -->
+                    <div class="week-navigation mb-4">
+                        <div class="week-display">
+                            <i class="fas fa-calendar-week me-2"></i>
+                            <?php echo date('F j', strtotime($display_week_start)); ?> - <?php echo date('F j, Y', strtotime($display_week_end)); ?>
+                        </div>
                     </div>
-                <?php endif; ?>
+
+                    <!-- Quick Stats -->
+                    <div class="row g-4 mb-4">
+                        <!-- Total Classes -->
+                        <div class="col-sm-6 col-md-4 col-xl-3">
+                            <div class="stats-card text-info">
+                                <div class="stats-icon">
+                                    <i class="fas fa-chalkboard-teacher"></i>
+                                </div>
+                                <div class="stats-content">
+                                    <h3><?php echo count($schedule_data); ?></h3>
+                                    <p>Total Classes</p>
+                                    <div class="stats-detail">
+                                        <small class="text-muted">This week</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Today's Classes -->
+                        <div class="col-sm-6 col-md-4 col-xl-3">
+                            <div class="stats-card text-success">
+                                <div class="stats-icon">
+                                    <i class="fas fa-calendar-day"></i>
+                                </div>
+                                <div class="stats-content">
+                                    <h3>
+                                        <?php 
+                                        $today_classes = isset($schedule_by_day[$today_day]) ? count($schedule_by_day[$today_day]) : 0;
+                                        echo $today_classes;
+                                        ?>
+                                    </h3>
+                                    <p>Today's Classes</p>
+                                    <div class="stats-detail">
+                                        <small class="text-muted">Scheduled for today</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Teaching Hours -->
+                        <div class="col-sm-6 col-md-4 col-xl-3">
+                            <div class="stats-card text-warning">
+                                <div class="stats-icon">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                                <div class="stats-content">
+                                    <h3>
+                                        <?php 
+                                        $total_hours = 0;
+                                        foreach ($schedule_data as $class) {
+                                            $start_time = new DateTime($class['start_time']);
+                                            $end_time = new DateTime($class['end_time']);
+                                            $interval = $start_time->diff($end_time);
+                                            $total_hours += $interval->h + ($interval->i / 60);
+                                        }
+                                        echo round($total_hours, 1);
+                                        ?>
+                                    </h3>
+                                    <p>Teaching Hours</p>
+                                    <div class="stats-detail">
+                                        <small class="text-muted">This week</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Different Rooms -->
+                        <div class="col-sm-6 col-md-4 col-xl-3">
+                            <div class="stats-card text-primary">
+                                <div class="stats-icon">
+                                    <i class="fas fa-door-open"></i>
+                                </div>
+                                <div class="stats-content">
+                                    <h3>
+                                        <?php 
+                                        $unique_rooms = array_unique(array_column($schedule_data, 'room_name'));
+                                        echo count($unique_rooms);
+                                        ?>
+                                    </h3>
+                                    <p>Different Rooms</p>
+                                    <div class="stats-detail">
+                                        <small class="text-muted">This week</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Weekly Schedule -->
+                    <div class="row">
+                        <?php foreach ($days_of_week as $day): ?>
+                            <div class="col-lg-12 mb-4">
+                                <div class="schedule-card">
+                                    <div class="day-header <?php echo ($day === $today_day) ? 'today' : ''; ?>">
+                                        <span><?php echo $day; ?></span>
+                                        <?php if ($day === $today_day): ?>
+                                            <span class="badge bg-light text-dark">Today</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    
+                                    <?php if (isset($schedule_by_day[$day]) && !empty($schedule_by_day[$day])): ?>
+                                        <?php foreach ($schedule_by_day[$day] as $class): ?>
+                                            <div class="class-item">
+                                                <div class="class-time">
+                                                    <i class="fas fa-clock me-2"></i>
+                                                    <?php echo date("g:i A", strtotime($class['start_time'])); ?> - <?php echo date("g:i A", strtotime($class['end_time'])); ?>
+                                                </div>
+                                                <div class="class-subject">
+                                                    <i class="fas fa-book me-2"></i>
+                                                    <?php echo htmlspecialchars($class['subject']); ?>
+                                                </div>
+                                                <div class="class-details">
+                                                    <div>
+                                                        <span class="class-room">
+                                                            <i class="fas fa-door-open me-1"></i>
+                                                            <?php echo htmlspecialchars($class['room_name']); ?>
+                                                        </span>
+                                                        <span class="class-section ms-2">
+                                                            <i class="fas fa-users me-1"></i>
+                                                            <?php echo htmlspecialchars($class['section']); ?>
+                                                        </span>
+                                                        <span class="class-section ms-2">
+                                                            <i class="fas fa-graduation-cap me-1"></i>
+                                                            Year <?php echo htmlspecialchars($class['year_level']); ?>
+                                                        </span>
+                                                    </div>
+                                                    <div>
+                                                        <a href="attendance.php?year=<?php echo urlencode($class['year_level']); ?>&section=<?php echo urlencode($class['section']); ?>&subject=<?php echo urlencode($class['subject']); ?>" 
+                                                           class="btn btn-sm btn-outline-primary">
+                                                            <i class="fas fa-clipboard-check me-1"></i>View Attendance
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <div class="empty-day">
+                                            <i class="fas fa-calendar-times fa-2x mb-2"></i>
+                                            <p>No classes scheduled for <?php echo $day; ?></p>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
             </div>
         </div>
-    </div><!-- /.main-content -->
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script>
-        // Initialize DataTable
-        document.addEventListener('DOMContentLoaded', function() {
-            $('#scheduleTable').DataTable({
-                order: [[1, 'asc'], [2, 'asc']], // Sort by day then time
-                pageLength: 25,
-                language: {
-                    search: "Search schedules:",
-                    lengthMenu: "Show _MENU_ classes per page",
-                    info: "Showing _START_ to _END_ of _TOTAL_ classes",
-                    infoEmpty: "No classes to show",
-                    infoFiltered: "(filtered from _MAX_ total classes)"
-                },
-                dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
-                     '<"row"<"col-sm-12"tr>>' +
-                     '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>'
-            });
-        });
-
-        // Update current time
+        // Update current time every second
         function updateCurrentTime() {
             const now = new Date();
             const timeString = now.toLocaleTimeString('en-US', { 
@@ -719,106 +1303,64 @@ if (!file_exists('header.php')) {
         updateCurrentTime();
         setInterval(updateCurrentTime, 1000);
 
-        // Remove filter function
-        function removeFilter(filterType) {
-            const urlParams = new URLSearchParams(window.location.search);
-            urlParams.delete(filterType);
-            window.location.href = 'schedule.php?' + urlParams.toString();
-        }
+        // Sidebar toggle functionality for mobile
+        document.getElementById('sidebarToggle').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('active');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        });
 
-        // Print schedule function
-        function printSchedule() {
-            const printWindow = window.open('', '_blank');
-            const today = new Date().toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
+        document.getElementById('sidebarOverlay').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.remove('active');
+            document.getElementById('sidebarOverlay').classList.remove('active');
+        });
+
+        // Add interactive features
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add hover effects to class items
+            const classItems = document.querySelectorAll('.class-item');
+            classItems.forEach(item => {
+                item.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateX(5px)';
+                    this.style.transition = 'transform 0.2s ease';
+                });
+                item.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateX(0)';
+                });
             });
-            
-            printWindow.document.write(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>Teaching Schedule - <?php echo $_SESSION['fullname']; ?></title>
-                    <style>
-                        body { font-family: Arial, sans-serif; margin: 20px; }
-                        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-                        .instructor-info { margin-bottom: 15px; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-                        th { background-color: #87abe0; color: white; }
-                        .today { background-color: #e7f3ff; }
-                        .footer { margin-top: 20px; text-align: center; font-size: 12px; color: #666; }
-                        @media print {
-                            body { margin: 0; }
-                            .no-print { display: none; }
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="header">
-                        <h2>Teaching Schedule</h2>
-                        <div class="instructor-info">
-                            <h3><?php echo $_SESSION['fullname']; ?></h3>
-                            <p>Department: <?php echo $_SESSION['department']; ?></p>
-                            <p>Generated on: ${today}</p>
-                        </div>
-                    </div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Day</th>
-                                <th>Time</th>
-                                <th>Subject</th>
-                                <th>Room</th>
-                                <th>Year Level</th>
-                                <th>Section</th>
-                                <th>Department</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `);
-            
-            <?php 
-            $filtered_schedules->data_seek(0);
-            while ($schedule = $filtered_schedules->fetch_assoc()): 
-            ?>
-            printWindow.document.write(`
-                <tr <?php echo ($schedule['day'] == date('l')) ? 'class="today"' : ''; ?>>
-                    <td><?= htmlspecialchars($schedule['day']) ?></td>
-                    <td><?= date("g:i A", strtotime($schedule['start_time'])) ?> - <?= date("g:i A", strtotime($schedule['end_time'])) ?></td>
-                    <td><?= htmlspecialchars($schedule['subject']) ?></td>
-                    <td><?= htmlspecialchars($schedule['room_name']) ?></td>
-                    <td><?= htmlspecialchars($schedule['year_level']) ?></td>
-                    <td><?= htmlspecialchars($schedule['section']) ?></td>
-                    <td><?= htmlspecialchars($schedule['department_name'] ?? $schedule['department']) ?></td>
-                </tr>
-            `);
-            <?php endwhile; ?>
-            
-            printWindow.document.write(`
-                        </tbody>
-                    </table>
-                    <div class="footer">
-                        <p>This schedule is automatically generated from the RFID System.</p>
-                    </div>
-                </body>
-                </html>
-            `);
-            
-            printWindow.document.close();
-            printWindow.focus();
-            
-            setTimeout(() => {
-                printWindow.print();
-            }, 500);
-        }
 
-        // Auto-refresh page every 5 minutes to prevent timeout
-        setTimeout(function() {
-            window.location.reload();
-        }, 300000); // 5 minutes
+            // Highlight current time if class is in progress
+            const now = new Date();
+            const currentTime = now.getHours() * 60 + now.getMinutes();
+            
+            <?php if ($today_day && isset($schedule_by_day[$today_day])): ?>
+                const todayClasses = <?php echo json_encode($schedule_by_day[$today_day] ?? []); ?>;
+                
+                todayClasses.forEach((classInfo, index) => {
+                    const startTime = classInfo.start_time.split(':');
+                    const endTime = classInfo.end_time.split(':');
+                    const startMinutes = parseInt(startTime[0]) * 60 + parseInt(startTime[1]);
+                    const endMinutes = parseInt(endTime[0]) * 60 + parseInt(endTime[1]);
+                    
+                    if (currentTime >= startMinutes && currentTime <= endMinutes) {
+                        const classElement = document.querySelectorAll('.class-item')[index];
+                        if (classElement) {
+                            classElement.style.borderLeftColor = '#28a745';
+                            classElement.style.backgroundColor = 'rgba(40, 167, 69, 0.05)';
+                            
+                            // Add "In Progress" indicator
+                            const header = classElement.querySelector('.class-time');
+                            if (header && !header.querySelector('.in-progress')) {
+                                const indicator = document.createElement('span');
+                                indicator.className = 'badge bg-success ms-2 in-progress';
+                                indicator.innerHTML = '<i class="fas fa-play me-1"></i>In Progress';
+                                header.appendChild(indicator);
+                            }
+                        }
+                    }
+                });
+            <?php endif; ?>
+        });
     </script>
 </body>
 </html>
+<?php mysqli_close($db); ?>
