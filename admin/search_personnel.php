@@ -1,38 +1,57 @@
 <?php
 include '../connection.php';
 
-// Check if query parameter is set
 if (isset($_GET['query'])) {
     $query = trim($_GET['query']);
-    
-    // Prepare SQL statement to search for instructors
-    $sql = "SELECT id, fullname 
-            FROM instructor 
-            WHERE fullname LIKE ? 
-            ORDER BY fullname 
-            LIMIT 10";
-    
-    $stmt = $db->prepare($sql);
     $searchTerm = "%" . $query . "%";
-    $stmt->bind_param("s", $searchTerm);
-    $stmt->execute();
-    $result = $stmt->get_result();
     
-    $instructors = [];
-    while ($row = $result->fetch_assoc()) {
-        $instructors[] = $row;
+    // Search in instructor_glogs table
+    $sql1 = "SELECT DISTINCT instructor_id as id, name, 'instructor' as type 
+             FROM instructor_glogs 
+             WHERE name LIKE ?";
+    
+    // Search in personell_glogs table  
+    $sql2 = "SELECT DISTINCT personell_id as id, name, 'personell' as type 
+             FROM personell_glogs 
+             WHERE name LIKE ?";
+    
+    $stmt1 = $db->prepare($sql1);
+    $stmt1->bind_param("s", $searchTerm);
+    $stmt1->execute();
+    $result1 = $stmt1->get_result();
+    
+    $stmt2 = $db->prepare($sql2);
+    $stmt2->bind_param("s", $searchTerm);
+    $stmt2->execute();
+    $result2 = $stmt2->get_result();
+    
+    $results = [];
+    
+    // Add instructors to results
+    while ($row = $result1->fetch_assoc()) {
+        $results[] = [
+            'id' => $row['id'],
+            'fullname' => $row['name'],
+            'type' => $row['type']
+        ];
     }
     
-    // Return results as JSON
-    header('Content-Type: application/json');
-    echo json_encode($instructors);
+    // Add personnel to results
+    while ($row = $result2->fetch_assoc()) {
+        $results[] = [
+            'id' => $row['id'],
+            'fullname' => $row['name'],
+            'type' => $row['type']
+        ];
+    }
     
-    $stmt->close();
-} else {
-    // Return error if no query provided
+    $stmt1->close();
+    $stmt2->close();
+    $db->close();
+    
     header('Content-Type: application/json');
-    echo json_encode(['error' => 'No query provided']);
+    echo json_encode($results);
+} else {
+    echo json_encode([]);
 }
-
- $db->close();
 ?>
