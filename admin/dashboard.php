@@ -39,10 +39,10 @@ if (!function_exists('formatTime')) {
 }
 
 // =====================================================================
-// ENHANCED DASHBOARD STATISTICS USING YOUR GATE LOGS STRUCTURE
+// ENHANCED DASHBOARD STATISTICS - FIXED TIMEZONE ISSUE
 // =====================================================================
 
-// Get dashboard statistics - INTEGRATED WITH YOUR GATE LOGS
+// Get dashboard statistics - FIXED TO USE MANILA DATE
 function getDashboardStats($db) {
     $stats = [
         'total_entrants_today' => 0,
@@ -51,44 +51,47 @@ function getDashboardStats($db) {
         'visitors_today' => 0,
         'students_today' => 0,
         'instructors_today' => 0,
-        'staff_today' => 0,
-        'blocked' => 0,
+        'personell_today' => 0,
         'total_students' => 0,
         'total_instructors' => 0,
-        'total_staff' => 0,
+        'total_personell' => 0,
         'total_visitors_today' => 0,
         'avg_daily_entrants' => 0,
         'pending_exits_count' => 0
     ];
 
     try {
-        $today = date('Y-m-d');
+        // Use PHP date instead of MySQL CURDATE() to ensure Manila time
+        $manila_today = date('Y-m-d');
         
-        // Total entries today (IN actions) - CHANGED: This now shows total entries only
-        $query = "SELECT COUNT(*) as total FROM gate_logs WHERE DATE(created_at) = CURDATE() AND direction = 'IN'";
+        // Debug: Log the date being used
+        error_log("DEBUG - Using Manila date for filtering: " . $manila_today);
+        
+        // Total entries today - USE MANILA DATE
+        $query = "SELECT COUNT(DISTINCT id_number) as total FROM gate_logs WHERE date = '$manila_today'";
         $result = $db->query($query);
         if ($result) {
             $row = $result->fetch_assoc();
             $stats['total_entrants_today'] = $row['total'] ?? 0;
         }
 
-        // Total exits today (OUT actions)
-        $query = "SELECT COUNT(*) as total FROM gate_logs WHERE DATE(created_at) = CURDATE() AND direction = 'OUT'";
+        // Total exits today - USE MANILA DATE
+        $query = "SELECT COUNT(*) as total FROM gate_logs WHERE date = '$manila_today' AND direction = 'OUT'";
         $result = $db->query($query);
         if ($result) {
             $row = $result->fetch_assoc();
             $stats['total_exits_today'] = $row['total'] ?? 0;
         }
 
-        // Current people inside (IN but not OUT today) - using your pending exits logic
+        // Current people inside - USE MANILA DATE
         $query = "SELECT COUNT(*) as total FROM gate_logs 
                  WHERE direction = 'IN' 
-                 AND DATE(created_at) = CURDATE() 
+                 AND date = '$manila_today' 
                  AND id_number NOT IN (
                      SELECT id_number 
                      FROM gate_logs 
                      WHERE direction = 'OUT' 
-                     AND DATE(created_at) = CURDATE()
+                     AND date = '$manila_today'
                  )";
         $result = $db->query($query);
         if ($result) {
@@ -97,11 +100,16 @@ function getDashboardStats($db) {
             $stats['pending_exits_count'] = $row['total'] ?? 0;
         }
 
-        // Visitors today
-        $query = "SELECT COUNT(*) as total FROM gate_logs 
-                 WHERE DATE(created_at) = CURDATE() 
-                 AND person_type = 'visitor' 
-                 AND direction = 'IN'";
+        // Debug: Let's check what's actually in the database
+        error_log("DEBUG - Total unique ID numbers today: " . $stats['total_entrants_today']);
+        error_log("DEBUG - Total OUT actions today: " . $stats['total_exits_today']);
+        error_log("DEBUG - Current inside: " . $stats['current_inside']);
+
+        // Visitors today - USE MANILA DATE
+        $query = "SELECT COUNT(DISTINCT gl.id_number) as total 
+                 FROM gate_logs gl
+                 WHERE gl.date = '$manila_today' 
+                 AND gl.person_type = 'visitor'";
         $result = $db->query($query);
         if ($result) {
             $row = $result->fetch_assoc();
@@ -109,26 +117,18 @@ function getDashboardStats($db) {
             $stats['total_visitors_today'] = $row['total'] ?? 0;
         }
 
-        // Students present today (using your specific table structure)
+        // Students present today - USE MANILA DATE
         $query = "SELECT COUNT(DISTINCT gl.id_number) as total 
                  FROM gate_logs gl
                  WHERE gl.person_type = 'student' 
-                 AND DATE(gl.created_at) = CURDATE() 
-                 AND gl.direction = 'IN'
-                 AND gl.id_number NOT IN (
-                     SELECT id_number 
-                     FROM gate_logs 
-                     WHERE direction = 'OUT' 
-                     AND DATE(created_at) = CURDATE()
-                     AND person_type = 'student'
-                 )";
+                 AND gl.date = '$manila_today'";
         $result = $db->query($query);
         if ($result) {
             $row = $result->fetch_assoc();
             $stats['students_today'] = $row['total'] ?? 0;
         }
 
-        // Total students
+        // Total students (from students table) - EXCLUDING BLOCKED
         $query = "SELECT COUNT(*) as total FROM students WHERE status != 'Blocked'";
         $result = $db->query($query);
         if ($result) {
@@ -136,26 +136,18 @@ function getDashboardStats($db) {
             $stats['total_students'] = $row['total'] ?? 0;
         }
 
-        // Instructors present today
+        // Instructors present today - USE MANILA DATE
         $query = "SELECT COUNT(DISTINCT gl.id_number) as total 
                  FROM gate_logs gl
                  WHERE gl.person_type = 'instructor' 
-                 AND DATE(gl.created_at) = CURDATE() 
-                 AND gl.direction = 'IN'
-                 AND gl.id_number NOT IN (
-                     SELECT id_number 
-                     FROM gate_logs 
-                     WHERE direction = 'OUT' 
-                     AND DATE(created_at) = CURDATE()
-                     AND person_type = 'instructor'
-                 )";
+                 AND gl.date = '$manila_today'";
         $result = $db->query($query);
         if ($result) {
             $row = $result->fetch_assoc();
             $stats['instructors_today'] = $row['total'] ?? 0;
         }
 
-        // Total instructors
+        // Total instructors - EXCLUDING BLOCKED
         $query = "SELECT COUNT(*) as total FROM instructor WHERE status != 'Blocked'";
         $result = $db->query($query);
         if ($result) {
@@ -163,48 +155,41 @@ function getDashboardStats($db) {
             $stats['total_instructors'] = $row['total'] ?? 0;
         }
 
-        // Staff present today
+        // Staff present today - USE MANILA DATE - ENHANCED DEBUGGING
+        // Staff present today - USE MANILA DATE - CORRECTED QUERY
         $query = "SELECT COUNT(DISTINCT gl.id_number) as total 
-                 FROM gate_logs gl
-                 WHERE gl.person_type = 'personell' 
-                 AND DATE(gl.created_at) = CURDATE() 
-                 AND gl.direction = 'IN'
-                 AND gl.id_number NOT IN (
-                     SELECT id_number 
-                     FROM gate_logs 
-                     WHERE direction = 'OUT' 
-                     AND DATE(created_at) = CURDATE()
-                     AND person_type = 'personell'
-                 )";
+                FROM gate_logs gl
+                WHERE gl.date = '$manila_today' 
+                AND gl.person_type = 'personell'";
         $result = $db->query($query);
         if ($result) {
             $row = $result->fetch_assoc();
-            $stats['staff_today'] = $row['total'] ?? 0;
+            $stats['personell_today'] = $row['total'] ?? 0;
+            error_log("DEBUG - Personnel today count: " . $stats['personell_today']);
+        } else {
+            error_log("DEBUG - Personnel query failed: " . $db->error);
+            $stats['personell_today'] = 0;
         }
 
-        // Total staff
-        $query = "SELECT COUNT(*) as total FROM personell WHERE status != 'Block'";
+        // Total staff - EXCLUDING BLOCKED - CORRECTED QUERY
+        $query = "SELECT COUNT(*) as total FROM personell WHERE status != 'Block' AND deleted = 0";
         $result = $db->query($query);
         if ($result) {
             $row = $result->fetch_assoc();
-            $stats['total_staff'] = $row['total'] ?? 0;
+            $stats['total_personell'] = $row['total'] ?? 0;
+            error_log("DEBUG - Total personnel count: " . $stats['total_personell']);
+        } else {
+            error_log("DEBUG - Total personnel query failed: " . $db->error);
+            $stats['total_personell'] = 0;
         }
 
-        // Blocked personnel
-        $query = "SELECT COUNT(*) as total FROM personell WHERE status = 'Block'";
-        $result = $db->query($query);
-        if ($result) {
-            $row = $result->fetch_assoc();
-            $stats['blocked'] = $row['total'] ?? 0;
-        }
-
-        // Average daily entrants (last 7 days) - CHANGED: Now using only IN actions
+        // Average daily entrants (last 7 days) - USE MANILA DATE
+        $last_week = date('Y-m-d', strtotime('-7 days'));
         $query = "SELECT AVG(daily_total) as avg_daily 
-                 FROM (SELECT DATE(created_at) as date, COUNT(*) as daily_total 
+                 FROM (SELECT date, COUNT(DISTINCT id_number) as daily_total 
                        FROM gate_logs 
-                       WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) 
-                       AND direction = 'IN'
-                       GROUP BY DATE(created_at)) as daily_totals";
+                       WHERE date >= '$last_week' 
+                       GROUP BY date) as daily_totals";
         $result = $db->query($query);
         if ($result) {
             $row = $result->fetch_assoc();
@@ -218,27 +203,30 @@ function getDashboardStats($db) {
     return $stats;
 }
 
-// Get today's logs with enhanced data - SIMPLIFIED VERSION
+// Get today's logs with enhanced data - FIXED TO USE MANILA DATE
 function getTodaysLogs($db) {
+    $manila_today = date('Y-m-d');
+    
     $query = "SELECT 
                 gl.id_number,
                 COALESCE(
                     s.fullname,
                     i.fullname,
-                    CONCAT_WS(' ', p.first_name, COALESCE(p.middle_name, ''), p.last_name),
+                    CONCAT_WS(' ', p.first_name, p.last_name),
                     v.name,
                     gl.name
                 ) as full_name,
                 gl.person_type,
                 gl.time_in,
                 gl.time_out,
-                gl.created_at
+                gl.created_at,
+                gl.date
               FROM gate_logs gl
               LEFT JOIN students s ON gl.person_type = 'student' AND gl.person_id = s.id
               LEFT JOIN instructor i ON gl.person_type = 'instructor' AND gl.person_id = i.id
               LEFT JOIN personell p ON gl.person_type = 'personell' AND gl.person_id = p.id
               LEFT JOIN visitor v ON gl.person_type = 'visitor' AND gl.person_id = v.id
-              WHERE DATE(gl.created_at) = CURDATE()
+              WHERE gl.date = '$manila_today'
               ORDER BY gl.created_at DESC
               LIMIT 100";
     
@@ -250,7 +238,7 @@ function getTodaysLogs($db) {
     }
 }
 
-// Get weekly entrants data for line chart - INTEGRATED
+// Get weekly entrants data for line chart - FIXED TO USE MANILA DATE
 function getWeeklyEntrants($db) {
     $weeklyData = [];
     
@@ -260,8 +248,8 @@ function getWeeklyEntrants($db) {
             $date = date('Y-m-d', strtotime("-$i days"));
             $dayName = date('D', strtotime($date));
             
-            // Get total entrants (IN actions) - CHANGED: Only counting IN actions
-            $query = "SELECT COUNT(*) as total FROM gate_logs WHERE DATE(created_at) = '$date' AND direction = 'IN'";
+            // Get total entrants - USE EXPLICIT DATE
+            $query = "SELECT COUNT(DISTINCT id_number) as total FROM gate_logs WHERE date = '$date'";
             $result = $db->query($query);
             $total = 0;
             if ($result) {
@@ -269,14 +257,13 @@ function getWeeklyEntrants($db) {
                 $total = $row['total'] ?? 0;
             }
             
-            // Get breakdown by type - CHANGED: Only counting IN actions
+            // Get breakdown by type - USE EXPLICIT DATE
             $breakdown = [];
             $types = ['student', 'instructor', 'personell', 'visitor'];
             foreach ($types as $type) {
-                $typeQuery = "SELECT COUNT(*) as count FROM gate_logs 
-                             WHERE DATE(created_at) = '$date' 
-                             AND person_type = '$type' 
-                             AND direction = 'IN'";
+                $typeQuery = "SELECT COUNT(DISTINCT id_number) as count FROM gate_logs 
+                             WHERE date = '$date' 
+                             AND person_type = '$type'";
                 $typeResult = $db->query($typeQuery);
                 if ($typeResult) {
                     $typeRow = $typeResult->fetch_assoc();
@@ -298,34 +285,36 @@ function getWeeklyEntrants($db) {
     return $weeklyData;
 }
 
-// NEW FUNCTION: Get all students year level distribution from students table
-// NEW FUNCTION: Get all students year level distribution from students table
-function getStudentYearLevelDistribution($db) {
+// Get today's student year level distribution - FIXED TO USE MANILA DATE
+function getTodaysStudentYearLevelDistribution($db) {
     $distribution = [];
     
     try {
-        // Get student distribution by year level from students table
+        $manila_today = date('Y-m-d');
+        
         $query = "SELECT 
-                    COALESCE(year) as year_level,
-                    COUNT(*) as total
-                  FROM students 
-                  WHERE department_id = '33'
-                  GROUP BY year_level
-                  ORDER BY year_level";
+                    COALESCE(s.year, 'Not Specified') as year_level,
+                    COUNT(DISTINCT gl.id_number) as total
+                  FROM gate_logs gl
+                  LEFT JOIN students s ON gl.person_type = 'student' AND gl.person_id = s.id
+                  WHERE gl.date = '$manila_today' 
+                  AND gl.person_type = 'student'
+                  GROUP BY s.year
+                  ORDER BY s.year";
         
         $result = $db->query($query);
         
         if ($result) {
             while ($row = $result->fetch_assoc()) {
                 $yearLevel = $row['year_level'];
-                // Format year level for display - FIXED: Remove "Year" prefix
+                // Format year level for display
                 switch($yearLevel) {
                     case '1': $displayLevel = '1st Year'; break;
                     case '2': $displayLevel = '2nd Year'; break;
                     case '3': $displayLevel = '3rd Year'; break;
                     case '4': $displayLevel = '4th Year'; break;
                     case 'Not Specified': $displayLevel = 'Not Specified'; break;
-                    default: $displayLevel = $yearLevel; // Just show the value as is
+                    default: $displayLevel = $yearLevel;
                 }
                 
                 $distribution[] = [
@@ -366,29 +355,30 @@ function getStudentYearLevelDistribution($db) {
         });
         
     } catch (Exception $e) {
-        error_log("Student year level distribution error: " . $e->getMessage());
+        error_log("Today's student year level distribution error: " . $e->getMessage());
     }
     
     return $distribution;
 }
 
-// Get entrants distribution for pie chart - UPDATED: Now shows ALL students year level distribution
+// Get entrants distribution for pie chart
 function getEntrantsDistribution($db) {
-    // Use the new function to get ALL students year level distribution
-    return getStudentYearLevelDistribution($db);
+    return getTodaysStudentYearLevelDistribution($db);
 }
 
-// Get real-time activity feed - USING CALCULATED TIME FIELD
+// Get real-time activity feed - FIXED TO USE MANILA DATE
 function getRecentActivity($db) {
     $activity = [];
     
     try {
+        $manila_today = date('Y-m-d');
+        
         $query = "SELECT 
                     gl.id_number,
                     COALESCE(
                         s.fullname,
                         i.fullname,
-                        CONCAT_WS(' ', p.first_name, COALESCE(p.middle_name, ''), p.last_name),
+                        CONCAT_WS(' ', p.first_name, p.last_name),
                         v.name,
                         gl.name
                     ) as full_name,
@@ -405,7 +395,7 @@ function getRecentActivity($db) {
                   LEFT JOIN instructor i ON gl.person_type = 'instructor' AND gl.person_id = i.id
                   LEFT JOIN personell p ON gl.person_type = 'personell' AND gl.person_id = p.id
                   LEFT JOIN visitor v ON gl.person_type = 'visitor' AND gl.person_id = v.id
-                  WHERE DATE(gl.created_at) = CURDATE()
+                  WHERE gl.date = '$manila_today'
                   ORDER BY gl.created_at DESC
                   LIMIT 10";
         
@@ -430,13 +420,13 @@ function getRecentActivity($db) {
 }
 
 // Get data
-$stats = getDashboardStats($db);
-$logsResult = getTodaysLogs($db);
-$weeklyData = getWeeklyEntrants($db);
-$entrantsDistribution = getEntrantsDistribution($db);
-$recentActivity = getRecentActivity($db);
+ $stats = getDashboardStats($db);
+ $logsResult = getTodaysLogs($db);
+ $weeklyData = getWeeklyEntrants($db);
+ $entrantsDistribution = getEntrantsDistribution($db);
+ $recentActivity = getRecentActivity($db);
 
-// Helper function to get icons for person types (from your existing function)
+// Helper function to get icons for person types
 function getPersonTypeIcon($type) {
     $icons = [
         'student' => 'user-graduate',
@@ -446,6 +436,21 @@ function getPersonTypeIcon($type) {
     ];
     return $icons[$type] ?? 'user';
 }
+
+// Get current date for display
+ $currentDate = date('F j, Y');
+
+// DEBUG: Add debug information to see what's happening
+ $debug_info = [
+    'current_manila_date' => date('Y-m-d'),
+    'total_entrants_today' => $stats['total_entrants_today'],
+    'total_logs_found' => $logsResult ? $logsResult->num_rows : 0,
+    'recent_activity_count' => count($recentActivity),
+    'personell_today' => $stats['personell_today'],
+    'total_personell' => $stats['total_personell']
+];
+
+error_log("DASHBOARD DEBUG: " . json_encode($debug_info));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -459,7 +464,7 @@ function getPersonTypeIcon($type) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-    <style>
+<style>
         :root {
             --primary-color: #e1e7f0ff;
             --secondary-color: #b0caf0ff;
@@ -624,7 +629,6 @@ function getPersonTypeIcon($type) {
             color: white;
         }
 
-
         .btn {
             border-radius: 8px;
             font-weight: 500;
@@ -705,174 +709,74 @@ function getPersonTypeIcon($type) {
         }
 
         /* Enhanced Pie Chart Styles */
-        /* Enhanced Pie Chart Styles */
-.pie-chart-wrapper {
-    position: relative;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-
-.pie-chart-container {
-    width: 100%;
-    height: 70%; /* Reduced from 75% to make room for legend */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 220px; /* Adjusted minimum height */
-}
-
-.chart-legend {
-    position: relative;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-    padding: 8px 5px; /* Reduced padding */
-    max-height: none !important;
-    overflow: visible !important;
-    margin-top: 10px; /* Reduced from 20px to move legend up */
-}
-
-.legend-item {
-    display: flex;
-    align-items: center;
-    font-size: 0.75rem;
-    color: var(--dark-text);
-    padding: 5px 6px; /* Slightly reduced padding */
-    border-radius: 6px;
-    transition: all 0.2s ease;
-    background: rgba(248, 249, 252, 0.7);
-    border: 1px solid rgba(0,0,0,0.05);
-}
-
-.legend-item:hover {
-    background-color: rgba(92, 149, 233, 0.1);
-    border-color: rgba(92, 149, 233, 0.3);
-}
-
-.legend-color {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    margin-right: 6px; /* Reduced margin */
-    flex-shrink: 0;
-}
-
-.legend-text {
-    line-height: 1.2;
-    flex: 1;
-}
-
-.legend-text strong {
-    font-size: 0.7rem;
-    font-weight: 600;
-}
-
-.legend-text small {
-    font-size: 0.65rem;
-    color: #6c757d;
-}
-
-/* Adjust chart container for better proportions */
-.chart-container {
-    background: white;
-    border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
-    padding: 20px;
-    margin-bottom: 20px;
-    height: 440px; /* Slightly reduced height */
-    position: relative;
-    overflow: hidden;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .chart-legend {
-        grid-template-columns: 1fr;
-        gap: 6px;
-        margin-top: 8px; /* Reduced for mobile */
-    }
-    
-    .pie-chart-container {
-        height: 60%; /* Adjusted for mobile */
-        min-height: 180px;
-    }
-    
-    .chart-container {
-        height: 380px; /* Reduced for mobile */
-        padding: 15px;
-    }
-}
-
-/* For very small screens */
-@media (max-width: 480px) {
-    .chart-legend {
-        grid-template-columns: 1fr;
-        gap: 4px;
-        margin-top: 6px; /* Further reduced for small screens */
-    }
-    
-    .legend-item {
-        padding: 4px 5px;
-    }
-    
-    .pie-chart-container {
-        height: 55%;
-        min-height: 160px;
-    }
-}
-
-        /* Custom tooltip styling */
-        .google-visualization-tooltip {
-            border-radius: 12px !important;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
-            border: none !important;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-            color: white !important;
-            font-family: 'Inter', sans-serif !important;
-            font-size: 14px !important;
-            padding: 15px !important;
+        .pie-chart-wrapper {
+            position: relative;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
         }
 
-        .google-visualization-tooltip-item-list {
-            margin: 0 !important;
-            padding: 0 !important;
+        .pie-chart-container {
+            width: 100%;
+            height: 70%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 220px;
         }
 
-        .google-visualization-tooltip-item {
-            margin: 5px 0 !important;
-            padding: 0 !important;
+        .chart-legend {
+            position: relative;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            padding: 8px 5px;
+            max-height: none !important;
+            overflow: visible !important;
+            margin-top: 10px;
         }
 
-        .google-visualization-tooltip-item span {
-            color: white !important;
-            font-weight: 500 !important;
+        .legend-item {
+            display: flex;
+            align-items: center;
+            font-size: 0.75rem;
+            color: var(--dark-text);
+            padding: 5px 6px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            background: rgba(248, 249, 252, 0.7);
+            border: 1px solid rgba(0,0,0,0.05);
         }
 
-        .google-visualization-tooltip-square {
-            border-radius: 4px !important;
+        .legend-item:hover {
+            background-color: rgba(92, 149, 233, 0.1);
+            border-color: rgba(92, 149, 233, 0.3);
         }
 
-        /* Scrollbar for legend */
-        .chart-legend::-webkit-scrollbar {
-            width: 4px;
+        .legend-color {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 6px;
+            flex-shrink: 0;
         }
 
-        .chart-legend::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 10px;
+        .legend-text {
+            line-height: 1.2;
+            flex: 1;
         }
 
-        .chart-legend::-webkit-scrollbar-thumb {
-            background: #c1c1c1;
-            border-radius: 10px;
+        .legend-text strong {
+            font-size: 0.7rem;
+            font-weight: 600;
         }
 
-        .chart-legend::-webkit-scrollbar-thumb:hover {
-            background: #a8a8a8;
+        .legend-text small {
+            font-size: 0.65rem;
+            color: #6c757d;
         }
 
         /* Activity feed */
@@ -963,37 +867,6 @@ function getPersonTypeIcon($type) {
             50% { transform: scale(1.05); }
             100% { transform: scale(1); }
         }
-
-        /* Modern tooltip styles */
-        .google-visualization-tooltip {
-            border-radius: 12px !important;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
-            border: none !important;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-            color: white !important;
-            font-family: 'Inter', sans-serif !important;
-            font-size: 14px !important;
-            padding: 15px !important;
-        }
-
-        .google-visualization-tooltip-item-list {
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-
-        .google-visualization-tooltip-item {
-            margin: 5px 0 !important;
-            padding: 0 !important;
-        }
-
-        .google-visualization-tooltip-item span {
-            color: white !important;
-            font-weight: 500 !important;
-        }
-
-        .google-visualization-tooltip-square {
-            border-radius: 4px !important;
-        }
     </style>
 </head>
 
@@ -1013,9 +886,13 @@ function getPersonTypeIcon($type) {
                         <div class="row">
                             <div class="col-12">
                                 <h6 class="mb-4"><i class="fas fa-tachometer-alt me-2"></i>Dashboard Overview</h6>
-                                <div class="alert alert-info d-flex align-items-center">
+                                <div class="date-indicator">
+                                    <i class="fas fa-calendar-day me-2"></i>
+                                    Today's Data: <?php echo $currentDate; ?>
+                                </div>
+                                <div class="alert alert-info d-flex align-items-center mt-3">
                                     <i class="fas fa-info-circle me-2"></i>
-                                    <span>Today's data as of <?php echo date('F j, Y'); ?></span>
+                                    <span>All statistics and charts reset daily at midnight.</span>
                                 </div>
                             </div>
                         </div>
@@ -1023,7 +900,7 @@ function getPersonTypeIcon($type) {
 
                         <!-- Enhanced Statistics Cards -->
                         <div class="row g-4 mb-4">
-                            <!-- Total Entrants - CHANGED: Now shows only total entries without deducting exits -->
+                            <!-- Total Entrants - COUNT UNIQUE ID NUMBERS -->
                             <div class="col-sm-6 col-md-4 col-xl-2">
                                 <div class="stats-card text-info">
                                     <div class="stats-icon">
@@ -1031,9 +908,9 @@ function getPersonTypeIcon($type) {
                                     </div>
                                     <div class="stats-content">
                                         <h3><?php echo sanitizeOutput($stats['total_entrants_today']); ?></h3>
-                                        <p>Total Entrants Today</p>
+                                        <p>Total People Today</p>
                                         <div class="stats-detail">
-                                            Total Entries: <?php echo sanitizeOutput($stats['total_entrants_today']); ?>
+                                            <small class="text-muted">Unique individuals</small>
                                         </div>
                                     </div>
                                 </div>
@@ -1047,9 +924,9 @@ function getPersonTypeIcon($type) {
                                     </div>
                                     <div class="stats-content">
                                         <h3><?php echo sanitizeOutput($stats['instructors_today']); ?></h3>
-                                        <p>Instructors Present</p>
+                                        <p>Instructors Today</p>
                                         <div class="stats-detail">
-                                            Total: <?php echo sanitizeOutput($stats['total_instructors']); ?>
+                                            <small class="text-muted">Total: <?php echo sanitizeOutput($stats['total_instructors']); ?></small>
                                         </div>
                                     </div>
                                 </div>
@@ -1057,51 +934,13 @@ function getPersonTypeIcon($type) {
 
                             <!-- Visitors -->
                             <div class="col-sm-6 col-md-4 col-xl-2">
-                                <div class="stats-card text-primary position-relative"
-                                    onmouseover="showVisitorLogs()" onmouseout="hideVisitorLogs()">
+                                <div class="stats-card text-primary">
                                     <div class="stats-icon">
                                         <i class="fas fa-user-plus"></i>
                                     </div>
                                     <div class="stats-content">
                                         <h3><?php echo sanitizeOutput($stats['visitors_today']); ?></h3>
                                         <p>Visitors Today</p>
-                                        <div class="stats-detail">
-                                            Gate: <?php echo sanitizeOutput($stats['total_visitors_today']); ?>
-                                        </div>
-                                    </div>
-                                    <div id="visitorLogs" class="hover-logs">
-                                        <h6 class="mb-3"><i class="fas fa-users me-2"></i>Today's Visitors</h6>
-                                        <ul class="list-unstyled">
-                                            <?php
-                                            $visitorQuery = "SELECT 
-                                                gl.id_number,
-                                                COALESCE(v.name, gl.name) as full_name,
-                                                gl.department
-                                              FROM gate_logs gl
-                                              LEFT JOIN visitor v ON gl.person_type = 'visitor' AND gl.person_id = v.id
-                                              WHERE DATE(gl.created_at) = CURDATE() 
-                                              AND gl.person_type = 'visitor'
-                                              AND gl.direction = 'IN'
-                                              ORDER BY gl.created_at DESC LIMIT 10";
-                                            $visitorResult = $db->query($visitorQuery);
-                                            if ($visitorResult && $visitorResult->num_rows > 0) {
-                                                while ($row = $visitorResult->fetch_assoc()) {
-                                                    echo '<li class="mb-2">';
-                                                    echo '<div class="d-flex align-items-center">';
-                                                    echo '<img src="admin/uploads/students/default.png" alt="Visitor Photo">';
-                                                    echo '<div>';
-                                                    echo '<b>' . sanitizeOutput($row["full_name"]) . '</b><br>';
-                                                    echo '<small class="text-muted">' . sanitizeOutput($row["id_number"]) . '</small><br>';
-                                                    echo '<small class="text-info">' . sanitizeOutput($row["department"]) . '</small>';
-                                                    echo '</div>';
-                                                    echo '</div>';
-                                                    echo '</li>';
-                                                }
-                                            } else {
-                                                echo '<li><div class="text-center text-muted py-3"><i class="fas fa-user-slash fa-2x mb-2"></i><br>No visitors today</div></li>';
-                                            }
-                                            ?>
-                                        </ul>
                                     </div>
                                 </div>
                             </div>
@@ -1114,9 +953,9 @@ function getPersonTypeIcon($type) {
                                     </div>
                                     <div class="stats-content">
                                         <h3><?php echo sanitizeOutput($stats['students_today']); ?></h3>
-                                        <p>Students Present</p>
+                                        <p>Students Today</p>
                                         <div class="stats-detail">
-                                            Total: <?php echo sanitizeOutput($stats['total_students']); ?>
+                                            <small class="text-muted">Total: <?php echo sanitizeOutput($stats['total_students']); ?></small>
                                         </div>
                                     </div>
                                 </div>
@@ -1129,10 +968,10 @@ function getPersonTypeIcon($type) {
                                         <i class="fas fa-users-cog"></i>
                                     </div>
                                     <div class="stats-content">
-                                        <h3><?php echo sanitizeOutput($stats['staff_today']); ?></h3>
+                                        <h3><?php echo sanitizeOutput($stats['personell_today']); ?></h3>
                                         <p>Personnel & Staff</p>
                                         <div class="stats-detail">
-                                            Total: <?php echo sanitizeOutput($stats['total_staff']); ?>
+                                            <small class="text-muted">Total: <?php echo sanitizeOutput($stats['total_personell']); ?></small>
                                         </div>
                                     </div>
                                 </div>
@@ -1148,7 +987,7 @@ function getPersonTypeIcon($type) {
                                         <h3><?php echo sanitizeOutput($stats['current_inside']); ?></h3>
                                         <p>Currently Inside</p>
                                         <div class="stats-detail">
-                                            Pending Exits: <?php echo sanitizeOutput($stats['pending_exits_count']); ?>
+                                            <small class="text-muted">Exits today: <?php echo sanitizeOutput($stats['total_exits_today']); ?></small>
                                         </div>
                                     </div>
                                 </div>
@@ -1156,20 +995,19 @@ function getPersonTypeIcon($type) {
                         </div>
 
                         <!-- Enhanced Charts Section -->
-                        <!-- Enhanced Charts Section -->
                         <div class="row g-4 mb-4">
-                            <!-- Weekly Entrants Line Chart -->
-                            <div class="col-lg-7"> <!-- Reduced from col-lg-8 to make room for larger pie -->
+                            <!-- Weekly People Trend - COUNT UNIQUE ID NUMBERS -->
+                            <div class="col-lg-7">
                                 <div class="chart-container">
-                                    <h5 class="chart-title"><i class="fas fa-chart-line me-2"></i>Weekly Entrants Trend</h5>
+                                    <h5 class="chart-title"><i class="fas fa-chart-line me-2"></i>Weekly People Trend</h5>
                                     <div id="weeklyEntrantsChart" style="height: 100%;"></div>
                                 </div>
                             </div>
 
-                            <!-- Student Year Level Distribution - ENHANCED PIE CHART -->
-                            <div class="col-lg-5"> <!-- Increased from col-lg-4 for larger pie -->
+                            <!-- Today's Student Year Level Distribution - COUNT UNIQUE STUDENTS -->
+                            <div class="col-lg-5">
                                 <div class="chart-container">
-                                    <h5 class="chart-title"><i class="fas fa-chart-pie me-2"></i>Student Distribution by Year Level</h5>
+                                    <h5 class="chart-title"><i class="fas fa-chart-pie me-2"></i>Today's Student Distribution by Year Level</h5>
                                     <div class="pie-chart-wrapper">
                                         <div id="entrantsDistributionChart" class="pie-chart-container"></div>
                                         <!-- Custom Legend -->
@@ -1218,7 +1056,7 @@ function getPersonTypeIcon($type) {
                                 </div>
                             </div>
 
-                            <!-- Today's Entrance Logs - SIMPLIFIED TABLE -->
+                            <!-- Today's Entrance Logs -->
                             <div class="col-lg-8">
                                 <div class="card">
                                     <div class="card-body">
@@ -1325,12 +1163,12 @@ function getPersonTypeIcon($type) {
         }
 
         function drawWeeklyEntrantsChart() {
-            // Weekly entrants data from PHP
+            // Weekly people data from PHP - COUNT UNIQUE ID NUMBERS
             const weeklyData = <?php echo json_encode($weeklyData); ?>;
             
             const data = new google.visualization.DataTable();
             data.addColumn('string', 'Day');
-            data.addColumn('number', 'Total Entrants');
+            data.addColumn('number', 'Total People');
             data.addColumn('number', 'Students');
             data.addColumn('number', 'Instructors');
             data.addColumn('number', 'Staff');
@@ -1362,7 +1200,7 @@ function getPersonTypeIcon($type) {
                     slantedText: false
                 },
                 vAxis: {
-                    title: 'Number of Entrants',
+                    title: 'Number of People',
                     titleTextStyle: {color: '#5a5c69', bold: true, fontSize: 12},
                     minValue: 0,
                     gridlines: { 
@@ -1396,7 +1234,7 @@ function getPersonTypeIcon($type) {
         }
 
         function drawEntrantsDistributionChart() {
-            // Entrants distribution data from PHP - IMPROVED VERSION
+            // TODAY'S student distribution data from PHP - COUNT UNIQUE STUDENTS
             const distributionData = <?php echo json_encode($entrantsDistribution); ?>;
             
             const data = new google.visualization.DataTable();
@@ -1414,7 +1252,7 @@ function getPersonTypeIcon($type) {
             
             // If all data is zero, show a placeholder
             if (filteredData.length === 0) {
-                data.addRow(['No Data Available', 1]);
+                data.addRow(['No Students Today', 1]);
             } else {
                 // Add data with simplified labels
                 filteredData.forEach(item => {
@@ -1428,7 +1266,7 @@ function getPersonTypeIcon($type) {
                 backgroundColor: 'transparent',
                 chartArea: {
                     width: '95%', 
-                    height: '80%', // Increased chart area since legend is smaller
+                    height: '80%',
                     top: 10, 
                     left: 0,
                     right: 0,
@@ -1463,10 +1301,10 @@ function getPersonTypeIcon($type) {
                 // Use grid layout for better space utilization
                 legendContainer.style.display = 'grid';
                 legendContainer.style.gridTemplateColumns = 'repeat(2, 1fr)';
-                legendContainer.style.gap = '6px'; // Reduced gap
+                legendContainer.style.gap = '6px';
                 legendContainer.style.maxHeight = 'none';
                 legendContainer.style.overflow = 'visible';
-                legendContainer.style.padding = '5px'; // Reduced padding
+                legendContainer.style.padding = '5px';
                 
                 const dataToShow = filteredData.length === 0 ? distributionData : filteredData;
                 
@@ -1474,8 +1312,8 @@ function getPersonTypeIcon($type) {
                     const percentage = totalStudents > 0 ? ((item.total / totalStudents) * 100).toFixed(1) : '0';
                     const legendItem = document.createElement('div');
                     legendItem.className = 'legend-item';
-                    legendItem.style.margin = '1px 0'; // Reduced margin
-                    legendItem.style.padding = '4px 5px'; // Reduced padding
+                    legendItem.style.margin = '1px 0';
+                    legendItem.style.padding = '4px 5px';
                     legendItem.style.borderRadius = '5px';
                     legendItem.style.transition = 'all 0.2s ease';
                     
@@ -1530,6 +1368,22 @@ function getPersonTypeIcon($type) {
         window.addEventListener('resize', function() {
             drawCharts();
         });
+        
+        // Check if it's a new day and refresh if needed
+        function checkNewDay() {
+            const currentDate = new Date().toDateString();
+            const storedDate = localStorage.getItem('lastVisitDate');
+            
+            if (storedDate !== currentDate) {
+                localStorage.setItem('lastVisitDate', currentDate);
+                // Refresh the page to show new day's data
+                window.location.reload();
+            }
+        }
+        
+        // Check for new day every minute
+        setInterval(checkNewDay, 60000);
+        checkNewDay(); // Initial check
     </script>
 
     <script>
@@ -1555,40 +1409,6 @@ function getPersonTypeIcon($type) {
             window.location.reload();
         }, 60000);
     });
-
-    // Hover log functions
-    function showVisitorLogs() {
-        const hoverLog = document.getElementById('visitorLogs');
-        const card = hoverLog.parentElement;
-        const rect = card.getBoundingClientRect();
-        
-        hoverLog.style.top = (rect.bottom + 10) + 'px';
-        hoverLog.style.left = rect.left + 'px';
-        hoverLog.style.display = 'block';
-    }
-
-    function hideVisitorLogs() {
-        setTimeout(() => {
-            document.getElementById('visitorLogs').style.display = 'none';
-        }, 300);
-    }
-
-    // Close hover logs when clicking outside
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('.stats-card')) {
-            document.querySelectorAll('.hover-logs').forEach(log => {
-                log.style.display = 'none';
-            });
-        }
-    });
-    // Add this to your pie chart function for custom tooltips
-    google.visualization.events.addListener(chart, 'ready', function() {
-        const tooltips = document.querySelectorAll('.google-visualization-tooltip');
-        tooltips.forEach(tooltip => {
-            // You can customize the tooltip content here if needed
-        });
-    });
-
     </script>
 </body>
 </html>

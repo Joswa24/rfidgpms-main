@@ -33,6 +33,8 @@ if (isset($_SESSION['error_message'])) {
             --dark-text: #5a5c69;
             --warning-color: #f6c23e;
             --danger-color: #e74a3b;
+            --success-color: #1cc88a;
+            --info-color: #36b9cc;
             --border-radius: 15px;
             --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
             --transition: all 0.3s ease;
@@ -84,51 +86,120 @@ if (isset($_SESSION['error_message'])) {
             border-radius: 8px;
         }
 
+        /* Modern Button Styles */
         .btn {
-            border-radius: 8px;
+            border-radius: 10px;
             font-weight: 500;
             transition: var(--transition);
             border: none;
+            padding: 10px 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
         }
 
-        .btn-outline-warning {
-            color: var(--warning-color);
-            border: 1.5px solid var(--warning-color);
+        .btn::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            transition: width 0.3s ease;
+            z-index: -1;
         }
 
-        .btn-outline-warning:hover {
-            background-color: var(--warning-color);
+        .btn:hover::before {
+            width: 100%;
+        }
+
+        .btn i {
+            font-size: 0.9rem;
+        }
+
+        /* Add Room Button */
+        .btn-add {
+            background: linear-gradient(135deg, var(--warning-color), #f4b619);
             color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(246, 194, 62, 0.3);
+            box-shadow: 0 4px 15px rgba(246, 194, 62, 0.3);
         }
 
-        .btn-outline-primary {
-            color: var(--icon-color);
-            border: 1.5px solid var(--icon-color);
-        }
-
-        .btn-outline-primary:hover {
-            background-color: var(--icon-color);
+        .btn-add:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(246, 194, 62, 0.4);
             color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(92, 149, 233, 0.3);
         }
 
-        .btn-outline-danger {
-            color: var(--danger-color);
-            border: 1.5px solid var(--danger-color);
-        }
-
-        .btn-outline-danger:hover {
-            background-color: var(--danger-color);
+        /* Edit Button */
+        .btn-edit {
+            background: linear-gradient(135deg, var(--info-color), #2c9faf);
             color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(231, 74, 59, 0.3);
+            box-shadow: 0 4px 15px rgba(54, 185, 204, 0.3);
+        }
+
+        .btn-edit:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(54, 185, 204, 0.4);
+            color: white;
+        }
+
+        /* Delete Button */
+        .btn-delete {
+            background: linear-gradient(135deg, var(--danger-color), #d73525);
+            color: white;
+            box-shadow: 0 4px 15px rgba(231, 74, 59, 0.3);
+        }
+
+        .btn-delete:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(231, 74, 59, 0.4);
+            color: white;
+        }
+
+        /* Modal Footer Buttons */
+        .btn-close-modal {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+            color: white;
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+        }
+
+        .btn-close-modal:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4);
+            color: white;
+        }
+
+        .btn-save {
+            background: linear-gradient(135deg, var(--warning-color), #f4b619);
+            color: white;
+            box-shadow: 0 4px 15px rgba(246, 194, 62, 0.3);
+        }
+
+        .btn-save:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(246, 194, 62, 0.4);
+            color: white;
+        }
+
+        .btn-update {
+            background: linear-gradient(135deg, var(--info-color), #2c9faf);
+            color: white;
+            box-shadow: 0 4px 15px rgba(54, 185, 204, 0.3);
+        }
+
+        .btn-update:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(54, 185, 204, 0.4);
+            color: white;
         }
 
         .btn-sm {
-            padding: 6px 12px;
+            padding: 8px 15px;
             font-size: 0.875rem;
         }
 
@@ -266,6 +337,21 @@ if (isset($_SESSION['error_message'])) {
             border-radius: var(--border-radius) !important;
             font-family: inherit !important;
         }
+
+        /* Button container styling */
+        .button-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Table action buttons container */
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
     </style>
 </head>
 
@@ -286,8 +372,8 @@ if (isset($_SESSION['error_message'])) {
                             <div class="col-9">
                                 <h6 class="mb-4">Manage Rooms</h6>
                             </div>
-                            <div class="col-3">
-                                <button type="button" class="btn btn-outline-warning m-2" data-bs-toggle="modal" data-bs-target="#roomModal">
+                            <div class="col-3 d-flex justify-content-end">
+                                <button type="button" class="btn btn-add" data-bs-toggle="modal" data-bs-target="#roomModal">
                                     <i class="fas fa-plus-circle"></i> Add Room
                                 </button>
                             </div>
@@ -317,14 +403,14 @@ if (isset($_SESSION['error_message'])) {
                                         <td><?php echo $row['descr']; ?></td>
                                         <td><?php echo substr($row['password'], 0, 10) . '...'; ?></td>
                                         <td width="14%">
-                                            <center>
+                                            <div class="action-buttons">
                                                 <button authrole="<?php echo $row['authorized_personnel'];?>" 
                                                         descr="<?php echo $row['descr'];?>" 
                                                         pass="<?php echo $row['password'];?>" 
                                                         room="<?php echo $row['room'];?>" 
                                                         department="<?php echo $row['department'];?>" 
                                                         data-id="<?php echo $row['id'];?>" 
-                                                        class="btn btn-outline-primary btn-sm btn-edit e_room_id">
+                                                        class="btn btn-sm btn-edit e_room_id">
                                                     <i class="fas fa-edit"></i> Edit 
                                                 </button>
                                                 <button authrole="<?php echo $row['authorized_personnel'];?>" 
@@ -333,10 +419,10 @@ if (isset($_SESSION['error_message'])) {
                                                         room="<?php echo $row['room'];?>" 
                                                         department="<?php echo $row['department'];?>"  
                                                         data-id="<?php echo $row['id']; ?>" 
-                                                        class="btn btn-outline-danger btn-sm btn-del d_room_id">
+                                                        class="btn btn-sm btn-delete d_room_id">
                                                     <i class="fas fa-trash"></i> Delete 
                                                 </button>
-                                            </center> 
+                                            </div>
                                         </td>
                                     </tr>
                                     <?php } ?>
@@ -415,8 +501,8 @@ if (isset($_SESSION['error_message'])) {
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                                <button type="submit" class="btn btn-outline-warning" id="btn-room">Save</button>
+                                <button type="button" class="btn btn-close-modal" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-save" id="btn-room">Save</button>
                             </div>
                         </form>
                     </div>
@@ -492,8 +578,8 @@ if (isset($_SESSION['error_message'])) {
                             </div>
                             <div class="modal-footer">
                                 <input type="hidden" name="room_id" id="edit_roomid">
-                                <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                                <button type="submit" class="btn btn-outline-primary" id="btn-editroom">Update</button>
+                                <button type="button" class="btn btn-close-modal" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-update" id="btn-editroom">Update</button>
                             </div>
                         </form>
                     </div>

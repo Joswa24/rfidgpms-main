@@ -17,11 +17,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $stmt->bind_param("iss", $instructor_id, $username, $password);
         
         if ($stmt->execute()) {
-            $success_message = "Account created successfully!";
+            $_SESSION['success_message'] = "Account created successfully!";
         } else {
-            $error_message = "Error creating account: " . $db->error;
+            $_SESSION['error_message'] = "Error creating account: " . $db->error;
         }
         $stmt->close();
+        
+        // Redirect to prevent form resubmission
+        header("Location: manage_instructor_accounts.php");
+        exit;
         
     } elseif (isset($_POST['update_account'])) {
         // Update existing account
@@ -38,11 +42,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
         
         if ($stmt->execute()) {
-            $success_message = "Account updated successfully!";
+            $_SESSION['success_message'] = "Account updated successfully!";
         } else {
-            $error_message = "Error updating account: " . $db->error;
+            $_SESSION['error_message'] = "Error updating account: " . $db->error;
         }
         $stmt->close();
+        
+        // Redirect to prevent form resubmission
+        header("Location: manage_instructor_accounts.php");
+        exit;
         
     } elseif (isset($_POST['delete_account'])) {
         // Delete account
@@ -52,16 +60,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $stmt->bind_param("i", $account_id);
         
         if ($stmt->execute()) {
-            $success_message = "Account deleted successfully!";
+            $_SESSION['success_message'] = "Account deleted successfully!";
         } else {
-            $error_message = "Error deleting account: " . $db->error;
+            $_SESSION['error_message'] = "Error deleting account: " . $db->error;
         }
         $stmt->close();
+        
+        // Redirect to prevent form resubmission
+        header("Location: manage_instructor_accounts.php");
+        exit;
     }
 }
 
 // Fetch all instructors for dropdown (only those without accounts)
-$instructors_result = $db->query("
+ $instructors_result = $db->query("
     SELECT i.*, d.department_name 
     FROM instructor i 
     LEFT JOIN department d ON i.department_id = d.department_id 
@@ -70,14 +82,14 @@ $instructors_result = $db->query("
 ");
 
 // CORRECTED: Fetch all instructor accounts with instructor details
-$accounts_query = "
+ $accounts_query = "
     SELECT ia.*, i.fullname, i.id_number, i.department_id, d.department_name 
     FROM instructor_accounts ia 
     INNER JOIN instructor i ON ia.instructor_id = i.id 
     LEFT JOIN department d ON i.department_id = d.department_id 
     ORDER BY i.fullname
 ";
-$accounts_result = $db->query($accounts_query);
+ $accounts_result = $db->query($accounts_query);
 
 // Check for query errors
 if (!$accounts_result) {
@@ -92,27 +104,354 @@ if (!$accounts_result) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Instructor Accounts Management</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
     <style>
+        :root {
+            --primary-color: #e1e7f0ff;
+            --secondary-color: #b0caf0ff;
+            --accent-color: #f3f5fcff;
+            --icon-color: #5c95e9ff;
+            --light-bg: #f8f9fc;
+            --dark-text: #5a5c69;
+            --warning-color: #f6c23e;
+            --danger-color: #e74a3b;
+            --success-color: #1cc88a;
+            --info-color: #36b9cc;
+            --border-radius: 15px;
+            --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            --transition: all 0.3s ease;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            font-family: 'Inter', sans-serif;
+            color: var(--dark-text);
+        }
+
+        .content {
+            background: transparent;
+        }
+
+        .bg-light {
+            background-color: var(--light-bg) !important;
+            border-radius: var(--border-radius);
+        }
+
+        .card {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            background: white;
+        }
+
+        .table th {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
+            color: white;
+            font-weight: 600;
+            border: none;
+            padding: 15px 12px;
+        }
+
+        .table td {
+            padding: 12px;
+            border-color: rgba(0,0,0,0.05);
+            vertical-align: middle;
+        }
+
+        .table-responsive {
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            min-height: 400px;
+        }
+
+        .badge {
+            font-size: 0.85em;
+            border-radius: 8px;
+        }
+
+        /* Modern Button Styles */
+        .btn {
+            border-radius: 10px;
+            font-weight: 500;
+            transition: var(--transition);
+            border: none;
+            padding: 10px 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .btn::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            transition: width 0.3s ease;
+            z-index: -1;
+        }
+
+        .btn:hover::before {
+            width: 100%;
+        }
+
+        .btn i {
+            font-size: 0.9rem;
+        }
+
+        /* Add Account Button */
+        .btn-add {
+            background: linear-gradient(135deg, var(--warning-color), #f4b619);
+            color: white;
+            box-shadow: 0 4px 15px rgba(246, 194, 62, 0.3);
+        }
+
+        .btn-add:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(246, 194, 62, 0.4);
+            color: white;
+        }
+
+        /* Edit Button */
+        .btn-edit {
+            background: linear-gradient(135deg, var(--info-color), #2c9faf);
+            color: white;
+            box-shadow: 0 4px 15px rgba(54, 185, 204, 0.3);
+        }
+
+        .btn-edit:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(54, 185, 204, 0.4);
+            color: white;
+        }
+
+        /* Delete Button */
+        .btn-delete {
+            background: linear-gradient(135deg, var(--danger-color), #d73525);
+            color: white;
+            box-shadow: 0 4px 15px rgba(231, 74, 59, 0.3);
+        }
+
+        .btn-delete:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(231, 74, 59, 0.4);
+            color: white;
+        }
+
+        /* Modal Footer Buttons */
+        .btn-close-modal {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+            color: white;
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+        }
+
+        .btn-close-modal:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4);
+            color: white;
+        }
+
+        .btn-save {
+            background: linear-gradient(135deg, var(--warning-color), #f4b619);
+            color: white;
+            box-shadow: 0 4px 15px rgba(246, 194, 62, 0.3);
+        }
+
+        .btn-save:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(246, 194, 62, 0.4);
+            color: white;
+        }
+
+        .btn-update {
+            background: linear-gradient(135deg, var(--info-color), #2c9faf);
+            color: white;
+            box-shadow: 0 4px 15px rgba(54, 185, 204, 0.3);
+        }
+
+        .btn-update:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(54, 185, 204, 0.4);
+            color: white;
+        }
+
+        .btn-confirm {
+            background: linear-gradient(135deg, var(--danger-color), #d73525);
+            color: white;
+            box-shadow: 0 4px 15px rgba(231, 74, 59, 0.3);
+        }
+
+        .btn-confirm:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(231, 74, 59, 0.4);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 8px 15px;
+            font-size: 0.875rem;
+        }
+
+        .modal-content {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
+            color: white;
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
+            border: none;
+            padding: 20px 25px;
+        }
+
+        .modal-title {
+            font-weight: 600;
+        }
+
+        .btn-close {
+            filter: invert(1);
+        }
+
+        .form-control, .form-select {
+            border-radius: 8px;
+            border: 1.5px solid #e3e6f0;
+            padding: 12px 16px;
+            transition: var(--transition);
+            background-color: var(--light-bg);
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--icon-color);
+            box-shadow: 0 0 0 3px rgba(92, 149, 233, 0.15);
+            background-color: white;
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: var(--dark-text);
+            margin-bottom: 8px;
+        }
+
+        .alert {
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .alert-success {
+            background-color: #d1edff;
+            color: #0c5460;
+            border-left: 4px solid #117a8b;
+        }
+
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+
+        .alert-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border-left: 4px solid #0c5460;
+        }
+
+        .back-to-top {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color)) !important;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--box-shadow);
+            transition: var(--transition);
+        }
+
+        .back-to-top:hover {
+            transform: translateY(-3px);
+        }
+
+        h4.mb-0 {
+            color: var(--dark-text);
+            font-weight: 700;
+            font-size: 1.25rem;
+        }
+
+        hr {
+            opacity: 0.1;
+            margin: 1.5rem 0;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(92, 149, 233, 0.05);
+            transform: translateY(-1px);
+            transition: var(--transition);
+        }
+
+        /* SweetAlert customization */
+        .swal2-popup {
+            border-radius: var(--border-radius) !important;
+        }
+
+        /* Button container styling */
+        .button-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Table action buttons container */
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        /* Password field styling */
         .password-field {
             position: relative;
         }
+
         .toggle-password {
             position: absolute;
             right: 10px;
             top: 50%;
             transform: translateY(-50%);
             cursor: pointer;
+            color: var(--dark-text);
         }
-        .table-responsive {
-            min-height: 400px;
-        }
+
         .status-badge {
             font-size: 0.8rem;
             padding: 0.35em 0.65em;
         }
-        .alert {
-            border-radius: 8px;
+
+        /* Instructor icon styling */
+        .instructor-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #dee2e6;
+            background: linear-gradient(135deg, var(--icon-color), #4a7ec7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 8px rgba(92, 149, 233, 0.3);
         }
     </style>
 </head>
@@ -128,26 +467,33 @@ if (!$accounts_result) {
             <div class="container-fluid pt-4 px-4">
                 <div class="col-sm-12 col-xl-12">
                     <div class="bg-light rounded h-100 p-4">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <h4 class="mb-0">Instructor Accounts Management</h4>
-                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAccountModal">
-                                <i class="fas fa-plus me-2"></i>Add New Account
-                            </button>
+                        <div class="row">
+                            <div class="col-9">
+                                <h6 class="mb-4">Instructor Accounts Management</h6>
+                            </div>
+                            <div class="col-3 d-flex justify-content-end">
+                                <button type="button" class="btn btn-add" data-bs-toggle="modal" data-bs-target="#addAccountModal">
+                                    <i class="fas fa-plus-circle"></i> Add New Account
+                                </button>
+                            </div>
                         </div>
+                        <hr>
                         
                         <!-- Success/Error Messages -->
-                        <?php if (isset($success_message)): ?>
+                        <?php if (isset($_SESSION['success_message'])): ?>
                             <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                <i class="fas fa-check-circle me-2"></i><?php echo $success_message; ?>
+                                <i class="fas fa-check-circle me-2"></i><?php echo $_SESSION['success_message']; ?>
                                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                             </div>
+                            <?php unset($_SESSION['success_message']); ?>
                         <?php endif; ?>
                         
-                        <?php if (isset($error_message)): ?>
+                        <?php if (isset($_SESSION['error_message'])): ?>
                             <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                                <i class="fas fa-exclamation-circle me-2"></i><?php echo $error_message; ?>
+                                <i class="fas fa-exclamation-circle me-2"></i><?php echo $_SESSION['error_message']; ?>
                                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                             </div>
+                            <?php unset($_SESSION['error_message']); ?>
                         <?php endif; ?>
                         
                         <div class="alert alert-info">
@@ -156,24 +502,29 @@ if (!$accounts_result) {
                         </div>
                         
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover" id="accountsTable">
+                            <table class="table table-border" id="accountsTable">
                                 <thead>
                                     <tr>
-                                        <th>Instructor</th>
-                                        <th>ID Number</th>
-                                        <th>Department</th>
-                                        <th>Username</th>
-                                        <th>Last Login</th>
-                                        <th>Status</th>
-                                        <th>Actions</th>
+                                        <th scope="col">Instructor</th>
+                                        <th scope="col">ID Number</th>
+                                        <th scope="col">Department</th>
+                                        <th scope="col">Username</th>
+                                        <th scope="col">Last Login</th>
+                                        <th scope="col">Status</th>
+                                        <th scope="col">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php if ($accounts_result && $accounts_result->num_rows > 0): ?>
                                         <?php while ($account = $accounts_result->fetch_assoc()): ?>
-                                            <tr>
+                                            <tr class="table-<?php echo $account['id'];?>">
                                                 <td>
-                                                    <strong><?php echo htmlspecialchars($account['fullname']); ?></strong>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="instructor-icon me-2">
+                                                            <i class="fas fa-user-tie"></i>
+                                                        </div>
+                                                        <strong><?php echo htmlspecialchars($account['fullname']); ?></strong>
+                                                    </div>
                                                 </td>
                                                 <td><?php echo htmlspecialchars($account['id_number']); ?></td>
                                                 <td><?php echo htmlspecialchars($account['department_name'] ?? 'N/A'); ?></td>
@@ -184,20 +535,22 @@ if (!$accounts_result) {
                                                 <td>
                                                     <span class="badge bg-success status-badge">Active</span>
                                                 </td>
-                                                <td>
-                                                    <button class="btn btn-sm btn-warning edit-btn" 
-                                                            data-id="<?php echo $account['id']; ?>"
-                                                            data-instructor-id="<?php echo $account['instructor_id']; ?>"
-                                                            data-username="<?php echo htmlspecialchars($account['username']); ?>"
-                                                            data-fullname="<?php echo htmlspecialchars($account['fullname']); ?>">
-                                                        <i class="fas fa-edit me-1"></i>Edit
-                                                    </button>
-                                                    <button class="btn btn-sm btn-danger delete-btn" 
-                                                            data-id="<?php echo $account['id']; ?>"
-                                                            data-username="<?php echo htmlspecialchars($account['username']); ?>"
-                                                            data-instructor="<?php echo htmlspecialchars($account['fullname']); ?>">
-                                                        <i class="fas fa-trash me-1"></i>Delete
-                                                    </button>
+                                                <td width="14%">
+                                                    <div class="action-buttons">
+                                                        <button class="btn btn-sm btn-edit edit-btn" 
+                                                                data-id="<?php echo $account['id']; ?>"
+                                                                data-instructor-id="<?php echo $account['instructor_id']; ?>"
+                                                                data-username="<?php echo htmlspecialchars($account['username']); ?>"
+                                                                data-fullname="<?php echo htmlspecialchars($account['fullname']); ?>">
+                                                            <i class="fas fa-edit"></i> Edit 
+                                                        </button>
+                                                        <button class="btn btn-sm btn-delete delete-btn" 
+                                                                data-id="<?php echo $account['id']; ?>"
+                                                                data-username="<?php echo htmlspecialchars($account['username']); ?>"
+                                                                data-instructor="<?php echo htmlspecialchars($account['fullname']); ?>">
+                                                            <i class="fas fa-trash"></i> Delete 
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         <?php endwhile; ?>
@@ -223,11 +576,14 @@ if (!$accounts_result) {
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title" id="addAccountModalLabel">Add Instructor Account</h5>
+                            <h5 class="modal-title" id="addAccountModalLabel">
+                                <i class="fas fa-plus-circle"></i> Add Instructor Account
+                            </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <form method="POST" id="addAccountForm">
                             <div class="modal-body">
+                                <div class="col-lg-11 mb-2 mt-1" id="mgs-account" style="margin-left: 4%"></div>
                                 <div class="mb-3">
                                     <label for="instructor_id" class="form-label">Choose an Instructor</label>
                                     <select class="form-select" id="instructor_id" name="instructor_id" required>
@@ -283,8 +639,8 @@ if (!$accounts_result) {
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                <button type="submit" class="btn btn-primary" name="add_account">Create Account</button>
+                                <button type="button" class="btn btn-close-modal" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-save" name="add_account">Create Account</button>
                             </div>
                         </form>
                     </div>
@@ -296,13 +652,16 @@ if (!$accounts_result) {
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title" id="editAccountModalLabel">Edit Instructor Account</h5>
+                            <h5 class="modal-title" id="editAccountModalLabel">
+                                <i class="fas fa-edit"></i> Edit Instructor Account
+                            </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <form method="POST" id="editAccountForm">
                             <input type="hidden" id="edit_account_id" name="account_id">
                             <input type="hidden" id="edit_instructor_id" name="instructor_id">
                             <div class="modal-body">
+                                <div class="col-lg-11 mb-2 mt-1" id="mgs-editaccount" style="margin-left: 4%"></div>
                                 <div class="mb-3">
                                     <label class="form-label">Instructor</label>
                                     <div class="card bg-light">
@@ -333,8 +692,8 @@ if (!$accounts_result) {
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                <button type="submit" class="btn btn-primary" name="update_account">Update Account</button>
+                                <button type="button" class="btn btn-close-modal" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-update" name="update_account">Update Account</button>
                             </div>
                         </form>
                     </div>
@@ -346,7 +705,9 @@ if (!$accounts_result) {
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title" id="deleteAccountModalLabel">Confirm Deletion</h5>
+                            <h5 class="modal-title" id="deleteAccountModalLabel">
+                                <i class="fas fa-trash"></i> Confirm Deletion
+                            </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <form method="POST" id="deleteAccountForm">
@@ -359,9 +720,9 @@ if (!$accounts_result) {
                                 </p>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                <button type="submit" class="btn btn-danger" name="delete_account">
-                                    <i class="fas fa-trash me-1"></i>Delete Account
+                                <button type="button" class="btn btn-close-modal" data-bs-dismiss="modal">No</button>
+                                <button type="submit" class="btn btn-confirm" name="delete_account">
+                                    <i class="fas fa-trash me-1"></i>Yes, Delete
                                 </button>
                             </div>
                         </form>
@@ -371,14 +732,37 @@ if (!$accounts_result) {
 
             <?php include 'footer.php'; ?>
         </div>
+
+         <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top"><i class="bi bi-arrow-up"></i></a>
     </div>
 
     <!-- JavaScript Libraries -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="lib/chart/chart.min.js"></script>
+    <script src="lib/easing/easing.min.js"></script>
+    <script src="lib/waypoints/waypoints.min.js"></script>
+    <script src="lib/owlcarousel/owl.carousel.min.js"></script>
+    <script src="lib/tempusdominus/js/moment.min.js"></script>
+    <script src="lib/tempusdominus/js/moment-timezone.min.js"></script>
+    <script src="lib/tempusdominus/js/tempusdominus-bootstrap-4.min.js"></script>
 
+    <!-- Template Javascript -->
+    <script src="js/main.js"></script>
     <script>
+    $(document).ready(function() {
+        // Initialize DataTable
+        var dataTable = $('#accountsTable').DataTable({
+            order: [[0, 'asc']],
+            stateSave: true,
+            columnDefs: [
+                { orderable: false, targets: [6] } // Disable sorting on actions column
+            ]
+        });
+
         // Toggle password visibility
         function togglePassword(fieldId) {
             const field = document.getElementById(fieldId);
@@ -435,54 +819,38 @@ if (!$accounts_result) {
         });
 
         // Handle edit button clicks
-        document.querySelectorAll('.edit-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                const accountId = this.getAttribute('data-id');
-                const instructorId = this.getAttribute('data-instructor-id');
-                const username = this.getAttribute('data-username');
-                const fullname = this.getAttribute('data-fullname');
-                
-                document.getElementById('edit_account_id').value = accountId;
-                document.getElementById('edit_instructor_id').value = instructorId;
-                document.getElementById('edit_instructor_name').textContent = fullname;
-                document.getElementById('edit_username').value = username;
-                
-                // Clear password fields
-                document.getElementById('edit_password').value = '';
-                document.getElementById('edit_confirm_password').value = '';
-                
-                // Show the modal
-                new bootstrap.Modal(document.getElementById('editAccountModal')).show();
-            });
+        $(document).on('click', '.edit-btn', function() {
+            const accountId = $(this).attr('data-id');
+            const instructorId = $(this).attr('data-instructor-id');
+            const username = $(this).attr('data-username');
+            const fullname = $(this).attr('data-fullname');
+            
+            $('#edit_account_id').val(accountId);
+            $('#edit_instructor_id').val(instructorId);
+            $('#edit_instructor_name').text(fullname);
+            $('#edit_username').val(username);
+            
+            // Clear password fields
+            $('#edit_password').val('');
+            $('#edit_confirm_password').val('');
+            
+            // Show the modal
+            $('#editAccountModal').modal('show');
         });
 
         // Handle delete button clicks
-        document.querySelectorAll('.delete-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                const accountId = this.getAttribute('data-id');
-                const username = this.getAttribute('data-username');
-                const instructorName = this.getAttribute('data-instructor');
-                
-                document.getElementById('delete_account_id').value = accountId;
-                document.getElementById('delete_instructor_name').textContent = `${instructorName} (${username})`;
-                
-                // Show the modal
-                new bootstrap.Modal(document.getElementById('deleteAccountModal')).show();
-            });
+        $(document).on('click', '.delete-btn', function() {
+            const accountId = $(this).attr('data-id');
+            const username = $(this).attr('data-username');
+            const instructorName = $(this).attr('data-instructor');
+            
+            $('#delete_account_id').val(accountId);
+            $('#delete_instructor_name').text(`${instructorName} (${username})`);
+            
+            // Show the modal
+            $('#deleteAccountModal').modal('show');
         });
-
-        // Initialize DataTable if there are records
-        <?php if ($accounts_result && $accounts_result->num_rows > 0): ?>
-            $(document).ready(function() {
-                $('#accountsTable').DataTable({
-                    responsive: true,
-                    columnDefs: [
-                        { orderable: false, targets: [6] } // Disable sorting on actions column
-                    ],
-                    order: [[0, 'asc']] // Sort by instructor name
-                });
-            });
-        <?php endif; ?>
+    });
     </script>
 </body>
 </html>

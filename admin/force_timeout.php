@@ -1,37 +1,60 @@
 <?php
 session_start();
-include 'connection.php';
+include '../connection.php';
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['log_id'])) {
-    echo json_encode(['success' => false, 'message' => 'Invalid request']);
+header('Content-Type: application/json');
+
+if (!isset($_SESSION['user_id'])) {
+    echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
+    exit;
+}
+
+if (!isset($_POST['log_id']) || empty($_POST['log_id'])) {
+    echo json_encode(['success' => false, 'message' => 'Log ID is required']);
     exit;
 }
 
 $logId = intval($_POST['log_id']);
+$currentTime = date('Y-m-d H:i:s');
 
-// Check if log exists and hasn't timed out yet
-$checkQuery = "SELECT * FROM visitor_logs WHERE id = ? AND time_out IS NULL";
-$checkStmt = $db->prepare($checkQuery);
-$checkStmt->bind_param("i", $logId);
-$checkStmt->execute();
-$result = $checkStmt->get_result();
-
-if ($result->num_rows === 0) {
-    echo json_encode(['success' => false, 'message' => 'Log not found or already timed out']);
-    exit;
+try {
+    // First, check if the log exists and hasn't been timed out yet
+    $checkQuery = "SELECT id, full_name FROM visitor_logs WHERE id = ? AND time_out IS NULL";
+    $checkStmt = $db->prepare($checkQuery);
+    $checkStmt->bind_param('i', $logId);
+    $checkStmt->execute();
+    $checkResult = $checkStmt->get_result();
+    
+    if ($checkResult->num_rows === 0) {
+        echo json_encode(['success' => false, 'message' => 'Log not found or already checked out']);
+        exit;
+    }
+    
+    $visitorData = $checkResult->fetch_assoc();
+    $checkStmt->close();
+    
+    // Update the time_out
+    $updateQuery = "UPDATE visitor_logs SET time_out = ? WHERE id = ?";
+    $updateStmt = $db->prepare($updateQuery);
+    $updateStmt->bind_param('si', $currentTime, $logId);
+    
+    if ($updateStmt->execute()) {
+        // Log the action
+        $adminId = $_SESSION['user_id'];
+        $action = "Forced time out for visitor: " . $visitorData['full_name'];
+        $logQuery = "INSERT INTO admin_logs (admin_id, action, timestamp) VALUES (?, ?, ?)";
+        $logStmt = $db->prepare($logQuery);
+        $logStmt->bind_param('iss', $adminId, $action, $currentTime);
+        $logStmt->execute();
+        $logStmt->close();
+        
+        echo json_encode(['success' => true, 'message' => 'Time out recorded successfully']);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Failed to update time out']);
+    }
+    
+    $updateStmt->close();
+} catch (Exception $e) {
+    echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
 }
-
-// Update time out
-$updateQuery = "UPDATE visitor_logs SET time_out = NOW() WHERE id = ?";
-$updateStmt = $db->prepare($updateQuery);
-$updateStmt->bind_param("i", $logId);
-
-if ($updateStmt->execute()) {
-    echo json_encode(['success' => true, 'message' => 'Time out recorded successfully']);
-} else {
-    echo json_encode(['success' => false, 'message' => 'Database error']);
-}
-
-$checkStmt->close();
-$updateStmt->close();
 ?>

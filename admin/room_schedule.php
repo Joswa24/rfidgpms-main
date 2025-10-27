@@ -55,108 +55,254 @@ if (isset($_GET['edit'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Room Schedules</title>
+    <title>Room Schedules - RFIDGPMS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
+        :root {
+            --primary-color: #e1e7f0ff;
+            --secondary-color: #b0caf0ff;
+            --accent-color: #f3f5fcff;
+            --icon-color: #5c95e9ff;
+            --light-bg: #f8f9fc;
+            --dark-text: #5a5c69;
+            --warning-color: #f6c23e;
+            --danger-color: #e74a3b;
+            --success-color: #1cc88a;
+            --info-color: #36b9cc;
+            --border-radius: 15px;
+            --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            --transition: all 0.3s ease;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            font-family: 'Inter', sans-serif;
+            color: var(--dark-text);
+        }
+
+        .content {
+            background: transparent;
+        }
+
         .bg-light {
-            background-color: #f8f9fa !important;
+            background-color: var(--light-bg) !important;
+            border-radius: var(--border-radius);
         }
+
         .card {
-            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            background: white;
+            transition: var(--transition);
         }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        }
+
         .table th {
-            background-color: #4e73df;
+            background: linear-gradient(135deg, var(--icon-color), #4361ee);
             color: white;
+            font-weight: 600;
+            border: none;
+            padding: 15px 12px;
         }
+
+        .table td {
+            padding: 12px;
+            border-color: rgba(0,0,0,0.05);
+            vertical-align: middle;
+        }
+
+        .table-responsive {
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            max-height: 600px;
+        }
+
         .badge {
             font-size: 0.85em;
+            border-radius: 8px;
+            padding: 6px 10px;
         }
-        .section-header {
-            background-color: #f8d7da;
-            border-left: 4px solid #dc3545;
+
+        .btn {
+            border-radius: 8px;
+            font-weight: 500;
+            transition: var(--transition);
+            border: none;
         }
-        .btn-del {
-            transition: all 0.3s ease;
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--icon-color), #4361ee);
         }
-        .btn-del:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success-color), #17a673);
         }
-        .swal2-popup {
-            font-family: inherit;
+
+        .btn-warning {
+            background: linear-gradient(135deg, var(--warning-color), #f4b619);
         }
-        .error-message {
-            color: #dc3545;
-            font-size: 0.875rem;
-            margin-top: 0.25rem;
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger-color), #be2617);
         }
+
+        .btn-info {
+            background: linear-gradient(135deg, var(--info-color), #2e59d9);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .form-control, .form-select {
+            border-radius: 8px;
+            border: 2px solid var(--accent-color);
+            padding: 10px 15px;
+            transition: var(--transition);
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--icon-color);
+            box-shadow: 0 0 0 3px rgba(92, 149, 233, 0.1);
+        }
+
+        .action-buttons {
+            white-space: nowrap;
+        }
+
+        .action-buttons .btn {
+            margin: 2px;
+            padding: 6px 10px;
+        }
+
+        .filter-section {
+            background: var(--light-bg);
+            border-radius: var(--border-radius);
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(92, 149, 233, 0.05);
+            transform: translateY(-1px);
+            transition: var(--transition);
+        }
+
+        .time-display {
+            background: linear-gradient(135deg, var(--icon-color), #4361ee);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 0.85rem;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            min-width: 140px;
+        }
+
+        .time-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .time-icon {
+            width: 20px;
+            text-align: center;
+            font-size: 0.8rem;
+        }
+
+        .time-text {
+            flex: 1;
+        }
+
         .schedule-icon {
-            width: 50px;
-            height: 50px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             object-fit: cover;
-            border: 2px solid #dee2e6;
-            background-color: #4e73df;
+            border: 2px solid var(--accent-color);
+            background: linear-gradient(135deg, var(--icon-color), #4361ee);
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 1.2rem;
+            font-size: 1rem;
         }
-        .time-badge {
-            background-color: #e9ecef;
-            color: #495057;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.25rem;
+
+        .section-header {
+            background: linear-gradient(135deg, rgba(220, 53, 69, 0.1), rgba(220, 53, 69, 0.05));
+            border-left: 4px solid var(--danger-color);
+            border-radius: 8px;
+        }
+
+        .btn-del {
+            transition: all 0.3s ease;
+        }
+
+        .btn-del:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+        }
+
+        .error-message {
+            color: var(--danger-color);
             font-size: 0.875rem;
+            margin-top: 0.25rem;
         }
-        .filter-section {
-            background-color: #e9ecef;
-            border-radius: 5px;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-        .filter-btn {
-            margin-top: 32px;
-        }
+
         .filter-badge {
-            background-color: #4e73df;
+            background: linear-gradient(135deg, var(--icon-color), #4361ee);
             color: white;
             padding: 0.25rem 0.5rem;
             border-radius: 0.25rem;
             font-size: 0.75rem;
             margin-left: 5px;
         }
+
         .option-disabled {
             color: #6c757d;
             font-style: italic;
         }
+
         .swap-preview {
-            background-color: #f8f9fa;
-            border-radius: 5px;
+            background-color: var(--light-bg);
+            border-radius: var(--border-radius);
             padding: 15px;
             margin-top: 15px;
         }
+
         .schedule-card {
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
+            border: 1px solid var(--accent-color);
+            border-radius: var(--border-radius);
             padding: 10px;
             margin-bottom: 10px;
         }
+
         .schedule-card.highlight {
-            border-color: #4e73df;
-            background-color: #e7f1ff;
+            border-color: var(--icon-color);
+            background-color: rgba(92, 149, 233, 0.05);
         }
+
         .swap-arrow {
             font-size: 2rem;
-            color: #4e73df;
+            color: var(--icon-color);
             text-align: center;
             margin: 10px 0;
         }
+
         /* Flip Card Styles */
         .schedule-flip-card {
             background-color: transparent;
@@ -186,14 +332,14 @@ if (isset($_GET['edit'])) {
             height: 100%;
             -webkit-backface-visibility: hidden;
             backface-visibility: hidden;
-            border-radius: 8px;
+            border-radius: var(--border-radius);
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
             overflow: hidden;
         }
 
         .schedule-flip-card-front {
-            background-color: #f8f9fa;
-            color: #333;
+            background-color: var(--light-bg);
+            color: var(--dark-text);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -202,7 +348,7 @@ if (isset($_GET['edit'])) {
         }
 
         .schedule-flip-card-back {
-            background-color: #4e73df;
+            background: linear-gradient(135deg, var(--icon-color), #4361ee);
             color: white;
             transform: rotateY(180deg);
             display: flex;
@@ -212,12 +358,12 @@ if (isset($_GET['edit'])) {
         }
 
         .schedule-flip-card.selected .schedule-flip-card-front {
-            border: 2px solid #4e73df;
-            background-color: #e7f1ff;
+            border: 2px solid var(--icon-color);
+            background-color: rgba(92, 149, 233, 0.1);
         }
 
         .schedule-flip-card.selected .schedule-flip-card-back {
-            background-color: #2e59d9;
+            background: linear-gradient(135deg, #2e59d9, #4361ee);
         }
 
         .schedule-info {
@@ -237,16 +383,16 @@ if (isset($_GET['edit'])) {
         }
 
         .time-badge {
-            background-color: #4e73df;
+            background: linear-gradient(135deg, var(--icon-color), #4361ee);
             color: white;
             padding: 5px 10px;
-            border-radius: 4px;
+            border-radius: 8px;
             font-weight: bold;
             margin-bottom: 10px;
         }
 
         .schedule-flip-card.selected .time-badge {
-            background-color: #2e59d9;
+            background: linear-gradient(135deg, #2e59d9, #4361ee);
         }
 
         .schedule-flip-card-front h6 {
@@ -261,11 +407,73 @@ if (isset($_GET['edit'])) {
 
         .select-schedule-btn {
             margin-top: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+        }
+
+        .select-schedule-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.5);
         }
 
         .schedule-card {
             max-height: 400px;
             overflow-y: auto;
+        }
+
+        .export-btn {
+            background: linear-gradient(135deg, var(--success-color), #17a673);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(28, 200, 138, 0.4);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .swal2-popup {
+            border-radius: 15px;
+            font-family: 'Inter', sans-serif;
+        }
+        .swal2-title {
+            color: var(--dark-text);
+        }
+        .swal2-confirm {
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        .swal2-cancel {
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .room-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--icon-color), #4361ee);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+            margin-right: 10px;
+        }
+
+        .room-info {
+            display: flex;
+            align-items: center;
         }
     </style>
 </head>
@@ -285,14 +493,14 @@ if (isset($_GET['edit'])) {
                     <div class="bg-light rounded h-100 p-4">
                         <div class="row">
                             <div class="col-7">
-                                <h6 class="mb-4">Manage Room Schedules</h6>
+                                <h6 class="mb-4"><i class="fas fa-calendar-alt me-2"></i>Room Schedules Management</h6>
                             </div>
                             <div class="col-5 text-end">
-                                <button type="button" class="btn btn-outline-info m-2" data-bs-toggle="modal" data-bs-target="#swapScheduleModal">
-                                    <i class="fas fa-exchange-alt"></i> Swap Schedule
+                                <button type="button" class="btn btn-info m-2" data-bs-toggle="modal" data-bs-target="#swapScheduleModal">
+                                    <i class="fas fa-exchange-alt me-2"></i>Swap Schedule
                                 </button>
-                                <button type="button" class="btn btn-outline-warning m-2" data-bs-toggle="modal" data-bs-target="#scheduleModal">
-                                    <i class="fas fa-plus-circle"></i> Add Schedule
+                                <button type="button" class="btn btn-warning m-2" data-bs-toggle="modal" data-bs-target="#scheduleModal">
+                                    <i class="fas fa-plus-circle me-2"></i>Add Schedule
                                 </button>
                             </div>
                         </div>
@@ -302,7 +510,7 @@ if (isset($_GET['edit'])) {
                             <div class="row">
                                 <div class="col-md-3">
                                     <div class="form-group">
-                                    <label><b>Department:</b></label>
+                                    <label class="fw-bold">Department:</label>
                                         <select class="form-control filter-select" id="filter_department" name="filter_department">
                                             <option value="">All Departments</option>
                                             <?php 
@@ -324,7 +532,7 @@ if (isset($_GET['edit'])) {
                                 </div>
                                 <div class="col-md-3">
                                     <div class="form-group">
-                                        <label><b>Room:</b></label>
+                                        <label class="fw-bold">Room:</label>
                                         <select class="form-control filter-select" id="filter_room" name="filter_room">
                                             <option value="">All Rooms</option>
                                             <?php while ($room = $rooms->fetch_assoc()): ?>
@@ -337,7 +545,7 @@ if (isset($_GET['edit'])) {
                                 </div>
                                 <div class="col-md-3">
                                     <div class="form-group">
-                                        <label><b>Subject:</b></label>
+                                        <label class="fw-bold">Subject:</label>
                                         <select class="form-control filter-select" id="filter_subject" name="filter_subject">
                                             <option value="">All Subjects</option>
                                             <?php while ($subject = $subjects->fetch_assoc()): ?>
@@ -350,7 +558,7 @@ if (isset($_GET['edit'])) {
                                 </div>
                                 <div class="col-md-3">
                                     <div class="form-group">
-                                        <label><b>Year Level:</b></label>
+                                        <label class="fw-bold">Year Level:</label>
                                         <select class="form-control filter-select" id="filter_year_level" name="filter_year_level">
                                             <option value="">All Year Levels</option>
                                             <?php while ($year = $year_levels->fetch_assoc()): ?>
@@ -365,7 +573,7 @@ if (isset($_GET['edit'])) {
                             <div class="row mt-2">
                                 <div class="col-md-3">
                                     <div class="form-group">
-                                        <label><b>Day:</b></label>
+                                        <label class="fw-bold">Day:</label>
                                         <select class="form-control filter-select" id="filter_day" name="filter_day">
                                             <option value="">All Days</option>
                                             <?php while ($day = $days->fetch_assoc()): ?>
@@ -378,7 +586,7 @@ if (isset($_GET['edit'])) {
                                 </div>
                                 <div class="col-md-3">
                                     <div class="form-group">
-                                        <label><b>Instructor:</b></label>
+                                        <label class="fw-bold">Instructor:</label>
                                         <select class="form-control filter-select" id="filter_instructor" name="filter_instructor">
                                             <option value="">All Instructors</option>
                                             <?php while ($instructor = $instructors->fetch_assoc()): ?>
@@ -391,7 +599,7 @@ if (isset($_GET['edit'])) {
                                 </div>
                                 <div class="col-md-3">
                                     <div class="form-group">
-                                        <label><b>Time Range:</b></label>
+                                        <label class="fw-bold">Time Range:</label>
                                         <select class="form-control filter-select" id="filter_time" name="filter_time">
                                             <option value="">All Times</option>
                                             <option value="morning">Morning (6AM-12PM)</option>
@@ -402,9 +610,17 @@ if (isset($_GET['edit'])) {
                                 </div>
                                 <div class="col-md-3">
                                     <div class="form-group filter-btn">
-                                        <button type="button" class="btn btn-outline-secondary w-100" id="resetFilters">
-                                            <i class="fas fa-refresh"></i> Reset Filters
-                                        </button>
+                                        <div class="d-flex gap-2 w-100">
+                                            <button type="button" class="btn btn-primary flex-fill" id="applyFilters">
+                                                <i class="fas fa-filter me-2"></i>Apply Filters
+                                            </button>
+                                            <button type="button" class="btn btn-secondary" id="resetFilters">
+                                                <i class="fas fa-sync me-2"></i>
+                                            </button>
+                                            <button type="button" class="btn export-btn" onclick="exportToExcel()">
+                                                <i class="fas fa-file-excel me-2"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -417,79 +633,97 @@ if (isset($_GET['edit'])) {
                             </div>
                         </div>
                         
-                        <hr>
-                        <div class="table-responsive">
-                            <table class="table table-border" id="myDataTable">
-                                <thead>
-                                    <tr>
-                                        <th scope="col">Icon</th>
-                                        <th scope="col">Room</th>
-                                        <th scope="col">Subject</th>
-                                        <th scope="col">Section</th>
-                                        <th scope="col">Year</th>
-                                        <th scope="col">Day</th>
-                                        <th scope="col">Instructor</th>
-                                        <th scope="col">Time</th>
-                                        <th scope="col">Action</th>
-                                        <th style="display: none;">Date Added</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php while ($row = $schedules->fetch_assoc()): ?>
-                                    <tr class="table-<?= $row['id'] ?>" data-schedule-id="<?= $row['id'] ?>">
-                                        <input class="department" type="hidden" value="<?= htmlspecialchars($row['department']) ?>" />
-                                        <input class="room_name" type="hidden" value="<?= htmlspecialchars($row['room_name']) ?>" />
-                                        <input class="subject" type="hidden" value="<?= htmlspecialchars($row['subject']) ?>" />
-                                        <input class="section" type="hidden" value="<?= htmlspecialchars($row['section']) ?>" />
-                                        <input class="year_level" type="hidden" value="<?= htmlspecialchars($row['year_level']) ?>" />
-                                        <input class="day" type="hidden" value="<?= htmlspecialchars($row['day']) ?>" />
-                                        <input class="instructor" type="hidden" value="<?= htmlspecialchars($row['instructor']) ?>" />
-                                        <input class="start_time" type="hidden" value="<?= htmlspecialchars($row['start_time']) ?>" />
-                                        <input class="end_time" type="hidden" value="<?= htmlspecialchars($row['end_time']) ?>" />
-                                        
-                                        <td>
-                                            <center>
-                                                <div class="schedule-icon">
-                                                    <i class="fas fa-calendar-alt"></i>
-                                                </div>
-                                            </center>
-                                        </td>
-                                        <td>
-                                            <strong><?= htmlspecialchars($row['room_name']) ?></strong><br>
-                                            <small class="text-muted"><?= htmlspecialchars($row['department']) ?></small>
-                                        </td>
-                                        <td><?= htmlspecialchars($row['subject']) ?></td>
-                                        <td><?= htmlspecialchars($row['section']) ?></td>
-                                        <td><?= htmlspecialchars($row['year_level']) ?></td>
-                                        <td><?= htmlspecialchars($row['day']) ?></td>
-                                        <td><?= htmlspecialchars($row['instructor']) ?></td>
-                                        <td>
-                                            <span class="time-badge">
-                                                <?= date("g:i A", strtotime($row['start_time'])) ?> - 
-                                                <?= date("g:i A", strtotime($row['end_time'])) ?>
-                                            </span>
-                                        </td>
-                                        <td width="14%">
-                                            <center>
-                                                <button data-id="<?= $row['id'] ?>" 
-                                                        class="btn btn-outline-primary btn-sm btn-edit e_schedule_id">
-                                                    <i class="fas fa-edit"></i> Edit 
-                                                </button>
-                                                <button schedule_name="<?= htmlspecialchars($row['room_name'] . ' - ' . $row['subject']) ?>" 
-                                                        data-id="<?= $row['id'] ?>" 
-                                                        class="btn btn-outline-danger btn-sm btn-del d_schedule_id">
-                                                    <i class="fas fa-trash"></i> Delete 
-                                                </button>
-                                            </center>
-                                        </td>
-                                        <td style="display:none;" class="hidden-date">
-                                            <?= isset($row['date_added']) ? $row['date_added'] : date('Y-m-d H:i:s') ?>
-                                        </td>
-                                    </tr>
-                                    <?php endwhile; ?>
-                                </tbody>
-                            </table>
+                        <!-- Room Schedules Table -->
+                        <div class="card">
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover mb-0" id="myDataTable">
+                                        <thead>
+                                            <tr>
+                                                <th><i class="fas fa-door-open me-1"></i> Room</th>
+                                                <th><i class="fas fa-book me-1"></i> Subject</th>
+                                                <th><i class="fas fa-users me-1"></i> Section</th>
+                                                <th><i class="fas fa-graduation-cap me-1"></i> Year</th>
+                                                <th><i class="fas fa-calendar-day me-1"></i> Day</th>
+                                                <th><i class="fas fa-chalkboard-teacher me-1"></i> Instructor</th>
+                                                <th><i class="fas fa-clock me-1"></i> Time</th>
+                                                <th><i class="fas fa-cogs me-1"></i> Actions</th>
+                                                <th style="display: none;">Date Added</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php while ($row = $schedules->fetch_assoc()): ?>
+                                            <tr class="table-<?= $row['id'] ?>" data-schedule-id="<?= $row['id'] ?>">
+                                                <input class="department" type="hidden" value="<?= htmlspecialchars($row['department']) ?>" />
+                                                <input class="room_name" type="hidden" value="<?= htmlspecialchars($row['room_name']) ?>" />
+                                                <input class="subject" type="hidden" value="<?= htmlspecialchars($row['subject']) ?>" />
+                                                <input class="section" type="hidden" value="<?= htmlspecialchars($row['section']) ?>" />
+                                                <input class="year_level" type="hidden" value="<?= htmlspecialchars($row['year_level']) ?>" />
+                                                <input class="day" type="hidden" value="<?= htmlspecialchars($row['day']) ?>" />
+                                                <input class="instructor" type="hidden" value="<?= htmlspecialchars($row['instructor']) ?>" />
+                                                <input class="start_time" type="hidden" value="<?= htmlspecialchars($row['start_time']) ?>" />
+                                                <input class="end_time" type="hidden" value="<?= htmlspecialchars($row['end_time']) ?>" />
+                                                
+                                                <td>
+                                                    <div class="room-info">
+                                                        <div class="room-icon">
+                                                            <i class="fas fa-door-open"></i>
+                                                        </div>
+                                                        <div>
+                                                            <strong><?= htmlspecialchars($row['room_name']) ?></strong><br>
+                                                            <small class="text-muted"><?= htmlspecialchars($row['department']) ?></small>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td><?= htmlspecialchars($row['subject']) ?></td>
+                                                <td><?= htmlspecialchars($row['section']) ?></td>
+                                                <td><?= htmlspecialchars($row['year_level']) ?></td>
+                                                <td><?= htmlspecialchars($row['day']) ?></td>
+                                                <td><?= htmlspecialchars($row['instructor']) ?></td>
+                                                <td>
+                                                    <div class="time-display">
+                                                        <div class="time-item">
+                                                            <div class="time-icon">
+                                                                <i class="fas fa-play-circle"></i>
+                                                            </div>
+                                                            <div class="time-text">
+                                                                <?= date("g:i A", strtotime($row['start_time'])) ?>
+                                                            </div>
+                                                        </div>
+                                                        <div class="time-item">
+                                                            <div class="time-icon">
+                                                                <i class="fas fa-stop-circle"></i>
+                                                            </div>
+                                                            <div class="time-text">
+                                                                <?= date("g:i A", strtotime($row['end_time'])) ?>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="action-buttons">
+                                                    <center>
+                                                        <button data-id="<?= $row['id'] ?>" 
+                                                                class="btn btn-primary btn-sm btn-edit e_schedule_id">
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                        <button schedule_name="<?= htmlspecialchars($row['room_name'] . ' - ' . $row['subject']) ?>" 
+                                                                data-id="<?= $row['id'] ?>" 
+                                                                class="btn btn-danger btn-sm btn-del d_schedule_id">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </center>
+                                                </td>
+                                                <td style="display:none;" class="hidden-date">
+                                                    <?= isset($row['date_added']) ? $row['date_added'] : date('Y-m-d H:i:s') ?>
+                                                </td>
+                                            </tr>
+                                            <?php endwhile; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
+
                     </div>
                 </div>
             </div>
@@ -500,7 +734,7 @@ if (isset($_GET['edit'])) {
                     <div class="modal-content">
                         <div class="modal-header">
                             <h5 class="modal-title" id="exampleModalLabel">
-                                <i class="fas fa-plus-circle"></i> New Room Schedule
+                                <i class="fas fa-plus-circle me-2"></i> New Room Schedule
                             </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
@@ -522,7 +756,7 @@ if (isset($_GET['edit'])) {
 
                                             <div class="col-lg-9 col-md-6 col-sm-12">
                                                 <div class="form-group">
-                                                    <label><b>Department:</b></label>
+                                                    <label class="fw-bold">Department:</label>
                                                     <select name="department" id="add_department" class="form-control" required>
                                                         <option value="">Select Department</option>
                                                         <?php 
@@ -543,7 +777,7 @@ if (isset($_GET['edit'])) {
                                         <div class="row mb-3 mt-1">
                                             <div class="col-lg-6 col-md-6 col-sm-12 mt-1">
                                                 <div class="form-group">
-                                                    <label><b>Room Name:</b></label>
+                                                    <label class="fw-bold">Room Name:</label>
                                                     <select name="room_name" id="add_room_name" class="form-control" required>
                                                         <option value="">Select Room</option>
                                                         <!-- Rooms will be populated dynamically based on department -->
@@ -553,7 +787,7 @@ if (isset($_GET['edit'])) {
                                             </div>
                                             <div class="col-lg-6 col-md-6 col-sm-12 mt-1">
                                                 <div class="form-group">
-                                                    <label><b>Year Level:</b></label>
+                                                    <label class="fw-bold">Year Level:</label>
                                                     <select name="year_level" id="add_year_level" class="form-control" required>
                                                         <option value="">Select Year Level</option>
                                                         <option value="1st Year">1st Year</option>
@@ -568,7 +802,7 @@ if (isset($_GET['edit'])) {
                                         <div class="row mb-3">
                                             <div class="col-lg-6 col-md-6 col-sm-12">
                                                 <div class="form-group">
-                                                    <label><b>Subject:</b></label>
+                                                    <label class="fw-bold">Subject:</label>
                                                     <select name="subject" id="add_subject" class="form-control" required>
                                                         <option value="">Select Subject</option>
                                                         <!-- Subjects will be populated dynamically based on year level -->
@@ -578,7 +812,7 @@ if (isset($_GET['edit'])) {
                                             </div>
                                             <div class="col-lg-6 col-md-6 col-sm-12">
                                                 <div class="form-group">
-                                                    <label><b>Section:</b></label>
+                                                    <label class="fw-bold">Section:</label>
                                                     <input type="text" name="section" id="add_section" class="form-control" required placeholder="Input Section..">
                                                     <span class="error-message" id="section-error"></span>
                                                 </div>
@@ -587,7 +821,7 @@ if (isset($_GET['edit'])) {
                                         <div class="row mb-3">
                                             <div class="col-lg-4 col-md-6 col-sm-12">
                                                 <div class="form-group">
-                                                    <label><b>Day:</b></label>
+                                                    <label class="fw-bold">Day:</label>
                                                     <select name="day" id="add_day" class="form-control" required>
                                                         <option value="">Select Day</option>
                                                         <?php
@@ -602,7 +836,7 @@ if (isset($_GET['edit'])) {
                                             </div>
                                             <div class="col-lg-8 col-md-6 col-sm-12">
                                                 <div class="form-group">
-                                                    <label><b>Instructor:</b></label>
+                                                    <label class="fw-bold">Instructor:</label>
                                                     <select name="instructor" id="add_instructor" class="form-control" required>
                                                         <option value="">Select Instructor</option>
                                                         <!-- Instructors will be populated from database -->
@@ -622,14 +856,14 @@ if (isset($_GET['edit'])) {
                                         <div class="row">
                                             <div class="col-lg-6 col-md-6 col-sm-12">
                                                 <div class="form-group">
-                                                    <label><b>Start Time:</b></label>
+                                                    <label class="fw-bold">Start Time:</label>
                                                     <input type="time" name="start_time" id="add_start_time" class="form-control" required>
                                                     <span class="error-message" id="start_time-error"></span>
                                                 </div>
                                             </div>
                                             <div class="col-lg-6 col-md-6 col-sm-12">
                                                 <div class="form-group">
-                                                    <label><b>End Time:</b></label>
+                                                    <label class="fw-bold">End Time:</label>
                                                     <input type="time" name="end_time" id="add_end_time" class="form-control" required>
                                                     <span class="error-message" id="end_time-error"></span>
                                                 </div>
@@ -639,8 +873,8 @@ if (isset($_GET['edit'])) {
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                                <button type="submit" id="btn-schedule" class="btn btn-outline-warning">Save</button>
+                                <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" id="btn-schedule" class="btn btn-warning">Save</button>
                             </div>
                         </form>
                     </div>
@@ -653,7 +887,7 @@ if (isset($_GET['edit'])) {
                     <div class="modal-content">
                         <div class="modal-header">
                             <h5 class="modal-title">
-                                <i class="fas fa-edit"></i> Edit Room Schedule
+                                <i class="fas fa-edit me-2"></i> Edit Room Schedule
                             </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
@@ -674,7 +908,7 @@ if (isset($_GET['edit'])) {
                                             </div>
                                             <div class="col-lg-9 col-md-6 col-sm-12">
                                                 <div class="form-group">
-                                                    <label><b>Department:</b></label>
+                                                    <label class="fw-bold">Department:</label>
                                                     <select name="department" id="edepartment" class="form-control" required>
                                                         <option value="">Select Department</option>
                                                         <?php
@@ -691,7 +925,7 @@ if (isset($_GET['edit'])) {
                                         <div class="row mb-3 mt-1">
                                             <div class="col-lg-6 col-md-6 col-sm-12 mt-1">
                                                 <div class="form-group">
-                                                    <label><b>Room Name:</b></label>
+                                                    <label class="fw-bold">Room Name:</label>
                                                     <select name="room_name" id="eroom_name" class="form-control" required>
                                                         <option value="">Select Room</option>
                                                         <?php
@@ -706,7 +940,7 @@ if (isset($_GET['edit'])) {
                                             </div>
                                             <div class="col-lg-6 col-md-6 col-sm-12 mt-1">
                                                 <div class="form-group">
-                                                    <label><b>Year Level:</b></label>
+                                                    <label class="fw-bold">Year Level:</label>
                                                     <select name="year_level" id="eyear_level" class="form-control" required>
                                                         <option value="">Select Year Level</option>
                                                         <option value="1st Year">1st Year</option>
@@ -721,7 +955,7 @@ if (isset($_GET['edit'])) {
                                         <div class="row mb-3">
                                             <div class="col-lg-6 col-md-6 col-sm-12">
                                                 <div class="form-group">
-                                                    <label><b>Subject:</b></label>
+                                                    <label class="fw-bold">Subject:</label>
                                                     <select name="subject" id="esubject" class="form-control" required>
                                                         <option value="">Select Subject</option>
                                                         <?php
@@ -739,7 +973,7 @@ if (isset($_GET['edit'])) {
                                             </div>
                                             <div class="col-lg-6 col-md-6 col-sm-12">
                                                 <div class="form-group">
-                                                    <label><b>Section:</b></label>
+                                                    <label class="fw-bold">Section:</label>
                                                     <input type="text" name="section" id="esection" class="form-control" required>
                                                     <span class="error-message" id="esection-error"></span>
                                                 </div>
@@ -748,7 +982,7 @@ if (isset($_GET['edit'])) {
                                         <div class="row mb-3">
                                             <div class="col-lg-4 col-md-6 col-sm-12">
                                                 <div class="form-group">
-                                                    <label><b>Day:</b></label>
+                                                    <label class="fw-bold">Day:</label>
                                                     <select name="day" id="eday" class="form-control" required>
                                                         <option value="">Select Day</option>
                                                         <?php
@@ -762,7 +996,7 @@ if (isset($_GET['edit'])) {
                                             </div>
                                             <div class="col-lg-8 col-md-6 col-sm-12">
                                                 <div class="form-group">
-                                                    <label><b>Instructor:</b></label>
+                                                    <label class="fw-bold">Instructor:</label>
                                                     <select name="instructor" id="einstructor" class="form-control" required>
                                                         <option value="">Select Instructor</option>
                                                         <?php
@@ -779,14 +1013,14 @@ if (isset($_GET['edit'])) {
                                         <div class="row">
                                             <div class="col-lg-6 col-md-6 col-sm-12">
                                                 <div class="form-group">
-                                                    <label><b>Start Time:</b></label>
+                                                    <label class="fw-bold">Start Time:</label>
                                                     <input type="time" name="start_time" id="estart_time" class="form-control" required>
                                                     <span class="error-message" id="estart_time-error"></span>
                                                 </div>
                                             </div>
                                             <div class="col-lg-6 col-md-6 col-sm-12">
                                                 <div class="form-group">
-                                                    <label><b>End Time:</b></label>
+                                                    <label class="fw-bold">End Time:</label>
                                                     <input type="time" name="end_time" id="eend_time" class="form-control" required>
                                                     <span class="error-message" id="eend_time-error"></span>
                                                 </div>
@@ -797,8 +1031,8 @@ if (isset($_GET['edit'])) {
                             </div>
                             <div class="modal-footer">
                                 <input type="hidden" id="edit_scheduleid" name="schedule_id" class="edit-id">
-                                <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                                <button type="submit" id="btn-editschedule" class="btn btn-outline-primary">Update</button>
+                                <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" id="btn-editschedule" class="btn btn-primary">Update</button>
                             </div>
                         </form>
                     </div>
@@ -811,7 +1045,7 @@ if (isset($_GET['edit'])) {
                     <div class="modal-content">
                         <div class="modal-header">
                             <h5 class="modal-title" id="swapScheduleModalLabel">
-                                <i class="fas fa-exchange-alt"></i> Swap Instructor Schedules
+                                <i class="fas fa-exchange-alt me-2"></i> Swap Instructor Schedules
                             </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
@@ -823,7 +1057,7 @@ if (isset($_GET['edit'])) {
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label><b>First Instructor:</b></label>
+                                        <label class="fw-bold">First Instructor:</label>
                                         <select class="form-control" id="swap_instructor1" required>
                                             <option value="">Select First Instructor</option>
                                             <?php 
@@ -839,7 +1073,7 @@ if (isset($_GET['edit'])) {
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label><b>Second Instructor:</b></label>
+                                        <label class="fw-bold">Second Instructor:</label>
                                         <select class="form-control" id="swap_instructor2" required>
                                             <option value="">Select Second Instructor</option>
                                             <?php 
@@ -858,7 +1092,7 @@ if (isset($_GET['edit'])) {
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label><b>Room:</b></label>
+                                        <label class="fw-bold">Room:</label>
                                         <select class="form-control" id="swap_room" required>
                                             <option value="">Select Room</option>
                                             <?php 
@@ -874,7 +1108,7 @@ if (isset($_GET['edit'])) {
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label><b>Day:</b></label>
+                                        <label class="fw-bold">Day:</label>
                                         <select class="form-control" id="swap_day" required>
                                             <option value="">Select Day</option>
                                             <?php
@@ -892,7 +1126,7 @@ if (isset($_GET['edit'])) {
                             <div class="row mb-3">
                                 <div class="col-md-12 text-center">
                                     <button type="button" class="btn btn-info" id="findSchedulesBtn">
-                                        <i class="fas fa-search"></i> Find Schedules
+                                        <i class="fas fa-search me-2"></i> Find Schedules
                                     </button>
                                 </div>
                             </div>
@@ -925,9 +1159,9 @@ if (isset($_GET['edit'])) {
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancel</button>
                             <button type="button" class="btn btn-info" id="confirmSwapBtn" disabled>
-                                <i class="fas fa-exchange-alt"></i> Confirm Swap
+                                <i class="fas fa-exchange-alt me-2"></i> Confirm Swap
                             </button>
                         </div>
                     </div>
@@ -965,6 +1199,7 @@ if (isset($_GET['edit'])) {
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="lib/chart/chart.min.js"></script>
     <script src="lib/easing/easing.min.js"></script>
     <script src="lib/waypoints/waypoints.min.js"></script>
@@ -976,10 +1211,43 @@ if (isset($_GET['edit'])) {
     <!-- Template Javascript -->
     <script src="js/main.js"></script>
     <script>
+        function exportToExcel() {
+            Swal.fire({
+                title: 'Export to Excel?',
+                text: 'This will export all filtered data to an Excel file.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#1cc88a',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Export',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const table = document.getElementById('myDataTable');
+                    const ws = XLSX.utils.table_to_sheet(table);
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "Room Schedules");
+                    
+                    const date = new Date().toISOString().split('T')[0];
+                    XLSX.writeFile(wb, `room_schedules_${date}.xlsx`);
+                    
+                    // Show success message
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Exported!',
+                        text: 'Data exported successfully to Excel',
+                        confirmButtonColor: '#1cc88a',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                }
+            });
+        }
+
         $(document).ready(function() {
             // Initialize DataTable
             var dataTable = $('#myDataTable').DataTable({
-                order: [[9, 'desc']],
+                order: [[8, 'desc']],
                 stateSave: true,
                 language: {
                     search: "Search all columns:"
@@ -1040,37 +1308,37 @@ if (isset($_GET['edit'])) {
                 
                 // Apply department filter
                 if (activeFilters.filter_department) {
-                    dataTable.column(1).search(activeFilters.filter_department, true, false);
+                    dataTable.column(0).search(activeFilters.filter_department, true, false);
                 }
                 
                 // Apply room filter
                 if (activeFilters.filter_room) {
-                    dataTable.column(1).search(activeFilters.filter_room, true, false);
+                    dataTable.column(0).search(activeFilters.filter_room, true, false);
                 }
                 
                 // Apply subject filter
                 if (activeFilters.filter_subject) {
-                    dataTable.column(2).search(activeFilters.filter_subject, true, false);
+                    dataTable.column(1).search(activeFilters.filter_subject, true, false);
                 }
                 
                 // Apply year level filter
                 if (activeFilters.filter_year_level) {
-                    dataTable.column(4).search(activeFilters.filter_year_level, true, false);
+                    dataTable.column(3).search(activeFilters.filter_year_level, true, false);
                 }
                 
                 // Apply day filter
                 if (activeFilters.filter_day) {
-                    dataTable.column(5).search(activeFilters.filter_day, true, false);
+                    dataTable.column(4).search(activeFilters.filter_day, true, false);
                 }
                 
                 // Apply instructor filter
                 if (activeFilters.filter_instructor) {
-                    dataTable.column(6).search(activeFilters.filter_instructor, true, false);
+                    dataTable.column(5).search(activeFilters.filter_instructor, true, false);
                 }
                 
                 // Apply time range filter
                 if (activeFilters.filter_time) {
-                    dataTable.column(7).every(function() {
+                    dataTable.column(6).every(function() {
                         var column = this;
                         var searchTerm = activeFilters.filter_time;
                         
@@ -1117,6 +1385,10 @@ if (isset($_GET['edit'])) {
                 const filterValue = $(this).val();
                 
                 activeFilters[filterName] = filterValue;
+            });
+
+            // Apply filters button
+            $('#applyFilters').click(function() {
                 applyFilters();
             });
 

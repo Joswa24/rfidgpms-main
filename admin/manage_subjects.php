@@ -1,4 +1,4 @@
-<?php 
+<?php
 session_start();
 // Display success/error messages
 if (isset($_SESSION['success_message'])) {
@@ -23,53 +23,343 @@ include '../connection.php';
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
+        :root {
+            --primary-color: #e1e7f0ff;
+            --secondary-color: #b0caf0ff;
+            --accent-color: #f3f5fcff;
+            --icon-color: #5c95e9ff;
+            --light-bg: #f8f9fc;
+            --dark-text: #5a5c69;
+            --warning-color: #f6c23e;
+            --danger-color: #e74a3b;
+            --success-color: #1cc88a;
+            --info-color: #36b9cc;
+            --border-radius: 15px;
+            --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            --transition: all 0.3s ease;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            font-family: 'Inter', sans-serif;
+            color: var(--dark-text);
+        }
+
+        .content {
+            background: transparent;
+        }
+
         .bg-light {
-            background-color: #f8f9fa !important;
+            background-color: var(--light-bg) !important;
+            border-radius: var(--border-radius);
         }
+
         .card {
-            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            background: white;
         }
+
         .table th {
-            background-color: #4e73df;
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
             color: white;
+            font-weight: 600;
+            border: none;
+            padding: 15px 12px;
         }
+
+        .table td {
+            padding: 12px;
+            border-color: rgba(0,0,0,0.05);
+            vertical-align: middle;
+        }
+
+        .table-responsive {
+            border-radius: var(--border-radius);
+            overflow: hidden;
+        }
+
         .badge {
             font-size: 0.85em;
+            border-radius: 8px;
         }
-        .section-header {
+
+        /* Modern Button Styles */
+        .btn {
+            border-radius: 10px;
+            font-weight: 500;
+            transition: var(--transition);
+            border: none;
+            padding: 10px 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .btn::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            transition: width 0.3s ease;
+            z-index: -1;
+        }
+
+        .btn:hover::before {
+            width: 100%;
+        }
+
+        .btn i {
+            font-size: 0.9rem;
+        }
+
+        /* Add Subject Button */
+        .btn-add {
+            background: linear-gradient(135deg, var(--warning-color), #f4b619);
+            color: white;
+            box-shadow: 0 4px 15px rgba(246, 194, 62, 0.3);
+        }
+
+        .btn-add:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(246, 194, 62, 0.4);
+            color: white;
+        }
+
+        /* Edit Button */
+        .btn-edit {
+            background: linear-gradient(135deg, var(--info-color), #2c9faf);
+            color: white;
+            box-shadow: 0 4px 15px rgba(54, 185, 204, 0.3);
+        }
+
+        .btn-edit:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(54, 185, 204, 0.4);
+            color: white;
+        }
+
+        /* Delete Button */
+        .btn-delete {
+            background: linear-gradient(135deg, var(--danger-color), #d73525);
+            color: white;
+            box-shadow: 0 4px 15px rgba(231, 74, 59, 0.3);
+        }
+
+        .btn-delete:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(231, 74, 59, 0.4);
+            color: white;
+        }
+
+        /* Modal Footer Buttons */
+        .btn-close-modal {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+            color: white;
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+        }
+
+        .btn-close-modal:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4);
+            color: white;
+        }
+
+        .btn-save {
+            background: linear-gradient(135deg, var(--warning-color), #f4b619);
+            color: white;
+            box-shadow: 0 4px 15px rgba(246, 194, 62, 0.3);
+        }
+
+        .btn-save:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(246, 194, 62, 0.4);
+            color: white;
+        }
+
+        .btn-update {
+            background: linear-gradient(135deg, var(--info-color), #2c9faf);
+            color: white;
+            box-shadow: 0 4px 15px rgba(54, 185, 204, 0.3);
+        }
+
+        .btn-update:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(54, 185, 204, 0.4);
+            color: white;
+        }
+
+        .btn-confirm {
+            background: linear-gradient(135deg, var(--danger-color), #d73525);
+            color: white;
+            box-shadow: 0 4px 15px rgba(231, 74, 59, 0.3);
+        }
+
+        .btn-confirm:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(231, 74, 59, 0.4);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 8px 15px;
+            font-size: 0.875rem;
+        }
+
+        .modal-content {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
+            color: white;
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
+            border: none;
+            padding: 20px 25px;
+        }
+
+        .modal-title {
+            font-weight: 600;
+        }
+
+        .btn-close {
+            filter: invert(1);
+        }
+
+        .form-control, .form-select {
+            border-radius: 8px;
+            border: 1.5px solid #e3e6f0;
+            padding: 12px 16px;
+            transition: var(--transition);
+            background-color: var(--light-bg);
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--icon-color);
+            box-shadow: 0 0 0 3px rgba(92, 149, 233, 0.15);
+            background-color: white;
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: var(--dark-text);
+            margin-bottom: 8px;
+        }
+
+        .alert {
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .alert-success {
+            background-color: #d1edff;
+            color: #0c5460;
+            border-left: 4px solid #117a8b;
+        }
+
+        .alert-danger {
             background-color: #f8d7da;
+            color: #721c24;
             border-left: 4px solid #dc3545;
         }
-        .btn-del {
-            transition: all 0.3s ease;
+
+        .back-to-top {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color)) !important;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--box-shadow);
+            transition: var(--transition);
         }
-        .btn-del:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+
+        .back-to-top:hover {
+            transform: translateY(-3px);
         }
+
+        h6.mb-4 {
+            color: var(--dark-text);
+            font-weight: 700;
+            font-size: 1.25rem;
+        }
+
+        hr {
+            opacity: 0.1;
+            margin: 1.5rem 0;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(92, 149, 233, 0.05);
+            transform: translateY(-1px);
+            transition: var(--transition);
+        }
+
+        /* SweetAlert customization */
         .swal2-popup {
-            font-family: inherit;
+            border-radius: var(--border-radius) !important;
         }
-        .error-message {
-            color: #dc3545;
-            font-size: 0.875rem;
-            margin-top: 0.25rem;
+
+        /* Button container styling */
+        .button-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
         }
+
+        /* Table action buttons container */
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        /* Subject icon styling */
         .subject-icon {
             width: 50px;
             height: 50px;
             border-radius: 50%;
             object-fit: cover;
             border: 2px solid #dee2e6;
-            background-color: #4e73df;
+            background: linear-gradient(135deg, var(--icon-color), #4a7ec7);
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
             font-size: 1.2rem;
+            box-shadow: 0 4px 8px rgba(92, 149, 233, 0.3);
+        }
+
+        /* Section header styling */
+        .section-header {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
+            border-left: 4px solid var(--icon-color);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        /* Error message styling */
+        .error-message {
+            color: var(--danger-color);
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
         }
     </style>
 </head>
@@ -91,8 +381,8 @@ include '../connection.php';
                             <div class="col-9">
                                 <h6 class="mb-4">Manage Subjects</h6>
                             </div>
-                            <div class="col-3">
-                                <button type="button" class="btn btn-outline-warning m-2" data-bs-toggle="modal" data-bs-target="#subjectModal">
+                            <div class="col-3 d-flex justify-content-end">
+                                <button type="button" class="btn btn-add" data-bs-toggle="modal" data-bs-target="#subjectModal">
                                     <i class="fas fa-plus-circle"></i> Add Subject
                                 </button>
                             </div>
@@ -138,17 +428,17 @@ include '../connection.php';
                                         <td><?php echo $row['subject_name']; ?></td>
                                         <td><?php echo $row['year_level']; ?></td>
                                         <td width="14%">
-                                            <center>
+                                            <div class="action-buttons">
                                                 <button data-id="<?php echo $row['id'];?>" 
-                                                        class="btn btn-outline-primary btn-sm btn-edit e_subject_id">
+                                                        class="btn btn-sm btn-edit e_subject_id">
                                                     <i class="fas fa-edit"></i> Edit 
                                                 </button>
                                                 <button subject_name="<?php echo $row['subject_name']; ?>" 
                                                         data-id="<?php echo $row['id']; ?>" 
-                                                        class="btn btn-outline-danger btn-sm btn-del d_subject_id">
+                                                        class="btn btn-sm btn-delete d_subject_id">
                                                     <i class="fas fa-trash"></i> Delete 
                                                 </button>
-                                            </center>
+                                            </div>
                                         </td>
                                         <?php if (isset($row['date_added'])): ?>
                                         <td style="display:none;" class="hidden-date"><?php echo $row['date_added']; ?></td>
@@ -176,7 +466,7 @@ include '../connection.php';
                         </div>
                         <form id="subjectForm" role="form" method="post" action="">
                             <div class="modal-body">
-                                <div class="col-lg-12 mt-1" id="mgs-subject"></div>
+                                <div class="col-lg-11 mb-2 mt-1" id="mgs-subject" style="margin-left: 4%"></div>
                                 <div class="row justify-content-md-center">
                                     <div id="msg-subject"></div>
                                     <div class="col-sm-12 col-md-12 col-lg-10">
@@ -192,7 +482,7 @@ include '../connection.php';
 
                                             <div class="col-lg-9 col-md-6 col-sm-12">
                                                 <div class="form-group">
-                                                    <label><b>Subject Code:</b></label>
+                                                    <label for="subject_code"><b>Subject Code:</b></label>
                                                     <input required type="text" class="form-control" name="subject_code" id="subject_code" autocomplete="off">
                                                     <span class="error-message" id="subject_code-error"></span>
                                                 </div>
@@ -201,14 +491,14 @@ include '../connection.php';
                                         <div class="row mb-3 mt-1">
                                             <div class="col-lg-6 col-md-6 col-sm-12 mt-1">
                                                 <div class="form-group">
-                                                    <label><b>Subject Name:</b></label>
+                                                    <label for="subject_name"><b>Subject Name:</b></label>
                                                     <input required type="text" class="form-control" name="subject_name" id="subject_name" autocomplete="off">
                                                     <span class="error-message" id="subject_name-error"></span>
                                                 </div>
                                             </div>
                                             <div class="col-lg-6 col-md-6 col-sm-12 mt-1">
                                                 <div class="form-group">
-                                                    <label><b>Year Level:</b></label>
+                                                    <label for="year_level"><b>Year Level:</b></label>
                                                     <select required class="form-control" name="year_level" id="year_level" autocomplete="off">
                                                         <option value="">Select Year Level</option>
                                                         <option value="1st Year">1st Year</option>
@@ -224,8 +514,8 @@ include '../connection.php';
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                                <button type="submit" id="btn-subject" class="btn btn-outline-warning">Save</button>
+                                <button type="button" class="btn btn-close-modal" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" id="btn-subject" class="btn btn-save">Save</button>
                             </div>
                         </form>
                     </div>
@@ -244,7 +534,7 @@ include '../connection.php';
                         </div>
                         <form id="editSubjectForm" class="edit-form" role="form" method="post" action="">
                             <div class="modal-body" id="editModal">
-                                <div class="col-lg-12 mt-1" id="mgs-editsubject"></div>
+                                <div class="col-lg-11 mb-2 mt-1" id="mgs-editsubject" style="margin-left: 4%"></div>
                                 <div class="row justify-content-md-center">
                                     <div id="msg-editsubject"></div>
                                     <div class="col-sm-12 col-md-12 col-lg-10">
@@ -259,7 +549,7 @@ include '../connection.php';
                                             </div>
                                             <div class="col-lg-9 col-md-6 col-sm-12">
                                                 <div class="form-group">
-                                                    <label><b>Subject Code:</b></label>
+                                                    <label for="esubject_code"><b>Subject Code:</b></label>
                                                     <input required type="text" class="form-control edit-subjectcode" name="subject_code" id="esubject_code" autocomplete="off">
                                                     <span class="error-message" id="esubject_code-error"></span>
                                                 </div>
@@ -268,14 +558,14 @@ include '../connection.php';
                                         <div class="row mb-3 mt-1">
                                             <div class="col-lg-6 col-md-6 col-sm-12 mt-1">
                                                 <div class="form-group">
-                                                    <label><b>Subject Name:</b></label>
+                                                    <label for="esubject_name"><b>Subject Name:</b></label>
                                                     <input type="text" class="form-control edit-subjectname" name="subject_name" id="esubject_name" autocomplete="off">
                                                     <span class="error-message" id="esubject_name-error"></span>
                                                 </div>
                                             </div>
                                             <div class="col-lg-6 col-md-6 col-sm-12 mt-1">
                                                 <div class="form-group">
-                                                    <label><b>Year Level:</b></label>
+                                                    <label for="eyear_level"><b>Year Level:</b></label>
                                                     <select class="form-control" name="year_level" id="eyear_level" autocomplete="off">
                                                         <option class="edit-yearlevel-val" value=""></option>
                                                         <option value="1st Year">1st Year</option>
@@ -293,8 +583,8 @@ include '../connection.php';
                             </div>
                             <div class="modal-footer">
                                 <input type="hidden" id="edit_subjectid" name="subject_id" class="edit-id">
-                                <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                                <button type="submit" id="btn-editsubject" class="btn btn-outline-primary">Update</button>
+                                <button type="button" class="btn btn-close-modal" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" id="btn-editsubject" class="btn btn-update">Update</button>
                             </div>
                         </form>
                     </div>
@@ -306,23 +596,36 @@ include '../connection.php';
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title" id="delsubjectModalLabel">Confirm Delete</h5>
+                            <h5 class="modal-title" id="delsubjectModalLabel">
+                                <i class="fas fa-trash"></i> Delete Subject
+                            </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <div class="modal-body">
-                            <p>Are you sure you want to delete subject: <strong id="delete_subjectname"></strong>?</p>
-                            <input type="hidden" id="delete_subjectid">
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="button" class="btn btn-danger" id="btn-delsubject">Yes, Delete</button>
-                        </div>
+                        <form method="POST" id="delete-form">
+                            <div class="modal-body">
+                                <div class="col-lg-12 mt-1" id="mgs-delsubject"></div>
+                                <div class="col-lg-12 mb-1">
+                                    <div class="form-group">
+                                        <label for="delete_subjectname"><b>Subject Name:</b></label>
+                                        <input type="text" id="delete_subjectname" class="form-control d-subj" autocomplete="off" readonly="">
+                                        <span class="error-message"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <input type="hidden" name="" id="delete_subjectid">
+                                <button type="button" class="btn btn-close-modal" data-bs-dismiss="modal">No</button>
+                                <button type="button" class="btn btn-confirm remove_id" id="btn-delsubject">Yes</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
 
             <?php include 'footer.php'; ?>
         </div>
+
+         <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top"><i class="bi bi-arrow-up"></i></a>
     </div>
 
     <!-- JavaScript Libraries -->
@@ -338,440 +641,273 @@ include '../connection.php';
     <script src="lib/tempusdominus/js/moment.min.js"></script>
     <script src="lib/tempusdominus/js/moment-timezone.min.js"></script>
     <script src="lib/tempusdominus/js/tempusdominus-bootstrap-4.min.js"></script>
+
     <!-- Template Javascript -->
     <script src="js/main.js"></script>
-
     <script>
-        $(document).ready(function() {
-            // Initialize DataTable
-            var dataTable = $('#myDataTable').DataTable({
-                order: [[9, 'desc']],
-                stateSave: true
-            });
+    $(document).ready(function() {
+        // Initialize DataTable
+        var dataTable = $('#myDataTable').DataTable({
+            order: [[5, 'desc']],
+            stateSave: true
+        });
 
-            // Reset form function
-            function resetForm() {
-                $('.error-message').text('');
-                $('#scheduleForm')[0].reset();
+        // Helper function to validate inputs
+        function validateInput(input, errorId, message) {
+            if (input.value === '') {
+                document.getElementById(errorId).innerHTML = message;
+                input.focus();
+                return false;
+            } else {
+                document.getElementById(errorId).innerHTML = '';
+                return true;
+            }
+        }
+
+        // Helper function to reset form
+        function resetForm() {
+            document.getElementById('subject_code-error').innerHTML = '';
+            document.getElementById('subject_name-error').innerHTML = '';
+            document.getElementById('year_level-error').innerHTML = '';
+            document.getElementById('subjectForm').reset();
+        }
+
+        // ==============
+        // CREATE (ADD)
+        // ==============
+        $('#subjectForm').submit(function(e) {
+            e.preventDefault();
+            
+            var inputField = document.getElementById('subject_code');
+            var inputField1 = document.getElementById('subject_name');
+            var inputField2 = document.getElementById('year_level');
+
+            // Validate inputs
+            if (!validateInput(inputField, 'subject_code-error', 'Subject code is required') || 
+                !validateInput(inputField1, 'subject_name-error', 'Subject name is required') ||
+                !validateInput(inputField2, 'year_level-error', 'Year level is required')) {
+                return;
             }
 
-            // Room selection handler to auto-fill department
-            $('select[name="room_name"]').change(function() {
-                var selectedOption = $(this).find('option:selected');
-                var department = selectedOption.data('department');
-                if (department) {
-                    $('select[name="department"]').val(department);
-                }
-            });
+            var subject_code = $('#subject_code').val();
+            var subject_name = $('#subject_name').val();
+            var year_level = $('#year_level').val();
+            
+            // Show loading state
+            $('#btn-subject').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
+            $('#btn-subject').prop('disabled', true);
 
-            // ==========
-            // READ (EDIT SCHEDULE)
-            // ==========
-            $(document).on('click', '.e_schedule_id', function() {
-                const id = $(this).data('id');
-                
-                // Retrieve data from the selected row
-                const $row = $(this).closest('tr');
-                const $getdepartment = $row.find('.department').val();
-                const $getroomname = $row.find('.room_name').val();
-                const $getyearlevel = $row.find('.year_level').val();
-                const $getsubject = $row.find('.subject').val();
-                const $getsection = $row.find('.section').val();
-                const $getday = $row.find('.day').val();
-                const $getinstructor = $row.find('.instructor').val();
-                const $getstarttime = $row.find('.start_time').val();
-                const $getendtime = $row.find('.end_time').val();
-
-                console.log('Editing schedule:', id, $getroomname, $getsubject);
-
-                // Populate edit form
-                $('#edit_scheduleid').val(id);
-                $('#edepartment').val($getdepartment);
-                $('#eroom_name').val($getroomname);
-                $('#eyear_level').val($getyearlevel);
-                $('#esubject').val($getsubject);
-                $('#esection').val($getsection);
-                $('#eday').val($getday);
-                $('#einstructor').val($getinstructor);
-                $('#estart_time').val($getstarttime);
-                $('#eend_time').val($getendtime);
-                
-                // Clear any previous error messages
-                $('.error-message').text('');
-                
-                // Show modal
-                $('#editscheduleModal').modal('show');
-            });
-
-            // ==============
-            // CREATE (ADD SCHEDULE) - WITH DEBUGGING
-            // ==============
-            $('#scheduleForm').submit(function(e) {
-                e.preventDefault();
-                
-                $('.error-message').text('');
-                const department = $('select[name="department"]').val();
-                const room_name = $('select[name="room_name"]').val();
-                const year_level = $('select[name="year_level"]').val();
-                const subject = $('#subject').val();
-                const section = $('input[name="section"]').val().trim();
-                const day = $('select[name="day"]').val();
-                const instructor = $('#instructor').val();
-                const start_time = $('input[name="start_time"]').val();
-                const end_time = $('input[name="end_time"]').val();
-                
-                let isValid = true;
-
-                // Validation
-                if (!department) { 
-                    $('#department-error').text('Department is required'); 
-                    isValid = false; 
-                }
-                if (!room_name) { 
-                    $('#room_name-error').text('Room name is required'); 
-                    isValid = false; 
-                }
-                if (!year_level) { 
-                    $('#year_level-error').text('Year level is required'); 
-                    isValid = false; 
-                }
-                if (!subject) { 
-                    $('#subject-error').text('Subject is required'); 
-                    isValid = false; 
-                }
-                if (!section) { 
-                    $('#section-error').text('Section is required'); 
-                    isValid = false; 
-                }
-                if (!day) { 
-                    $('#day-error').text('Day is required'); 
-                    isValid = false; 
-                }
-                if (!instructor) { 
-                    $('#instructor-error').text('Instructor is required'); 
-                    isValid = false; 
-                }
-                if (!start_time) { 
-                    $('#start_time-error').text('Start time is required'); 
-                    isValid = false; 
-                }
-                if (!end_time) { 
-                    $('#end_time-error').text('End time is required'); 
-                    isValid = false; 
-                }
-                if (start_time && end_time && start_time >= end_time) {
-                    $('#start_time-error, #end_time-error').text('End time must be after start time'); 
-                    isValid = false; 
-                }
-                
-                if (!isValid) return;
-
-                // Show loading state
-                $('#btn-schedule').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
-                $('#btn-schedule').prop('disabled', true);
-
-                // Use regular form data
-                var formData = {
-                    department: department,
-                    room_name: room_name,
-                    year_level: year_level,
-                    subject: subject,
-                    section: section,
-                    day: day,
-                    instructor: instructor,
-                    start_time: start_time,
-                    end_time: end_time
-                };
-
-                console.log('Sending data for ADD:', formData);
-
-                $.ajax({
-                    type: "POST",
-                    url: "transac.php?action=add_schedule",
-                    data: formData,
-                    dataType: 'json',
-                    success: function(response) {
-                        // Reset button state
-                        $('#btn-schedule').html('Save');
-                        $('#btn-schedule').prop('disabled', false);
-                        
-                        if (response.status === 'success') {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Success!',
-                                text: response.message,
-                                showConfirmButton: true
-                            }).then(() => {
-                                $('#scheduleModal').modal('hide');
-                                location.reload();
-                            });
-                        } else {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error!',
-                                text: response.message
-                            });
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        // Reset button state
-                        $('#btn-schedule').html('Save');
-                        $('#btn-schedule').prop('disabled', false);
-                        
-                        console.error('AJAX Error Details:');
-                        console.error('Status:', status);
-                        console.error('Error:', error);
-                        console.error('Response:', xhr.responseText);
-                        
-                        let errorMessage = 'An error occurred';
-                        try {
-                            const errorResponse = JSON.parse(xhr.responseText);
-                            errorMessage = errorResponse.message || errorMessage;
-                        } catch (e) {
-                            errorMessage = xhr.responseText || error;
-                        }
-                        
+            $.ajax({
+                type: "POST",
+                url: "transac.php?action=add_subject",
+                data: { subject_code: subject_code, subject_name: subject_name, year_level: year_level },
+                dataType: 'json',
+                success: function(response) {
+                    // Reset button state
+                    $('#btn-subject').html('Save');
+                    $('#btn-subject').prop('disabled', false);
+                    
+                    if (response.status === 'success') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success!',
+                            text: response.message,
+                            showConfirmButton: false,
+                            timer: 1500
+                        }).then(() => {
+                            $('#subjectModal').modal('hide');
+                            location.reload();
+                        });
+                    } else {
                         Swal.fire({
                             icon: 'error',
                             title: 'Error!',
-                            text: errorMessage
+                            text: response.message
                         });
                     }
-                });
-            });
-
-            // ==========
-            // UPDATE SCHEDULE - WITH DEBUGGING
-            // ==========
-            $('#editScheduleForm').submit(function(e) {
-                e.preventDefault();
-                
-                const id = $('#edit_scheduleid').val();
-                const department = $('#edepartment').val();
-                const room_name = $('#eroom_name').val();
-                const year_level = $('#eyear_level').val();
-                const subject = $('#esubject').val();
-                const section = $('#esection').val().trim();
-                const day = $('#eday').val();
-                const instructor = $('#einstructor').val();
-                const start_time = $('#estart_time').val();
-                const end_time = $('#eend_time').val();
-
-                // Validation
-                let isValid = true;
-                if (!department) { 
-                    $('#edepartment-error').text('Department is required'); 
-                    isValid = false; 
-                } else { 
-                    $('#edepartment-error').text(''); 
+                },
+                error: function(xhr, status, error) {
+                    // Reset button state
+                    $('#btn-subject').html('Save');
+                    $('#btn-subject').prop('disabled', false);
+                    
+                    console.log('XHR Response:', xhr.responseText);
+                    console.log('Status:', status);
+                    console.log('Error:', error);
+                    
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: 'An error occurred while processing your request'
+                    });
                 }
-                if (!room_name) { 
-                    $('#eroom_name-error').text('Room name is required'); 
-                    isValid = false; 
-                } else { 
-                    $('#eroom_name-error').text(''); 
-                }
-                if (!year_level) { 
-                    $('#eyear_level-error').text('Year level is required'); 
-                    isValid = false; 
-                } else { 
-                    $('#eyear_level-error').text(''); 
-                }
-                if (!subject) { 
-                    $('#esubject-error').text('Subject is required'); 
-                    isValid = false; 
-                } else { 
-                    $('#esubject-error').text(''); 
-                }
-                if (!section) { 
-                    $('#esection-error').text('Section is required'); 
-                    isValid = false; 
-                } else { 
-                    $('#esection-error').text(''); 
-                }
-                if (!day) { 
-                    $('#eday-error').text('Day is required'); 
-                    isValid = false; 
-                } else { 
-                    $('#eday-error').text(''); 
-                }
-                if (!instructor) { 
-                    $('#einstructor-error').text('Instructor is required'); 
-                    isValid = false; 
-                } else { 
-                    $('#einstructor-error').text(''); 
-                }
-                if (!start_time) { 
-                    $('#estart_time-error').text('Start time is required'); 
-                    isValid = false; 
-                } else { 
-                    $('#estart_time-error').text(''); 
-                }
-                if (!end_time) { 
-                    $('#eend_time-error').text('End time is required'); 
-                    isValid = false; 
-                } else { 
-                    $('#eend_time-error').text(''); 
-                }
-                if (start_time && end_time && start_time >= end_time) {
-                    $('#estart_time-error, #eend_time-error').text('End time must be after start time'); 
-                    isValid = false; 
-                } else {
-                    $('#estart_time-error, #eend_time-error').text(''); 
-                }
-                
-                if (!isValid) return;
-
-                // Show loading state
-                $('#btn-editschedule').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
-                $('#btn-editschedule').prop('disabled', true);
-
-                // Use regular form data
-                var formData = {
-                    id: id,
-                    department: department,
-                    room_name: room_name,
-                    year_level: year_level,
-                    subject: subject,
-                    section: section,
-                    day: day,
-                    instructor: instructor,
-                    start_time: start_time,
-                    end_time: end_time
-                };
-
-                console.log('Sending data for UPDATE:', formData);
-
-                $.ajax({
-                    type: "POST",
-                    url: "transac.php?action=update_schedule",
-                    data: formData,
-                    dataType: 'json',
-                    success: function(response) {
-                        // Reset button state
-                        $('#btn-editschedule').html('Update');
-                        $('#btn-editschedule').prop('disabled', false);
-                        
-                        if (response.status === 'success') {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Success!',
-                                text: response.message,
-                                showConfirmButton: true
-                            }).then(() => {
-                                $('#editscheduleModal').modal('hide');
-                                location.reload();
-                            });
-                        } else {
-                            Swal.fire({
-                                title: 'Error!',
-                                text: response.message,
-                                icon: 'error'
-                            });
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        // Reset button state
-                        $('#btn-editschedule').html('Update');
-                        $('#btn-editschedule').prop('disabled', false);
-                        
-                        console.error('AJAX Update Error Details:');
-                        console.error('Status:', status);
-                        console.error('Error:', error);
-                        console.error('Response:', xhr.responseText);
-                        
-                        try {
-                            var errorResponse = JSON.parse(xhr.responseText);
-                            Swal.fire({
-                                title: 'Error!',
-                                text: errorResponse.message || 'An error occurred',
-                                icon: 'error'
-                            });
-                        } catch (e) {
-                            Swal.fire({
-                                title: 'Error!',
-                                text: 'An error occurred: ' + (xhr.responseText || error),
-                                icon: 'error'
-                            });
-                        }
-                    }
-                });
-            });
-
-            // Handle delete button click
-            $(document).on('click', '.d_schedule_id', function() {
-                var scheduleId = $(this).data('id');
-                var scheduleName = $(this).attr('schedule_name');
-                
-                Swal.fire({
-                    title: 'Are you sure?',
-                    text: "You are about to delete schedule: " + scheduleName,
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#d33',
-                    cancelButtonColor: '#3085d6',
-                    confirmButtonText: 'Yes, delete it!',
-                    cancelButtonText: 'Cancel'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        // Show loading
-                        Swal.fire({
-                            title: 'Deleting...',
-                            text: 'Please wait',
-                            allowOutsideClick: false,
-                            didOpen: () => {
-                                Swal.showLoading();
-                            }
-                        });
-
-                        $.ajax({
-                            url: 'transac.php?action=delete_schedule',
-                            type: 'POST',
-                            data: { 
-                                id: scheduleId 
-                            },
-                            dataType: 'json',
-                            success: function(response) {
-                                if (response.status === 'success') {
-                                    Swal.fire({
-                                        title: 'Deleted!',
-                                        text: response.message,
-                                        icon: 'success',
-                                        timer: 2000,
-                                        showConfirmButton: false
-                                    }).then(() => {
-                                        location.reload();
-                                    });
-                                } else {
-                                    Swal.fire({
-                                        title: 'Error!',
-                                        text: response.message,
-                                        icon: 'error'
-                                    });
-                                }
-                            },
-                            error: function(xhr, status, error) {
-                                Swal.fire({
-                                    title: 'Error!',
-                                    text: 'An error occurred: ' + error,
-                                    icon: 'error'
-                                });
-                            }
-                        });
-                    }
-                });
-            });
-
-            // Reset modal when closed
-            $('#scheduleModal').on('hidden.bs.modal', function () {
-                $(this).find('form')[0].reset();
-                $('.error-message').text('');
-            });
-
-            $('#editscheduleModal').on('hidden.bs.modal', function () {
-                $('.error-message').text('');
             });
         });
-        </script>
+
+        // ==========
+        // READ (EDIT)
+        // ==========
+        $(document).on('click', '.e_subject_id', function() {
+            var id = $(this).data('id');
+            var subject_code = $(this).closest('tr').find('.subject_code_display').text();
+            var subject_name = $(this).closest('tr').find('.subject_name').val();
+            var year_level = $(this).closest('tr').find('.year_level').val();
+            
+            $('#esubject_code').val(subject_code);
+            $('#esubject_name').val(subject_name);
+            $('#eyear_level').val(year_level);
+            $('#edit_subjectid').val(id);
+            $('#editsubjectModal').modal('show');
+        });
+
+        // ==========
+        // UPDATE
+        // ==========
+        $('#btn-editsubject').click(function(e) {
+            e.preventDefault();
+            var inputField = document.getElementById('esubject_code');
+            var inputField1 = document.getElementById('esubject_name');
+            var inputField2 = document.getElementById('eyear_level');
+
+            // Validate inputs
+            if (!validateInput(inputField, 'esubject_code-error', 'Subject code is required') || 
+                !validateInput(inputField1, 'esubject_name-error', 'Subject name is required') ||
+                !validateInput(inputField2, 'eyear_level-error', 'Year level is required')) {
+                return;
+            }
+
+            var id = $('#edit_subjectid').val();
+            var subject_code = $('#esubject_code').val();
+            var subject_name = $('#esubject_name').val();
+            var year_level = $('#eyear_level').val();
+            
+            // Show loading state
+            $(this).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
+            $(this).prop('disabled', true);
+
+            $.ajax({
+                type: "POST",
+                url: "transac.php?action=update_subject",
+                data: { id: id, subject_code: subject_code, subject_name: subject_name, year_level: year_level },
+                dataType: 'json',
+                success: function(response) {
+                    // Reset button state
+                    $('#btn-editsubject').html('Update');
+                    $('#btn-editsubject').prop('disabled', false);
+                    
+                    if (response.status === 'success') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success!',
+                            text: response.message,
+                            showConfirmButton: false,
+                            timer: 1500
+                        }).then(() => {
+                            $('#editsubjectModal').modal('hide');
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: response.message
+                        });
+                    }
+                },
+                error: function(xhr, status, error) {
+                    // Reset button state
+                    $('#btn-editsubject').html('Update');
+                    $('#btn-editsubject').prop('disabled', false);
+                    
+                    console.log('XHR Response:', xhr.responseText);
+                    console.log('Status:', status);
+                    console.log('Error:', error);
+                    
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: 'An error occurred while processing your request'
+                    });
+                }
+            });
+        });
+
+        // ==========
+        // DELETE
+        // ==========
+        $(document).on('click', '.d_subject_id', function() {
+            var id = $(this).data('id');
+            var name = $(this).attr('subject_name');
+            
+            $('#delete_subjectname').val(name);
+            $('#delete_subjectid').val(id);
+            $('#delsubject-modal').modal('show');
+        });
+
+        // Handle the actual deletion when "Yes" is clicked in the modal
+        $(document).on('click', '#btn-delsubject', function() {
+            var id = $('#delete_subjectid').val();
+            
+            // Show loading indicator
+            $('#btn-delsubject').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...');
+            $('#btn-delsubject').prop('disabled', true);
+            
+            $.ajax({
+                type: 'POST',
+                url: 'transac.php?action=delete_subject',
+                data: { id: id },
+                dataType: 'json',
+                success: function(response) {
+                    // Reset button state
+                    $('#btn-delsubject').html('Yes');
+                    $('#btn-delsubject').prop('disabled', false);
+                    
+                    if (response.status === 'success') {
+                        // Close the modal
+                        $('#delsubject-modal').modal('hide');
+                        
+                        // Remove the row from the table
+                        dataTable.row($('.table-' + id)).remove().draw();
+                        
+                        // Show success message
+                        Swal.fire({
+                            title: 'Success!',
+                            text: response.message,
+                            icon: 'success',
+                            timer: 3000,
+                            showConfirmButton: false
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Error!',
+                            text: response.message,
+                            icon: 'error'
+                        });
+                    }
+                },
+                error: function(xhr, status, error) {
+                    // Reset button state
+                    $('#btn-delsubject').html('Yes');
+                    $('#btn-delsubject').prop('disabled', false);
+                    
+                    console.log('XHR Response:', xhr.responseText);
+                    console.log('Status:', status);
+                    console.log('Error:', error);
+                    
+                    Swal.fire({
+                        title: 'Error!',
+                        text: 'An error occurred: ' + error,
+                        icon: 'error'
+                    });
+                }
+            });
+        });
+
+        // Reset modal when closed
+        $('#subjectModal').on('hidden.bs.modal', function () {
+            resetForm();
+        });
+    });
+    </script>
 </body>
 </html>

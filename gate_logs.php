@@ -1,6 +1,21 @@
 <?php
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+
+date_default_timezone_set('Asia/Manila');
 session_start();
 
+// Enhanced session debugging
+error_log("Session in gate_logs: " . print_r($_SESSION, true));
+
+// Check if user is logged in as security personnel
+if (!isset($_SESSION['access']) || !isset($_SESSION['access']['security'])) {
+    error_log("Access denied - redirecting to index.php");
+    header("Location: index.php");
+    exit();
+}
 // Check if user is logged in as security personnel
 if (!isset($_SESSION['access']) || !isset($_SESSION['access']['security'])) {
     header("Location: index.php");
@@ -10,11 +25,11 @@ if (!isset($_SESSION['access']) || !isset($_SESSION['access']['security'])) {
 include 'connection.php';
 
 // =====================================================================
-// GET PENDING EXITS DETAILS
+// GET PENDING EXITS DETAILS - FIXED VERSION
 // =====================================================================
 function getPendingExits($db) {
     $query = "SELECT gl.id_number, 
-                     COALESCE(s.fullname, i.fullname, CONCAT_WS(' ', p.first_name, p.middle_name, p.last_name), v.name, gl.name) as full_name,
+                     COALESCE(s.fullname, i.fullname, CONCAT_WS(' ', p.first_name, p.last_name), v.name, gl.name) as full_name,
                      gl.person_type, 
                      gl.created_at as entry_time
               FROM gate_logs gl
@@ -42,6 +57,7 @@ function getPendingExits($db) {
     $result = $stmt->get_result();
     return $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
 }
+
 
 // =====================================================================
 // COMPLETE SESSION DESTRUCTION ON LOGOUT
@@ -84,7 +100,7 @@ if (isset($_POST['logout_request'])) {
 }
 
 // =====================================================================
-// IMPROVED MAIN LOGS QUERY WITH BETTER NAME RESOLUTION
+// IMPROVED MAIN LOGS QUERY WITH BETTER NAME RESOLUTION - FIXED
 // =====================================================================
 
 // Get filters from GET with defaults
@@ -93,13 +109,13 @@ $type_filter = $_GET['type'] ?? 'all';
 $direction_filter = $_GET['direction'] ?? 'all';
 $search_term = $_GET['search'] ?? '';
 
-// Build the main query with improved JOIN conditions
+// Build the main query with improved JOIN conditions - FIXED no middle_name
 $query = "SELECT 
     gl.*,
     COALESCE(
         s.fullname,
         i.fullname,
-        CONCAT_WS(' ', p.first_name, COALESCE(p.middle_name, ''), p.last_name),
+        CONCAT_WS(' ', p.first_name, p.last_name),
         v.name,
         gl.name
     ) as full_name,
@@ -107,6 +123,8 @@ $query = "SELECT
     gl.direction,
     gl.department,
     gl.location,
+    gl.time_in,
+    gl.time_out,
     gl.created_at
 FROM gate_logs gl
 LEFT JOIN students s ON gl.person_type = 'student' AND gl.person_id = s.id
@@ -138,11 +156,12 @@ if ($direction_filter !== 'all') {
 }
 
 if (!empty($search_term)) {
-    $query .= " AND (gl.id_number LIKE ? OR gl.name LIKE ?)";
+    $query .= " AND (gl.id_number LIKE ? OR gl.name LIKE ? OR COALESCE(s.fullname, i.fullname, CONCAT_WS(' ', p.first_name, p.last_name), v.name, gl.name) LIKE ?)";
     $search_param = "%$search_term%";
     $params[] = $search_param;
     $params[] = $search_param;
-    $types .= 'ss';
+    $params[] = $search_param;
+    $types .= 'sss';
 }
 
 $query .= " ORDER BY gl.created_at DESC";
@@ -202,24 +221,6 @@ try {
         }
     } catch (Exception $fallback_e) {
         error_log("Fallback query also failed: " . $fallback_e->getMessage());
-    }
-}
-
-// If still no logs, check if table exists and has data
-if (empty($logs)) {
-    try {
-        $check_table = $db->query("SHOW TABLES LIKE 'gate_logs'");
-        if ($check_table && $check_table->num_rows > 0) {
-            $count_result = $db->query("SELECT COUNT(*) as total FROM gate_logs");
-            if ($count_result) {
-                $count_data = $count_result->fetch_assoc();
-                error_log("Gate logs table exists with " . $count_data['total'] . " total records");
-            }
-        } else {
-            error_log("Gate logs table does not exist!");
-        }
-    } catch (Exception $e) {
-        error_log("Table check failed: " . $e->getMessage());
     }
 }
 
@@ -349,16 +350,16 @@ function getGateStats($db, $date, $department = null, $location = null) {
 // ============================================
 // STATISTICS QUERIES (REPLACED BY HELPER)
 // ============================================
-$today = date('Y-m-d');
+ $today = date('Y-m-d');
 
 // Use helper to get stats, breakdown and pending count (no department/location filters for overview)
-$gateStats = getGateStats($db, $today);
-$stats = $gateStats['stats'] ?? ['total_entries' => 0, 'entries_in' => 0, 'entries_out' => 0, 'unique_people' => 0];
-$breakdown = $gateStats['breakdown'] ?? [];
-$pending_exits_count = $gateStats['pending_exits_count'] ?? 0;
+ $gateStats = getGateStats($db, $today);
+ $stats = $gateStats['stats'] ?? ['total_entries' => 0, 'entries_in' => 0, 'entries_out' => 0, 'unique_people' => 0];
+ $breakdown = $gateStats['breakdown'] ?? [];
+ $pending_exits_count = $gateStats['pending_exits_count'] ?? 0;
 
 // Get pending exits details for the modal (function already exists)
-$pending_exits_details = getPendingExits($db);
+ $pending_exits_details = getPendingExits($db);
 
 // Function to sanitize output
 function sanitizeOutput($output) {
@@ -374,6 +375,20 @@ function getPersonTypeIcon($type) {
         'visitor' => 'user-clock'
     ];
     return $icons[$type] ?? 'user';
+}
+
+// Function to format time correctly (fixing the 3-hour time difference)
+function formatTime($time) {
+    if (empty($time) || $time == '00:00:00' || $time == '?' || $time == '0000-00-00 00:00:00') {
+        return '-';
+    }
+    try {
+        // Convert to Manila time (already set in date_default_timezone_set)
+        $dateTime = new DateTime($time);
+        return $dateTime->format('h:i A');
+    } catch (Exception $e) {
+        return '-';
+    }
 }
 
 // Debug function to check name resolution
@@ -536,6 +551,58 @@ function debugNameResolution($log) {
             color: white;
         }
 
+        /* Time column specific styles */
+        .time-column {
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .time-header {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .time-layout {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .time-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .time-divider {
+            width: 1px;
+            height: 20px;
+            background-color: #dee2e6;
+            margin: 0 8px;
+        }
+
+        .time-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #6c757d;
+            min-width: 30px;
+        }
+
+        .time-value {
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .time-in {
+            color: #198754;
+        }
+
+        .time-out {
+            color: #fd7e14;
+        }
+
         @keyframes pulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.05); }
@@ -650,6 +717,10 @@ function debugNameResolution($log) {
             
             .stat-icon {
                 font-size: 2rem;
+            }
+            
+            .time-column {
+                min-width: 100px;
             }
         }
     </style>
@@ -827,76 +898,68 @@ function debugNameResolution($log) {
 
     <!-- Logs Table -->
     <div class="table-container">
-        <div class="card">
-            <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-list me-2"></i>Access Logs</h5>
-                <span class="badge bg-primary fs-6"><?php echo count($logs); ?> records found</span>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover mb-0">
-                        <thead>
-                        <tr>
-                            <th><i class="fas fa-calendar me-1"></i>Date</th>
-                            <th><i class="fas fa-id-card me-1"></i>ID Number</th>
-                            <th><i class="fas fa-user me-1"></i>Name</th>
-                            <th><i class="fas fa-tag me-1"></i>Type</th>
-                            <th>
-                                <div class="text-center">
-                                    <i class="fas fa-clock me-1"></i>Time
-                                </div>
-                            </th>
-                        </tr>
-                    </thead>
-                        <tbody>
-                            <?php if (empty($logs)): ?>
-                                <tr>
-                                    <td colspan="7" class="empty-state">
-                                        <i class="fas fa-inbox"></i>
-                                        <h5 class="mt-3">No logs found</h5>
-                                        <p class="text-muted">Try adjusting your filters or search criteria</p>
+    <div class="card">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Access Logs</h5>
+            <span class="badge bg-primary fs-6"><?php echo count($logs); ?> records found</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0">
+                    <thead>
+                    <tr>
+                        <th><i class="fas fa-calendar me-1"></i>Date</th>
+                        <th><i class="fas fa-id-card me-1"></i>ID Number</th>
+                        <th><i class="fas fa-user me-1"></i>Name</th>
+                        <th><i class="fas fa-tag me-1"></i>Type</th>
+                        <th class="text-center"><i class="fas fa-clock me-1"></i>Time</th>
+                    </tr>
+                </thead>
+                    <tbody>
+                        <?php if (empty($logs)): ?>
+                            <tr>
+                                <td colspan="5" class="empty-state">
+                                    <i class="fas fa-inbox"></i>
+                                    <h5 class="mt-3">No logs found</h5>
+                                    <p class="text-muted">Try adjusting your filters or search criteria</p>
+                                </td>
+                            </tr>
+                        <?php else: ?>
+                            <?php foreach ($logs as $log): ?>
+                                <tr class="log-row">
+                                    <td>
+                                        <small class="text-muted">
+                                            <?php 
+                                                $timeValue = $log['created_at'] ?? null;
+                                                echo $timeValue 
+                                                    ? date('M j, Y', strtotime($timeValue)) 
+                                                    : 'N/A';
+                                            ?>
+                                        </small>
                                     </td>
-                                </tr>
-                            <?php else: ?>
-                                <?php foreach ($logs as $log): ?>
-                                    <?php 
-                                    // Debug: Check what's happening with names
-                                    $debug_info = debugNameResolution($log);
-                                    ?>
-                                    <tr class="log-row">
-                                        <td>
-                                            <small class="text-muted">
-                                                <?php 
-                                                    $timeValue = $log['created_at'] ?? null;
-                                                    echo $timeValue 
-                                                        ? date('M j, Y', strtotime($timeValue)) 
-                                                        : 'N/A';
-                                                ?>
-                                            </small>
-                                        </td>
-                                        <td>
-                                            <code class="text-primary"><?php echo sanitizeOutput($log['id_number']); ?></code>
-                                        </td>
-                                        <td>
-                                            <strong>
-                                                <?php 
-                                                // Use the resolved full_name, fallback to gl.name, then 'Unknown'
-                                                $displayName = !empty($log['full_name']) && $log['full_name'] !== 'N/A' 
-                                                    ? $log['full_name'] 
-                                                    : (!empty($log['name']) 
-                                                        ? $log['name'] 
-                                                        : 'Unknown Person');
-                                                echo sanitizeOutput($displayName);
-                                                ?>
-                                            </strong>
-                                        </td>
-                                        <td>
-                                            <span class="badge badge-<?php echo $log['person_type']; ?> rounded-pill">
-                                                <i class="fas fa-<?php echo getPersonTypeIcon($log['person_type']); ?> me-1"></i>
-                                                <?php echo ucfirst($log['person_type']); ?>
-                                            </span>
-                                        </td>
-                                        <td>
+                                    <td>
+                                        <code class="text-primary"><?php echo sanitizeOutput($log['id_number']); ?></code>
+                                    </td>
+                                    <td>
+                                        <strong>
+                                            <?php 
+                                            // Use the resolved full_name, fallback to gl.name, then 'Unknown'
+                                            $displayName = !empty($log['full_name']) && $log['full_name'] !== 'N/A' 
+                                                ? $log['full_name'] 
+                                                : (!empty($log['name']) 
+                                                    ? $log['name'] 
+                                                    : 'Unknown Person');
+                                            echo sanitizeOutput($displayName);
+                                            ?>
+                                        </strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-<?php echo $log['person_type']; ?> rounded-pill">
+                                            <i class="fas fa-<?php echo getPersonTypeIcon($log['person_type']); ?> me-1"></i>
+                                            <?php echo ucfirst($log['person_type']); ?>
+                                        </span>
+                                    </td>
+                                    <td>
                                         <div class="text-center d-flex justify-content-center">
                                             <!-- Entrance Column -->
                                             <div class="text-center pe-2 border-end">
@@ -928,14 +991,14 @@ function debugNameResolution($log) {
                                             </div>
                                         </div>
                                     </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
             </div>
         </div>
+    </div>
     </div>
 </div>
 

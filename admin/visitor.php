@@ -1,6 +1,318 @@
 <!DOCTYPE html>
 <html lang="en">
 <?php include 'header.php'; ?>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Visitor Cards</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <style>
+        :root {
+            --primary-color: #e1e7f0ff;
+            --secondary-color: #b0caf0ff;
+            --accent-color: #f3f5fcff;
+            --icon-color: #5c95e9ff;
+            --light-bg: #f8f9fc;
+            --dark-text: #5a5c69;
+            --warning-color: #f6c23e;
+            --danger-color: #e74a3b;
+            --success-color: #1cc88a;
+            --info-color: #36b9cc;
+            --border-radius: 15px;
+            --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            --transition: all 0.3s ease;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            font-family: 'Inter', sans-serif;
+            color: var(--dark-text);
+        }
+
+        .content {
+            background: transparent;
+        }
+
+        .bg-light {
+            background-color: var(--light-bg) !important;
+            border-radius: var(--border-radius);
+        }
+
+        .card {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            background: white;
+        }
+
+        .table th {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
+            color: white;
+            font-weight: 600;
+            border: none;
+            padding: 15px 12px;
+        }
+
+        .table td {
+            padding: 12px;
+            border-color: rgba(0,0,0,0.05);
+            vertical-align: middle;
+        }
+
+        .table-responsive {
+            border-radius: var(--border-radius);
+            overflow: hidden;
+        }
+
+        .badge {
+            font-size: 0.85em;
+            border-radius: 8px;
+        }
+
+        /* Modern Button Styles */
+        .btn {
+            border-radius: 10px;
+            font-weight: 500;
+            transition: var(--transition);
+            border: none;
+            padding: 10px 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .btn::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            transition: width 0.3s ease;
+            z-index: -1;
+        }
+
+        .btn:hover::before {
+            width: 100%;
+        }
+
+        .btn i {
+            font-size: 0.9rem;
+        }
+
+        /* Add Visitor Button */
+        .btn-add {
+            background: linear-gradient(135deg, var(--warning-color), #f4b619);
+            color: white;
+            box-shadow: 0 4px 15px rgba(246, 194, 62, 0.3);
+        }
+
+        .btn-add:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(246, 194, 62, 0.4);
+            color: white;
+        }
+
+        /* Edit Button */
+        .btn-edit {
+            background: linear-gradient(135deg, var(--info-color), #2c9faf);
+            color: white;
+            box-shadow: 0 4px 15px rgba(54, 185, 204, 0.3);
+        }
+
+        .btn-edit:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(54, 185, 204, 0.4);
+            color: white;
+        }
+
+        /* Delete Button */
+        .btn-delete {
+            background: linear-gradient(135deg, var(--danger-color), #d73525);
+            color: white;
+            box-shadow: 0 4px 15px rgba(231, 74, 59, 0.3);
+        }
+
+        .btn-delete:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(231, 74, 59, 0.4);
+            color: white;
+        }
+
+        /* Modal Footer Buttons */
+        .btn-close-modal {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+            color: white;
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+        }
+
+        .btn-close-modal:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4);
+            color: white;
+        }
+
+        .btn-save {
+            background: linear-gradient(135deg, var(--warning-color), #f4b619);
+            color: white;
+            box-shadow: 0 4px 15px rgba(246, 194, 62, 0.3);
+        }
+
+        .btn-save:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(246, 194, 62, 0.4);
+            color: white;
+        }
+
+        .btn-update {
+            background: linear-gradient(135deg, var(--info-color), #2c9faf);
+            color: white;
+            box-shadow: 0 4px 15px rgba(54, 185, 204, 0.3);
+        }
+
+        .btn-update:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(54, 185, 204, 0.4);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 8px 15px;
+            font-size: 0.875rem;
+        }
+
+        .modal-content {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
+            color: white;
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
+            border: none;
+            padding: 20px 25px;
+        }
+
+        .modal-title {
+            font-weight: 600;
+        }
+
+        .btn-close {
+            filter: invert(1);
+        }
+
+        .form-control, .form-select {
+            border-radius: 8px;
+            border: 1.5px solid #e3e6f0;
+            padding: 12px 16px;
+            transition: var(--transition);
+            background-color: var(--light-bg);
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--icon-color);
+            box-shadow: 0 0 0 3px rgba(92, 149, 233, 0.15);
+            background-color: white;
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: var(--dark-text);
+            margin-bottom: 8px;
+        }
+
+        .alert {
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .alert-success {
+            background-color: #d1edff;
+            color: #0c5460;
+            border-left: 4px solid #117a8b;
+        }
+
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+
+        .back-to-top {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color)) !important;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--box-shadow);
+            transition: var(--transition);
+        }
+
+        .back-to-top:hover {
+            transform: translateY(-3px);
+        }
+
+        h6.mb-4 {
+            color: var(--dark-text);
+            font-weight: 700;
+            font-size: 1.25rem;
+        }
+
+        hr {
+            opacity: 0.1;
+            margin: 1.5rem 0;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(92, 149, 233, 0.05);
+            transform: translateY(-1px);
+            transition: var(--transition);
+        }
+
+        .error-message {
+            color: var(--danger-color);
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        /* Button container styling */
+        .button-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Table action buttons container */
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        /* Loading spinner */
+        .spinner-border {
+            width: 1rem;
+            height: 1rem;
+        }
+    </style>
+</head>
+
 <body>
     <div class="container-fluid position-relative bg-white d-flex p-0">
         <!-- Sidebar Start -->
@@ -19,8 +331,10 @@
                                 <div class="col-9">
                                     <h6 class="mb-4">Manage Visitor Cards</h6>
                                 </div>
-                                <div class="col-3">
-                                    <button type="button" class="btn btn-outline-warning m-2" data-bs-toggle="modal" data-bs-target="#visitorModal">Add Visitor Card</button>
+                                <div class="col-3 d-flex justify-content-end">
+                                    <button type="button" class="btn btn-add" data-bs-toggle="modal" data-bs-target="#visitorModal">
+                                        <i class="fas fa-plus-circle"></i> Add Visitor Card
+                                    </button>
                                 </div>
                             </div>
                             <hr>
@@ -39,18 +353,18 @@
                                         <tr class="table-<?php echo $row['id'];?>">
                                             <td style="text-align:left;" class="rfid_number"><?php echo $row['rfid_number']; ?></td>
                                             <td width="14%">
-                                                <center>
+                                                <div class="action-buttons">
                                                     <button rfid_number="<?php echo $row['rfid_number'];?>" 
                                                             data-id="<?php echo $row['id'];?>" 
-                                                            class="btn btn-outline-primary btn-sm btn-edit e_visitor_id">
-                                                        <i class="bi bi-plus-edit"></i> Edit 
+                                                            class="btn btn-sm btn-edit e_visitor_id">
+                                                        <i class="fas fa-edit"></i> Edit 
                                                     </button>
                                                     <button rfid_number="<?php echo $row['rfid_number'];?>" 
                                                             data-id="<?php echo $row['id']; ?>" 
-                                                            class="btn btn-outline-danger btn-sm btn-del d_visitor_id">
-                                                        <i class="bi bi-plus-trash"></i> Delete 
+                                                            class="btn btn-sm btn-delete d_visitor_id">
+                                                        <i class="fas fa-trash"></i> Delete 
                                                     </button>
-                                                </center> 
+                                                </div>
                                             </td>
                                         </tr>
                                         <?php } ?>
@@ -67,7 +381,9 @@
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title" id="exampleModalLabel"><i class="bi bi-plus-circle"></i> New Visitor Card</h5>
+                            <h5 class="modal-title" id="exampleModalLabel">
+                                <i class="fas fa-plus-circle"></i> New Visitor Card
+                            </h5>
                             <button type="button" onclick="resetForm()" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <form id="visitorForm">
@@ -85,8 +401,8 @@
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" onclick="resetForm()" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                                <button type="button" class="btn btn-outline-warning" id="btn-visitor">Save</button>
+                                <button type="button" onclick="resetForm()" class="btn btn-close-modal" data-bs-dismiss="modal">Close</button>
+                                <button type="button" class="btn btn-save" id="btn-visitor">Save</button>
                             </div>
                         </form>
                     </div>
@@ -98,7 +414,9 @@
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title"><i class="bi bi-pencil"></i> Edit Visitor Card</h5>
+                            <h5 class="modal-title">
+                                <i class="fas fa-edit"></i> Edit Visitor Card
+                            </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <form id="editVisitorForm">
@@ -116,8 +434,8 @@
                             </div>
                             <div class="modal-footer">
                                 <input type="hidden" name="id" id="edit_visitorid">
-                                <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                                <button type="button" class="btn btn-outline-primary" id="btn-editvisitor">Update</button>
+                                <button type="button" class="btn btn-close-modal" data-bs-dismiss="modal">Close</button>
+                                <button type="button" class="btn btn-update" id="btn-editvisitor">Update</button>
                             </div>
                         </form>
                     </div>
@@ -127,11 +445,13 @@
             <?php include 'footer.php'; ?>
         </div>
 
-         <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top" style="background-color: #87abe0ff"><i class="bi bi-arrow-up" style="background-color: #87abe0ff"></i></a>
+         <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top"><i class="bi bi-arrow-up"></i></a>
     </div>
 
     <!-- JavaScript Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script src="lib/chart/chart.min.js"></script>
     <script src="lib/easing/easing.min.js"></script>
     <script src="lib/waypoints/waypoints.min.js"></script>
@@ -381,13 +701,13 @@
                                 });
                             } else {
                                 Swal.fire('Error!', response.message, 'error');
-                                $btn.html('<i class="bi bi-plus-trash"></i> Delete');
+                                $btn.html('<i class="fas fa-trash"></i> Delete');
                                 $btn.prop('disabled', false);
                             }
                         },
                         error: function(xhr) {
                             Swal.fire('Error!', 'An error occurred while processing your request', 'error');
-                            $btn.html('<i class="bi bi-plus-trash"></i> Delete');
+                            $btn.html('<i class="fas fa-trash"></i> Delete');
                             $btn.prop('disabled', false);
                         }
                     });

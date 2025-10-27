@@ -1,9 +1,19 @@
+<?php
+session_start();
+// Display success/error messages
+if (isset($_SESSION['success_message'])) {
+    echo '<div class="alert alert-success">' . $_SESSION['success_message'] . '</div>';
+    unset($_SESSION['success_message']);
+}
+if (isset($_SESSION['error_message'])) {
+    echo '<div class="alert alert-danger">' . $_SESSION['error_message'] . '</div>';
+    unset($_SESSION['error_message']);
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
-<?php
-include 'header.php';
-include '../connection.php';
-?>
+<?php include 'header.php'; ?>
+<?php include '../connection.php'; ?>
 
 <head>
     <meta charset="UTF-8">
@@ -14,37 +24,333 @@ include '../connection.php';
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <style>
+        :root {
+            --primary-color: #e1e7f0ff;
+            --secondary-color: #b0caf0ff;
+            --accent-color: #f3f5fcff;
+            --icon-color: #5c95e9ff;
+            --light-bg: #f8f9fc;
+            --dark-text: #5a5c69;
+            --warning-color: #f6c23e;
+            --danger-color: #e74a3b;
+            --success-color: #1cc88a;
+            --info-color: #36b9cc;
+            --border-radius: 15px;
+            --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            --transition: all 0.3s ease;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            font-family: 'Inter', sans-serif;
+            color: var(--dark-text);
+        }
+
+        .content {
+            background: transparent;
+        }
+
         .bg-light {
-            background-color: #f8f9fa !important;
+            background-color: var(--light-bg) !important;
+            border-radius: var(--border-radius);
         }
+
         .card {
-            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            background: white;
         }
+
         .table th {
-            background-color: #4e73df;
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
             color: white;
+            font-weight: 600;
+            border: none;
+            padding: 15px 12px;
         }
+
+        .table td {
+            padding: 12px;
+            border-color: rgba(0,0,0,0.05);
+            vertical-align: middle;
+        }
+
+        .table-responsive {
+            border-radius: var(--border-radius);
+            overflow: hidden;
+        }
+
         .badge {
             font-size: 0.85em;
+            border-radius: 8px;
         }
-        .section-header {
-            background-color: #f8d7da;
-            border-left: 4px solid #dc3545;
+
+        /* Modern Button Styles */
+        .btn {
+            border-radius: 10px;
+            font-weight: 500;
+            transition: var(--transition);
+            border: none;
+            padding: 10px 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
         }
+
+        .btn::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            transition: width 0.3s ease;
+            z-index: -1;
+        }
+
+        .btn:hover::before {
+            width: 100%;
+        }
+
+        .btn i {
+            font-size: 0.9rem;
+        }
+
+        /* Add Role Button */
+        .btn-add {
+            background: linear-gradient(135deg, var(--warning-color), #f4b619);
+            color: white;
+            box-shadow: 0 4px 15px rgba(246, 194, 62, 0.3);
+        }
+
+        .btn-add:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(246, 194, 62, 0.4);
+            color: white;
+        }
+
+        /* Edit Button */
+        .btn-edit {
+            background: linear-gradient(135deg, var(--info-color), #2c9faf);
+            color: white;
+            box-shadow: 0 4px 15px rgba(54, 185, 204, 0.3);
+        }
+
+        .btn-edit:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(54, 185, 204, 0.4);
+            color: white;
+        }
+
+        /* Delete Button */
+        .btn-delete {
+            background: linear-gradient(135deg, var(--danger-color), #d73525);
+            color: white;
+            box-shadow: 0 4px 15px rgba(231, 74, 59, 0.3);
+        }
+
+        .btn-delete:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(231, 74, 59, 0.4);
+            color: white;
+        }
+
+        /* Modal Footer Buttons */
+        .btn-close-modal {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+            color: white;
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+        }
+
+        .btn-close-modal:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4);
+            color: white;
+        }
+
+        .btn-save {
+            background: linear-gradient(135deg, var(--warning-color), #f4b619);
+            color: white;
+            box-shadow: 0 4px 15px rgba(246, 194, 62, 0.3);
+        }
+
+        .btn-save:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(246, 194, 62, 0.4);
+            color: white;
+        }
+
+        .btn-update {
+            background: linear-gradient(135deg, var(--info-color), #2c9faf);
+            color: white;
+            box-shadow: 0 4px 15px rgba(54, 185, 204, 0.3);
+        }
+
+        .btn-update:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(54, 185, 204, 0.4);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 8px 15px;
+            font-size: 0.875rem;
+        }
+
         .btn-del {
             transition: all 0.3s ease;
         }
+
         .btn-del:hover {
             transform: scale(1.05);
             box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
         }
-        .swal2-popup {
-            font-family: inherit;
+
+        .modal-content {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
         }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
+            color: white;
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
+            border: none;
+            padding: 20px 25px;
+        }
+
+        .modal-title {
+            font-weight: 600;
+        }
+
+        .btn-close {
+            filter: invert(1);
+        }
+
+        .form-control, .form-select {
+            border-radius: 8px;
+            border: 1.5px solid #e3e6f0;
+            padding: 12px 16px;
+            transition: var(--transition);
+            background-color: var(--light-bg);
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--icon-color);
+            box-shadow: 0 0 0 3px rgba(92, 149, 233, 0.15);
+            background-color: white;
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: var(--dark-text);
+            margin-bottom: 8px;
+        }
+
+        .alert {
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .alert-success {
+            background-color: #d1edff;
+            color: #0c5460;
+            border-left: 4px solid #117a8b;
+        }
+
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+
+        .back-to-top {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color)) !important;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--box-shadow);
+            transition: var(--transition);
+        }
+
+        .back-to-top:hover {
+            transform: translateY(-3px);
+        }
+
+        h6.mb-4 {
+            color: var(--dark-text);
+            font-weight: 700;
+            font-size: 1.25rem;
+        }
+
+        hr {
+            opacity: 0.1;
+            margin: 1.5rem 0;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(92, 149, 233, 0.05);
+            transform: translateY(-1px);
+            transition: var(--transition);
+        }
+
         .error-message {
-            color: #dc3545;
+            color: var(--danger-color);
             font-size: 0.875rem;
             margin-top: 0.25rem;
+        }
+
+        .password-field {
+            position: relative;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--icon-color);
+            transition: var(--transition);
+        }
+
+        .password-toggle:hover {
+            color: var(--secondary-color);
+        }
+
+        /* SweetAlert customization */
+        .swal2-popup {
+            border-radius: var(--border-radius) !important;
+            font-family: inherit !important;
+        }
+
+        /* Button container styling */
+        .button-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Table action buttons container */
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
         }
     </style>
 </head>
@@ -66,8 +372,8 @@ include '../connection.php';
                             <div class="col-9">
                                 <h6 class="mb-4">Manage Roles</h6>
                             </div>
-                            <div class="col-3">
-                                <button type="button" class="btn btn-outline-warning m-2" data-bs-toggle="modal" data-bs-target="#roleModal">
+                            <div class="col-3 d-flex justify-content-end">
+                                <button type="button" class="btn btn-add" data-bs-toggle="modal" data-bs-target="#roleModal">
                                     <i class="fas fa-plus-circle"></i> Add Role
                                 </button>
                             </div>
@@ -87,18 +393,18 @@ include '../connection.php';
                                     <tr class="table-<?php echo $row['id'];?>" data-role-id="<?php echo $row['id'];?>">
                                         <td><?php echo $row['role']; ?></td>
                                         <td width="14%">
-                                            <center>
+                                            <div class="action-buttons">
                                                 <button role="<?php echo $row['role'];?>" 
                                                         data-id="<?php echo $row['id'];?>" 
-                                                        class="btn btn-outline-primary btn-sm btn-edit e_role_id">
+                                                        class="btn btn-sm btn-edit e_role_id">
                                                     <i class="fas fa-edit"></i> Edit 
                                                 </button>
                                                 <button role="<?php echo $row['role'];?>"  
                                                         data-id="<?php echo $row['id']; ?>" 
-                                                        class="btn btn-outline-danger btn-sm btn-del d_role_id">
+                                                        class="btn btn-sm btn-delete d_role_id">
                                                     <i class="fas fa-trash"></i> Delete 
                                                 </button>
-                                            </center> 
+                                            </div>
                                         </td>
                                     </tr>
                                     <?php } ?>
@@ -131,8 +437,8 @@ include '../connection.php';
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                                <button type="submit" class="btn btn-outline-warning" id="btn-role">Save</button>
+                                <button type="button" class="btn btn-close-modal" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-save" id="btn-role">Save</button>
                             </div>
                         </form>
                     </div>
@@ -162,8 +468,8 @@ include '../connection.php';
                             </div>
                             <div class="modal-footer">
                                 <input type="hidden" name="role_id" id="edit_roleid">
-                                <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                                <button type="submit" class="btn btn-outline-primary" id="btn-editrole">Update</button>
+                                <button type="button" class="btn btn-close-modal" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-update" id="btn-editrole">Update</button>
                             </div>
                         </form>
                     </div>
@@ -172,7 +478,7 @@ include '../connection.php';
 
             <?php include 'footer.php'; ?>
         </div>
-         <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top" style="background-color: #87abe0ff"><i class="bi bi-arrow-up" style="background-color: #87abe0ff"></i></a>
+         <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top"><i class="bi bi-arrow-up"></i></a>
     </div>
 
     <!-- JavaScript Libraries -->
@@ -409,92 +715,89 @@ include '../connection.php';
     // ==========
     // DELETE ROLE
     // ==========
-    // ==========
-// DELETE ROLE
-// ==========
-$(document).on('click', '.d_role_id', function() {
-    const $button = $(this);
-    const id = $button.data('id');
-    const roleName = $button.attr('role');
-    
-    Swal.fire({
-        title: 'Delete Role?',
-        text: `Are you sure you want to delete "${roleName}"?`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Yes, delete it!',
-        cancelButtonText: 'Cancel'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // Show loading state
-            $button.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
-            $button.prop('disabled', true);
-            
-            $.ajax({
-                type: 'POST',
-                url: 'transac.php?action=delete_role',
-                data: { 
-                    id: id
-                },
-                dataType: 'json',
-                success: function(response) {
-                    if (response.status === 'success') {
-                        // Remove row from DataTable
-                        dataTable.row($button.closest('tr')).remove().draw();
+    $(document).on('click', '.d_role_id', function() {
+        const $button = $(this);
+        const id = $button.data('id');
+        const roleName = $button.attr('role');
+        
+        Swal.fire({
+            title: 'Delete Role?',
+            text: `Are you sure you want to delete "${roleName}"?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!',
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Show loading state
+                $button.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
+                $button.prop('disabled', true);
+                
+                $.ajax({
+                    type: 'POST',
+                    url: 'transac.php?action=delete_role',
+                    data: { 
+                        id: id
+                    },
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.status === 'success') {
+                            // Remove row from DataTable
+                            dataTable.row($button.closest('tr')).remove().draw();
+                            
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Deleted!',
+                                text: response.message,
+                                showConfirmButton: false,
+                                timer: 1500
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Cannot Delete Role',
+                                text: response.message || 'Failed to delete role',
+                                confirmButtonText: 'OK'
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.log('XHR Response:', xhr.responseText);
+                        console.log('Status:', status);
+                        console.log('Error:', error);
+                        
+                        let errorMessage = 'An error occurred while deleting the role';
+                        try {
+                            const errorResponse = JSON.parse(xhr.responseText);
+                            if (errorResponse.message) {
+                                errorMessage = errorResponse.message;
+                            }
+                        } catch (e) {
+                            // If not JSON, show the raw response
+                            errorMessage = xhr.responseText || errorMessage;
+                        }
                         
                         Swal.fire({
-                            icon: 'success',
-                            title: 'Deleted!',
-                            text: response.message,
-                            showConfirmButton: false,
-                            timer: 1500
-                        });
-                    } else {
-                        Swal.fire({
                             icon: 'error',
-                            title: 'Cannot Delete Role',
-                            text: response.message || 'Failed to delete role',
+                            title: 'Error!',
+                            html: `<div style="text-align: left;">
+                                   <strong>Error Details:</strong><br>
+                                   <small>${errorMessage}</small>
+                                   </div>`,
                             confirmButtonText: 'OK'
                         });
+                    },
+                    complete: function() {
+                        // Restore button state
+                        $button.html('<i class="fas fa-trash"></i> Delete');
+                        $button.prop('disabled', false);
                     }
-                },
-                error: function(xhr, status, error) {
-                    console.log('XHR Response:', xhr.responseText);
-                    console.log('Status:', status);
-                    console.log('Error:', error);
-                    
-                    let errorMessage = 'An error occurred while deleting the role';
-                    try {
-                        const errorResponse = JSON.parse(xhr.responseText);
-                        if (errorResponse.message) {
-                            errorMessage = errorResponse.message;
-                        }
-                    } catch (e) {
-                        // If not JSON, show the raw response
-                        errorMessage = xhr.responseText || errorMessage;
-                    }
-                    
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error!',
-                        html: `<div style="text-align: left;">
-                               <strong>Error Details:</strong><br>
-                               <small>${errorMessage}</small>
-                               </div>`,
-                        confirmButtonText: 'OK'
-                    });
-                },
-                complete: function() {
-                    // Restore button state
-                    $button.html('<i class="fas fa-trash"></i> Delete');
-                    $button.prop('disabled', false);
-                }
-            });
-        }
+                });
+            }
+        });
     });
-});
 
     // Reset modal when closed
     $('#roleModal').on('hidden.bs.modal', function() {

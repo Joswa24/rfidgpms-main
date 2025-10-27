@@ -105,23 +105,28 @@ function getStudentsPhotoPath($student) {
 /**
  * Get personnel photo path with multiple fallbacks
  */
-function getPersonellPhotoPath($personnel) {
+function getPersonellPhotoPath($personell) {
     $defaultPhoto = 'admin/uploads/students/default.png';
     
-    if (is_array($personnel)) {
-        $photo = isset($personnel['photo']) ? $personnel['photo'] : '';
+    if (is_array($personell)) {
+        $photo = isset($personell['photo']) ? $personell['photo'] : '';
+        $photo_blob = isset($personell['photo_blob']) ? $personell['photo_blob'] : '';
     } else {
-        $photo = $personnel;
+        $photo = $personell;
+        $photo_blob = '';
     }
     
+    // First check if we have a photo blob (base64)
+    if (!empty($photo_blob) && strpos($photo_blob, 'data:image') === 0) {
+        return $photo_blob;
+    }
+    
+    // Then check file paths
     if (!empty($photo) && $photo !== 'default.png') {
         $possiblePaths = [
             'admin/uploads/personell/' . $photo,
             '../admin/uploads/personell/' . $photo,
             './admin/uploads/personell/' . $photo,
-            'admin/uploads/personnel/' . $photo,
-            '../admin/uploads/personnel/' . $photo,
-            './admin/uploads/personnel/' . $photo,
             'uploads/personell/' . $photo,
             '../uploads/personell/' . $photo,
             './uploads/personell/' . $photo,
@@ -173,10 +178,10 @@ function getUniversalPhotoPath($userData) {
             return getStudentsPhotoPath($userData);
             
         case 'personell':
+            return getPersonellPhotoPath($userData);
         case 'staff':
         case 'admin':
         case 'security':
-        case 'personnel':
             return getPersonellPhotoPath($userData);
             
         case 'visitor':
@@ -318,7 +323,7 @@ function processVisitorSubmission($db, $postData) {
         
         if ($stmt->execute()) {
             // Also insert into gate_logs
-        insertIntoGateLogs($db, 'visitor', 0, $visitor_id, $full_name, 'IN', $department, $location, date('Y-m-d H:i:s'), 'N/A');
+            insertIntoGateLogs($db, 'visitor', 0, $visitor_id, $full_name, 'IN', $department, $location, date('Y-m-d H:i:s'), 'N/A');
             
             return [
                 'success' => true, 
@@ -348,16 +353,16 @@ function processVisitorSubmission($db, $postData) {
 // ============================================
 
 // Get POST data
-$barcode = $_POST['barcode'] ?? '';
-$current_department = $_POST['department'] ?? 'Main';
-$current_location = $_POST['location'] ?? 'Gate';
-$check_visitor = isset($_POST['check_visitor']) ? true : false;
-$is_visitor_submission = isset($_POST['is_visitor_submission']) ? true : false;
+ $barcode = $_POST['barcode'] ?? '';
+ $current_department = $_POST['department'] ?? 'Main';
+ $current_location = $_POST['location'] ?? 'Gate';
+ $check_visitor = isset($_POST['check_visitor']) ? true : false;
+ $is_visitor_submission = isset($_POST['is_visitor_submission']) ? true : false;
 
-$today = date('Y-m-d');
-$now = date('Y-m-d H:i:s');
-$current_time = date('H:i:s');
-$period = (date('H') < 12) ? 'AM' : 'PM';
+ $today = date('Y-m-d');
+ $now = date('Y-m-d H:i:s');
+ $current_time = date('H:i:s');
+ $period = (date('H') < 12) ? 'AM' : 'PM';
 
 // Handle visitor information submission
 if ($is_visitor_submission) {
@@ -381,16 +386,16 @@ if ($check_visitor) {
     }
 }
 
-// Search for person in all tables (students, instructors, personnel, visitors)
-$person = null;
-$person_type = '';
+// Search for person in all tables (students, instructors, personell, visitors)
+ $person = null;
+ $person_type = '';
 
 // Check students table first
-$student_query = "SELECT *, 'student' as person_type, photo as photo_blob, fullname as full_name FROM students WHERE id_number = ? LIMIT 1";
-$stmt = $db->prepare($student_query);
-$stmt->bind_param("s", $barcode);
-$stmt->execute();
-$result = $stmt->get_result();
+ $student_query = "SELECT *, 'student' as person_type, photo as photo_blob, fullname as full_name FROM students WHERE id_number = ? LIMIT 1";
+ $stmt = $db->prepare($student_query);
+ $stmt->bind_param("s", $barcode);
+ $stmt->execute();
+ $result = $stmt->get_result();
 
 if ($result->num_rows > 0) {
     $person = $result->fetch_assoc();
@@ -413,24 +418,29 @@ if ($result->num_rows > 0) {
     } else {
         $stmt->close();
         
-        // Check personnel table
-        $personnel_query = "SELECT *, 'personell' as person_type, photo as photo_blob, 
-                           CONCAT(first_name, ' ', last_name) as full_name 
-                    FROM personell WHERE id_number = ? LIMIT 1";
-        $stmt = $db->prepare($personnel_query);
+        // Check personell table
+        $personell_query = "SELECT *, 'personell' as person_type, photo as photo_blob, 
+                   CONCAT(first_name, last_name) as full_name 
+            FROM personell WHERE id_number = ? AND deleted = 0 LIMIT 1";
+        $stmt = $db->prepare($personell_query);
         $stmt->bind_param("s", $barcode);
         $stmt->execute();
         $result = $stmt->get_result();
 
+        // Debug: Check what we found
+        error_log("Personnel search for barcode: " . $barcode);
+        error_log("Number of rows found: " . $result->num_rows);
+
         if ($result->num_rows > 0) {
             $person = $result->fetch_assoc();
-            $person_type = 'personell';
+            error_log("Personnel found: " . print_r($person, true));
             
-            // Check if personnel is blocked
+            // Check if personell is blocked
             if (isset($person['status']) && $person['status'] == 'Block') {
                 echo json_encode(['error' => 'BLOCKED PERSONNEL - Access denied']);
                 exit;
             }
+            $person_type = 'personell';
             $stmt->close();
         } else {
             $stmt->close();
@@ -451,20 +461,47 @@ if ($result->num_rows > 0) {
                 $person = $result->fetch_assoc();
                 $person_type = 'visitor';
                 $stmt->close();
+                
+                // Process visitor timeout directly
+                processVisitorTimeOut($db, $person, $current_department, $current_location);
+                exit;
             } else {
                 $stmt->close();
-                echo json_encode(['error' => 'ID NOT FOUND']);
-                exit;
+                
+                // Check if this is a visitor card that hasn't been used today
+                $visitor_card_query = "SELECT id, rfid_number FROM visitor WHERE rfid_number = ? LIMIT 1";
+                $stmt = $db->prepare($visitor_card_query);
+                $stmt->bind_param("s", $barcode);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                
+                if ($result->num_rows > 0) {
+                    // This is a valid visitor card but no record for today
+                    $visitor = $result->fetch_assoc();
+                    $stmt->close();
+                    
+                    // Return response indicating visitor info is needed
+                    echo json_encode([
+                        'requires_visitor_info' => true, 
+                        'visitor_id' => $barcode,
+                        'message' => 'Visitor card detected. Please provide visitor information.'
+                    ]);
+                    exit;
+                } else {
+                    $stmt->close();
+                    echo json_encode(['error' => 'ID NOT FOUND']);
+                    exit;
+                }
             }
         }
     }
 }
 
 // Get photo using enhanced photo functions
-$photo_data = getPhotoForResponse($person);
+ $photo_data = getPhotoForResponse($person);
 
 // Prepare base response
-$response = [
+ $response = [
     'full_name' => $person['full_name'],
     'id_number' => $person['id_number'],
     'department' => $person['department'] ?? $person['department_name'] ?? 'N/A',
@@ -480,15 +517,15 @@ $response = [
 ];
 
 // Determine the specific log table based on person type
-$specific_log_tables = [
+ $specific_log_tables = [
     'student' => 'students_glogs',
     'instructor' => 'instructor_glogs',
     'personell' => 'personell_glogs',
     'visitor' => 'visitor_glogs'
 ];
 
-$specific_table = $specific_log_tables[$person_type];
-$fk_column = $person_type . '_id';
+ $specific_table = $specific_log_tables[$person_type];
+ $fk_column = $person_type . '_id';
 
 // For visitors, we use visitor_logs table instead of visitor_glogs
 if ($person_type === 'visitor') {
@@ -497,25 +534,25 @@ if ($person_type === 'visitor') {
 }
 
 // Check existing logs in the SPECIFIC log table for today
-$specific_log_query = "SELECT * FROM $specific_table 
-              WHERE $fk_column = ? 
-              AND date_logged = ?
-              AND department = ?
-              AND location = ?
-              ORDER BY created_at DESC LIMIT 1";
-              
-$specific_log_stmt = $db->prepare($specific_log_query);
-$specific_log_stmt->bind_param("isss", $person['id'], $today, $current_department, $current_location);
-$specific_log_stmt->execute();
-$specific_log_result = $specific_log_stmt->get_result();
-$existing_specific_log = $specific_log_result->fetch_assoc();
+ $specific_log_query = "SELECT * FROM $specific_table 
+          WHERE $fk_column = ? 
+          AND date_logged = ?
+          AND department = ?
+          AND location = ?
+          ORDER BY created_at DESC LIMIT 1";
+          
+ $specific_log_stmt = $db->prepare($specific_log_query);
+ $specific_log_stmt->bind_param("isss", $person['id'], $today, $current_department, $current_location);
+ $specific_log_stmt->execute();
+ $specific_log_result = $specific_log_stmt->get_result();
+ $existing_specific_log = $specific_log_result->fetch_assoc();
 
 // Track attendance type and times for consistent response format
-$attendanceType = 'time_in';
-$actualTimeIn = $now;
-$actualTimeOut = null;
-$displayTimeIn = date('h:i A', strtotime($current_time));
-$displayTimeOut = null;
+ $attendanceType = 'time_in';
+ $actualTimeIn = $now;
+ $actualTimeOut = null;
+ $displayTimeIn = date('h:i A', strtotime($current_time));
+ $displayTimeOut = null;
 
 // Process attendance logic
 if ($existing_specific_log) {
@@ -574,8 +611,8 @@ if ($existing_specific_log) {
 } else {
     // First entry of the day - record time in SPECIFIC table
     $insert_specific_query = "INSERT INTO $specific_table 
-                    ($fk_column, id_number, name, action, time_in, time_out, date, period, location, department, date_logged) 
-                    VALUES (?, ?, ?, 'IN', ?, '00:00:00', ?, ?, ?, ?, ?)";
+            ($fk_column, id_number, name, action, time_in, time_out, date, period, location, department, date_logged) 
+            VALUES (?, ?, ?, 'IN', ?, '00:00:00', ?, ?, ?, ?, ?)";
     $insert_specific_stmt = $db->prepare($insert_specific_query);
     
     $insert_specific_stmt->bind_param("issssssss", 
@@ -592,7 +629,7 @@ if ($existing_specific_log) {
     
     if ($insert_specific_stmt->execute()) {
         // Also insert into gate_logs table
-insertIntoGateLogs($db, $person_type, $person['id'], $person['id_number'], $person['full_name'], 'IN', $current_department, $current_location, $now, $response['year_level']);
+        insertIntoGateLogs($db, $person_type, $person['id'], $person['id_number'], $person['full_name'], 'IN', $current_department, $current_location, $now, $response['year_level']);
         
         $response['time_in'] = $displayTimeIn;
         $response['time_in_out'] = 'Time In Recorded';
@@ -606,14 +643,14 @@ insertIntoGateLogs($db, $person_type, $person['id'], $person['id_number'], $pers
 }
 
 // Close statements
-$specific_log_stmt->close();
+ $specific_log_stmt->close();
 
 // ============================================
 // ENSURE CONSISTENT RESPONSE FORMAT
 // ============================================
 
 // Ensure consistent response format
-$response = array_merge($response, [
+ $response = array_merge($response, [
     'attendance_type' => $attendanceType,
     'status' => isset($response['error']) ? 'error' : 'success',
     'actual_time_in' => $actualTimeIn,
@@ -648,6 +685,15 @@ function processVisitorTimeOut($db, $visitor, $department, $location) {
         // Also update gate_logs
         updateGateLogs($db, 'visitor', 0, $visitor['visitor_id'], $visitor['full_name'], 'OUT', $department, $location, date('Y-m-d H:i:s'));
         
+        // Get the time_in for display
+        $timeInStmt = $db->prepare("SELECT time_in FROM visitor_logs WHERE visitor_id = ? AND DATE(time_in) = CURDATE() ORDER BY id DESC LIMIT 1");
+        $timeInStmt->bind_param("s", $visitor['visitor_id']);
+        $timeInStmt->execute();
+        $timeInResult = $timeInStmt->get_result();
+        $timeInData = $timeInResult->fetch_assoc();
+        $timeInDisplay = !empty($timeInData['time_in']) ? date('h:i A', strtotime($timeInData['time_in'])) : 'N/A';
+        $timeInStmt->close();
+        
         echo json_encode([
             'full_name' => $visitor['full_name'],
             'id_number' => $visitor['visitor_id'],
@@ -658,7 +704,8 @@ function processVisitorTimeOut($db, $visitor, $department, $location) {
             'alert_class' => 'alert-warning',
             'voice' => "Time out recorded for {$visitor['full_name']}",
             'time_out' => date('h:i A'),
-            'time_in' => !empty($visitor['time_in']) ? date('h:i A', strtotime($visitor['time_in'])) : 'N/A'
+            'time_in' => $timeInDisplay,
+            'status' => 'success'
         ]);
     } else {
         echo json_encode(['error' => 'Failed to record time out']);
@@ -680,8 +727,8 @@ function ensureGateStatsTableExists($db) {
         students_out INT DEFAULT 0,
         instructors_in INT DEFAULT 0,
         instructors_out INT DEFAULT 0,
-        personnel_in INT DEFAULT 0,
-        personnel_out INT DEFAULT 0,
+        personell_in INT DEFAULT 0,
+        personell_out INT DEFAULT 0,
         visitors_in INT DEFAULT 0,
         visitors_out INT DEFAULT 0,
         total_in INT DEFAULT 0,
@@ -713,8 +760,7 @@ function recordGateStats($db, $person_type, $action, $department, $location, $da
     $colMap = [
         'student' => ['IN' => 'students_in', 'OUT' => 'students_out'],
         'instructor' => ['IN' => 'instructors_in', 'OUT' => 'instructors_out'],
-        'personell' => ['IN' => 'personnel_in', 'OUT' => 'personnel_out'],
-        'personnel' => ['IN' => 'personnel_in', 'OUT' => 'personnel_out'],
+        'personell' => ['IN' => 'personell_in', 'OUT' => 'personell_out'],
         'visitor' => ['IN' => 'visitors_in', 'OUT' => 'visitors_out']
     ];
 
@@ -781,7 +827,7 @@ function recordGateStats($db, $person_type, $action, $department, $location, $da
 
             // default counts
             $students_in = $students_out = $instructors_in = $instructors_out = 0;
-            $personnel_in = $personnel_out = $visitors_in = $visitors_out = 0;
+            $personell_in = $personell_out = $visitors_in = $visitors_out = 0;
             $total_in = $total_out = 0;
 
             switch ($typeKey) {
@@ -794,9 +840,8 @@ function recordGateStats($db, $person_type, $action, $department, $location, $da
                     else $instructors_out = 1;
                     break;
                 case 'personell':
-                case 'personnel':
-                    if ($action === 'IN') $personnel_in = 1;
-                    else $personnel_out = 1;
+                    if ($action === 'IN') $personell_in = 1;
+                    else $personell_out = 1;
                     break;
                 case 'visitor':
                     if ($action === 'IN') $visitors_in = 1;
@@ -808,13 +853,13 @@ function recordGateStats($db, $person_type, $action, $department, $location, $da
                     break;
             }
 
-            if ($action === 'IN') $total_in = ($total_in + $students_in + $instructors_in + $personnel_in + $visitors_in);
-            else $total_out = ($total_out + $students_out + $instructors_out + $personnel_out + $visitors_out);
+            if ($action === 'IN') $total_in = ($total_in + $students_in + $instructors_in + $personell_in + $visitors_in);
+            else $total_out = ($total_out + $students_out + $instructors_out + $personell_out + $visitors_out);
 
             $insertSql = "INSERT INTO gate_stats
                 (stat_date, department, location,
                  students_in, students_out, instructors_in, instructors_out,
-                 personnel_in, personnel_out, visitors_in, visitors_out,
+                 personell_in, personell_out, visitors_in, visitors_out,
                  total_in, total_out, hourly_counts, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
 
@@ -827,7 +872,7 @@ function recordGateStats($db, $person_type, $action, $department, $location, $da
                 "sssiiiiiiiiiss",
                 $date, $department, $location,
                 $students_in, $students_out, $instructors_in, $instructors_out,
-                $personnel_in, $personnel_out, $visitors_in, $visitors_out,
+                $personell_in, $personell_out, $visitors_in, $visitors_out,
                 $total_in, $total_out, $hourly_json
             );
             $insertStmt->execute();
@@ -877,7 +922,7 @@ function updateGateLogs($db, $person_type, $person_id, $id_number, $full_name, $
         recordGateStats($db, $person_type, $action, $department, $location, $date, $time);
     } else {
         // Insert new record
-    insertIntoGateLogs($db, $person_type, $person_id, $id_number, $full_name, $action, $department, $location, $now, $year_level);
+        insertIntoGateLogs($db, $person_type, $person_id, $id_number, $full_name, $action, $department, $location, $now);
     }
 }
 
@@ -885,21 +930,22 @@ function updateGateLogs($db, $person_type, $person_id, $id_number, $full_name, $
  * Function to insert into gate_logs
  */
 function insertIntoGateLogs($db, $person_type, $person_id, $id_number, $full_name, $action, $department, $location, $now, $year_level = null) {
-    $time = date('H:i:s');
-    $date = date('Y-m-d');
+    $manila_date = date('Y-m-d'); // This will be Manila date
+    $manila_time = date('H:i:s'); // This will be Manila time
     $direction = strtoupper($action);
     
     if (empty($full_name)) $full_name = "Unknown";
     if (empty($department)) $department = "N/A";
     if (empty($location)) $location = "Gate";
     
-    $time_in = ($action === 'IN') ? $time : '00:00:00';
-    $time_out = ($action === 'OUT') ? $time : '00:00:00';
+    // Fixed variable names - use $manila_time instead of undefined $time
+    $time_in = ($action === 'IN') ? $manila_time : '00:00:00';
+    $time_out = ($action === 'OUT') ? $manila_time : '00:00:00';
     
     // If year_level is provided, include it in the insert
     if ($year_level !== null) {
         $insert_query = "INSERT INTO gate_logs (person_type, person_id, id_number, name, year_level, action, time_in, time_out, date, location, department, direction) 
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $db->prepare($insert_query);
         
         if ($stmt) {
@@ -913,19 +959,22 @@ function insertIntoGateLogs($db, $person_type, $person_id, $id_number, $full_nam
                 $direction, 
                 $time_in, 
                 $time_out, 
-                $date, 
+                $manila_date, // Fixed: use $manila_date instead of undefined $date
                 $location, 
                 $department, 
-                $direction,
-                
+                $direction
             );
-            $stmt->execute();
+            $result = $stmt->execute();
+            if (!$result) {
+                error_log("Gate log insert error: " . $stmt->error);
+            }
             $stmt->close();
+            return $result;
         }
     } else {
         // Original insert without year_level
         $insert_query = "INSERT INTO gate_logs (person_type, person_id, id_number, name, action, time_in, time_out, date, location, department, direction) 
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $db->prepare($insert_query);
         
         if ($stmt) {
@@ -938,17 +987,23 @@ function insertIntoGateLogs($db, $person_type, $person_id, $id_number, $full_nam
                 $direction, 
                 $time_in, 
                 $time_out, 
-                $date, 
+                $manila_date, // Fixed: use $manila_date instead of undefined $date
                 $location, 
                 $department, 
                 $direction
             );
-            $stmt->execute();
+            $result = $stmt->execute();
+            if (!$result) {
+                error_log("Gate log insert error: " . $stmt->error);
+            }
             $stmt->close();
+            return $result;
         }
     }
 
-    // Record stats for IN/OUT
-    recordGateStats($db, $person_type, $action, $department, $location, $date, $time);
+    // Record stats for IN/OUT - Fixed function call with correct parameters
+    recordGateStats($db, $person_type, $action, $department, $location, $manila_date, $manila_time);
+    
+    return false; // Return false if insertion failed
 }
 ?>

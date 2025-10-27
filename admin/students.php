@@ -25,11 +25,11 @@ function getStudentPhoto($photo) {
 }
 
 // Get statistics for summary cards
-$totalStudents = mysqli_num_rows(mysqli_query($db, "SELECT id FROM students"));
-$firstYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as count FROM students WHERE year = '1st Year'"))['count'];
-$secondYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as count FROM students WHERE year = '2nd Year'"))['count'];
-$thirdYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as count FROM students WHERE year = '3rd Year'"))['count'];
-$fourthYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as count FROM students WHERE year = '4th Year'"))['count'];
+ $totalStudents = mysqli_num_rows(mysqli_query($db, "SELECT id FROM students"));
+ $firstYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as count FROM students WHERE year = '1st Year'"))['count'];
+ $secondYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as count FROM students WHERE year = '2nd Year'"))['count'];
+ $thirdYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as count FROM students WHERE year = '3rd Year'"))['count'];
+ $fourthYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as count FROM students WHERE year = '4th Year'"))['count'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -46,42 +46,85 @@ $fourthYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as coun
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
+        :root {
+            --primary-color: #e1e7f0ff;
+            --secondary-color: #b0caf0ff;
+            --accent-color: #f3f5fcff;
+            --icon-color: #5c95e9ff;
+            --light-bg: #f8f9fc;
+            --dark-text: #5a5c69;
+            --warning-color: #f6c23e;
+            --danger-color: #e74a3b;
+            --success-color: #1cc88a;
+            --info-color: #36b9cc;
+            --border-radius: 15px;
+            --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            --transition: all 0.3s ease;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            font-family: 'Inter', sans-serif;
+            color: var(--dark-text);
+        }
+
+        .content {
+            background: transparent;
+        }
+
         .bg-light {
-            background-color: #f8f9fa !important;
+            background-color: var(--light-bg) !important;
+            border-radius: var(--border-radius);
         }
+
         .card {
-            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-            transition: transform 0.3s ease;
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            background: white;
+            transition: var(--transition);
         }
+
         .card:hover {
-            transform: translateY(-2px);
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
         }
+
         .table th {
-            background-color: #4e73df;
+            background: linear-gradient(135deg, var(--icon-color), #4361ee);
             color: white;
+            font-weight: 600;
+            border: none;
+            padding: 15px 12px;
         }
+
+        .table td {
+            padding: 12px;
+            border-color: rgba(0,0,0,0.05);
+            vertical-align: middle;
+        }
+
+        .table-responsive {
+            border-radius: var(--border-radius);
+            overflow: hidden;
+        }
+
         .badge {
             font-size: 0.85em;
+            border-radius: 8px;
         }
+
         .section-header {
             background-color: #f8d7da;
             border-left: 4px solid #dc3545;
         }
-        .btn-del {
-            transition: all 0.3s ease;
-        }
-        .btn-del:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
-        }
-        .swal2-popup {
-            font-family: inherit;
-        }
+
         .error-message {
-            color: #dc3545;
+            color: var(--danger-color);
             font-size: 0.875rem;
             margin-top: 0.25rem;
         }
+
         .student-photo {
             width: 50px;
             height: 50px;
@@ -89,18 +132,22 @@ $fourthYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as coun
             object-fit: cover;
             border: 2px solid #dee2e6;
         }
+
         .upload-img-btn {
             cursor: pointer;
             display: block;
             position: relative;
         }
+
         .preview-1 {
             border-radius: 8px;
             transition: all 0.3s ease;
         }
+
         .preview-1:hover {
             opacity: 0.8;
         }
+
         .file-uploader {
             position: relative;
             margin-bottom: 15px;
@@ -237,6 +284,276 @@ $fourthYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as coun
                 margin-bottom: 0.5rem;
             }
         }
+
+        /* Modern Button Styles */
+        .btn {
+            border-radius: 10px;
+            font-weight: 500;
+            transition: var(--transition);
+            border: none;
+            padding: 10px 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .btn::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            transition: width 0.3s ease;
+            z-index: -1;
+        }
+
+        .btn:hover::before {
+            width: 100%;
+        }
+
+        .btn i {
+            font-size: 0.9rem;
+        }
+
+        /* Add Student Button */
+        .btn-add {
+            background: linear-gradient(135deg, var(--warning-color), #f4b619);
+            color: white;
+            box-shadow: 0 4px 15px rgba(246, 194, 62, 0.3);
+        }
+
+        .btn-add:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(246, 194, 62, 0.4);
+            color: white;
+        }
+
+        /* Export Button */
+        .btn-export {
+            background: linear-gradient(135deg, var(--success-color), #17a673);
+            color: white;
+            box-shadow: 0 4px 15px rgba(28, 200, 138, 0.3);
+        }
+
+        .btn-export:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(28, 200, 138, 0.4);
+            color: white;
+        }
+
+        /* Print Button */
+        .btn-print {
+            background: linear-gradient(135deg, var(--info-color), #2e59d9);
+            color: white;
+            box-shadow: 0 4px 15px rgba(54, 185, 204, 0.3);
+        }
+
+        .btn-print:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(54, 185, 204, 0.4);
+            color: white;
+        }
+
+        /* Edit Button */
+        .btn-edit {
+            background: linear-gradient(135deg, var(--info-color), #2e59d9);
+            color: white;
+            box-shadow: 0 4px 15px rgba(54, 185, 204, 0.3);
+        }
+
+        .btn-edit:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(54, 185, 204, 0.4);
+            color: white;
+        }
+
+        /* Delete Button */
+        .btn-delete {
+            background: linear-gradient(135deg, var(--danger-color), #be2617);
+            color: white;
+            box-shadow: 0 4px 15px rgba(231, 74, 59, 0.3);
+        }
+
+        .btn-delete:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(231, 74, 59, 0.4);
+            color: white;
+        }
+
+        /* Reset Button */
+        .btn-reset {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+            color: white;
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+        }
+
+        .btn-reset:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4);
+            color: white;
+        }
+
+        /* View Toggle Button */
+        .btn-view-toggle {
+            background: linear-gradient(135deg, var(--icon-color), #4361ee);
+            color: white;
+            box-shadow: 0 4px 15px rgba(92, 149, 233, 0.3);
+        }
+
+        .btn-view-toggle:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(92, 149, 233, 0.4);
+            color: white;
+        }
+
+        .btn-view-toggle.active {
+            background: linear-gradient(135deg, #4361ee, var(--icon-color));
+        }
+
+        /* Modal Footer Buttons */
+        .btn-close-modal {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+            color: white;
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+        }
+
+        .btn-close-modal:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4);
+            color: white;
+        }
+
+        .btn-save {
+            background: linear-gradient(135deg, var(--warning-color), #f4b619);
+            color: white;
+            box-shadow: 0 4px 15px rgba(246, 194, 62, 0.3);
+        }
+
+        .btn-save:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(246, 194, 62, 0.4);
+            color: white;
+        }
+
+        .btn-update {
+            background: linear-gradient(135deg, var(--info-color), #2e59d9);
+            color: white;
+            box-shadow: 0 4px 15px rgba(54, 185, 204, 0.3);
+        }
+
+        .btn-update:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(54, 185, 204, 0.4);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 8px 15px;
+            font-size: 0.875rem;
+        }
+
+        .modal-content {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
+            color: white;
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
+            border: none;
+            padding: 20px 25px;
+        }
+
+        .modal-title {
+            font-weight: 600;
+        }
+
+        .btn-close {
+            filter: invert(1);
+        }
+
+        .form-control, .form-select {
+            border-radius: 8px;
+            border: 1.5px solid #e3e6f0;
+            padding: 12px 16px;
+            transition: var(--transition);
+            background-color: var(--light-bg);
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--icon-color);
+            box-shadow: 0 0 0 3px rgba(92, 149, 233, 0.15);
+            background-color: white;
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: var(--dark-text);
+            margin-bottom: 8px;
+        }
+
+        .back-to-top {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color)) !important;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--box-shadow);
+            transition: var(--transition);
+        }
+
+        .back-to-top:hover {
+            transform: translateY(-3px);
+        }
+
+        h6.mb-4 {
+            color: var(--dark-text);
+            font-weight: 700;
+            font-size: 1.25rem;
+        }
+
+        hr {
+            opacity: 0.1;
+            margin: 1.5rem 0;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(92, 149, 233, 0.05);
+            transform: translateY(-1px);
+            transition: var(--transition);
+        }
+
+        /* Button container styling */
+        .button-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Table action buttons container */
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+        }
+
+        /* Loading spinner */
+        .spinner-border {
+            width: 1rem;
+            height: 1rem;
+        }
     </style>
 </head>
 
@@ -259,14 +576,14 @@ $fourthYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as coun
                                 <p class="text-muted">View and manage all student records</p>
                             </div>
                             <div class="col-6 text-end">
-                                <div class="btn-group">
-                                    <button type="button" class="btn btn-outline-warning m-1" data-bs-toggle="modal" data-bs-target="#studentModal">
+                                <div class="button-container">
+                                    <button type="button" class="btn btn-add" data-bs-toggle="modal" data-bs-target="#studentModal">
                                         <i class="fas fa-plus-circle"></i> Add Student
                                     </button>
-                                    <button type="button" class="btn btn-outline-success m-1" id="exportBtn">
+                                    <button type="button" class="btn btn-export" id="exportBtn">
                                         <i class="fas fa-download"></i> Export
                                     </button>
-                                    <button type="button" class="btn btn-outline-info m-1" id="printBtn">
+                                    <button type="button" class="btn btn-print" id="printBtn">
                                         <i class="fas fa-print"></i> Print
                                     </button>
                                 </div>
@@ -356,11 +673,11 @@ $fourthYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as coun
                         <!-- View Toggle Buttons -->
                         <div class="row mb-3">
                             <div class="col-12">
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-outline-primary view-toggle-btn active" data-view="table">
+                                <div class="button-container">
+                                    <button type="button" class="btn btn-view-toggle active" data-view="table">
                                         <i class="fas fa-table"></i> Table View
                                     </button>
-                                    <button type="button" class="btn btn-outline-primary view-toggle-btn" data-view="grouped">
+                                    <button type="button" class="btn btn-view-toggle" data-view="grouped">
                                         <i class="fas fa-layer-group"></i> Grouped View
                                     </button>
                                 </div>
@@ -395,7 +712,7 @@ $fourthYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as coun
                                     <input type="text" class="form-control" id="searchInput" placeholder="Search by name or ID...">
                                 </div>
                                 <div class="col-md-2 d-flex align-items-end">
-                                    <button class="btn btn-outline-secondary w-100" id="resetFilters">
+                                    <button class="btn btn-reset w-100" id="resetFilters">
                                         <i class="fas fa-refresh"></i> Reset
                                     </button>
                                 </div>
@@ -458,17 +775,17 @@ $fourthYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as coun
                                             <td><span class="badge bg-primary"><?php echo $row['year']; ?></span></td>
                                             <td><span class="badge bg-info"><?php echo $row['section']; ?></span></td>
                                             <td width="14%">
-                                                <center>
+                                                <div class="action-buttons">
                                                     <button data-id="<?php echo $row['id'];?>" 
-                                                            class="btn btn-outline-primary btn-sm btn-edit e_student_id">
-                                                        <i class="fas fa-edit"></i> Edit 
+                                                            class="btn btn-sm btn-edit e_student_id">
+                                                        <i class="fas fa-edit"></i> 
                                                     </button>
                                                     <button student_name="<?php echo $row['fullname']; ?>" 
                                                             data-id="<?php echo $row['id']; ?>" 
-                                                            class="btn btn-outline-danger btn-sm btn-del d_student_id">
-                                                        <i class="fas fa-trash"></i> Delete 
+                                                            class="btn btn-sm btn-delete d_student_id">
+                                                        <i class="fas fa-trash"></i> 
                                                     </button>
-                                                </center>
+                                                </div>
                                             </td>
                                             <?php if (isset($row['date_added'])): ?>
                                             <td style="display:none;" class="hidden-date"><?php echo $row['date_added']; ?></td>
@@ -544,17 +861,17 @@ $fourthYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as coun
                                                     <td><?php echo $student['fullname']; ?></td>
                                                     <td><?php echo $student['department_name']; ?></td>
                                                     <td width="14%">
-                                                        <center>
+                                                        <div class="action-buttons">
                                                             <button data-id="<?php echo $student['id'];?>" 
-                                                                    class="btn btn-outline-primary btn-sm btn-edit e_student_id">
+                                                                    class="btn btn-sm btn-edit e_student_id">
                                                                 <i class="fas fa-edit"></i>
                                                             </button>
                                                             <button student_name="<?php echo $student['fullname']; ?>" 
                                                                     data-id="<?php echo $student['id']; ?>" 
-                                                                    class="btn btn-outline-danger btn-sm btn-del d_student_id">
+                                                                    class="btn btn-sm btn-delete d_student_id">
                                                                 <i class="fas fa-trash"></i>
                                                             </button>
-                                                        </center>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                                 <?php } ?>
@@ -598,15 +915,17 @@ $fourthYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as coun
                                             </p>
                                         </div>
                                         <div class="card-footer text-center">
-                                            <button data-id="<?php echo $student['id'];?>" 
-                                                    class="btn btn-outline-primary btn-sm btn-edit e_student_id">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <button student_name="<?php echo $student['fullname']; ?>" 
-                                                    data-id="<?php echo $student['id']; ?>" 
-                                                    class="btn btn-outline-danger btn-sm btn-del d_student_id">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
+                                            <div class="action-buttons">
+                                                <button data-id="<?php echo $student['id'];?>" 
+                                                        class="btn btn-sm btn-edit e_student_id">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button student_name="<?php echo $student['fullname']; ?>" 
+                                                        data-id="<?php echo $student['id']; ?>" 
+                                                        class="btn btn-sm btn-delete d_student_id">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -719,8 +1038,8 @@ $fourthYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as coun
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                                <button type="submit" id="btn-student" class="btn btn-outline-warning">Save</button>
+                                <button type="button" class="btn btn-close-modal" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" id="btn-student" class="btn btn-save">Save</button>
                             </div>
                         </form>
                     </div>
@@ -826,8 +1145,8 @@ $fourthYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as coun
                             </div>
                             <div class="modal-footer">
                                 <input type="hidden" id="edit_studentid" name="student_id" class="edit-id">
-                                <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                                <button type="submit" id="btn-editstudent" class="btn btn-outline-primary">Update</button>
+                                <button type="button" class="btn btn-close-modal" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" id="btn-editstudent" class="btn btn-update">Update</button>
                             </div>
                         </form>
                     </div>
@@ -836,7 +1155,7 @@ $fourthYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as coun
 
             <?php include 'footer.php'; ?>
         </div>
-         <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top" style="background-color: #87abe0ff"><i class="bi bi-arrow-up" style="background-color: #87abe0ff"></i></a>
+         <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top"><i class="bi bi-arrow-up"></i></a>
     </div>
 
     <!-- JavaScript Libraries -->
@@ -864,492 +1183,642 @@ $fourthYearCount = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) as coun
 
     <script>
     $(document).ready(function() {
-        // Initialize DataTable with export buttons
-        var dataTable = $('#myDataTable').DataTable({
-            order: [[7, 'desc']],
-            stateSave: true,
-            dom: 'Bfrtip',
-            buttons: [
-                'copy', 'csv', 'excel', 'pdf', 'print'
-            ],
-            responsive: true
-        });
+    // Initialize DataTable with export buttons
+    var dataTable = $('#myDataTable').DataTable({
+        order: [[7, 'desc']],
+        stateSave: true,
+        dom: 'Bfrtip',
+        buttons: [
+            'copy', 'csv', 'excel', 'pdf', 'print'
+        ],
+        responsive: true
+    });
 
-        // View Toggle Functionality
-        $('.view-toggle-btn').on('click', function() {
-            const viewType = $(this).data('view');
-            
-            // Update active button
-            $('.view-toggle-btn').removeClass('active');
-            $(this).addClass('active');
-            
-            // Show selected view, hide others
-            $('.view-content').hide();
-            $(`#${viewType}View`).show();
-            
-            // Reinitialize DataTable when switching back to table view
-            if (viewType === 'table') {
-                dataTable.columns.adjust().responsive.recalc();
-            }
-        });
+    // View Toggle Functionality
+    $('.btn-view-toggle').on('click', function() {
+        const viewType = $(this).data('view');
+        
+        // Update active button
+        $('.btn-view-toggle').removeClass('active');
+        $(this).addClass('active');
+        
+        // Show selected view, hide others
+        $('.view-content').hide();
+        $(`#${viewType}View`).show();
+        
+        // Reinitialize DataTable when switching back to table view
+        if (viewType === 'table') {
+            dataTable.columns.adjust().responsive.recalc();
+        }
+        
+        // Apply current filters to the new view
+        applyFilters();
+    });
 
-        // Filter Functionality
-        function initializeFilters() {
-            const filterDepartment = $('#filterDepartment');
-            const filterYear = $('#filterYear');
-            const filterSection = $('#filterSection');
-            const searchInput = $('#searchInput');
+    // Filter Functionality
+    function initializeFilters() {
+        const filterYear = $('#filterYear');
+        const filterSection = $('#filterSection');
+        const searchInput = $('#searchInput');
+        
+        // Reset filters
+        $('#resetFilters').on('click', function() {
+            filterYear.val('');
+            filterSection.val('');
+            searchInput.val('');
+            applyFilters();
+        });
+    }
+
+    // Main filter function
+    function applyFilters() {
+        const yearVal = $('#filterYear').val();
+        const sectionVal = $('#filterSection').val();
+        const searchVal = $('#searchInput').val().toLowerCase();
+        
+        // Get current active view
+        const activeView = $('.btn-view-toggle.active').data('view');
+        
+        if (activeView === 'table') {
+            filterTableView(yearVal, sectionVal, searchVal);
+        } else if (activeView === 'grouped') {
+            filterGroupedView(yearVal, sectionVal, searchVal);
+        }
+    }
+
+    // Filter table view
+    function filterTableView(yearVal, sectionVal, searchVal) {
+        // Combine all filters for DataTable
+        dataTable.columns().search(''); // Clear all column searches
+        
+        // Apply year filter (column 4)
+        if (yearVal) {
+            dataTable.column(4).search('^' + yearVal + '$', true, false).draw();
+        } else {
+            dataTable.column(4).search('').draw();
+        }
+        
+        // Apply section filter (column 5)
+        if (sectionVal) {
+            dataTable.column(5).search('^' + sectionVal + '$', true, false).draw();
+        } else {
+            dataTable.column(5).search('').draw();
+        }
+        
+        // Apply global search
+        dataTable.search(searchVal).draw();
+    }
+
+    // Filter grouped view
+    function filterGroupedView(yearVal, sectionVal, searchVal) {
+        let visibleGroups = 0;
+        
+        $('.card.mb-3').each(function() {
+            const $group = $(this);
+            const groupHeader = $group.find('.card-header h6').text().toLowerCase();
+            const groupYear = $group.find('.card-header h6').text().split(' - ')[0]?.trim();
+            const groupSection = $group.find('.card-header h6').text().split(' - ')[1]?.replace('Section', '').trim();
             
-            function applyFilters() {
-                const departmentVal = filterDepartment.val();
-                const yearVal = filterYear.val();
-                const sectionVal = filterSection.val();
-                const searchVal = searchInput.val().toLowerCase();
-                
-                // Table view filtering
-                dataTable.column(1).search(searchVal).draw();
-                dataTable.column(3).search(departmentVal).draw();
-                dataTable.column(4).search(yearVal).draw();
-                dataTable.column(5).search(sectionVal).draw();
-                
-                // Card view filtering
-                $('.student-card').each(function() {
-                    const $card = $(this);
-                    const cardDept = $card.data('department').toString();
-                    const cardYear = $card.data('year');
-                    const cardSection = $card.data('section');
-                    const cardText = $card.text().toLowerCase();
-                    
-                    const deptMatch = !departmentVal || cardDept === departmentVal;
-                    const yearMatch = !yearVal || cardYear === yearVal;
-                    const sectionMatch = !sectionVal || cardSection === sectionVal;
-                    const searchMatch = !searchVal || cardText.includes(searchVal);
-                    
-                    if (deptMatch && yearMatch && sectionMatch && searchMatch) {
-                        $card.show();
-                    } else {
-                        $card.hide();
-                    }
-                });
-                
-                // Grouped view filtering (simplified - could be enhanced)
-                $('.card.mb-3').each(function() {
-                    const $group = $(this);
-                    const groupHeader = $group.find('.card-header').text().toLowerCase();
-                    const hasVisibleRows = $group.find('tbody tr:visible').length > 0;
-                    
-                    if (hasVisibleRows || groupHeader.includes(searchVal)) {
-                        $group.show();
-                    } else {
-                        $group.hide();
-                    }
-                });
-            }
+            let visibleRows = 0;
             
-            // Event listeners for filters
-            filterDepartment.on('change', applyFilters);
-            filterYear.on('change', applyFilters);
-            filterSection.on('change', applyFilters);
-            searchInput.on('keyup', applyFilters);
-            
-            // Reset filters
-            $('#resetFilters').on('click', function() {
-                filterDepartment.val('');
-                filterYear.val('');
-                filterSection.val('');
-                searchInput.val('');
-                applyFilters();
+            // Filter rows within this group
+            $group.find('tbody tr').each(function() {
+                const $row = $(this);
+                const rowText = $row.text().toLowerCase();
+                const rowYear = $row.find('td:nth-child(5)').text().trim() || groupYear;
+                const rowSection = $row.find('td:nth-child(6)').text().trim() || groupSection;
+                
+                const yearMatch = !yearVal || rowYear === yearVal;
+                const sectionMatch = !sectionVal || rowSection === sectionVal;
+                const searchMatch = !searchVal || rowText.includes(searchVal);
+                
+                if (yearMatch && sectionMatch && searchMatch) {
+                    $row.show();
+                    visibleRows++;
+                } else {
+                    $row.hide();
+                }
             });
+            
+            // Show/hide group based on visible rows
+            if (visibleRows > 0) {
+                $group.show();
+                visibleGroups++;
+                
+                // Update student count badge
+                const $badge = $group.find('.student-count-badge');
+                $badge.text(visibleRows + ' students');
+            } else {
+                $group.hide();
+            }
+        });
+        
+        // Show message if no groups are visible
+        if (visibleGroups === 0) {
+            showNoResultsMessage();
+        } else {
+            hideNoResultsMessage();
         }
+    }
 
-        // Initialize filters
-        initializeFilters();
-
-        // Export functionality
-        $('#exportBtn').on('click', function() {
-            dataTable.button('.buttons-excel').trigger();
-        });
-
-        // Print functionality
-        $('#printBtn').on('click', function() {
-            dataTable.button('.buttons-print').trigger();
-        });
-
-        // Expand/Collapse all groups
-        $(document).on('click', '.expand-all', function(e) {
-            e.stopPropagation();
-            const $header = $(this).closest('.card-header');
-            const $collapse = $($header.data('bs-target'));
-            $collapse.collapse('toggle');
-        });
-
-        // Reset form function
-        function resetForm() {
-            $('.error-message').text('');
-            $('#studentForm')[0].reset();
-            $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
+    // Show no results message
+    function showNoResultsMessage() {
+        if (!$('#noResultsMessage').length) {
+            const message = `
+                <div id="noResultsMessage" class="alert alert-info text-center">
+                    <i class="fas fa-info-circle me-2"></i>
+                    No students found matching the current filters.
+                </div>
+            `;
+            $('#groupedView').prepend(message);
         }
+    }
 
-        // ==========
-        // READ (EDIT STUDENT)
-        // ==========
-        $(document).on('click', '.e_student_id', function() {
-            const id = $(this).data('id');
-            
-            // Retrieve data from the selected row
-            const $row = $(this).closest('tr');
-            const $getphoto = $row.find('.photo').attr('src');
-            const $getidnumber = $row.find('.student_id').text();
-            const $getdept = $row.find('.department_id').val();
-            const $getfullname = $row.find('.fullname').val();
-            const $getyear = $row.find('.year').val();
-            const $getsection = $row.find('.section').val();
+    // Hide no results message
+    function hideNoResultsMessage() {
+        $('#noResultsMessage').remove();
+    }
 
-            console.log('Editing student:', id, $getidnumber, $getfullname);
+    // Event listeners for filters
+    $('#filterYear, #filterSection').on('change', applyFilters);
+    $('#searchInput').on('keyup', function() {
+        clearTimeout($(this).data('timeout'));
+        $(this).data('timeout', setTimeout(applyFilters, 500));
+    });
 
-            // Populate edit form
-            $('#edit_studentid').val(id);
-            $('.edit-photo').attr('src', $getphoto);
-            $('#eid_number').val($getidnumber);
-            $('#edepartment_id').val($getdept);
-            $('#efullname').val($getfullname);
-            $('#eyear').val($getyear);
-            $('#esection').val($getsection);
-            $('.capturedImage').val($getphoto);
-            
-            // Clear any previous error messages
-            $('.error-message').text('');
-            
-            // Show modal
-            $('#editstudentModal').modal('show');
-        });
+    // Initialize filters
+    initializeFilters();
 
-        // ==============
-        // CREATE (ADD STUDENT)
-        // ==============
-        $('#studentForm').submit(function(e) {
-            e.preventDefault();
-            
-            $('.error-message').text('');
-            const department_id = $('#department_id').val();
-            const id_number = $('#id_number').val().trim();
-            const fullname = $('#fullname').val().trim();
-            const year = $('#year').val();
-            const section = $('#section').val();
-            const photo = $('#photo')[0].files[0];
-            let isValid = true;
+    // Export functionality
+    $('#exportBtn').on('click', function() {
+        dataTable.button('.buttons-excel').trigger();
+    });
 
-            // Validation
-            if (!department_id) { 
-                $('#department_id-error').text('Department is required'); 
-                isValid = false; 
-            }
-            if (!id_number) { 
-                $('#id_number-error').text('ID Number is required'); 
-                isValid = false; 
-            }
-            if (!fullname) { 
-                $('#fullname-error').text('Full name is required'); 
-                isValid = false; 
-            }
-            if (!year) { 
-                $('#year-error').text('Year is required'); 
-                isValid = false; 
-            }
-            if (!section) { 
-                $('#section-error').text('Section is required'); 
-                isValid = false; 
-            }
-            if (!photo) { 
-                $('#photo-error').text('Photo is required'); 
-                isValid = false; 
-            }
-            
-            if (!isValid) return;
+    // Print functionality
+    $('#printBtn').on('click', function() {
+        dataTable.button('.buttons-print').trigger();
+    });
 
-            // Show loading state
-            $('#btn-student').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
-            $('#btn-student').prop('disabled', true);
+    // Expand/Collapse all groups functionality
+    let allExpanded = true;
+    
+    $(document).on('click', '.expand-all', function(e) {
+        e.stopPropagation();
+        
+        const $header = $(this).closest('.card-header');
+        const $target = $($header.data('bs-target'));
+        
+        $target.collapse('toggle');
+        
+        // Update icon
+        const $icon = $(this).find('i');
+        if ($target.hasClass('show')) {
+            $icon.removeClass('fa-compress').addClass('fa-expand');
+        } else {
+            $icon.removeClass('fa-expand').addClass('fa-compress');
+        }
+    });
 
-            var formData = new FormData(this);
+    // Expand/Collapse all groups button
+    $(document).on('click', '.expand-all-groups', function() {
+        const $icon = $(this).find('i');
+        
+        if (allExpanded) {
+            // Collapse all
+            $('.collapse.show').collapse('hide');
+            $icon.removeClass('fa-compress').addClass('fa-expand');
+            $(this).find('span').text('Expand All');
+        } else {
+            // Expand all
+            $('.collapse').collapse('show');
+            $icon.removeClass('fa-expand').addClass('fa-compress');
+            $(this).find('span').text('Collapse All');
+        }
+        
+        allExpanded = !allExpanded;
+    });
 
-            $.ajax({
-                type: "POST",
-                url: "transac.php?action=add_student",
-                data: formData,
-                contentType: false,
-                processData: false,
-                dataType: 'json',
-                success: function(response) {
-                    // Reset button state
-                    $('#btn-student').html('Save');
-                    $('#btn-student').prop('disabled', false);
-                    
-                    if (response.status === 'success') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success!',
-                            text: response.message,
-                            showConfirmButton: true
-                        }).then(() => {
-                            $('#studentModal').modal('hide');
-                            location.reload();
-                        });
-                    } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error!',
-                            text: response.message
-                        });
-                    }
-                },
-                error: function(xhr, status, error) {
-                    // Reset button state
-                    $('#btn-student').html('Save');
-                    $('#btn-student').prop('disabled', false);
-                    
+    // Add Expand/Collapse All button to grouped view
+    function addExpandAllButton() {
+        if (!$('#expandAllBtn').length) {
+            const expandBtn = `
+                <div class="row mb-3" id="expandAllBtn">
+                    <div class="col-12 text-end">
+                        <button type="button" class="btn btn-outline-primary btn-sm expand-all-groups">
+                            <i class="fas fa-expand me-1"></i>
+                            <span>Expand All</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+            $('#groupedView').prepend(expandBtn);
+        }
+    }
+
+    // Remove Expand/Collapse All button when switching views
+    function removeExpandAllButton() {
+        $('#expandAllBtn').remove();
+    }
+
+    // Enhanced view toggle with additional setup
+    $('.btn-view-toggle').on('click', function() {
+        const viewType = $(this).data('view');
+        
+        // Update active button
+        $('.btn-view-toggle').removeClass('active');
+        $(this).addClass('active');
+        
+        // Show selected view, hide others
+        $('.view-content').hide();
+        $(`#${viewType}View`).show();
+        
+        // Handle view-specific setup
+        if (viewType === 'table') {
+            dataTable.columns.adjust().responsive.recalc();
+            removeExpandAllButton();
+        } else if (viewType === 'grouped') {
+            addExpandAllButton();
+            // Ensure all groups are expanded by default
+            $('.collapse').collapse('show');
+            allExpanded = true;
+        }
+        
+        // Apply current filters to the new view
+        applyFilters();
+    });
+
+    // Initialize with table view active
+    $('#tableView').show();
+    $('#groupedView').hide();
+    removeExpandAllButton();
+
+    // Reset form function
+    function resetForm() {
+        $('.error-message').text('');
+        $('#studentForm')[0].reset();
+        $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
+    }
+
+    // ==========
+    // READ (EDIT STUDENT)
+    // ==========
+    $(document).on('click', '.e_student_id', function() {
+        const id = $(this).data('id');
+        
+        // Retrieve data from the selected row
+        const $row = $(this).closest('tr');
+        const $getphoto = $row.find('.photo').attr('src');
+        const $getidnumber = $row.find('.student_id').text();
+        const $getdept = $row.find('.department_id').val();
+        const $getfullname = $row.find('.fullname').val();
+        const $getyear = $row.find('.year').val();
+        const $getsection = $row.find('.section').val();
+
+        console.log('Editing student:', id, $getidnumber, $getfullname);
+
+        // Populate edit form
+        $('#edit_studentid').val(id);
+        $('.edit-photo').attr('src', $getphoto);
+        $('#eid_number').val($getidnumber);
+        $('#edepartment_id').val($getdept);
+        $('#efullname').val($getfullname);
+        $('#eyear').val($getyear);
+        $('#esection').val($getsection);
+        $('.capturedImage').val($getphoto);
+        
+        // Clear any previous error messages
+        $('.error-message').text('');
+        
+        // Show modal
+        $('#editstudentModal').modal('show');
+    });
+
+    // ==============
+    // CREATE (ADD STUDENT)
+    // ==============
+    $('#studentForm').submit(function(e) {
+        e.preventDefault();
+        
+        $('.error-message').text('');
+        const department_id = $('#department_id').val();
+        const id_number = $('#id_number').val().trim();
+        const fullname = $('#fullname').val().trim();
+        const year = $('#year').val();
+        const section = $('#section').val();
+        const photo = $('#photo')[0].files[0];
+        let isValid = true;
+
+        // Validation
+        if (!department_id) { 
+            $('#department_id-error').text('Department is required'); 
+            isValid = false; 
+        }
+        if (!id_number) { 
+            $('#id_number-error').text('ID Number is required'); 
+            isValid = false; 
+        }
+        if (!fullname) { 
+            $('#fullname-error').text('Full name is required'); 
+            isValid = false; 
+        }
+        if (!year) { 
+            $('#year-error').text('Year is required'); 
+            isValid = false; 
+        }
+        if (!section) { 
+            $('#section-error').text('Section is required'); 
+            isValid = false; 
+        }
+        if (!photo) { 
+            $('#photo-error').text('Photo is required'); 
+            isValid = false; 
+        }
+        
+        if (!isValid) return;
+
+        // Show loading state
+        $('#btn-student').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
+        $('#btn-student').prop('disabled', true);
+
+        var formData = new FormData(this);
+
+        $.ajax({
+            type: "POST",
+            url: "transac.php?action=add_student",
+            data: formData,
+            contentType: false,
+            processData: false,
+            dataType: 'json',
+            success: function(response) {
+                // Reset button state
+                $('#btn-student').html('Save');
+                $('#btn-student').prop('disabled', false);
+                
+                if (response.status === 'success') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: response.message,
+                        showConfirmButton: true
+                    }).then(() => {
+                        $('#studentModal').modal('hide');
+                        location.reload();
+                    });
+                } else {
                     Swal.fire({
                         icon: 'error',
                         title: 'Error!',
-                        text: 'An error occurred: ' + error
+                        text: response.message
                     });
                 }
-            });
+            },
+            error: function(xhr, status, error) {
+                // Reset button state
+                $('#btn-student').html('Save');
+                $('#btn-student').prop('disabled', false);
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: 'An error occurred: ' + error
+                });
+            }
         });
+    });
 
-        // ==========
-        // UPDATE STUDENT
-        // ==========
-        $('#editStudentForm').submit(function(e) {
-            e.preventDefault();
-            
-            const id = $('#edit_studentid').val();
-            const department_id = $('#edepartment_id').val();
-            const id_number = $('#eid_number').val().trim();
-            const fullname = $('#efullname').val().trim();
-            const year = $('#eyear').val();
-            const section = $('#esection').val();
+    // ==========
+    // UPDATE STUDENT
+    // ==========
+    $('#editStudentForm').submit(function(e) {
+        e.preventDefault();
+        
+        const id = $('#edit_studentid').val();
+        const department_id = $('#edepartment_id').val();
+        const id_number = $('#eid_number').val().trim();
+        const fullname = $('#efullname').val().trim();
+        const year = $('#eyear').val();
+        const section = $('#esection').val();
 
-            // Validation
-            let isValid = true;
-            if (!department_id) { 
-                $('#edepartment_id-error').text('Department is required'); 
-                isValid = false; 
-            } else { 
-                $('#edepartment_id-error').text(''); 
-            }
-            if (!id_number) { 
-                $('#eid_number-error').text('ID Number is required'); 
-                isValid = false; 
-            } else { 
-                $('#eid_number-error').text(''); 
-            }
-            if (!fullname) { 
-                $('#efullname-error').text('Full name is required'); 
-                isValid = false; 
-            } else { 
-                $('#efullname-error').text(''); 
-            }
-            if (!year) { 
-                $('#eyear-error').text('Year is required'); 
-                isValid = false; 
-            } else { 
-                $('#eyear-error').text(''); 
-            }
-            if (!section) { 
-                $('#esection-error').text('Section is required'); 
-                isValid = false; 
-            } else { 
-                $('#esection-error').text(''); 
-            }
-            
-            if (!isValid) return;
+        // Validation
+        let isValid = true;
+        if (!department_id) { 
+            $('#edepartment_id-error').text('Department is required'); 
+            isValid = false; 
+        } else { 
+            $('#edepartment_id-error').text(''); 
+        }
+        if (!id_number) { 
+            $('#eid_number-error').text('ID Number is required'); 
+            isValid = false; 
+        } else { 
+            $('#eid_number-error').text(''); 
+        }
+        if (!fullname) { 
+            $('#efullname-error').text('Full name is required'); 
+            isValid = false; 
+        } else { 
+            $('#efullname-error').text(''); 
+        }
+        if (!year) { 
+            $('#eyear-error').text('Year is required'); 
+            isValid = false; 
+        } else { 
+            $('#eyear-error').text(''); 
+        }
+        if (!section) { 
+            $('#esection-error').text('Section is required'); 
+            isValid = false; 
+        } else { 
+            $('#esection-error').text(''); 
+        }
+        
+        if (!isValid) return;
 
-            // Show loading state
-            $('#btn-editstudent').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
-            $('#btn-editstudent').prop('disabled', true);
+        // Show loading state
+        $('#btn-editstudent').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
+        $('#btn-editstudent').prop('disabled', true);
 
-            var formData = new FormData(this);
-            formData.append('id', id);
+        var formData = new FormData(this);
+        formData.append('id', id);
 
-            $.ajax({
-                type: "POST",
-                url: "transac.php?action=update_student",
-                data: formData,
-                contentType: false,
-                processData: false,
-                dataType: 'json',
-                success: function(response) {
-                    // Reset button state
-                    $('#btn-editstudent').html('Update');
-                    $('#btn-editstudent').prop('disabled', false);
-                    
-                    if (response.status === 'success') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success!',
-                            text: response.message,
-                            showConfirmButton: true
-                        }).then(() => {
-                            $('#editstudentModal').modal('hide');
-                            location.reload();
-                        });
-                    } else {
-                        Swal.fire({
-                            title: 'Error!',
-                            text: response.message,
-                            icon: 'error'
-                        });
-                    }
-                },
-                error: function(xhr, status, error) {
-                    // Reset button state
-                    $('#btn-editstudent').html('Update');
-                    $('#btn-editstudent').prop('disabled', false);
-                    
-                    try {
-                        // Try to parse the error response as JSON
-                        var errorResponse = JSON.parse(xhr.responseText);
-                        Swal.fire({
-                            title: 'Error!',
-                            text: errorResponse.message || 'An error occurred',
-                            icon: 'error'
-                        });
-                    } catch (e) {
-                        // If not JSON, show raw response
-                        Swal.fire({
-                            title: 'Error!',
-                            text: 'An error occurred: ' + xhr.responseText,
-                            icon: 'error'
-                        });
-                    }
-                }
-            });
-        });
-
-        // Handle delete button click
-        $(document).on('click', '.d_student_id', function() {
-            var studentId = $(this).data('id');
-            var studentName = $(this).attr('student_name');
-            
-            Swal.fire({
-                title: 'Are you sure?',
-                text: "You are about to delete student: " + studentName,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Yes, delete it!',
-                cancelButtonText: 'Cancel'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Show loading
+        $.ajax({
+            type: "POST",
+            url: "transac.php?action=update_student",
+            data: formData,
+            contentType: false,
+            processData: false,
+            dataType: 'json',
+            success: function(response) {
+                // Reset button state
+                $('#btn-editstudent').html('Update');
+                $('#btn-editstudent').prop('disabled', false);
+                
+                if (response.status === 'success') {
                     Swal.fire({
-                        title: 'Deleting...',
-                        text: 'Please wait',
-                        allowOutsideClick: false,
-                        didOpen: () => {
-                            Swal.showLoading();
-                        }
+                        icon: 'success',
+                        title: 'Success!',
+                        text: response.message,
+                        showConfirmButton: true
+                    }).then(() => {
+                        $('#editstudentModal').modal('hide');
+                        location.reload();
                     });
+                } else {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: response.message,
+                        icon: 'error'
+                    });
+                }
+            },
+            error: function(xhr, status, error) {
+                // Reset button state
+                $('#btn-editstudent').html('Update');
+                $('#btn-editstudent').prop('disabled', false);
+                
+                try {
+                    // Try to parse the error response as JSON
+                    var errorResponse = JSON.parse(xhr.responseText);
+                    Swal.fire({
+                        title: 'Error!',
+                        text: errorResponse.message || 'An error occurred',
+                        icon: 'error'
+                    });
+                } catch (e) {
+                    // If not JSON, show raw response
+                    Swal.fire({
+                        title: 'Error!',
+                        text: 'An error occurred: ' + xhr.responseText,
+                        icon: 'error'
+                    });
+                }
+            }
+        });
+    });
 
-                    $.ajax({
-                        url: "transac.php?action=delete_student",
-                        type: 'POST',
-                        data: { 
-                            id: studentId 
-                        },
-                        dataType: 'json',
-                        success: function(response) {
-                            if (response.status === 'success') {
-                                Swal.fire({
-                                    title: 'Deleted!',
-                                    text: response.message,
-                                    icon: 'success',
-                                    timer: 2000,
-                                    showConfirmButton: false
-                                }).then(() => {
-                                    location.reload();
-                                });
-                            } else {
-                                Swal.fire({
-                                    title: 'Error!',
-                                    text: response.message,
-                                    icon: 'error'
-                                });
-                            }
-                        },
-                        error: function(xhr, status, error) {
+    // Handle delete button click
+    $(document).on('click', '.d_student_id', function() {
+        var studentId = $(this).data('id');
+        var studentName = $(this).attr('student_name');
+        
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "You are about to delete student: " + studentName,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!',
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Show loading
+                Swal.fire({
+                    title: 'Deleting...',
+                    text: 'Please wait',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                $.ajax({
+                    url: "transac.php?action=delete_student",
+                    type: 'POST',
+                    data: { 
+                        id: studentId 
+                    },
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.status === 'success') {
+                            Swal.fire({
+                                title: 'Deleted!',
+                                text: response.message,
+                                icon: 'success',
+                                timer: 2000,
+                                showConfirmButton: false
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
                             Swal.fire({
                                 title: 'Error!',
-                                text: 'An error occurred: ' + error,
+                                text: response.message,
                                 icon: 'error'
                             });
                         }
-                    });
-                }
-            });
-        });
-
-        // Reset modal when closed
-        $('#studentModal').on('hidden.bs.modal', function () {
-            $(this).find('form')[0].reset();
-            $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
-            $('.error-message').text('');
-        });
-
-        $('#editstudentModal').on('hidden.bs.modal', function () {
-            $('.error-message').text('');
-        });
-
-        // Image preview functionality for both forms
-        $(document).on('change', '[class^=upload-field-]', function() {
-            readURL(this);
-        });
-
-        // Click handler for edit photo upload
-        $(document).on('click', '.edit-photo', function() {
-            $('#editPhoto').click();
-        });
-
-        function readURL(input) {
-            if (input.files && input.files[0]) {
-                const file = input.files[0];
-                const validFormats = ['image/jpeg', 'image/png', 'image/jpg'];
-                const maxSize = 2 * 1024 * 1024; // 2MB
-
-                // Validate file format
-                if (!validFormats.includes(file.type)) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Invalid Format',
-                        text: 'Only JPG and PNG formats are allowed.',
-                    });
-                    input.value = ''; // Reset the input
-                    return;
-                }
-
-                // Validate file size
-                if (file.size > maxSize) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'File Too Large',
-                        text: 'Maximum file size is 2MB.',
-                    });
-                    input.value = ''; // Reset the input
-                    return;
-                }
-
-                // Preview the image
-                var reader = new FileReader();
-                reader.onload = function (e) {
-                    // Find the closest preview image
-                    $(input).closest('.file-uploader').find('.preview-1').attr('src', e.target.result);
-                };
-                reader.readAsDataURL(file);
+                    },
+                    error: function(xhr, status, error) {
+                        Swal.fire({
+                            title: 'Error!',
+                            text: 'An error occurred: ' + error,
+                            icon: 'error'
+                        });
+                    }
+                });
             }
-        }
+        });
     });
+
+    // Reset modal when closed
+    $('#studentModal').on('hidden.bs.modal', function () {
+        $(this).find('form')[0].reset();
+        $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
+        $('.error-message').text('');
+    });
+
+    $('#editstudentModal').on('hidden.bs.modal', function () {
+        $('.error-message').text('');
+    });
+
+    // Image preview functionality for both forms
+    $(document).on('change', '[class^=upload-field-]', function() {
+        readURL(this);
+    });
+
+    // Click handler for edit photo upload
+    $(document).on('click', '.edit-photo', function() {
+        $('#editPhoto').click();
+    });
+
+    function readURL(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const validFormats = ['image/jpeg', 'image/png', 'image/jpg'];
+            const maxSize = 2 * 1024 * 1024; // 2MB
+
+            // Validate file format
+            if (!validFormats.includes(file.type)) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid Format',
+                    text: 'Only JPG and PNG formats are allowed.',
+                });
+                input.value = ''; // Reset the input
+                return;
+            }
+
+            // Validate file size
+            if (file.size > maxSize) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'File Too Large',
+                    text: 'Maximum file size is 2MB.',
+                });
+                input.value = ''; // Reset the input
+                return;
+            }
+
+            // Preview the image
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                // Find the closest preview image
+                $(input).closest('.file-uploader').find('.preview-1').attr('src', e.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+});
     </script>
 </body>
 </html>

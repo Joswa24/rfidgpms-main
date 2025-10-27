@@ -78,7 +78,7 @@ function validateRoomPassword($db, $department, $location, $password, $id_number
 // SECURITY PERSONNEL VALIDATION
 // =====================================================================
 function validateSecurityPersonnel($db, $id_number, $room) {
-    $clean_id = str_replace('-', '', $id_number);
+    $clean_id =( $id_number);
     
     // Check personell table for security personnel
     $stmt = $db->prepare("SELECT * FROM personell WHERE id_number = ? AND department = 'Main'");

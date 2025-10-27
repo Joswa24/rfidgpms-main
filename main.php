@@ -1,4 +1,5 @@
 <?php
+date_default_timezone_set('Asia/Manila');
 session_start();
 
 // Check if user is logged in as security personnel
@@ -10,15 +11,15 @@ if (!isset($_SESSION['access']) || !isset($_SESSION['access']['security'])) {
 include 'connection.php';
 
 // Set session variables for gate access
-$_SESSION['department'] = 'Main';
-$_SESSION['location'] = 'Gate';
-$_SESSION['descr'] = 'Gate';
+ $_SESSION['department'] = 'Main';
+ $_SESSION['location'] = 'Gate';
+ $_SESSION['descr'] = 'Gate';
 
 // Safely get department and location from session
-$department = isset($_SESSION['department']) ? $_SESSION['department'] : 'Main';
-$location = isset($_SESSION['location']) ? $_SESSION['location'] : 'Gate';
+ $department = isset($_SESSION['department']) ? $_SESSION['department'] : 'Main';
+ $location = isset($_SESSION['location']) ? $_SESSION['location'] : 'Gate';
 
-$logo1 = $nameo = $address = $logo2 = "";
+ $logo1 = $nameo = $address = $logo2 = "";
 
 // Fetch data from the about table
 if (isset($db)) {
@@ -34,257 +35,248 @@ if (isset($db)) {
     }
     
 }
-    // ============================================
-    // ENHANCED PHOTO PATH FUNCTIONS FOR GATE SYSTEM
-    // ============================================
 
-    /**
-     * Get instructor photo path with multiple fallbacks
-     * @param array|string $instructor Instructor data array or photo filename
-     * @return string Full photo path
-     */
-    // UPDATED: Enhanced photo path function for admin
-    function getInstructorPhotoPath($instructor) {
-        $defaultPhoto = '../assets/img/default-avatar.png';
+// ============================================
+// ENHANCED PHOTO PATH FUNCTIONS FOR MAIN.PHP
+// ============================================
+
+/**
+ * Get instructor photo path with multiple fallbacks
+ */
+function getInstructorPhotoPath($instructor) {
+    $defaultPhoto = 'admin/uploads/students/default.png';
+    
+    if (is_array($instructor)) {
+        $photo = isset($instructor['photo']) ? $instructor['photo'] : '';
+    } else {
+        $photo = $instructor;
+    }
+    
+    if (!empty($photo) && $photo !== 'default.png') {
+        $possiblePaths = [
+            'admin/uploads/instructors/' . $photo,
+            '../admin/uploads/instructors/' . $photo,
+            './admin/uploads/instructors/' . $photo,
+            'uploads/instructors/' . $photo,
+            '../uploads/instructors/' . $photo,
+            './uploads/instructors/' . $photo,
+            $_SERVER['DOCUMENT_ROOT'] . '/admin/uploads/instructors/' . $photo,
+            dirname(__FILE__) . '/../admin/uploads/instructors/' . $photo
+        ];
         
-        if (!empty($instructor['photo']) && $instructor['photo'] !== 'default.png') {
-            // Check multiple possible locations
-            $possiblePaths = [
-                '../admin/uploads/instructors/' . $instructor['photo'],
-                'admin/uploads/instructors/' . $instructor['photo'],
-                'uploads/instructors/' . $instructor['photo'],
-                '../uploads/instructors/' . $instructor['photo'],
-                './admin/uploads/instructors/' . $instructor['photo']
-            ];
-            
-            foreach ($possiblePaths as $path) {
+        foreach ($possiblePaths as $path) {
+            if (strpos($path, $_SERVER['DOCUMENT_ROOT']) === 0 || strpos($path, dirname(__FILE__)) === 0) {
+                if (file_exists($path)) {
+                    if (strpos($path, $_SERVER['DOCUMENT_ROOT']) === 0) {
+                        return str_replace($_SERVER['DOCUMENT_ROOT'], '', $path);
+                    } else {
+                        return 'admin/uploads/instructors/' . $photo;
+                    }
+                }
+            } else {
                 if (file_exists($path)) {
                     return $path;
                 }
             }
-            
-            // If no file found but we have a photo name, return the expected path
-            return 'admin/uploads/instructors/' . $instructor['photo'];
         }
         
-        return $defaultPhoto;
-    }
-
-    /**
-     * Get student photo path with multiple fallbacks
-     * @param array|string $student Student data array or photo filename
-     * @return string Full photo path
-     */
-    function getStudentsPhotoPath($student) {
-        $defaultPhoto = 'admin/uploads/students/default.png';
-        
-        // Handle both array input and string input
-        if (is_array($student)) {
-            $photo = isset($student['photo']) ? $student['photo'] : '';
-        } else {
-            $photo = $student;
-        }
-        
-        if (!empty($photo) && $photo !== 'default.png') {
-            // Define all possible paths to check
-            $possiblePaths = [
-                // Primary path - admin/uploads/students/
-                'admin/uploads/students/' . $photo,
-                '../admin/uploads/students/' . $photo,
-                './admin/uploads/students/' . $photo,
-                
-                // Alternative paths
-                'uploads/students/' . $photo,
-                '../uploads/students/' . $photo,
-                './uploads/students/' . $photo,
-                
-                // Legacy paths
-                '../admin/assets/img/students/' . $photo,
-                'admin/assets/img/students/' . $photo,
-                
-                // Absolute path checks
-                $_SERVER['DOCUMENT_ROOT'] . '/admin/uploads/students/' . $photo,
-                dirname(__FILE__) . '/../admin/uploads/students/' . $photo
-            ];
-            
-            // Check each path
-            foreach ($possiblePaths as $path) {
-                // For absolute paths
-                if (strpos($path, $_SERVER['DOCUMENT_ROOT']) === 0 || strpos($path, dirname(__FILE__)) === 0) {
-                    if (file_exists($path)) {
-                        if (strpos($path, $_SERVER['DOCUMENT_ROOT']) === 0) {
-                            return str_replace($_SERVER['DOCUMENT_ROOT'], '', $path);
-                        } else {
-                            return 'admin/uploads/students/' . $photo;
-                        }
-                    }
-                } else {
-                    // For relative paths
-                    if (file_exists($path)) {
-                        return $path;
-                    }
-                }
-            }
-            
-            // If no file found but we have a photo name
-            if (!empty($photo)) {
-                return 'admin/uploads/students/' . $photo;
-            }
-        }
-        
-        return $defaultPhoto;
-    }
-
-    /**
-     * Get personnel photo path with multiple fallbacks
-     * @param array|string $personnel Personnel data array or photo filename
-     * @return string Full photo path
-     */
-    function getPersonellPhotoPath($personnel) {
-        $defaultPhoto = 'admin/uploads/students/default.png';
-        
-        // Handle both array input and string input
-        if (is_array($personnel)) {
-            $photo = isset($personnel['photo']) ? $personnel['photo'] : '';
-        } else {
-            $photo = $personnel;
-        }
-        
-        if (!empty($photo) && $photo !== 'default.png') {
-            // Define all possible paths to check
-            $possiblePaths = [
-                // Primary path - admin/uploads/personell/
-                'admin/uploads/personell/' . $photo,
-                '../admin/uploads/personell/' . $photo,
-                './admin/uploads/personell/' . $photo,
-                
-                // Alternative spellings and paths
-                'admin/uploads/personnel/' . $photo,
-                '../admin/uploads/personnel/' . $photo,
-                './admin/uploads/personnel/' . $photo,
-                
-                'uploads/personell/' . $photo,
-                '../uploads/personell/' . $photo,
-                './uploads/personell/' . $photo,
-                
-                // Legacy paths
-                '../admin/assets/img/staff/' . $photo,
-                'admin/assets/img/staff/' . $photo,
-                
-                // Absolute path checks
-                $_SERVER['DOCUMENT_ROOT'] . '/admin/uploads/personell/' . $photo,
-                dirname(__FILE__) . '/../admin/uploads/personell/' . $photo
-            ];
-            
-            // Check each path
-            foreach ($possiblePaths as $path) {
-                // For absolute paths
-                if (strpos($path, $_SERVER['DOCUMENT_ROOT']) === 0 || strpos($path, dirname(__FILE__)) === 0) {
-                    if (file_exists($path)) {
-                        if (strpos($path, $_SERVER['DOCUMENT_ROOT']) === 0) {
-                            return str_replace($_SERVER['DOCUMENT_ROOT'], '', $path);
-                        } else {
-                            return 'admin/uploads/personell/' . $photo;
-                        }
-                    }
-                } else {
-                    // For relative paths
-                    if (file_exists($path)) {
-                        return $path;
-                    }
-                }
-            }
-            
-            // If no file found but we have a photo name
-            if (!empty($photo)) {
-                return 'admin/uploads/personell/' . $photo;
-            }
-        }
-        
-        return $defaultPhoto;
-    }
-
-    /**
-     * Universal photo path function that automatically detects user type
-     * @param array $userData User data with role information
-     * @return string Full photo path
-     */
-    function getUniversalPhotoPath($userData) {
-        if (!is_array($userData)) {
-            return 'admin/uploads/students/default.png';
-        }
-        
-        $role = isset($userData['role']) ? strtolower($userData['role']) : '';
-        $photo = isset($userData['photo']) ? $userData['photo'] : '';
-        
-        switch($role) {
-            case 'instructor':
-            case 'faculty':
-                return getInstructorPhotoPath($userData);
-                
-            case 'student':
-                return getStudentsPhotoPath($userData);
-                
-            case 'staff':
-            case 'admin':
-            case 'security':
-            case 'personnel':
-                return getPersonellPhotoPath($userData);
-                
-            case 'visitor':
-                // Handle visitors separately if needed
-                if (!empty($photo)) {
-                    $visitorPath = 'admin/uploads/visitors/' . $photo;
-                    if (file_exists($visitorPath) || file_exists('../' . $visitorPath)) {
-                        return $visitorPath;
-                    }
-                }
-                return 'admin/uploads/students/default.png';
-                
-            default:
-                // Try to determine based on other fields
-                if (isset($userData['user_type'])) {
-                    $userType = strtolower($userData['user_type']);
-                    if (strpos($userType, 'student') !== false) {
-                        return getStudentsPhotoPath($userData);
-                    } elseif (strpos($userType, 'instructor') !== false || strpos($userType, 'faculty') !== false) {
-                        return getInstructorPhotoPath($userData);
-                    } elseif (strpos($userType, 'staff') !== false || strpos($userType, 'admin') !== false) {
-                        return getPersonellPhotoPath($userData);
-                    }
-                }
-                return 'admin/uploads/students/default.png';
+        if (!empty($photo)) {
+            return 'admin/uploads/instructors/' . $photo;
         }
     }
+    
+    return $defaultPhoto;
+}
 
-    /**
-     * Check if photo file actually exists, return default if not
-     * @param string $photoPath The photo path to check
-     * @return string Valid photo path
-     */
-    function validatePhotoPath($photoPath) {
-        $defaultPhoto = 'admin/uploads/students/default.png';
-        
-        if (empty($photoPath) || $photoPath === $defaultPhoto) {
-            return $defaultPhoto;
-        }
-        
-        // Check if file exists with multiple path variations
-        $pathsToCheck = [
-            $photoPath,
-            '../' . $photoPath,
-            './' . $photoPath,
-            dirname(__FILE__) . '/' . $photoPath
+/**
+ * Get student photo path with multiple fallbacks
+ */
+function getStudentsPhotoPath($student) {
+    $defaultPhoto = 'admin/uploads/students/default.png';
+    
+    if (is_array($student)) {
+        $photo = isset($student['photo']) ? $student['photo'] : '';
+    } else {
+        $photo = $student;
+    }
+    
+    if (!empty($photo) && $photo !== 'default.png') {
+        $possiblePaths = [
+            'admin/uploads/students/' . $photo,
+            '../admin/uploads/students/' . $photo,
+            './admin/uploads/students/' . $photo,
+            'uploads/students/' . $photo,
+            '../uploads/students/' . $photo,
+            './uploads/students/' . $photo,
+            $_SERVER['DOCUMENT_ROOT'] . '/admin/uploads/students/' . $photo,
+            dirname(__FILE__) . '/../admin/uploads/students/' . $photo
         ];
         
-        foreach ($pathsToCheck as $path) {
-            if (file_exists($path)) {
-                return $photoPath;
+        foreach ($possiblePaths as $path) {
+            if (strpos($path, $_SERVER['DOCUMENT_ROOT']) === 0 || strpos($path, dirname(__FILE__)) === 0) {
+                if (file_exists($path)) {
+                    if (strpos($path, $_SERVER['DOCUMENT_ROOT']) === 0) {
+                        return str_replace($_SERVER['DOCUMENT_ROOT'], '', $path);
+                    } else {
+                        return 'admin/uploads/students/' . $photo;
+                    }
+                }
+            } else {
+                if (file_exists($path)) {
+                    return $path;
+                }
             }
         }
         
+        if (!empty($photo)) {
+            return 'admin/uploads/students/' . $photo;
+        }
+    }
+    
+    return $defaultPhoto;
+}
+
+/**
+ * Get personnel photo path with multiple fallbacks - USING ONLY "PERSONELL"
+ */
+function getPersonellPhotoPath($personell) {
+    $defaultPhoto = 'admin/uploads/students/default.png';
+    
+    if (is_array($personell)) {
+        $photo = isset($personell['photo']) ? $personell['photo'] : '';
+    } else {
+        $photo = $personell;
+    }
+    
+    if (!empty($photo) && $photo !== 'default.png') {
+        $possiblePaths = [
+            'admin/uploads/personell/' . $photo,
+            '../admin/uploads/personell/' . $photo,
+            './admin/uploads/personell/' . $photo,
+            'uploads/personell/' . $photo,
+            '../uploads/personell/' . $photo,
+            './uploads/personell/' . $photo,
+            $_SERVER['DOCUMENT_ROOT'] . '/admin/uploads/personell/' . $photo,
+            dirname(__FILE__) . '/../admin/uploads/personell/' . $photo
+        ];
+        
+        foreach ($possiblePaths as $path) {
+            if (strpos($path, $_SERVER['DOCUMENT_ROOT']) === 0 || strpos($path, dirname(__FILE__)) === 0) {
+                if (file_exists($path)) {
+                    if (strpos($path, $_SERVER['DOCUMENT_ROOT']) === 0) {
+                        return str_replace($_SERVER['DOCUMENT_ROOT'], '', $path);
+                    } else {
+                        return 'admin/uploads/personell/' . $photo;
+                    }
+                }
+            } else {
+                if (file_exists($path)) {
+                    return $path;
+                }
+            }
+        }
+        
+        if (!empty($photo)) {
+            return 'admin/uploads/personell/' . $photo;
+        }
+    }
+    
+    return $defaultPhoto;
+}
+
+/**
+ * Universal photo path function that automatically detects user type
+ */
+function getUniversalPhotoPath($userData) {
+    if (!is_array($userData)) {
+        return 'admin/uploads/students/default.png';
+    }
+    
+    $role = isset($userData['person_type']) ? strtolower($userData['person_type']) : '';
+    $photo = isset($userData['photo']) ? $userData['photo'] : '';
+    
+    switch($role) {
+        case 'instructor':
+        case 'faculty':
+            return getInstructorPhotoPath($userData);
+            
+        case 'student':
+            return getStudentsPhotoPath($userData);
+            
+        case 'personell':
+            return getPersonellPhotoPath($userData);
+        case 'staff':
+            return getPersonellPhotoPath($userData);
+        case 'admin':
+        case 'security':
+            return getPersonellPhotoPath($userData);
+            
+        case 'visitor':
+            if (!empty($photo)) {
+                $visitorPath = 'admin/uploads/visitors/' . $photo;
+                if (file_exists($visitorPath) || file_exists('../' . $visitorPath)) {
+                    return $visitorPath;
+                }
+            }
+            return 'admin/uploads/students/default.png';
+            
+        default:
+            return 'admin/uploads/students/default.png';
+    }
+}
+
+/**
+ * Check if photo file actually exists, return default if not
+ */
+function validatePhotoPath($photoPath) {
+    $defaultPhoto = 'admin/uploads/students/default.png';
+    
+    if (empty($photoPath) || $photoPath === $defaultPhoto) {
         return $defaultPhoto;
     }
+    
+    $pathsToCheck = [
+        $photoPath,
+        '../' . $photoPath,
+        './' . $photoPath,
+        dirname(__FILE__) . '/' . $photoPath
+    ];
+    
+    foreach ($pathsToCheck as $path) {
+        if (file_exists($path)) {
+            return $photoPath;
+        }
+    }
+    
+    return $defaultPhoto;
+}
+
+/**
+ * Convert photo to base64 if file exists, otherwise return default
+ */
+function getPhotoForResponse($userData) {
+    $photoPath = getUniversalPhotoPath($userData);
+    $validatedPath = validatePhotoPath($photoPath);
+    
+    // If it's a file path and file exists, convert to base64
+    if (!empty($validatedPath) && $validatedPath !== 'admin/uploads/students/default.png' && file_exists($validatedPath)) {
+        $imageData = file_get_contents($validatedPath);
+        if ($imageData !== false) {
+            $mimeType = mime_content_type($validatedPath);
+            return 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+        }
+    }
+    
+    // Return default photo as base64 or empty string
+    $defaultPath = 'admin/uploads/students/default.png';
+    if (file_exists($defaultPath)) {
+        $imageData = file_get_contents($defaultPath);
+        $mimeType = mime_content_type($defaultPath);
+        return 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+    }
+    
+    return ''; // Return empty if no photo available
+}
 ?>
 
 <!DOCTYPE html>
@@ -1192,7 +1184,9 @@ if (isset($db)) {
                            class="form-control" 
                            id="manualIdInput" 
                            placeholder="0000-0000"
-                           aria-label="Person ID">
+                           aria-label="Person ID"
+                           maxlength="9"
+                           pattern="[0-9]{4}-[0-9]{4}">
                     <button class="btn btn-primary" 
                             id="manualSubmitBtn"
                             onclick="processManualInput()">
@@ -1203,7 +1197,7 @@ if (isset($db)) {
                 <div class="text-center mt-auto">
                     <small class="text-muted">
                         <i class="fas fa-info-circle me-1"></i>
-                        Press Enter after typing ID
+                        Enter 8 digits or use format 0000-0000
                     </small>
                 </div>
             </div>
@@ -1216,7 +1210,7 @@ if (isset($db)) {
 let scanner = null;
 let barcodeBuffer = '';
 let lastScanTime = 0;
-const scanCooldown = 1000; // 1 second cooldown between scans
+const scanCooldown = 500; // Reduced cooldown for faster scanning
 
 // Role icons mapping
 const roleIcons = {
@@ -1231,7 +1225,7 @@ const roleIcons = {
 };
 
 // Scanner Initialization and Control Functions
-// Enhanced scanner initialization
+// Enhanced scanner initialization for faster scanning
 function initScanner() {
     if (scanner) {
         scanner.clear().catch(console.error);
@@ -1242,7 +1236,7 @@ function initScanner() {
             width: 300,
             height: 300,
         },
-        fps: 20,
+        fps: 30, // Increased FPS for faster scanning
         rememberLastUsedCamera: true,
         supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
         showTorchButtonIfSupported: true
@@ -1269,6 +1263,27 @@ function onScanError(error) {
         permissionElement.style.display = 'none';
     }
 }
+
+// Optimized scan success handler
+function onScanSuccess(decodedText, decodedResult) {
+    const currentTime = new Date().getTime();
+    
+    // Check if enough time has passed since last scan
+    if (currentTime - lastScanTime < scanCooldown) {
+        return; // Ignore scans that happen too quickly
+    }
+    
+    lastScanTime = currentTime;
+    
+    // Stop scanner temporarily to prevent multiple scans
+    if (scanner) {
+        scanner.pause();
+    }
+    
+    // Process the barcode
+    processBarcode(decodedText);
+}
+
     // Process scanned barcode
     // Enhanced barcode processing for gate system
     function processBarcode(barcode) {
@@ -1296,7 +1311,7 @@ function onScanError(error) {
                 location: "<?php echo $location; ?>"
             },
             dataType: 'json',
-            timeout: 15000,
+            timeout: 10000, // Reduced timeout for faster response
             success: function(response) {
                 handleGateScanSuccess(response, barcode);
             },
@@ -1323,7 +1338,10 @@ function onScanError(error) {
             console.log("❌ Server error:", response.error);
             showErrorMessage(response.error);
             speakMessage(response.error);
-            restartScanner();
+            // Clear and reset after error
+            setTimeout(() => {
+                clearAndResetScanner();
+            }, 2000);
             return;
         }
 
@@ -1357,6 +1375,10 @@ function onScanError(error) {
                 
                 if (parsedResponse.error) {
                     showErrorMessage(parsedResponse.error);
+                    // Clear and reset after error
+                    setTimeout(() => {
+                        clearAndResetScanner();
+                    }, 2000);
                 } else {
                     updateGateUI(parsedResponse);
                     updatePersonPhoto(parsedResponse);
@@ -1472,7 +1494,7 @@ function onScanError(error) {
                 check_visitor: true // Flag to check if this is a visitor
             },
             dataType: 'json',
-            timeout: 15000,
+            timeout: 10000, // Reduced timeout for faster response
             success: function(response) {
                 // Check if server indicates this is a visitor that needs registration
                 if (response.requires_visitor_info) {
@@ -1521,7 +1543,7 @@ function onScanError(error) {
         
         // Modal hidden event
         document.getElementById('visitorInfoModal').addEventListener('hidden.bs.modal', function() {
-            restartScanner();
+            clearAndResetScanner();
         });
     }
 
@@ -1727,9 +1749,8 @@ function getPhotoPathByUserType(data) {
         case 'staff':
         case 'admin':
         case 'security':
-        case 'personnel':
+        case 'personell':
             return `admin/uploads/personell/${photo}`;
-            
         case 'visitor':
             return `admin/uploads/visitors/${photo}`;
             
@@ -1889,8 +1910,8 @@ function showGateConfirmationModal(data) {
 
     // Restart scanner once modal is closed
     modalElement.addEventListener('hidden.bs.modal', function () {
-        console.log("🎯 Gate modal closed, restarting scanner");
-        restartScanner();
+        console.log("🎯 Gate modal closed, clearing and resetting");
+        clearAndResetScanner();
     }, { once: true });
 }
 
@@ -1901,7 +1922,7 @@ function showGateConfirmationModal(data) {
         modalInstance.hide();
 
         modalEl.addEventListener('hidden.bs.modal', function() {
-            restartScanner();
+            clearAndResetScanner();
         }, { once: true });
     }
 
@@ -2038,15 +2059,51 @@ document.addEventListener('DOMContentLoaded', function() {
             showErrorMessage("Tap Your ID to the Scanner");
         });
     
-    // Enable Enter key submission for manual input
-    document.getElementById('manualIdInput').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
+    // Set up manual input field for numeric only with auto-formatting
+    const manualInput = document.getElementById('manualIdInput');
+    
+    // Only allow numbers and hyphen
+    manualInput.addEventListener('input', function(e) {
+        // Remove any non-numeric characters except hyphen
+        let value = this.value.replace(/[^0-9-]/g, '');
+        
+        // Auto-format as 0000-0000 when 8 digits are entered
+        if (value.length === 8 && !value.includes('-')) {
+            value = value.substring(0, 4) + '-' + value.substring(4, 8);
+        }
+        
+        // Update the input value
+        this.value = value;
+        
+        // Auto-submit when format is complete
+        if (/^\d{4}-\d{4}$/.test(value)) {
             processManualInput();
         }
     });
     
+    // Prevent paste of non-numeric characters
+    manualInput.addEventListener('paste', function(e) {
+        e.preventDefault();
+        let pastedData = (e.clipboardData || window.clipboardData).getData('text');
+        // Remove non-numeric characters
+        pastedData = pastedData.replace(/[^0-9]/g, '');
+        
+        // Auto-format if 8 digits
+        if (pastedData.length === 8) {
+            pastedData = pastedData.substring(0, 4) + '-' + pastedData.substring(4, 8);
+        }
+        
+        // Insert the cleaned data
+        document.execCommand('insertText', false, pastedData);
+        
+        // Auto-submit if format is complete
+        if (/^\d{4}-\d{4}$/.test(pastedData)) {
+            setTimeout(() => processManualInput(), 100);
+        }
+    });
+    
     // Focus on input field
-    document.getElementById('manualIdInput').focus();
+    manualInput.focus();
 });
 
 // Handle page visibility changes
@@ -2062,6 +2119,50 @@ document.addEventListener('visibilitychange', function() {
 window.addEventListener('beforeunload', function() {
     if (scanner) scanner.clear().catch(() => {});
 });
+
+// Restart scanner function
+function restartScanner() {
+    if (scanner) {
+        scanner.clear().then(() => {
+            initScanner();
+        }).catch(err => {
+            console.error('Error restarting scanner:', err);
+            initScanner();
+        });
+    } else {
+        initScanner();
+    }
+}
+
+// NEW: Clear and reset scanner after success/error
+function clearAndResetScanner() {
+    console.log("🔄 Clearing and resetting scanner display");
+    
+    // Clear manual input field
+    document.getElementById('manualIdInput').value = '';
+    
+    // Reset scanner alert to default
+    document.getElementById('in_out').innerHTML = '<i class="fas fa-id-card me-2"></i>Scan Your ID Card for Gate Access';
+    document.getElementById('in_out').style.color = 'var(--icon-color)';
+    
+    // Clear result display
+    document.getElementById('result').innerHTML = '';
+    
+    // Reset person photo to default
+    document.getElementById('pic').src = 'assets/img/section/type.jpg';
+    
+    // Show scanner overlay
+    document.querySelector('.scanner-overlay').style.display = 'flex';
+    
+    // Re-enable inputs
+    setInputsDisabled(false);
+    
+    // Focus on manual input
+    document.getElementById('manualIdInput').focus();
+    
+    // Restart scanner
+    restartScanner();
+}
 </script>
 
 <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>

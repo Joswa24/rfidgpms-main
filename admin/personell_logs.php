@@ -11,7 +11,7 @@ if (!$db) {
 }
 
 // Initialize filtered data array
-$filtered_data = [];
+ $filtered_data = [];
 
 // Check if form is submitted
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -105,6 +105,237 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="en">
 <?php include 'header.php'; ?>
 
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personnel Logs</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-datepicker@1.9.0/dist/css/bootstrap-datepicker.min.css">
+    <style>
+        :root {
+            --primary-color: #e1e7f0ff;
+            --secondary-color: #b0caf0ff;
+            --accent-color: #f3f5fcff;
+            --icon-color: #5c95e9ff;
+            --light-bg: #f8f9fc;
+            --dark-text: #5a5c69;
+            --warning-color: #f6c23e;
+            --danger-color: #e74a3b;
+            --success-color: #1cc88a;
+            --info-color: #36b9cc;
+            --border-radius: 15px;
+            --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            --transition: all 0.3s ease;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            font-family: 'Inter', sans-serif;
+            color: var(--dark-text);
+        }
+
+        .content {
+            background: transparent;
+        }
+
+        .bg-light {
+            background-color: var(--light-bg) !important;
+            border-radius: var(--border-radius);
+        }
+
+        .card {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            background: white;
+        }
+
+        .table th {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
+            color: white;
+            font-weight: 600;
+            border: none;
+            padding: 15px 12px;
+        }
+
+        .table td {
+            padding: 12px;
+            border-color: rgba(0,0,0,0.05);
+            vertical-align: middle;
+        }
+
+        .table-responsive {
+            border-radius: var(--border-radius);
+            overflow: hidden;
+        }
+
+        .badge {
+            font-size: 0.85em;
+            border-radius: 8px;
+        }
+
+        /* Modern Button Styles */
+        .btn {
+            border-radius: 10px;
+            font-weight: 500;
+            transition: var(--transition);
+            border: none;
+            padding: 10px 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .btn::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            transition: width 0.3s ease;
+            z-index: -1;
+        }
+
+        .btn:hover::before {
+            width: 100%;
+        }
+
+        .btn i {
+            font-size: 0.9rem;
+        }
+
+        /* Filter Button */
+        .btn-filter {
+            background: linear-gradient(135deg, var(--icon-color), #4a7ec7);
+            color: white;
+            box-shadow: 0 4px 15px rgba(92, 149, 233, 0.3);
+        }
+
+        .btn-filter:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(92, 149, 233, 0.4);
+            color: white;
+        }
+
+        /* Reset Button */
+        .btn-reset {
+            background: linear-gradient(135deg, var(--warning-color), #f4b619);
+            color: white;
+            box-shadow: 0 4px 15px rgba(246, 194, 62, 0.3);
+        }
+
+        .btn-reset:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(246, 194, 62, 0.4);
+            color: white;
+        }
+
+        /* Print Button */
+        .btn-print {
+            background: linear-gradient(135deg, var(--success-color), #17a673);
+            color: white;
+            box-shadow: 0 4px 15px rgba(28, 200, 138, 0.3);
+        }
+
+        .btn-print:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(28, 200, 138, 0.4);
+            color: white;
+        }
+
+        .back-to-top {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color)) !important;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--box-shadow);
+            transition: var(--transition);
+        }
+
+        .back-to-top:hover {
+            transform: translateY(-3px);
+        }
+
+        h6.mb-4 {
+            color: var(--dark-text);
+            font-weight: 700;
+            font-size: 1.25rem;
+        }
+
+        hr {
+            opacity: 0.1;
+            margin: 1.5rem 0;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(92, 149, 233, 0.05);
+            transform: translateY(-1px);
+            transition: var(--transition);
+        }
+
+        .form-control, .form-select {
+            border-radius: 8px;
+            border: 1.5px solid #e3e6f0;
+            padding: 12px 16px;
+            transition: var(--transition);
+            background-color: var(--light-bg);
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--icon-color);
+            box-shadow: 0 0 0 3px rgba(92, 149, 233, 0.15);
+            background-color: white;
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: var(--dark-text);
+            margin-bottom: 8px;
+        }
+
+        /* Button container styling */
+        .button-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Table action buttons container */
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        /* Photo styling */
+        .personnel-photo {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #dee2e6;
+        }
+
+        /* Loading spinner */
+        .spinner-border {
+            width: 1rem;
+            height: 1rem;
+        }
+    </style>
+</head>
+
 <body>
     <div class="container-fluid position-relative bg-white d-flex p-0">
         <?php include 'sidebar.php'; ?>
@@ -172,12 +403,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </div>
                                 <div class="col-lg-3 mt-4">
                                     <label></label>
-                                    <button type="submit" class="btn btn-primary" id="btn_search"><i class="fa fa-search"></i> Filter</button>
-                                    <button type="button" id="reset" class="btn btn-warning"><i class="fa fa-sync"></i> Reset</button>
+                                    <div class="button-container">
+                                        <button type="submit" class="btn btn-filter" id="btn_search">
+                                            <i class="fa fa-search"></i> Filter
+                                        </button>
+                                        <button type="button" id="reset" class="btn btn-reset">
+                                            <i class="fa fa-sync"></i> Reset
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="col-lg-3 mt-4" style="text-align:right;">
                                     <label></label>
-                                    <button type="button" class="btn btn-success" id="btn_print"><i class="fa fa-print"> Print</i></button> 
+                                    <button type="button" class="btn btn-print" id="btn_print">
+                                        <i class="fa fa-print"></i> Print
+                                    </button> 
                                 </div>
                             </div>
                         </form>
@@ -201,7 +440,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     if (!empty($filtered_data)) {
                                         foreach ($filtered_data as $row) {
                                             echo '<tr>';
-                                            echo '<td><center><img src="uploads/' . $row['photo'] . '" width="50px" height="50px"></center></td>';
+                                            echo '<td><center><img src="uploads/' . $row['photo'] . '" class="personnel-photo" alt="Personnel Photo"></center></td>';
                                             echo '<td>' . $row['first_name'] . ' ' . $row['last_name'] . '</td>';
                                             echo '<td>' . $row['department'] . '</td>';
                                             echo '<td>' . $row['location'] . '</td>';
@@ -234,6 +473,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap-datepicker@1.9.0/dist/js/bootstrap-datepicker.min.js"></script>
     <script src="lib/chart/chart.min.js"></script>
     <script src="lib/easing/easing.min.js"></script>
     <script src="lib/waypoints/waypoints.min.js"></script>
@@ -248,7 +488,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script type="text/javascript">
     $(document).ready(function() {
         // Initialize datepickers
-        $('#date1, #date2').datepicker();
+        $('#date1, #date2').datepicker({
+            format: 'mm/dd/yyyy',
+            autoclose: true,
+            todayHighlight: true
+        });
         
         // Handle search button click
         $('#btn_search').on('click', function() {
@@ -261,7 +505,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             $('#load_data').empty();
-            $loader = $('<tr><td colspan="8"><center>Searching....</center></td></tr>');
+            $loader = $('<tr><td colspan="8"><center><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Searching....</center></td></tr>');
             $loader.appendTo('#load_data');
             
             setTimeout(function() {
@@ -276,13 +520,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         });
 
         // Handle print button click
-        // Replace your current print button handler with this:
-$('#btn_print').on('click', function() {
-    // Submit the form to print.php in a new window
-    $('#filterForm').attr('action', 'print.php').attr('target', '_blank').submit();
-    // Reset the form action for normal filtering
-    $('#filterForm').attr('action', '').removeAttr('target');
-});
+        $('#btn_print').on('click', function() {
+            // Submit the form to print.php in a new window
+            $('#filterForm').attr('action', 'print.php').attr('target', '_blank').submit();
+            // Reset the form action for normal filtering
+            $('#filterForm').attr('action', '').removeAttr('target');
+        });
     });
     </script>
 </body>

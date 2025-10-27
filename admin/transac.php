@@ -654,8 +654,9 @@ if ($isAjaxRequest) {
             }
             break;
 
+        
         // ========================
-        // PERSONNEL CRUD OPERATIONS
+        // PERSONNEL CRUD OPERATIONS - CORRECTED VERSION (0000-0000 FORMAT)
         // ========================
         case 'add_personnel':
             error_log("=== ADD PERSONNEL STARTED ===");
@@ -671,18 +672,23 @@ if ($isAjaxRequest) {
 
             // Validate required fields
             $required = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department'];
+            $missing_fields = [];
             foreach ($required as $field) {
                 if (empty($_POST[$field])) {
-                    error_log("Missing field: $field");
-                    jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
+                    $missing_fields[] = $field;
                 }
+            }
+            
+            if (!empty($missing_fields)) {
+                error_log("Missing fields: " . implode(', ', $missing_fields));
+                jsonResponse('error', "Missing required fields: " . implode(', ', $missing_fields));
             }
 
             // Sanitize inputs
             $last_name = sanitizeInput($db, $_POST['last_name']);
             $first_name = sanitizeInput($db, $_POST['first_name']);
             $date_of_birth = sanitizeInput($db, $_POST['date_of_birth']);
-            $id_number = sanitizeInput($db, $_POST['id_number']);
+            $id_number = sanitizeInput($db, $_POST['id_number']); // Store with 0000-0000 format
             $role = sanitizeInput($db, $_POST['role']);
             $category = sanitizeInput($db, $_POST['category']);
             $department = sanitizeInput($db, $_POST['department']);
@@ -690,20 +696,20 @@ if ($isAjaxRequest) {
 
             error_log("Processing: $last_name, $first_name, ID: $id_number");
 
-            // Validate ID Number format
-            if (!preg_match('/^\d{8}$/', $id_number)) {
+            // Validate ID Number format - accept and require 0000-0000 format
+            if (!preg_match('/^\d{4}-\d{4}$/', $id_number)) {
                 error_log("Invalid ID format: $id_number");
-                jsonResponse('error', 'ID Number must be exactly 8 digits. Received: ' . $id_number);
+                jsonResponse('error', 'ID Number must be in 0000-0000 format. Received: ' . $id_number);
             }
 
-            // Check if ID Number already exists
+            // Check if ID Number already exists (exact match with 0000-0000 format)
             $check_id = $db->prepare("SELECT id FROM personell WHERE id_number = ? AND deleted = 0");
             if (!$check_id) {
                 error_log("Prepare failed: " . $db->error);
                 jsonResponse('error', 'Database error: ' . $db->error);
             }
             
-            $check_id->bind_param("s", $id_number);
+            $check_id->bind_param("s", $id_number); // Use exact 0000-0000 format
             if (!$check_id->execute()) {
                 error_log("Execute failed: " . $check_id->error);
                 jsonResponse('error', 'Database error: ' . $check_id->error);
@@ -717,17 +723,33 @@ if ($isAjaxRequest) {
             }
             $check_id->close();
 
-            // Handle file upload - SIMPLIFIED VERSION (no file upload first)
+            // Handle file upload
             $photo = 'default.png';
-            error_log("Using default photo: $photo");
+            if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+                error_log("Photo file detected, attempting upload");
+                $uploadResult = handleFileUpload('photo', '../uploads/personell/');
+                if ($uploadResult['success']) {
+                    $photo = $uploadResult['filename'];
+                    error_log("Photo uploaded successfully: $photo");
+                } else {
+                    error_log("Photo upload failed: " . $uploadResult['message']);
+                    // Continue with default photo instead of failing
+                }
+            } else {
+                error_log("No photo uploaded or upload error, using default.png");
+                if (isset($_FILES['photo'])) {
+                    error_log("File upload error code: " . $_FILES['photo']['error']);
+                }
+            }
 
-            // Insert record
+            // Insert record - Store ID with 0000-0000 format
             $query = "INSERT INTO personell (
                 id_number, last_name, first_name, date_of_birth, 
                 role, category, department, status, photo, date_added
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
 
             error_log("SQL Query: $query");
+            error_log("Values: $id_number, $last_name, $first_name, $date_of_birth, $role, $category, $department, $status, $photo");
             
             $stmt = $db->prepare($query);
             if (!$stmt) {
@@ -738,12 +760,12 @@ if ($isAjaxRequest) {
 
             $stmt->bind_param(
                 "sssssssss", 
-                $id_number, $last_name, $first_name, $date_of_birth,
+                $id_number, $last_name, $first_name, $date_of_birth, // Store with 0000-0000 format
                 $role, $category, $department, $status, $photo
             );
 
             if ($stmt->execute()) {
-                error_log("Personnel added successfully");
+                error_log("Personnel added successfully with ID: $id_number");
                 jsonResponse('success', 'Personnel added successfully');
             } else {
                 $error = $stmt->error;
@@ -753,6 +775,8 @@ if ($isAjaxRequest) {
             break;
 
         case 'update_personnel':
+            error_log("=== UPDATE PERSONNEL STARTED ===");
+            
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
                 jsonResponse('error', 'Invalid request method');
             }
@@ -762,33 +786,50 @@ if ($isAjaxRequest) {
                 jsonResponse('error', 'Personnel ID is required');
             }
 
-            $required = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'e_department', 'status'];
+            $required = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department', 'status'];
+            $missing_fields = [];
             foreach ($required as $field) {
                 if (empty($_POST[$field])) {
-                    jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
+                    $missing_fields[] = $field;
                 }
+            }
+            
+            if (!empty($missing_fields)) {
+                jsonResponse('error', "Missing required fields: " . implode(', ', $missing_fields));
             }
 
             // Sanitize inputs
-            $id = intval($_POST['id']); // Use intval since your id is INT
+            $id = intval($_POST['id']);
             $last_name = sanitizeInput($db, $_POST['last_name']);
             $first_name = sanitizeInput($db, $_POST['first_name']);
             $date_of_birth = sanitizeInput($db, $_POST['date_of_birth']);
-            $id_number = sanitizeInput($db, $_POST['id_number']);
+            $id_number = sanitizeInput($db, $_POST['id_number']); // Store with 0000-0000 format
             $role = sanitizeInput($db, $_POST['role']);
             $category = sanitizeInput($db, $_POST['category']);
-            $department = sanitizeInput($db, $_POST['e_department']); // Note: using e_department from form
+            $department = sanitizeInput($db, $_POST['department']);
             $status = sanitizeInput($db, $_POST['status']);
 
-            // Validate ID Number format (8 digits)
-            if (!preg_match('/^\d{8}$/', $id_number)) {
-                jsonResponse('error', 'ID Number must be exactly 8 digits');
+            // Validate ID
+            if ($id <= 0) {
+                jsonResponse('error', 'Invalid personnel ID');
             }
 
-            // Check if ID Number exists for other personnel
-            $check_id = $db->prepare("SELECT id FROM personell WHERE id_number = ? AND id != ?");
-            $check_id->bind_param("si", $id_number, $id);
-            $check_id->execute();
+            // Validate ID Number format - accept and require 0000-0000 format
+            if (!preg_match('/^\d{4}-\d{4}$/', $id_number)) {
+                jsonResponse('error', 'ID Number must be in 0000-0000 format. Received: ' . $id_number);
+            }
+
+            // Check if ID Number exists for other personnel (exact match with 0000-0000 format)
+            $check_id = $db->prepare("SELECT id FROM personell WHERE id_number = ? AND id != ? AND deleted = 0");
+            if (!$check_id) {
+                jsonResponse('error', 'Database prepare error');
+            }
+            
+            $check_id->bind_param("si", $id_number, $id); // Use exact 0000-0000 format
+            if (!$check_id->execute()) {
+                jsonResponse('error', 'Database execute error: ' . $check_id->error);
+            }
+            
             $check_id->store_result();
             
             if ($check_id->num_rows > 0) {
@@ -797,47 +838,66 @@ if ($isAjaxRequest) {
             $check_id->close();
 
             // Handle file upload
-            $photo = '';
+            $photo_update = '';
+            $new_photo = '';
+            
             if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
-                $uploadResult = handleFileUpload('photo', 'uploads/');
-                if (!$uploadResult['success']) {
+                error_log("New photo uploaded, processing...");
+                $uploadResult = handleFileUpload('photo', '../uploads/personell/');
+                if ($uploadResult['success']) {
+                    $new_photo = $uploadResult['filename'];
+                    $photo_update = ", photo = ?";
+                    error_log("New photo will be set to: $new_photo");
+                } else {
+                    error_log("Photo upload failed: " . $uploadResult['message']);
                     jsonResponse('error', $uploadResult['message']);
                 }
-                $photo = $uploadResult['filename'];
             } else {
                 // Keep existing photo if no new upload
-                $photo = sanitizeInput($db, $_POST['capturedImage']);
+                $existing_photo = sanitizeInput($db, $_POST['capturedImage'] ?? 'default.png');
+                error_log("No new photo, keeping existing: $existing_photo");
             }
 
-            // Update personnel record
-            if (!empty($photo)) {
+            // Update personnel record - Store ID with 0000-0000 format
+            if (!empty($new_photo)) {
                 $query = "UPDATE personell SET 
-                    last_name = ?, first_name = ?, date_of_birth = ?, id_number = ?,
+                    id_number = ?, last_name = ?, first_name = ?, date_of_birth = ?,
                     role = ?, category = ?, department = ?, status = ?, photo = ?
                     WHERE id = ?";
+                error_log("Update query with photo: $query");
+                
                 $stmt = $db->prepare($query);
-                $stmt->bind_param(
-                    "sssssssssi", 
-                    $last_name, $first_name, $date_of_birth, $id_number,
-                    $role, $category, $department, $status, $photo, $id
+                if (!$stmt) {
+                    jsonResponse('error', 'Database prepare error: ' . $db->error);
+                }
+                $stmt->bind_param("sssssssssi", 
+                    $id_number, $last_name, $first_name, $date_of_birth, // Store with 0000-0000 format
+                    $role, $category, $department, $status, $new_photo, $id
                 );
             } else {
                 $query = "UPDATE personell SET 
-                    last_name = ?, first_name = ?, date_of_birth = ?, id_number = ?,
+                    id_number = ?, last_name = ?, first_name = ?, date_of_birth = ?,
                     role = ?, category = ?, department = ?, status = ?
                     WHERE id = ?";
+                error_log("Update query without photo: $query");
+                
                 $stmt = $db->prepare($query);
-                $stmt->bind_param(
-                    "ssssssssi", 
-                    $last_name, $first_name, $date_of_birth, $id_number,
+                if (!$stmt) {
+                    jsonResponse('error', 'Database prepare error: ' . $db->error);
+                }
+                $stmt->bind_param("sssssssi", 
+                    $id_number, $last_name, $first_name, $date_of_birth, // Store with 0000-0000 format
                     $role, $category, $department, $status, $id
                 );
             }
 
             if ($stmt->execute()) {
+                error_log("Personnel updated successfully with ID: $id_number");
                 jsonResponse('success', 'Personnel updated successfully');
             } else {
-                jsonResponse('error', 'Failed to update personnel: ' . $stmt->error);
+                $error = $stmt->error;
+                error_log("Execute failed: " . $error);
+                jsonResponse('error', 'Failed to update personnel: ' . $error);
             }
             break;
 
@@ -854,33 +914,51 @@ if ($isAjaxRequest) {
             // Sanitize input
             $id = intval($_POST['id']);
 
-            // Check for dependencies
-            $checkLostCards = $db->prepare("SELECT COUNT(*) FROM lostcard WHERE personnel_id = ?");
-            $checkLostCards->bind_param("i", $id);
-            $checkLostCards->execute();
-            $checkLostCards->bind_result($lostCardCount);
-            $checkLostCards->fetch();
-            $checkLostCards->close();
-
-            if ($lostCardCount > 0) {
-                jsonResponse('error', 'Cannot delete personnel with associated lost card records');
+            if ($id <= 0) {
+                jsonResponse('error', 'Invalid personnel ID');
             }
 
-            // Delete personnel
-            $stmt = $db->prepare("DELETE FROM personell WHERE id = ?");
+            // Check if personnel exists
+            $checkPersonnel = $db->prepare("SELECT id, id_number FROM personell WHERE id = ? AND deleted = 0");
+            if (!$checkPersonnel) {
+                jsonResponse('error', 'Database prepare error');
+            }
+            
+            $checkPersonnel->bind_param("i", $id);
+            if (!$checkPersonnel->execute()) {
+                jsonResponse('error', 'Database execute error');
+            }
+            
+            $checkPersonnel->store_result();
+            
+            if ($checkPersonnel->num_rows === 0) {
+                jsonResponse('error', 'Personnel not found');
+            }
+            
+            // Get the ID number for logging
+            $checkPersonnel->bind_result($personnel_id, $personnel_id_number);
+            $checkPersonnel->fetch();
+            $checkPersonnel->close();
+
+            // Soft delete personnel (set deleted flag to 1)
+            $stmt = $db->prepare("UPDATE personell SET deleted = 1 WHERE id = ?");
+            if (!$stmt) {
+                jsonResponse('error', 'Database prepare error');
+            }
+            
             $stmt->bind_param("i", $id);
             
             if ($stmt->execute()) {
+                error_log("Personnel deleted successfully - ID: $personnel_id_number");
                 jsonResponse('success', 'Personnel deleted successfully');
             } else {
                 jsonResponse('error', 'Failed to delete personnel: ' . $stmt->error);
             }
             break;
-
-        // ========================
-        // STUDENT CRUD OPERATIONS
-        // ========================
-        case 'add_student':
+            // ========================
+            // STUDENT CRUD OPERATIONS
+            // ========================
+            case 'add_student':
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
                 jsonResponse('error', 'Invalid request method');
             }
