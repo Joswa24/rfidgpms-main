@@ -192,7 +192,6 @@ foreach ($dailyLogs as $day => $logs) {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>DTR Print</title>
     <style>
         @media print {
             body { margin: 0; }
@@ -208,14 +207,14 @@ foreach ($dailyLogs as $day => $logs) {
         }
         .header {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
         .header h1 {
-            font-size: 20px;
+            font-size: 15px;
             text-decoration: underline;
         }
         .header h3 {
-            margin: 5px 0;
+            margin: 2px 0;
         }
         .info-table {
             width: 100%;
@@ -223,7 +222,7 @@ foreach ($dailyLogs as $day => $logs) {
         }
         .info-table th, .info-table td {
             border: none;
-            padding: 5px;
+            padding: 1px;
         }
         .info-table th {
             text-align: left;
@@ -231,11 +230,11 @@ foreach ($dailyLogs as $day => $logs) {
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
         th, td {
             border: 1px solid #000;
-            padding: 5px;
+            padding: .5px;
             text-align: center;
         }
         .footer {
@@ -248,14 +247,6 @@ foreach ($dailyLogs as $day => $logs) {
         .footer .in-charge {
             text-align: right;
             margin-top: 30px;
-        }
-        .no-time-in {
-            color: #dc3545;
-            font-weight: bold;
-        }
-        .no-time-out {
-            color: #ffc107;
-            font-weight: bold;
         }
         .holiday-day {
             background-color: #ffcccc !important;
