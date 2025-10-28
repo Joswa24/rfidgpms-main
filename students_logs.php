@@ -69,6 +69,7 @@ if (isset($_POST['logout_after_save'])) {
 }
 
 // Function to fetch actual student time in/out with proper timezone
+// Function to fetch actual student time in/out with proper timezone
 function getStudentAttendanceTimes($db, $id_number) {
     $query = "SELECT 
                 al.time_in,
@@ -93,14 +94,9 @@ function getStudentAttendanceTimes($db, $id_number) {
         $stmt->close();
         
         if ($attendance_data) {
-            // Convert UTC times from database to Asia/Manila timezone
-            $time_in = $attendance_data['time_in'] ? 
-                convertUtcToManila($attendance_data['time_in']) : 
-                null;
-            
-            $time_out = $attendance_data['time_out'] ? 
-                convertUtcToManila($attendance_data['time_out']) : 
-                null;
+            // Use the same formatTime function as gate_logs.php
+            $time_in = formatTime($attendance_data['time_in']);
+            $time_out = formatTime($attendance_data['time_out']);
             
             return [
                 'time_in' => $time_in,
@@ -124,24 +120,23 @@ function getStudentAttendanceTimes($db, $id_number) {
 }
 
 // Function to convert UTC time from database to Asia/Manila time
-function convertUtcToManila($utcDateTime) {
-    if (!$utcDateTime) return null;
-    
+// Improved function to convert UTC time from database to Asia/Manila time
+// Function to format time correctly (using the same approach as gate_logs.php)
+function formatTime($time) {
+    if (empty($time) || $time == '00:00:00' || $time == '?' || $time == '0000-00-00 00:00:00') {
+        return '-';
+    }
     try {
-        // Create DateTime object from UTC time
-        $utcTime = new DateTime($utcDateTime, new DateTimeZone('UTC'));
-        // Convert to Asia/Manila timezone
-        $utcTime->setTimezone(new DateTimeZone('Asia/Manila'));
-        // Return formatted time
-        return $utcTime->format('h:i A');
+        // Convert to Manila time (already set in date_default_timezone_set)
+        $dateTime = new DateTime($time);
+        return $dateTime->format('h:i A');
     } catch (Exception $e) {
-        error_log("Time conversion error: " . $e->getMessage());
-        // Fallback to direct formatting
-        return date('h:i A', strtotime($utcDateTime . ' UTC')) ?: null;
+        return '-';
     }
 }
 
-// Enhanced function to get classmates with proper timezone conversion
+
+// Enhanced function to get classmates with proper time formatting
 function getClassmatesByYearSection($db, $year, $section) {
     $query = "SELECT 
                 s.id_number, 
@@ -175,19 +170,13 @@ function getClassmatesByYearSection($db, $year, $section) {
         $classmates = $result->fetch_all(MYSQLI_ASSOC);
         $stmt->close();
         
-        // Process times with proper timezone conversion
+        // Process times with proper time formatting (same as gate_logs.php)
         foreach ($classmates as &$student) {
-            // Format Time In - convert from UTC to Manila time
-            $student['formatted_time_in'] = '-';
-            if ($student['time_in']) {
-                $student['formatted_time_in'] = convertUtcToManila($student['time_in']);
-            }
+            // Format Time In
+            $student['formatted_time_in'] = formatTime($student['time_in']);
             
-            // Format Time Out - convert from UTC to Manila time
-            $student['formatted_time_out'] = '-';
-            if ($student['time_out']) {
-                $student['formatted_time_out'] = convertUtcToManila($student['time_out']);
-            }
+            // Format Time Out
+            $student['formatted_time_out'] = formatTime($student['time_out']);
             
             // Determine attendance status
             $student['attendance_status'] = $student['attendance_count'] > 0 ? 'Present' : 'Absent';
