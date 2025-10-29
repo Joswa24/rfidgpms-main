@@ -352,6 +352,45 @@ if (isset($_SESSION['error_message'])) {
             gap: 8px;
             justify-content: center;
         }
+            .form-control.invalid {
+                border-color: var(--danger-color) !important;
+                box-shadow: 0 0 0 3px rgba(231, 74, 59, 0.15) !important;
+            }
+
+            .valid-feedback, .invalid-feedback {
+                display: none;
+                font-size: 0.875rem;
+                margin-top: 0.25rem;
+            }
+
+            .valid-feedback {
+                color: var(--success-color);
+            }
+
+            .invalid-feedback {
+                color: var(--danger-color);
+            }
+
+            /* Search input styling */
+            .dataTables_filter input {
+                border-radius: 8px;
+                border: 1.5px solid #e3e6f0;
+                padding: 8px 12px;
+                transition: var(--transition);
+                background-color: var(--light-bg);
+            }
+
+            .dataTables_filter input:focus {
+                border-color: var(--icon-color);
+                box-shadow: 0 0 0 3px rgba(92, 149, 233, 0.15);
+                background-color: white;
+                outline: none;
+            }
+
+            .dataTables_filter label {
+                font-weight: 500;
+                color: var(--dark-text);
+            }
     </style>
 </head>
 
@@ -431,8 +470,11 @@ if (isset($_SESSION['error_message'])) {
                                 <div class="col-lg-12 mb-3">
                                     <div class="form-group">
                                         <label for="inputTime"><b>Role:</b></label>
-                                        <input name="role" type="text" id="role" class="form-control" autocomplete="off">
+                                        <input name="role" type="text" id="role" class="form-control" autocomplete="off" 
+                                            placeholder="Enter role name">
                                         <span class="error-message" id="role-error"></span>
+                                        <div class="valid-feedback">Looks good!</div>
+                                        <div class="invalid-feedback">Please enter a valid role name using only letters and spaces.</div>
                                     </div>
                                 </div>
                             </div>
@@ -444,6 +486,8 @@ if (isset($_SESSION['error_message'])) {
                     </div>
                 </div>
             </div>
+
+
 
             <!-- Edit Role Modal -->
             <div class="modal fade" id="editRoleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
@@ -461,8 +505,11 @@ if (isset($_SESSION['error_message'])) {
                                 <div class="col-lg-12 mb-3">
                                     <div class="form-group">
                                         <label for="inputTime"><b>Role:</b></label>
-                                        <input name="erole" type="text" id="erole" class="form-control" autocomplete="off">
+                                        <input name="erole" type="text" id="erole" class="form-control" autocomplete="off"
+                                            placeholder="Enter role name (letters and spaces only)">
                                         <span class="error-message" id="erole-error"></span>
+                                        <div class="valid-feedback">Looks good!</div>
+                                        <div class="invalid-feedback">Please enter a valid role name using only letters and spaces.</div>
                                     </div>
                                 </div>
                             </div>
@@ -499,20 +546,42 @@ if (isset($_SESSION['error_message'])) {
     <script src="js/main.js"></script>
 
     <script>
-    $(document).ready(function() {
+$(document).ready(function() {
     // Initialize DataTable
     var dataTable = $('#myDataTable').DataTable({
         order: [[0, 'desc']],
         stateSave: true
     });
 
-    // Reset form function
-    function resetForm() {
-        $('.error-message').text('');
-        $('#roleForm')[0].reset();
+    // Function to validate role input (letters and spaces only)
+    function validateRoleInput(input) {
+        // Remove any numbers and special characters except spaces and hyphens
+        return input.replace(/[^a-zA-Z\s\-]/g, '');
     }
 
-    // Validation function
+    // Function to prevent invalid key inputs
+    function preventInvalidKeys(event) {
+        // Allow: backspace, delete, tab, escape, enter, arrow keys, home, end
+        if ([8, 9, 13, 27, 37, 38, 39, 40, 46].includes(event.keyCode) ||
+            // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+            (event.ctrlKey === true && [65, 67, 86, 88].includes(event.keyCode))) {
+            return;
+        }
+        
+        // Prevent numbers and special characters except spaces and hyphens
+        const char = String.fromCharCode(event.keyCode || event.which);
+        if (!/^[a-zA-Z\s\-]$/.test(char)) {
+            event.preventDefault();
+            return false;
+        }
+    }
+
+    // Function to sanitize search input
+    function sanitizeSearchInput(input) {
+        return input.replace(/[^a-zA-Z\s\-]/g, '');
+    }
+
+    // Enhanced validation function
     function validateRole(role) {
         let isValid = true;
         const errors = {};
@@ -523,9 +592,84 @@ if (isset($_SESSION['error_message'])) {
         } else if (role.length > 100) {
             errors.role = 'Role name must be less than 100 characters';
             isValid = false;
+        } else if (!/^[a-zA-Z\s\-]+$/.test(role)) {
+            errors.role = 'Role name can only contain letters, spaces, and hyphens';
+            isValid = false;
+        } else if (role.trim().length === 0) {
+            errors.role = 'Role name cannot be only spaces';
+            isValid = false;
         }
 
         return { isValid, errors };
+    }
+
+
+    // Add input validation for role fields
+    $('#role').on('input', function() {
+        const sanitizedValue = validateRoleInput($(this).val());
+        $(this).val(sanitizedValue);
+        
+        // Update validation feedback
+        const role = $(this).val();
+        const validation = validateRole(role);
+        updateValidationFeedback(this, validation.isValid);
+    });
+
+    $('#erole').on('input', function() {
+        const sanitizedValue = validateRoleInput($(this).val());
+        $(this).val(sanitizedValue);
+        
+        // Update validation feedback
+        const role = $(this).val();
+        const validation = validateRole(role);
+        updateValidationFeedback(this, validation.isValid);
+    });
+
+    // Add keydown event to prevent invalid keys
+    $('#role').on('keydown', preventInvalidKeys);
+    $('#erole').on('keydown', preventInvalidKeys);
+
+    // Add search input validation for DataTable
+    const searchInput = $('.dataTables_filter input');
+    if (searchInput.length) {
+        searchInput.attr('placeholder', '');
+        
+        searchInput.on('input', function() {
+            const sanitizedValue = sanitizeSearchInput($(this).val());
+            $(this).val(sanitizedValue);
+            
+            // Trigger search with sanitized value
+            if ($(this).val() !== sanitizedValue) {
+                dataTable.search(sanitizedValue).draw();
+            }
+        });
+        
+        searchInput.on('keydown', function(event) {
+            // Allow: backspace, delete, tab, escape, enter
+            if ([8, 9, 27, 13, 46].includes(event.keyCode) ||
+                // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+                (event.ctrlKey === true && [65, 67, 86, 88].includes(event.keyCode)) ||
+                // Allow: home, end, left, right
+                (event.keyCode >= 35 && event.keyCode <= 39)) {
+                return;
+            }
+            
+            // Prevent numbers and special characters except spaces and hyphens
+            const char = String.fromCharCode(event.keyCode || event.which);
+            if (!/^[a-zA-Z\s\-]$/.test(char)) {
+                event.preventDefault();
+                return false;
+            }
+        });
+    }
+
+    // Reset form function
+    function resetForm() {
+        $('.error-message').text('');
+        $('#roleForm')[0].reset();
+        // Reset validation feedback
+        $('#role').removeClass('is-valid invalid');
+        $('.valid-feedback, .invalid-feedback').hide();
     }
 
     // Display validation errors
@@ -624,8 +768,10 @@ if (isset($_SESSION['error_message'])) {
         $('#edit_roleid').val(id);
         $('#erole').val(role);
         
-        // Clear previous errors
+        // Clear previous errors and validation feedback
         $('.error-message').text('');
+        $('#erole').removeClass('is-valid invalid');
+        $('.valid-feedback, .invalid-feedback').hide();
         
         // Show modal
         $('#editRoleModal').modal('show');
@@ -806,8 +952,10 @@ if (isset($_SESSION['error_message'])) {
     
     $('#editRoleModal').on('hidden.bs.modal', function() {
         $('.error-message').text('');
+        $('#erole').removeClass('is-valid invalid');
+        $('.valid-feedback, .invalid-feedback').hide();
     });
 });
-    </script>
+</script>
 </body>
 </html>

@@ -1,15 +1,16 @@
 <?php 
-// Security headers (commented out as in original)
-// //Strict-Transport-Security (HSTS)
-// header("Strict-Transport-Security: max-age=31536000; includeSubDomains; preload");
-// // X-Frame-Options
 // header("X-Frame-Options: DENY");
-// // X-Content-Type-Options
 // header("X-Content-Type-Options: nosniff");
-// // Referrer-Policy
-// header("Referrer-Policy: no-referrer");
-// // Permissions-Policy
+// header("X-XSS-Protection: 1; mode=block");
+// header("Referrer-Policy: strict-origin-when-cross-origin");
 // header("Permissions-Policy: geolocation=(), microphone=(), camera=()");
+// header("X-Permitted-Cross-Domain-Policies: none");
+// header("Cross-Origin-Embedder-Policy: require-corp");
+// header("Cross-Origin-Opener-Policy: same-origin");
+// header("Cross-Origin-Resource-Policy: same-origin");
+// header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+// header("Pragma: no-cache");
+// header("Expires: 0");
 ?>
 <head>
     <meta charset="utf-8">

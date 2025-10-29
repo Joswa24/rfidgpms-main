@@ -161,6 +161,19 @@ if (isset($_SESSION['error_message'])) {
             color: white;
         }
 
+        /* View Password Button */
+        .btn-view {
+            background: linear-gradient(135deg, var(--success-color), #17a673);
+            color: white;
+            box-shadow: 0 4px 15px rgba(28, 200, 138, 0.3);
+        }
+
+        .btn-view:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(28, 200, 138, 0.4);
+            color: white;
+        }
+
         /* Modal Footer Buttons */
         .btn-close-modal {
             background: linear-gradient(135deg, #6c757d, #5a6268);
@@ -332,6 +345,21 @@ if (isset($_SESSION['error_message'])) {
             color: var(--secondary-color);
         }
 
+        /* Password display styles */
+        .password-display {
+            font-family: 'Courier New', monospace;
+            letter-spacing: 2px;
+            background: rgba(0, 0, 0, 0.05);
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .encrypted-password {
+            color: #6c757d;
+            font-style: italic;
+        }
+
         /* SweetAlert customization */
         .swal2-popup {
             border-radius: var(--border-radius) !important;
@@ -351,6 +379,55 @@ if (isset($_SESSION['error_message'])) {
             display: flex;
             gap: 8px;
             justify-content: center;
+        }
+
+        /* Password column specific styles */
+        .password-column {
+            max-width: 200px;
+        }
+        /* Add to your existing CSS */
+        .password-suggest {
+            background: linear-gradient(135deg, var(--success-color), #17a673) !important;
+            color: white !important;
+            border: none !important;
+            padding: 6px 12px !important;
+            font-size: 0.75rem !important;
+            border-radius: 6px !important;
+            transition: var(--transition) !important;
+        }
+
+        .password-suggest:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 4px 12px rgba(28, 200, 138, 0.4) !important;
+            color: white !important;
+        }
+
+        .password-field {
+            position: relative;
+        }
+
+        .password-toggle, .password-suggest {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--icon-color);
+            transition: var(--transition);
+            z-index: 10;
+        }
+
+        .password-toggle {
+            right: 10px;
+        }
+
+        .password-suggest {
+            right: 50px;
+        }
+
+        .password-toggle:hover {
+            color: var(--secondary-color);
         }
     </style>
 </head>
@@ -401,7 +478,18 @@ if (isset($_SESSION['error_message'])) {
                                         <td><?php echo $row['authorized_personnel']; ?></td>
                                         <td><?php echo $row['room']; ?></td>
                                         <td><?php echo $row['descr']; ?></td>
-                                        <td><?php echo substr($row['password'], 0, 10) . '...'; ?></td>
+                                        <td class="password-column">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="password-display encrypted-password" id="password-<?php echo $row['id']; ?>">
+                                                    ••••••••••
+                                                </span>
+                                                <button type="button" class="btn btn-sm btn-view toggle-password" 
+                                                        data-password="<?php echo htmlspecialchars($row['password']); ?>"
+                                                        data-target="password-<?php echo $row['id']; ?>">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                            </div>
+                                        </td>
                                         <td width="14%">
                                             <div class="action-buttons">
                                                 <button authrole="<?php echo $row['authorized_personnel'];?>" 
@@ -493,8 +581,11 @@ if (isset($_SESSION['error_message'])) {
                                     <div class="form-group password-field">
                                         <label for="inputTime"><b>Password:</b></label>
                                         <input name="roompass" type="password" id="roompass" class="form-control" autocomplete="off">
-                                        <button type="button" class="password-toggle" onclick="togglePasswordVisibility('roompass')">
+                                        <button type="button" class="password-toggle" onclick="togglePasswordVisibility('roompass', this)">
                                             <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-success password-suggest" onclick="suggestPassword()" style="position: absolute; right: 50px; top: 50%; transform: translateY(-50%); z-index: 10;">
+                                            <i class="fas fa-magic"></i> Suggest
                                         </button>
                                         <span class="error-message" id="roompass-error"></span>
                                     </div>
@@ -569,7 +660,7 @@ if (isset($_SESSION['error_message'])) {
                                     <div class="form-group password-field">
                                         <label for="inputTime"><b>Password:</b></label>
                                         <input name="eroompass" type="password" id="eroompass" class="form-control" autocomplete="off">
-                                        <button type="button" class="password-toggle" onclick="togglePasswordVisibility('eroompass')">
+                                        <button type="button" class="password-toggle" onclick="togglePasswordVisibility('eroompass', this)">
                                             <i class="fas fa-eye"></i>
                                         </button>
                                         <span class="error-message" id="eroompass-error"></span>
@@ -616,21 +707,57 @@ if (isset($_SESSION['error_message'])) {
         stateSave: true
     });
 
-    // Password visibility toggle function
-    function togglePasswordVisibility(inputId) {
+    // Password visibility toggle function for modal inputs
+    function togglePasswordVisibility(inputId, button) {
         const input = document.getElementById(inputId);
-        const toggle = input.parentNode.querySelector('.password-toggle i');
+        const icon = button.querySelector('i');
         
         if (input.type === 'password') {
             input.type = 'text';
-            toggle.classList.remove('fa-eye');
-            toggle.classList.add('fa-eye-slash');
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
         } else {
             input.type = 'password';
-            toggle.classList.remove('fa-eye-slash');
-            toggle.classList.add('fa-eye');
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
         }
     }
+
+    // Password toggle function for table view
+    $(document).on('click', '.toggle-password', function() {
+        const button = $(this);
+        const targetId = button.data('target');
+        const actualPassword = button.data('password');
+        const passwordSpan = $('#' + targetId);
+        const icon = button.find('i');
+        
+        if (passwordSpan.hasClass('encrypted-password')) {
+            // Show actual password
+            passwordSpan.removeClass('encrypted-password')
+                       .addClass('actual-password')
+                       .text(actualPassword);
+            icon.removeClass('fa-eye').addClass('fa-eye-slash');
+            button.addClass('btn-warning').removeClass('btn-view');
+            
+            // Auto hide after 5 seconds
+            setTimeout(() => {
+                if (passwordSpan.hasClass('actual-password')) {
+                    passwordSpan.removeClass('actual-password')
+                               .addClass('encrypted-password')
+                               .html('••••••••••');
+                    icon.removeClass('fa-eye-slash').addClass('fa-eye');
+                    button.removeClass('btn-warning').addClass('btn-view');
+                }
+            }, 5000);
+        } else {
+            // Hide password
+            passwordSpan.removeClass('actual-password')
+                       .addClass('encrypted-password')
+                       .html('••••••••••');
+            icon.removeClass('fa-eye-slash').addClass('fa-eye');
+            button.removeClass('btn-warning').addClass('btn-view');
+        }
+    });
 
     // Reset form function
     function resetForm() {
@@ -641,6 +768,10 @@ if (isset($_SESSION['error_message'])) {
         eyeIcons.forEach(icon => {
             icon.classList.remove('fa-eye-slash');
             icon.classList.add('fa-eye');
+        });
+        const passwordInputs = document.querySelectorAll('input[type="text"][id$="pass"]');
+        passwordInputs.forEach(input => {
+            input.type = 'password';
         });
     }
 
@@ -928,6 +1059,93 @@ if (isset($_SESSION['error_message'])) {
         $('.error-message').text('');
     });
 });
+   
+
+    // Generate strong password function
+    function generateStrongPassword() {
+        const length = 12;
+        const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:,.<>?";
+        let password = "";
+        
+        // Ensure at least one of each required character type
+        password += "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.floor(Math.random() * 26)]; // uppercase
+        password += "abcdefghijklmnopqrstuvwxyz"[Math.floor(Math.random() * 26)]; // lowercase
+        password += "0123456789"[Math.floor(Math.random() * 10)]; // number
+        password += "!@#$%^&*()_+-=[]{}|;:,.<>?"[Math.floor(Math.random() * 23)]; // special char
+        
+        // Fill the rest with random characters
+        for (let i = password.length; i < length; i++) {
+            password += charset[Math.floor(Math.random() * charset.length)];
+        }
+        
+        // Shuffle the password to make it more random
+        password = password.split('').sort(() => 0.5 - Math.random()).join('');
+        
+        return password;
+    }
+
+    // Suggest password function
+    function suggestPassword() {
+        const suggestedPassword = generateStrongPassword();
+        
+        // Set the suggested password in the add room modal
+        $('#roompass').val(suggestedPassword);
+        
+        // Show success message
+        Swal.fire({
+            icon: 'success',
+            title: 'Strong Password Generated!',
+            text: 'A secure password has been suggested. You can use this or create your own.',
+            showConfirmButton: false,
+            timer: 2000
+        });
+        
+        // Ensure password is visible so user can see the suggestion
+        const roompassInput = document.getElementById('roompass');
+        const roompassToggle = document.querySelector('#roomModal .password-toggle i');
+        if (roompassInput.type === 'password') {
+            roompassInput.type = 'text';
+            roompassToggle.classList.remove('fa-eye');
+            roompassToggle.classList.add('fa-eye-slash');
+        }
+    }
+
+    // Enhanced password toggle function for both modals
+    function togglePasswordVisibility(inputId, button) {
+        const input = document.getElementById(inputId);
+        const icon = button.querySelector('i');
+        
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
+
+    // Add event listener for password suggestion button (add this to your HTML)
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add suggest password button to the add room modal
+        const roomPassField = document.querySelector('#roomModal .password-field');
+        if (roomPassField) {
+            const suggestButton = document.createElement('button');
+            suggestButton.type = 'button';
+            suggestButton.className = 'btn btn-sm btn-success password-suggest';
+            suggestButton.innerHTML = '<i class="fas fa-magic"></i> Suggest';
+            suggestButton.style.position = 'absolute';
+            suggestButton.style.right = '50px';
+            suggestButton.style.top = '50%';
+            suggestButton.style.transform = 'translateY(-50%)';
+            suggestButton.style.zIndex = '10';
+            suggestButton.onclick = suggestPassword;
+            
+            roomPassField.style.position = 'relative';
+            roomPassField.appendChild(suggestButton);
+        }
+    });
     </script>
 </body>
 </html>

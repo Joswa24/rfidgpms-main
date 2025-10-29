@@ -744,6 +744,7 @@ function getStudentPhoto($photo) {
                                                                     FROM students s 
                                                                     LEFT JOIN department d 
                                                                     ON s.department_id = d.department_id 
+                                                                    WHERE d.department_name != 'Main'
                                                                     ORDER BY s.year, s.section, s.fullname"); 
                                         
                                         if ($results === false) {
@@ -807,6 +808,7 @@ function getStudentPhoto($photo) {
                                 "SELECT s.*, d.department_name 
                                  FROM students s 
                                  LEFT JOIN department d ON s.department_id = d.department_id 
+                                 WHERE d.department_name != 'Main'
                                  ORDER BY s.year, s.section, s.fullname");
                             
                             $groupedStudents = [];
@@ -850,14 +852,14 @@ function getStudentPhoto($photo) {
                                                 <?php foreach ($students as $student) { 
                                                     $photoPath = getStudentPhoto($student['photo']);
                                                 ?>
-                                                <tr>
+                                                <tr data-student-id="<?php echo $student['id']; ?>">
                                                     <td>
                                                         <center>
-                                                            <img class="student-photo" src="<?php echo $photoPath; ?>" 
+                                                            <img class="student-photo photo" src="<?php echo $photoPath; ?>" 
                                                                  onerror="this.onerror=null; this.src='../assets/img/default-avatar.png';">
                                                         </center>
                                                     </td>
-                                                    <td><?php echo $student['id_number']; ?></td>
+                                                    <td class="student_id"><?php echo $student['id_number']; ?></td>
                                                     <td><?php echo $student['fullname']; ?></td>
                                                     <td><?php echo $student['department_name']; ?></td>
                                                     <td width="14%">
@@ -881,56 +883,6 @@ function getStudentPhoto($photo) {
                                 </div>
                             </div>
                             <?php } ?>
-                        </div>
-
-                        <!-- Card View -->
-                        <div class="view-content" id="cardView" style="display: none;">
-                            <div class="row">
-                                <?php
-                                $cardQuery = mysqli_query($db, 
-                                    "SELECT s.*, d.department_name 
-                                     FROM students s 
-                                     LEFT JOIN department d ON s.department_id = d.department_id 
-                                     ORDER BY s.year, s.fullname");
-                                
-                                while ($student = mysqli_fetch_array($cardQuery)) {
-                                    $photoPath = getStudentPhoto($student['photo']);
-                                ?>
-                                <div class="col-xl-3 col-lg-4 col-md-6 mb-4 student-card" 
-                                     data-department="<?php echo $student['department_id']; ?>"
-                                     data-year="<?php echo $student['year']; ?>"
-                                     data-section="<?php echo $student['section']; ?>">
-                                    <div class="card h-100">
-                                        <div class="card-body text-center">
-                                            <img src="<?php echo $photoPath; ?>" 
-                                                 class="student-photo mb-3" 
-                                                 style="width: 80px; height: 80px;"
-                                                 onerror="this.onerror=null; this.src='../assets/img/default-avatar.png';">
-                                            <h6 class="card-title"><?php echo $student['fullname']; ?></h6>
-                                            <p class="card-text">
-                                                <small class="text-muted">ID: <?php echo $student['id_number']; ?></small><br>
-                                                <span class="badge bg-primary"><?php echo $student['year']; ?></span>
-                                                <span class="badge bg-info"><?php echo $student['section']; ?></span><br>
-                                                <small><?php echo $student['department_name']; ?></small>
-                                            </p>
-                                        </div>
-                                        <div class="card-footer text-center">
-                                            <div class="action-buttons">
-                                                <button data-id="<?php echo $student['id'];?>" 
-                                                        class="btn btn-sm btn-edit e_student_id">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                                <button student_name="<?php echo $student['fullname']; ?>" 
-                                                        data-id="<?php echo $student['id']; ?>" 
-                                                        class="btn btn-sm btn-delete d_student_id">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <?php } ?>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -975,7 +927,7 @@ function getStudentPhoto($photo) {
                                                     <select required class="form-control dept_ID" name="department_id" id="department_id" autocomplete="off">
                                                         <option value="">Select Department</option>
                                                         <?php
-                                                            $sql = "SELECT * FROM department ORDER BY department_name";
+                                                            $sql = "SELECT * FROM department WHERE department_name != 'Main' ORDER BY department_name";
                                                             $result = $db->query($sql);
                                                             while ($dept = $result->fetch_assoc()) {
                                                                 echo "<option value='{$dept['department_id']}'>{$dept['department_name']}</option>";
@@ -989,7 +941,8 @@ function getStudentPhoto($photo) {
                                             <div class="col-lg-5 col-md-6 col-sm-12" id="idnumberz">
                                                 <div class="form-group">
                                                     <label><b>ID Number:</b></label>
-                                                    <input required type="text" class="form-control" name="id_number" id="id_number" autocomplete="off">
+                                                    <input required type="text" class="form-control" name="id_number" id="id_number" autocomplete="off" 
+                                                           maxlength="9" placeholder="0000-0000" pattern="\d{4}-\d{4}" title="Format: 0000-0000">
                                                     <span class="error-message" id="id_number-error"></span>
                                                 </div>
                                             </div>
@@ -1003,7 +956,8 @@ function getStudentPhoto($photo) {
                                             <div class="col-lg-4 col-md-6 col-sm-12 mt-1">
                                                 <div class="form-group">
                                                     <label><b>Full Name:</b></label>
-                                                    <input required type="text" class="form-control" name="fullname" id="fullname" autocomplete="off">
+                                                    <input required type="text" class="form-control" name="fullname" id="fullname" autocomplete="off"
+                                                           pattern="[A-Za-z\s]+" title="Only letters and spaces are allowed">
                                                     <span class="error-message" id="fullname-error"></span>
                                                 </div>
                                             </div>
@@ -1047,111 +1001,115 @@ function getStudentPhoto($photo) {
             </div>
 
             <!-- Edit Student Modal -->
-            <div class="modal fade" id="editstudentModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-lg">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">
-                                <i class="fas fa-edit"></i> Edit Student
-                            </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <form id="editStudentForm" class="edit-form" role="form" method="post" action="" enctype="multipart/form-data">
-                            <div class="modal-body" id="editModal">
-                                <div class="col-lg-12 mt-1" id="mgs-editstudent"></div>
-                                <div class="row justify-content-md-center">
-                                    <div id="msg-editstudent"></div>
-                                    <div class="col-sm-12 col-md-12 col-lg-10">
-                                        <div class="section-header p-2 mb-3 rounded">
-                                            <strong>STUDENT INFORMATION</strong>
-                                        </div>
-                                        <div class="row">
-                                            <div class="col-lg-3 col-md-6 col-sm-12" id="up_img">
-                                                <div class="file-uploader">
-                                                    <label name="upload-label" class="upload-img-btn">
-                                                        <input type="file" id="editPhoto" name="photo" class="upload-field-1" style="display:none;" accept="image/*" title="Upload Photo.."/>
-                                                        <input type="hidden" id="capturedImage" name="capturedImage" class="capturedImage">
-                                                        <img class="preview-1 edit-photo" src="" style="width: 140px!important;height: 130px!important;position: absolute;border: 1px solid gray;top: 25%" title="Upload Photo.." />
-                                                    </label>
-                                                </div>
-                                            </div>
-                                            <div class="col-lg-4 col-md-6 col-sm-12">
-                                                <div class="form-group">
-                                                    <label><b>Department:</b></label>
-                                                    <select class="form-control dept_ID" name="department_id" id="edepartment_id" autocomplete="off">
-                                                        <option class="edit-dept-val" value=""></option>
-                                                        <?php
-                                                            $sql = "SELECT * FROM department ORDER BY department_name";
-                                                            $result = $db->query($sql);
-                                                            while ($dept = $result->fetch_assoc()) {
-                                                                echo "<option value='{$dept['department_id']}'>{$dept['department_name']}</option>";
-                                                            }
-                                                        ?>
-                                                    </select>
-                                                    <span class="error-message" id="edepartment_id-error"></span>
-                                                </div>
-                                            </div>
+            <!-- Edit Student Modal -->
+<div class="modal fade" id="editstudentModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit"></i> Edit Student
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editStudentForm" class="edit-form" role="form" method="post" action="" enctype="multipart/form-data">
+                <div class="modal-body" id="editModal">
+                    <div class="col-lg-12 mt-1" id="mgs-editstudent"></div>
+                    <div class="row justify-content-md-center">
+                        <div id="msg-editstudent"></div>
+                        <div class="col-sm-12 col-md-12 col-lg-10">
+                            <div class="section-header p-2 mb-3 rounded">
+                                <strong>STUDENT INFORMATION</strong>
+                            </div>
+                            <div class="row">
+                                <div class="col-lg-3 col-md-6 col-sm-12" id="up_img">
+                                    <div class="file-uploader">
+                                        <label name="upload-label" class="upload-img-btn">
+                                            <input type="file" id="editPhoto" name="photo" class="upload-field-1" style="display:none;" accept="image/*" title="Upload Photo.."/>
+                                            <input type="hidden" id="capturedImage" name="capturedImage" class="capturedImage">
+                                            <img class="preview-1 edit-photo" src="" style="width: 140px!important;height: 130px!important;position: absolute;border: 1px solid gray;top: 25%" title="Upload Photo.." />
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-lg-4 col-md-6 col-sm-12">
+                                    <div class="form-group">
+                                        <label><b>Department:</b></label>
+                                        <select class="form-control dept_ID" name="department_id" id="edepartment_id" autocomplete="off">
+                                            <option class="edit-dept-val" value=""></option>
+                                            <?php
+                                                $sql = "SELECT * FROM department WHERE department_name != 'Main' ORDER BY department_name";
+                                                $result = $db->query($sql);
+                                                while ($dept = $result->fetch_assoc()) {
+                                                    echo "<option value='{$dept['department_id']}'>{$dept['department_name']}</option>";
+                                                }
+                                            ?>
+                                        </select>
+                                        <span class="error-message" id="edepartment_id-error"></span>
+                                    </div>
+                                </div>
 
-                                            <div class="col-lg-5 col-md-6 col-sm-12" id="idnumberz">
-                                                <div class="form-group">
-                                                    <label><b>ID Number:</b></label>
-                                                    <input required type="text" class="form-control edit-idnumber" name="id_number" id="eid_number" autocomplete="off">
-                                                    <span class="error-message" id="eid_number-error"></span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="row mb-3 mt-1">
-                                            <div class="col-lg-3 col-md-6 col-sm-12">
-                                                <div class="form-group">
-                                                    <!-- empty -->
-                                                </div>
-                                            </div>
-                                            <div class="col-lg-4 col-md-6 col-sm-12 mt-1">
-                                                <div class="form-group">
-                                                    <label><b>Full Name:</b></label>
-                                                    <input type="text" class="form-control edit-fullname" name="fullname" id="efullname" autocomplete="off">
-                                                    <span class="error-message" id="efullname-error"></span>
-                                                </div>
-                                            </div>
-                                            <div class="col-lg-2 col-md-6 col-sm-12 mt-1">
-                                                <div class="form-group">
-                                                    <label><b>Year:</b></label>
-                                                    <select class="form-control" name="year" id="eyear" autocomplete="off">
-                                                        <option class="edit-year-val" value=""></option>
-                                                        <option value="1st Year">1st Year</option>
-                                                        <option value="2nd Year">2nd Year</option>
-                                                        <option value="3rd Year">3rd Year</option>
-                                                        <option value="4th Year">4th Year</option>
-                                                    </select>
-                                                    <span class="error-message" id="eyear-error"></span>
-                                                </div>
-                                            </div>
-                                            <div class="col-lg-3 col-md-6 col-sm-12 mt-1">
-                                                <div class="form-group">
-                                                    <label><b>Section:</b></label>
-                                                    <select class="form-control" name="section" id="esection" autocomplete="off">
-                                                        <option class="edit-section-val" value=""></option>
-                                                        <option value="West">West</option>
-                                                        <option value="North">North</option>
-                                                        <option value="East">East</option>
-                                                        <option value="South">South</option>
-                                                    </select>
-                                                    <span class="error-message" id="esection-error"></span>
-                                                </div>
-                                            </div>
-                                        </div>
+                                <!-- FIXED: Single ID Number Field -->
+                                <div class="col-lg-5 col-md-6 col-sm-12" id="idnumberz">
+                                    <div class="form-group">
+                                        <label><b>ID Number:</b></label>
+                                        <input required type="text" class="form-control edit-idnumber" name="id_number" id="eid_number" autocomplete="off"
+                                            maxlength="9" placeholder="0000-0000" pattern="\d{4}-\d{4}" title="Format: 0000-0000">
+                                        <span class="error-message" id="eid_number-error"></span>
                                     </div>
                                 </div>
                             </div>
-                            <div class="modal-footer">
-                                <input type="hidden" id="edit_studentid" name="student_id" class="edit-id">
-                                <button type="button" class="btn btn-close-modal" data-bs-dismiss="modal">Close</button>
-                                <button type="submit" id="btn-editstudent" class="btn btn-update">Update</button>
+                            <div class="row mb-3 mt-1">
+                                <div class="col-lg-3 col-md-6 col-sm-12">
+                                    <div class="form-group">
+                                        <!-- empty -->
+                                    </div>
+                                </div>
+                                <div class="col-lg-4 col-md-6 col-sm-12 mt-1">
+                                    <div class="form-group">
+                                        <label><b>Full Name:</b></label>
+                                        <input type="text" class="form-control edit-fullname" name="fullname" id="efullname" autocomplete="off"
+                                            pattern="[A-Za-z\s]+" title="Only letters and spaces are allowed">
+                                        <span class="error-message" id="efullname-error"></span>
+                                    </div>
+                                </div>
+                                <div class="col-lg-2 col-md-6 col-sm-12 mt-1">
+                                    <div class="form-group">
+                                        <label><b>Year:</b></label>
+                                        <select class="form-control" name="year" id="eyear" autocomplete="off">
+                                            <option class="edit-year-val" value=""></option>
+                                            <option value="1st Year">1st Year</option>
+                                            <option value="2nd Year">2nd Year</option>
+                                            <option value="3rd Year">3rd Year</option>
+                                            <option value="4th Year">4th Year</option>
+                                        </select>
+                                        <span class="error-message" id="eyear-error"></span>
+                                    </div>
+                                </div>
+                                <div class="col-lg-3 col-md-6 col-sm-12 mt-1">
+                                    <div class="form-group">
+                                        <label><b>Section:</b></label>
+                                        <select class="form-control" name="section" id="esection" autocomplete="off">
+                                            <option class="edit-section-val" value=""></option>
+                                            <option value="West">West</option>
+                                            <option value="North">North</option>
+                                            <option value="East">East</option>
+                                            <option value="South">South</option>
+                                        </select>
+                                        <span class="error-message" id="esection-error"></span>
+                                    </div>
+                                </div>
                             </div>
-                        </form>
+                        </div>
                     </div>
                 </div>
-            </div>
+                <div class="modal-footer">
+                    <input type="hidden" id="edit_studentid" name="student_id" class="edit-id">
+                    <button type="button" class="btn btn-close-modal" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" id="btn-editstudent" class="btn btn-update">Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
             <?php include 'footer.php'; ?>
         </div>
@@ -1183,642 +1141,833 @@ function getStudentPhoto($photo) {
 
     <script>
     $(document).ready(function() {
-    // Initialize DataTable with export buttons
-    var dataTable = $('#myDataTable').DataTable({
-        order: [[7, 'desc']],
-        stateSave: true,
-        dom: 'Bfrtip',
-        buttons: [
-            'copy', 'csv', 'excel', 'pdf', 'print'
-        ],
-        responsive: true
-    });
+        // ============================================
+        // INPUT VALIDATION FUNCTIONS
+        // ============================================
 
-    // View Toggle Functionality
-    $('.btn-view-toggle').on('click', function() {
-        const viewType = $(this).data('view');
+        // Format ID Number as 0000-0000
+        // Format ID Number as 0000-0000
+function formatIDNumber(input) {
+    // Only format if it's a direct input event, not when setting values programmatically
+    if (!input._isProgrammatic) {
+        let value = input.value.replace(/[^\d]/g, '');
         
-        // Update active button
-        $('.btn-view-toggle').removeClass('active');
-        $(this).addClass('active');
-        
-        // Show selected view, hide others
-        $('.view-content').hide();
-        $(`#${viewType}View`).show();
-        
-        // Reinitialize DataTable when switching back to table view
-        if (viewType === 'table') {
-            dataTable.columns.adjust().responsive.recalc();
+        if (value.length > 4) {
+            value = value.substring(0, 4) + '-' + value.substring(4, 8);
         }
         
-        // Apply current filters to the new view
-        applyFilters();
-    });
+        input.value = value;
+    }
+}
 
-    // Filter Functionality
-    function initializeFilters() {
-        const filterYear = $('#filterYear');
-        const filterSection = $('#filterSection');
-        const searchInput = $('#searchInput');
-        
-        // Reset filters
-        $('#resetFilters').on('click', function() {
-            filterYear.val('');
-            filterSection.val('');
-            searchInput.val('');
+// For programmatic setting, use this method
+function setIDNumberValue(field, value) {
+    field._isProgrammatic = true;
+    field.value = value;
+    setTimeout(() => {
+        field._isProgrammatic = false;
+    }, 100);
+}
+
+        // Validate ID Number format
+        function validateIDNumber(idNumber) {
+            const idRegex = /^\d{4}-\d{4}$/;
+            return idRegex.test(idNumber);
+        }
+
+        // Restrict ID Number input to numbers only
+        function restrictIDNumberInput(event) {
+            const key = event.key;
+            // Allow: backspace, delete, tab, escape, enter, and numbers
+            if ([8, 9, 13, 27, 46].includes(event.keyCode) || 
+                // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+                (event.ctrlKey === true && [65, 67, 86, 88].includes(event.keyCode)) ||
+                // Allow: home, end, left, right
+                (event.keyCode >= 35 && event.keyCode <= 39)) {
+                return;
+            }
+            
+            // Ensure it's a number
+            if ((event.shiftKey || (event.keyCode < 48 || event.keyCode > 57)) && 
+                (event.keyCode < 96 || event.keyCode > 105)) {
+                event.preventDefault();
+            }
+        }
+
+        // Restrict Fullname input to letters and spaces only
+        function restrictFullnameInput(event) {
+            const key = event.key;
+            // Allow: backspace, delete, tab, escape, enter
+            if ([8, 9, 13, 27, 32, 46].includes(event.keyCode) || 
+                // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+                (event.ctrlKey === true && [65, 67, 86, 88].includes(event.keyCode)) ||
+                // Allow: home, end, left, right
+                (event.keyCode >= 35 && event.keyCode <= 39)) {
+                return;
+            }
+            
+            // Ensure it's a letter
+            if (!/^[a-zA-Z\s]$/.test(key)) {
+                event.preventDefault();
+            }
+        }
+
+        // Prevent paste of invalid characters in ID Number
+        function preventInvalidPasteID(event) {
+            const pasteData = event.originalEvent.clipboardData.getData('text');
+            if (!/^[\d]*$/.test(pasteData)) {
+                event.preventDefault();
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Invalid Input',
+                    text: 'Only numbers are allowed in ID Number',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+            }
+        }
+
+        // Prevent paste of invalid characters in Fullname
+        function preventInvalidPasteFullname(event) {
+            const pasteData = event.originalEvent.clipboardData.getData('text');
+            if (!/^[a-zA-Z\s]*$/.test(pasteData)) {
+                event.preventDefault();
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Invalid Input',
+                    text: 'Only letters and spaces are allowed in Full Name',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+            }
+        }
+
+        // Initialize input validations
+        function initializeInputValidations() {
+            // ID Number validation for add form
+            $('#id_number').on('input', function() {
+                formatIDNumber(this);
+            }).on('keydown', restrictIDNumberInput)
+              .on('paste', preventInvalidPasteID);
+
+            // ID Number validation for edit form
+            $('#eid_number').on('input', function() {
+                formatIDNumber(this);
+            }).on('keydown', restrictIDNumberInput)
+              .on('paste', preventInvalidPasteID);
+
+            // Fullname validation for add form
+            $('#fullname').on('keydown', restrictFullnameInput)
+                         .on('paste', preventInvalidPasteFullname);
+
+            // Fullname validation for edit form
+            $('#efullname').on('keydown', restrictFullnameInput)
+                          .on('paste', preventInvalidPasteFullname);
+        }
+
+        // ============================================
+        // DATATABLE AND VIEW MANAGEMENT
+        // ============================================
+
+        // Initialize DataTable with export buttons
+        var dataTable = $('#myDataTable').DataTable({
+            order: [[7, 'desc']],
+            stateSave: true,
+            dom: 'Bfrtip',
+            buttons: [
+                'copy', 'csv', 'excel', 'pdf', 'print'
+            ],
+            responsive: true
+        });
+
+        // View Toggle Functionality
+        $('.btn-view-toggle').on('click', function() {
+            const viewType = $(this).data('view');
+            
+            // Update active button
+            $('.btn-view-toggle').removeClass('active');
+            $(this).addClass('active');
+            
+            // Show selected view, hide others
+            $('.view-content').hide();
+            $(`#${viewType}View`).show();
+            
+            // Reinitialize DataTable when switching back to table view
+            if (viewType === 'table') {
+                dataTable.columns.adjust().responsive.recalc();
+            }
+            
+            // Apply current filters to the new view
             applyFilters();
         });
-    }
 
-    // Main filter function
-    function applyFilters() {
-        const yearVal = $('#filterYear').val();
-        const sectionVal = $('#filterSection').val();
-        const searchVal = $('#searchInput').val().toLowerCase();
-        
-        // Get current active view
-        const activeView = $('.btn-view-toggle.active').data('view');
-        
-        if (activeView === 'table') {
-            filterTableView(yearVal, sectionVal, searchVal);
-        } else if (activeView === 'grouped') {
-            filterGroupedView(yearVal, sectionVal, searchVal);
-        }
-    }
-
-    // Filter table view
-    function filterTableView(yearVal, sectionVal, searchVal) {
-        // Combine all filters for DataTable
-        dataTable.columns().search(''); // Clear all column searches
-        
-        // Apply year filter (column 4)
-        if (yearVal) {
-            dataTable.column(4).search('^' + yearVal + '$', true, false).draw();
-        } else {
-            dataTable.column(4).search('').draw();
-        }
-        
-        // Apply section filter (column 5)
-        if (sectionVal) {
-            dataTable.column(5).search('^' + sectionVal + '$', true, false).draw();
-        } else {
-            dataTable.column(5).search('').draw();
-        }
-        
-        // Apply global search
-        dataTable.search(searchVal).draw();
-    }
-
-    // Filter grouped view
-    function filterGroupedView(yearVal, sectionVal, searchVal) {
-        let visibleGroups = 0;
-        
-        $('.card.mb-3').each(function() {
-            const $group = $(this);
-            const groupHeader = $group.find('.card-header h6').text().toLowerCase();
-            const groupYear = $group.find('.card-header h6').text().split(' - ')[0]?.trim();
-            const groupSection = $group.find('.card-header h6').text().split(' - ')[1]?.replace('Section', '').trim();
+        // Filter Functionality
+        function initializeFilters() {
+            const filterYear = $('#filterYear');
+            const filterSection = $('#filterSection');
+            const searchInput = $('#searchInput');
             
-            let visibleRows = 0;
+            // Reset filters
+            $('#resetFilters').on('click', function() {
+                filterYear.val('');
+                filterSection.val('');
+                searchInput.val('');
+                applyFilters();
+            });
+        }
+
+        // Main filter function
+        function applyFilters() {
+            const yearVal = $('#filterYear').val();
+            const sectionVal = $('#filterSection').val();
+            const searchVal = $('#searchInput').val().toLowerCase();
             
-            // Filter rows within this group
-            $group.find('tbody tr').each(function() {
-                const $row = $(this);
-                const rowText = $row.text().toLowerCase();
-                const rowYear = $row.find('td:nth-child(5)').text().trim() || groupYear;
-                const rowSection = $row.find('td:nth-child(6)').text().trim() || groupSection;
+            // Get current active view
+            const activeView = $('.btn-view-toggle.active').data('view');
+            
+            if (activeView === 'table') {
+                filterTableView(yearVal, sectionVal, searchVal);
+            } else if (activeView === 'grouped') {
+                filterGroupedView(yearVal, sectionVal, searchVal);
+            }
+        }
+
+        // Filter table view
+        function filterTableView(yearVal, sectionVal, searchVal) {
+            // Combine all filters for DataTable
+            dataTable.columns().search(''); // Clear all column searches
+            
+            // Apply year filter (column 4)
+            if (yearVal) {
+                dataTable.column(4).search('^' + yearVal + '$', true, false).draw();
+            } else {
+                dataTable.column(4).search('').draw();
+            }
+            
+            // Apply section filter (column 5)
+            if (sectionVal) {
+                dataTable.column(5).search('^' + sectionVal + '$', true, false).draw();
+            } else {
+                dataTable.column(5).search('').draw();
+            }
+            
+            // Apply global search
+            dataTable.search(searchVal).draw();
+        }
+
+        // Filter grouped view
+        function filterGroupedView(yearVal, sectionVal, searchVal) {
+            let visibleGroups = 0;
+            
+            $('.card.mb-3').each(function() {
+                const $group = $(this);
+                const groupHeader = $group.find('.card-header h6').text().toLowerCase();
+                const groupYear = $group.find('.card-header h6').text().split(' - ')[0]?.trim();
+                const groupSection = $group.find('.card-header h6').text().split(' - ')[1]?.replace('Section', '').trim();
                 
-                const yearMatch = !yearVal || rowYear === yearVal;
-                const sectionMatch = !sectionVal || rowSection === sectionVal;
-                const searchMatch = !searchVal || rowText.includes(searchVal);
+                let visibleRows = 0;
                 
-                if (yearMatch && sectionMatch && searchMatch) {
-                    $row.show();
-                    visibleRows++;
+                // Filter rows within this group
+                $group.find('tbody tr').each(function() {
+                    const $row = $(this);
+                    const rowText = $row.text().toLowerCase();
+                    const rowYear = $row.find('td:nth-child(5)').text().trim() || groupYear;
+                    const rowSection = $row.find('td:nth-child(6)').text().trim() || groupSection;
+                    
+                    const yearMatch = !yearVal || rowYear === yearVal;
+                    const sectionMatch = !sectionVal || rowSection === sectionVal;
+                    const searchMatch = !searchVal || rowText.includes(searchVal);
+                    
+                    if (yearMatch && sectionMatch && searchMatch) {
+                        $row.show();
+                        visibleRows++;
+                    } else {
+                        $row.hide();
+                    }
+                });
+                
+                // Show/hide group based on visible rows
+                if (visibleRows > 0) {
+                    $group.show();
+                    visibleGroups++;
+                    
+                    // Update student count badge
+                    const $badge = $group.find('.student-count-badge');
+                    $badge.text(visibleRows + ' students');
                 } else {
-                    $row.hide();
+                    $group.hide();
                 }
             });
             
-            // Show/hide group based on visible rows
-            if (visibleRows > 0) {
-                $group.show();
-                visibleGroups++;
-                
-                // Update student count badge
-                const $badge = $group.find('.student-count-badge');
-                $badge.text(visibleRows + ' students');
+            // Show message if no groups are visible
+            if (visibleGroups === 0) {
+                showNoResultsMessage();
             } else {
-                $group.hide();
+                hideNoResultsMessage();
+            }
+        }
+
+        // Show no results message
+        function showNoResultsMessage() {
+            if (!$('#noResultsMessage').length) {
+                const message = `
+                    <div id="noResultsMessage" class="alert alert-info text-center">
+                        <i class="fas fa-info-circle me-2"></i>
+                        No students found matching the current filters.
+                    </div>
+                `;
+                $('#groupedView').prepend(message);
+            }
+        }
+
+        // Hide no results message
+        function hideNoResultsMessage() {
+            $('#noResultsMessage').remove();
+        }
+
+        // Event listeners for filters
+        $('#filterYear, #filterSection').on('change', applyFilters);
+        $('#searchInput').on('keyup', function() {
+            clearTimeout($(this).data('timeout'));
+            $(this).data('timeout', setTimeout(applyFilters, 500));
+        });
+
+        // Initialize filters
+        initializeFilters();
+
+        // Export functionality
+        $('#exportBtn').on('click', function() {
+            dataTable.button('.buttons-excel').trigger();
+        });
+
+        // Print functionality
+        $('#printBtn').on('click', function() {
+            dataTable.button('.buttons-print').trigger();
+        });
+
+        // Expand/Collapse all groups functionality
+        let allExpanded = true;
+        
+        $(document).on('click', '.expand-all', function(e) {
+            e.stopPropagation();
+            
+            const $header = $(this).closest('.card-header');
+            const $target = $($header.data('bs-target'));
+            
+            $target.collapse('toggle');
+            
+            // Update icon
+            const $icon = $(this).find('i');
+            if ($target.hasClass('show')) {
+                $icon.removeClass('fa-compress').addClass('fa-expand');
+            } else {
+                $icon.removeClass('fa-expand').addClass('fa-compress');
             }
         });
-        
-        // Show message if no groups are visible
-        if (visibleGroups === 0) {
-            showNoResultsMessage();
-        } else {
-            hideNoResultsMessage();
-        }
-    }
 
-    // Show no results message
-    function showNoResultsMessage() {
-        if (!$('#noResultsMessage').length) {
-            const message = `
-                <div id="noResultsMessage" class="alert alert-info text-center">
-                    <i class="fas fa-info-circle me-2"></i>
-                    No students found matching the current filters.
-                </div>
-            `;
-            $('#groupedView').prepend(message);
-        }
-    }
+        // Expand/Collapse all groups button
+        $(document).on('click', '.expand-all-groups', function() {
+            const $icon = $(this).find('i');
+            
+            if (allExpanded) {
+                // Collapse all
+                $('.collapse.show').collapse('hide');
+                $icon.removeClass('fa-compress').addClass('fa-expand');
+                $(this).find('span').text('Expand All');
+            } else {
+                // Expand all
+                $('.collapse').collapse('show');
+                $icon.removeClass('fa-expand').addClass('fa-compress');
+                $(this).find('span').text('Collapse All');
+            }
+            
+            allExpanded = !allExpanded;
+        });
 
-    // Hide no results message
-    function hideNoResultsMessage() {
-        $('#noResultsMessage').remove();
-    }
-
-    // Event listeners for filters
-    $('#filterYear, #filterSection').on('change', applyFilters);
-    $('#searchInput').on('keyup', function() {
-        clearTimeout($(this).data('timeout'));
-        $(this).data('timeout', setTimeout(applyFilters, 500));
-    });
-
-    // Initialize filters
-    initializeFilters();
-
-    // Export functionality
-    $('#exportBtn').on('click', function() {
-        dataTable.button('.buttons-excel').trigger();
-    });
-
-    // Print functionality
-    $('#printBtn').on('click', function() {
-        dataTable.button('.buttons-print').trigger();
-    });
-
-    // Expand/Collapse all groups functionality
-    let allExpanded = true;
-    
-    $(document).on('click', '.expand-all', function(e) {
-        e.stopPropagation();
-        
-        const $header = $(this).closest('.card-header');
-        const $target = $($header.data('bs-target'));
-        
-        $target.collapse('toggle');
-        
-        // Update icon
-        const $icon = $(this).find('i');
-        if ($target.hasClass('show')) {
-            $icon.removeClass('fa-compress').addClass('fa-expand');
-        } else {
-            $icon.removeClass('fa-expand').addClass('fa-compress');
-        }
-    });
-
-    // Expand/Collapse all groups button
-    $(document).on('click', '.expand-all-groups', function() {
-        const $icon = $(this).find('i');
-        
-        if (allExpanded) {
-            // Collapse all
-            $('.collapse.show').collapse('hide');
-            $icon.removeClass('fa-compress').addClass('fa-expand');
-            $(this).find('span').text('Expand All');
-        } else {
-            // Expand all
-            $('.collapse').collapse('show');
-            $icon.removeClass('fa-expand').addClass('fa-compress');
-            $(this).find('span').text('Collapse All');
-        }
-        
-        allExpanded = !allExpanded;
-    });
-
-    // Add Expand/Collapse All button to grouped view
-    function addExpandAllButton() {
-        if (!$('#expandAllBtn').length) {
-            const expandBtn = `
-                <div class="row mb-3" id="expandAllBtn">
-                    <div class="col-12 text-end">
-                        <button type="button" class="btn btn-outline-primary btn-sm expand-all-groups">
-                            <i class="fas fa-expand me-1"></i>
-                            <span>Expand All</span>
-                        </button>
+        // Add Expand/Collapse All button to grouped view
+        function addExpandAllButton() {
+            if (!$('#expandAllBtn').length) {
+                const expandBtn = `
+                    <div class="row mb-3" id="expandAllBtn">
+                        <div class="col-12 text-end">
+                            <button type="button" class="btn btn-outline-primary btn-sm expand-all-groups">
+                                <i class="fas fa-expand me-1"></i>
+                                <span>Expand All</span>
+                            </button>
+                        </div>
                     </div>
-                </div>
-            `;
-            $('#groupedView').prepend(expandBtn);
+                `;
+                $('#groupedView').prepend(expandBtn);
+            }
         }
+
+        // Remove Expand/Collapse All button when switching views
+        function removeExpandAllButton() {
+            $('#expandAllBtn').remove();
+        }
+
+        // Enhanced view toggle with additional setup
+        $('.btn-view-toggle').on('click', function() {
+            const viewType = $(this).data('view');
+            
+            // Update active button
+            $('.btn-view-toggle').removeClass('active');
+            $(this).addClass('active');
+            
+            // Show selected view, hide others
+            $('.view-content').hide();
+            $(`#${viewType}View`).show();
+            
+            // Handle view-specific setup
+            if (viewType === 'table') {
+                dataTable.columns.adjust().responsive.recalc();
+                removeExpandAllButton();
+            } else if (viewType === 'grouped') {
+                addExpandAllButton();
+                // Ensure all groups are expanded by default
+                $('.collapse').collapse('show');
+                allExpanded = true;
+            }
+            
+            // Apply current filters to the new view
+            applyFilters();
+        });
+
+        // Initialize with table view active
+        $('#tableView').show();
+        $('#groupedView').hide();
+        removeExpandAllButton();
+
+        // ============================================
+        // STUDENT CRUD OPERATIONS
+        // ============================================
+
+        // Reset form function
+        function resetForm() {
+            $('.error-message').text('');
+            $('#studentForm')[0].reset();
+            $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
+        }
+
+        // ==========
+// READ (EDIT STUDENT) - Works for both Table and Grouped views
+// ==========
+$(document).on('click', '.e_student_id', function() {
+    const id = $(this).data('id');
+    
+    // Find the student row in either table or grouped view
+    let $row;
+    if ($('#tableView').is(':visible')) {
+        $row = $(`tr[data-student-id="${id}"]`);
+    } else {
+        $row = $(`tr[data-student-id="${id}"]`);
     }
 
-    // Remove Expand/Collapse All button when switching views
-    function removeExpandAllButton() {
-        $('#expandAllBtn').remove();
+    if ($row.length === 0) {
+        console.error('Student row not found for ID:', id);
+        return;
     }
 
-    // Enhanced view toggle with additional setup
-    $('.btn-view-toggle').on('click', function() {
-        const viewType = $(this).data('view');
-        
-        // Update active button
-        $('.btn-view-toggle').removeClass('active');
-        $(this).addClass('active');
-        
-        // Show selected view, hide others
-        $('.view-content').hide();
-        $(`#${viewType}View`).show();
-        
-        // Handle view-specific setup
-        if (viewType === 'table') {
-            dataTable.columns.adjust().responsive.recalc();
-            removeExpandAllButton();
-        } else if (viewType === 'grouped') {
-            addExpandAllButton();
-            // Ensure all groups are expanded by default
-            $('.collapse').collapse('show');
-            allExpanded = true;
-        }
-        
-        // Apply current filters to the new view
-        applyFilters();
+    const $getphoto = $row.find('.photo').attr('src');
+    const $getidnumber = $row.find('.student_id').text();
+    const $getdept = $row.find('.department_id').val();
+    const $getfullname = $row.find('.fullname').val();
+    const $getyear = $row.find('.year').val();
+    const $getsection = $row.find('.section').val();
+
+    console.log('Editing student data:', {
+        id: id,
+        id_number: $getidnumber,
+        fullname: $getfullname,
+        department: $getdept,
+        year: $getyear,
+        section: $getsection
     });
 
-    // Initialize with table view active
-    $('#tableView').show();
-    $('#groupedView').hide();
-    removeExpandAllButton();
+    // Clear the ID number field first to prevent duplication
+    $('#eid_number').val('');
+    
+    // Populate edit form with proper formatting
+    $('#edit_studentid').val(id);
+    $('.edit-photo').attr('src', $getphoto);
+    
+    // Format and set ID number safely
+    const formattedId = formatIDNumberForEdit($getidnumber);
+    $('#eid_number').val(formattedId);
+    
+    $('#edepartment_id').val($getdept);
+    $('#efullname').val($getfullname);
+    $('#eyear').val($getyear);
+    $('#esection').val($getsection);
+    $('.capturedImage').val($getphoto);
+    
+    // Clear any previous error messages
+    $('.error-message').text('');
+    
+    // Debug: Check what value was actually set
+    console.log('ID Number field value after setting:', $('#eid_number').val());
+    
+    // Show modal
+    $('#editstudentModal').modal('show');
+});
 
-    // Reset form function
-    function resetForm() {
-        $('.error-message').text('');
-        $('#studentForm')[0].reset();
-        $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
+// Helper function to safely format ID number for edit
+function formatIDNumberForEdit(idNumber) {
+    if (!idNumber) return '';
+    
+    // Remove any existing formatting and non-numeric characters
+    let cleanId = idNumber.replace(/[^\d]/g, '');
+    
+    // If it's exactly 8 digits, format as 0000-0000
+    if (cleanId.length === 8) {
+        return cleanId.substring(0, 4) + '-' + cleanId.substring(4, 8);
     }
+    
+    // If it's already formatted correctly, return as is
+    if (/^\d{4}-\d{4}$/.test(idNumber)) {
+        return idNumber;
+    }
+    
+    // For any other case, take first 8 digits and format
+    cleanId = cleanId.substring(0, 8);
+    if (cleanId.length >= 8) {
+        return cleanId.substring(0, 4) + '-' + cleanId.substring(4, 8);
+    }
+    
+    return idNumber; // Return original if can't format
+}
 
-    // ==========
-    // READ (EDIT STUDENT)
-    // ==========
-    $(document).on('click', '.e_student_id', function() {
-        const id = $(this).data('id');
-        
-        // Retrieve data from the selected row
-        const $row = $(this).closest('tr');
-        const $getphoto = $row.find('.photo').attr('src');
-        const $getidnumber = $row.find('.student_id').text();
-        const $getdept = $row.find('.department_id').val();
-        const $getfullname = $row.find('.fullname').val();
-        const $getyear = $row.find('.year').val();
-        const $getsection = $row.find('.section').val();
+        // ==============
+        // CREATE (ADD STUDENT)
+        // ==============
+        $('#studentForm').submit(function(e) {
+            e.preventDefault();
+            
+            $('.error-message').text('');
+            const department_id = $('#department_id').val();
+            const id_number = $('#id_number').val().trim();
+            const fullname = $('#fullname').val().trim();
+            const year = $('#year').val();
+            const section = $('#section').val();
+            const photo = $('#photo')[0].files[0];
+            let isValid = true;
 
-        console.log('Editing student:', id, $getidnumber, $getfullname);
+            // Enhanced Validation
+            if (!department_id) { 
+                $('#department_id-error').text('Department is required'); 
+                isValid = false; 
+            }
+            if (!id_number || !validateIDNumber(id_number)) { 
+                $('#id_number-error').text('Valid ID Number in format 0000-0000 is required'); 
+                isValid = false; 
+            }
+            if (!fullname || !/^[A-Za-z\s]+$/.test(fullname)) { 
+                $('#fullname-error').text('Valid full name (letters and spaces only) is required'); 
+                isValid = false; 
+            }
+            if (!year) { 
+                $('#year-error').text('Year is required'); 
+                isValid = false; 
+            }
+            if (!section) { 
+                $('#section-error').text('Section is required'); 
+                isValid = false; 
+            }
+            if (!photo) { 
+                $('#photo-error').text('Photo is required'); 
+                isValid = false; 
+            }
+            
+            if (!isValid) return;
 
-        // Populate edit form
-        $('#edit_studentid').val(id);
-        $('.edit-photo').attr('src', $getphoto);
-        $('#eid_number').val($getidnumber);
-        $('#edepartment_id').val($getdept);
-        $('#efullname').val($getfullname);
-        $('#eyear').val($getyear);
-        $('#esection').val($getsection);
-        $('.capturedImage').val($getphoto);
-        
-        // Clear any previous error messages
-        $('.error-message').text('');
-        
-        // Show modal
-        $('#editstudentModal').modal('show');
-    });
+            // Show loading state
+            $('#btn-student').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
+            $('#btn-student').prop('disabled', true);
 
-    // ==============
-    // CREATE (ADD STUDENT)
-    // ==============
-    $('#studentForm').submit(function(e) {
-        e.preventDefault();
-        
-        $('.error-message').text('');
-        const department_id = $('#department_id').val();
-        const id_number = $('#id_number').val().trim();
-        const fullname = $('#fullname').val().trim();
-        const year = $('#year').val();
-        const section = $('#section').val();
-        const photo = $('#photo')[0].files[0];
-        let isValid = true;
+            var formData = new FormData(this);
 
-        // Validation
-        if (!department_id) { 
-            $('#department_id-error').text('Department is required'); 
-            isValid = false; 
-        }
-        if (!id_number) { 
-            $('#id_number-error').text('ID Number is required'); 
-            isValid = false; 
-        }
-        if (!fullname) { 
-            $('#fullname-error').text('Full name is required'); 
-            isValid = false; 
-        }
-        if (!year) { 
-            $('#year-error').text('Year is required'); 
-            isValid = false; 
-        }
-        if (!section) { 
-            $('#section-error').text('Section is required'); 
-            isValid = false; 
-        }
-        if (!photo) { 
-            $('#photo-error').text('Photo is required'); 
-            isValid = false; 
-        }
-        
-        if (!isValid) return;
-
-        // Show loading state
-        $('#btn-student').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
-        $('#btn-student').prop('disabled', true);
-
-        var formData = new FormData(this);
-
-        $.ajax({
-            type: "POST",
-            url: "transac.php?action=add_student",
-            data: formData,
-            contentType: false,
-            processData: false,
-            dataType: 'json',
-            success: function(response) {
-                // Reset button state
-                $('#btn-student').html('Save');
-                $('#btn-student').prop('disabled', false);
-                
-                if (response.status === 'success') {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success!',
-                        text: response.message,
-                        showConfirmButton: true
-                    }).then(() => {
-                        $('#studentModal').modal('hide');
-                        location.reload();
-                    });
-                } else {
+            $.ajax({
+                type: "POST",
+                url: "transac.php?action=add_student",
+                data: formData,
+                contentType: false,
+                processData: false,
+                dataType: 'json',
+                success: function(response) {
+                    // Reset button state
+                    $('#btn-student').html('Save');
+                    $('#btn-student').prop('disabled', false);
+                    
+                    if (response.status === 'success') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success!',
+                            text: response.message,
+                            showConfirmButton: true
+                        }).then(() => {
+                            $('#studentModal').modal('hide');
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: response.message
+                        });
+                    }
+                },
+                error: function(xhr, status, error) {
+                    // Reset button state
+                    $('#btn-student').html('Save');
+                    $('#btn-student').prop('disabled', false);
+                    
                     Swal.fire({
                         icon: 'error',
                         title: 'Error!',
-                        text: response.message
+                        text: 'An error occurred: ' + error
                     });
                 }
-            },
-            error: function(xhr, status, error) {
-                // Reset button state
-                $('#btn-student').html('Save');
-                $('#btn-student').prop('disabled', false);
-                
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error!',
-                    text: 'An error occurred: ' + error
-                });
-            }
+            });
         });
-    });
 
-    // ==========
-    // UPDATE STUDENT
-    // ==========
-    $('#editStudentForm').submit(function(e) {
-        e.preventDefault();
-        
-        const id = $('#edit_studentid').val();
-        const department_id = $('#edepartment_id').val();
-        const id_number = $('#eid_number').val().trim();
-        const fullname = $('#efullname').val().trim();
-        const year = $('#eyear').val();
-        const section = $('#esection').val();
+        // ==========
+        // UPDATE STUDENT
+        // ==========
+        $('#editStudentForm').submit(function(e) {
+            e.preventDefault();
+            
+            const id = $('#edit_studentid').val();
+            const department_id = $('#edepartment_id').val();
+            const id_number = $('#eid_number').val().trim();
+            const fullname = $('#efullname').val().trim();
+            const year = $('#eyear').val();
+            const section = $('#esection').val();
 
-        // Validation
-        let isValid = true;
-        if (!department_id) { 
-            $('#edepartment_id-error').text('Department is required'); 
-            isValid = false; 
-        } else { 
-            $('#edepartment_id-error').text(''); 
-        }
-        if (!id_number) { 
-            $('#eid_number-error').text('ID Number is required'); 
-            isValid = false; 
-        } else { 
-            $('#eid_number-error').text(''); 
-        }
-        if (!fullname) { 
-            $('#efullname-error').text('Full name is required'); 
-            isValid = false; 
-        } else { 
-            $('#efullname-error').text(''); 
-        }
-        if (!year) { 
-            $('#eyear-error').text('Year is required'); 
-            isValid = false; 
-        } else { 
-            $('#eyear-error').text(''); 
-        }
-        if (!section) { 
-            $('#esection-error').text('Section is required'); 
-            isValid = false; 
-        } else { 
-            $('#esection-error').text(''); 
-        }
-        
-        if (!isValid) return;
-
-        // Show loading state
-        $('#btn-editstudent').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
-        $('#btn-editstudent').prop('disabled', true);
-
-        var formData = new FormData(this);
-        formData.append('id', id);
-
-        $.ajax({
-            type: "POST",
-            url: "transac.php?action=update_student",
-            data: formData,
-            contentType: false,
-            processData: false,
-            dataType: 'json',
-            success: function(response) {
-                // Reset button state
-                $('#btn-editstudent').html('Update');
-                $('#btn-editstudent').prop('disabled', false);
-                
-                if (response.status === 'success') {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success!',
-                        text: response.message,
-                        showConfirmButton: true
-                    }).then(() => {
-                        $('#editstudentModal').modal('hide');
-                        location.reload();
-                    });
-                } else {
-                    Swal.fire({
-                        title: 'Error!',
-                        text: response.message,
-                        icon: 'error'
-                    });
-                }
-            },
-            error: function(xhr, status, error) {
-                // Reset button state
-                $('#btn-editstudent').html('Update');
-                $('#btn-editstudent').prop('disabled', false);
-                
-                try {
-                    // Try to parse the error response as JSON
-                    var errorResponse = JSON.parse(xhr.responseText);
-                    Swal.fire({
-                        title: 'Error!',
-                        text: errorResponse.message || 'An error occurred',
-                        icon: 'error'
-                    });
-                } catch (e) {
-                    // If not JSON, show raw response
-                    Swal.fire({
-                        title: 'Error!',
-                        text: 'An error occurred: ' + xhr.responseText,
-                        icon: 'error'
-                    });
-                }
+            // Enhanced Validation
+            let isValid = true;
+            if (!department_id) { 
+                $('#edepartment_id-error').text('Department is required'); 
+                isValid = false; 
+            } else { 
+                $('#edepartment_id-error').text(''); 
             }
-        });
-    });
+            if (!id_number || !validateIDNumber(id_number)) { 
+                $('#eid_number-error').text('Valid ID Number in format 0000-0000 is required'); 
+                isValid = false; 
+            } else { 
+                $('#eid_number-error').text(''); 
+            }
+            if (!fullname || !/^[A-Za-z\s]+$/.test(fullname)) { 
+                $('#efullname-error').text('Valid full name (letters and spaces only) is required'); 
+                isValid = false; 
+            } else { 
+                $('#efullname-error').text(''); 
+            }
+            if (!year) { 
+                $('#eyear-error').text('Year is required'); 
+                isValid = false; 
+            } else { 
+                $('#eyear-error').text(''); 
+            }
+            if (!section) { 
+                $('#esection-error').text('Section is required'); 
+                isValid = false; 
+            } else { 
+                $('#esection-error').text(''); 
+            }
+            
+            if (!isValid) return;
 
-    // Handle delete button click
-    $(document).on('click', '.d_student_id', function() {
-        var studentId = $(this).data('id');
-        var studentName = $(this).attr('student_name');
-        
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "You are about to delete student: " + studentName,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Yes, delete it!',
-            cancelButtonText: 'Cancel'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Show loading
-                Swal.fire({
-                    title: 'Deleting...',
-                    text: 'Please wait',
-                    allowOutsideClick: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
-                });
+            // Show loading state
+            $('#btn-editstudent').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
+            $('#btn-editstudent').prop('disabled', true);
 
-                $.ajax({
-                    url: "transac.php?action=delete_student",
-                    type: 'POST',
-                    data: { 
-                        id: studentId 
-                    },
-                    dataType: 'json',
-                    success: function(response) {
-                        if (response.status === 'success') {
-                            Swal.fire({
-                                title: 'Deleted!',
-                                text: response.message,
-                                icon: 'success',
-                                timer: 2000,
-                                showConfirmButton: false
-                            }).then(() => {
-                                location.reload();
-                            });
-                        } else {
-                            Swal.fire({
-                                title: 'Error!',
-                                text: response.message,
-                                icon: 'error'
-                            });
-                        }
-                    },
-                    error: function(xhr, status, error) {
+            var formData = new FormData(this);
+            formData.append('id', id);
+
+            $.ajax({
+                type: "POST",
+                url: "transac.php?action=update_student",
+                data: formData,
+                contentType: false,
+                processData: false,
+                dataType: 'json',
+                success: function(response) {
+                    // Reset button state
+                    $('#btn-editstudent').html('Update');
+                    $('#btn-editstudent').prop('disabled', false);
+                    
+                    if (response.status === 'success') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success!',
+                            text: response.message,
+                            showConfirmButton: true
+                        }).then(() => {
+                            $('#editstudentModal').modal('hide');
+                            location.reload();
+                        });
+                    } else {
                         Swal.fire({
                             title: 'Error!',
-                            text: 'An error occurred: ' + error,
+                            text: response.message,
                             icon: 'error'
                         });
                     }
-                });
-            }
+                },
+                error: function(xhr, status, error) {
+                    // Reset button state
+                    $('#btn-editstudent').html('Update');
+                    $('#btn-editstudent').prop('disabled', false);
+                    
+                    try {
+                        // Try to parse the error response as JSON
+                        var errorResponse = JSON.parse(xhr.responseText);
+                        Swal.fire({
+                            title: 'Error!',
+                            text: errorResponse.message || 'An error occurred',
+                            icon: 'error'
+                        });
+                    } catch (e) {
+                        // If not JSON, show raw response
+                        Swal.fire({
+                            title: 'Error!',
+                            text: 'An error occurred: ' + xhr.responseText,
+                            icon: 'error'
+                        });
+                    }
+                }
+            });
         });
-    });
 
-    // Reset modal when closed
-    $('#studentModal').on('hidden.bs.modal', function () {
-        $(this).find('form')[0].reset();
-        $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
-        $('.error-message').text('');
-    });
+        // ==========
+        // DELETE STUDENT - Works for both Table and Grouped views
+        // ==========
+        $(document).on('click', '.d_student_id', function() {
+            var studentId = $(this).data('id');
+            var studentName = $(this).attr('student_name');
+            
+            Swal.fire({
+                title: 'Are you sure?',
+                text: "You are about to delete student: " + studentName,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Show loading
+                    Swal.fire({
+                        title: 'Deleting...',
+                        text: 'Please wait',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
 
-    $('#editstudentModal').on('hidden.bs.modal', function () {
-        $('.error-message').text('');
-    });
+                    $.ajax({
+                        url: "transac.php?action=delete_student",
+                        type: 'POST',
+                        data: { 
+                            id: studentId 
+                        },
+                        dataType: 'json',
+                        success: function(response) {
+                            if (response.status === 'success') {
+                                Swal.fire({
+                                    title: 'Deleted!',
+                                    text: response.message,
+                                    icon: 'success',
+                                    timer: 2000,
+                                    showConfirmButton: false
+                                }).then(() => {
+                                    location.reload();
+                                });
+                            } else {
+                                Swal.fire({
+                                    title: 'Error!',
+                                    text: response.message,
+                                    icon: 'error'
+                                });
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            Swal.fire({
+                                title: 'Error!',
+                                text: 'An error occurred: ' + error,
+                                icon: 'error'
+                            });
+                        }
+                    });
+                }
+            });
+        });
 
-    // Image preview functionality for both forms
-    $(document).on('change', '[class^=upload-field-]', function() {
-        readURL(this);
-    });
+        // Reset modal when closed
+        $('#studentModal').on('hidden.bs.modal', function () {
+            $(this).find('form')[0].reset();
+            $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
+            $('.error-message').text('');
+        });
 
-    // Click handler for edit photo upload
-    $(document).on('click', '.edit-photo', function() {
-        $('#editPhoto').click();
-    });
+        $('#editstudentModal').on('hidden.bs.modal', function () {
+            $('.error-message').text('');
+        });
 
-    function readURL(input) {
-        if (input.files && input.files[0]) {
-            const file = input.files[0];
-            const validFormats = ['image/jpeg', 'image/png', 'image/jpg'];
-            const maxSize = 2 * 1024 * 1024; // 2MB
+        // Image preview functionality for both forms
+        $(document).on('change', '[class^=upload-field-]', function() {
+            readURL(this);
+        });
 
-            // Validate file format
-            if (!validFormats.includes(file.type)) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Invalid Format',
-                    text: 'Only JPG and PNG formats are allowed.',
-                });
-                input.value = ''; // Reset the input
-                return;
+        // Click handler for edit photo upload
+        $(document).on('click', '.edit-photo', function() {
+            $('#editPhoto').click();
+        });
+
+        function readURL(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const validFormats = ['image/jpeg', 'image/png', 'image/jpg'];
+                const maxSize = 2 * 1024 * 1024; // 2MB
+
+                // Validate file format
+                if (!validFormats.includes(file.type)) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Invalid Format',
+                        text: 'Only JPG and PNG formats are allowed.',
+                    });
+                    input.value = ''; // Reset the input
+                    return;
+                }
+
+                // Validate file size
+                if (file.size > maxSize) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'File Too Large',
+                        text: 'Maximum file size is 2MB.',
+                    });
+                    input.value = ''; // Reset the input
+                    return;
+                }
+
+                // Preview the image
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    // Find the closest preview image
+                    $(input).closest('.file-uploader').find('.preview-1').attr('src', e.target.result);
+                };
+                reader.readAsDataURL(file);
             }
-
-            // Validate file size
-            if (file.size > maxSize) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'File Too Large',
-                    text: 'Maximum file size is 2MB.',
-                });
-                input.value = ''; // Reset the input
-                return;
-            }
-
-            // Preview the image
-            var reader = new FileReader();
-            reader.onload = function (e) {
-                // Find the closest preview image
-                $(input).closest('.file-uploader').find('.preview-1').attr('src', e.target.result);
-            };
-            reader.readAsDataURL(file);
         }
-    }
-});
+
+        // Initialize input validations
+        initializeInputValidations();
+    });
     </script>
 </body>
 </html>

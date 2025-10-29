@@ -10,27 +10,40 @@ if (!$db) {
     die("Database connection failed: " . mysqli_connect_error());
 }
 
+// Function to get personnel photo (same as in personell.php)
+function getPersonnelPhoto($photo) {
+    $basePath = '../uploads/personell/';
+    $defaultPhoto = '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg';
+
+    // If no photo or file does not exist → return default
+    if (empty($photo) || $photo === 'default.png' || !file_exists($basePath . $photo)) {
+        return $defaultPhoto;
+    }
+
+    return $basePath . $photo;
+}
+
 // Initialize filtered data array
- $filtered_data = [];
+$filtered_data = [];
 
 // Check if form is submitted
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Initialize filter variables
     $date1 = isset($_POST['date1']) ? $_POST['date1'] : '';
     $date2 = isset($_POST['date2']) ? $_POST['date2'] : '';
-    $location = isset($_POST['location']) ? $_POST['location'] : '';
     $role = isset($_POST['role']) ? $_POST['role'] : '';
-    $department = isset($_POST['department']) ? $_POST['department'] : '';
     
     // Validate dates - either both empty or both provided
     if (($date1 && !$date2) || (!$date1 && $date2)) {
         echo '<script>alert("Please enter both dates or leave both blank.");</script>';
     } else {
-        // Build query with proper filtering
-        $sql = "SELECT p.first_name, p.last_name, p.department, p.role, p.photo, 
-                       rl.location, rl.time_in, rl.time_out, rl.date_logged 
-                FROM personell AS p
-                JOIN room_logs AS rl ON p.id = rl.personnel_id";
+        // Build query with proper filtering using the correct table name
+        $sql = "SELECT pg.id, pg.personell_id, pg.id_number, pg.name, pg.action, 
+                       pg.time_in, pg.time_out, pg.date, pg.period, pg.location, 
+                       pg.department, pg.date_logged, pg.created_at,
+                       p.first_name, p.last_name, p.photo, p.role
+                FROM personell_glogs AS pg
+                LEFT JOIN personell AS p ON pg.personell_id = p.id";
         
         $where = [];
         $params = [];
@@ -38,29 +51,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Add date filter if both dates provided
         if ($date1 && $date2) {
-            $where[] = "rl.date_logged BETWEEN ? AND ?";
+            $where[] = "pg.date_logged BETWEEN ? AND ?";
             $params[] = date('Y-m-d', strtotime($date1));
             $params[] = date('Y-m-d', strtotime($date2));
             $types .= 'ss';
         }
         
-        // Add other filters
-        if ($location) {
-            $where[] = "rl.location = ?";
-            $params[] = $location;
-            $types .= 's';
-        }
-        
+        // Add role filter (excluding Instructor)
         if ($role) {
             $where[] = "p.role = ?";
             $params[] = $role;
             $types .= 's';
-        }
-        
-        if ($department) {
-            $where[] = "p.department = ?";
-            $params[] = $department;
-            $types .= 's';
+        } else {
+            // If no role selected, exclude Instructor by default
+            $where[] = "p.role != 'Instructor'";
         }
         
         // Combine WHERE clauses
@@ -68,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sql .= " WHERE " . implode(" AND ", $where);
         }
         
-        $sql .= " ORDER BY rl.date_logged DESC";
+        $sql .= " ORDER BY pg.date_logged DESC, pg.time_in DESC";
         
         // Prepare and execute query
         if ($stmt = $db->prepare($sql)) {
@@ -84,12 +88,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 } else {
-    // Default query when no filters applied
-    $sql = "SELECT p.first_name, p.last_name, p.department, p.role, p.photo, 
-                   rl.location, rl.time_in, rl.time_out, rl.date_logged 
-            FROM personell AS p
-            JOIN room_logs AS rl ON p.id = rl.personnel_id 
-            ORDER BY rl.date_logged DESC";
+    // Default query when no filters applied - using the correct table
+    $sql = "SELECT pg.id, pg.personell_id, pg.id_number, pg.name, pg.action, 
+                   pg.time_in, pg.time_out, pg.date, pg.period, pg.location, 
+                   pg.department, pg.date_logged, pg.created_at,
+                   p.first_name, p.last_name, p.photo, p.role
+            FROM personell_glogs AS pg
+            LEFT JOIN personell AS p ON pg.personell_id = p.id
+            WHERE p.role != 'Instructor'
+            ORDER BY pg.date_logged DESC, pg.time_in DESC";
     
     $result = mysqli_query($db, $sql);
     if ($result) {
@@ -333,6 +340,86 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             width: 1rem;
             height: 1rem;
         }
+
+        /* Action badge styling */
+        .badge-in {
+            background-color: var(--success-color);
+        }
+        
+        .badge-out {
+            background-color: var(--danger-color);
+        }
+
+        /* Custom Datepicker Styles */
+        .datepicker {
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            border: none;
+        }
+
+        .datepicker table {
+            width: 100%;
+        }
+
+        .datepicker .datepicker-days tbody td,
+        .datepicker .datepicker-months tbody td,
+        .datepicker .datepicker-years tbody td {
+            border-radius: 8px;
+            transition: var(--transition);
+        }
+
+        .datepicker .datepicker-days tbody td.day:hover,
+        .datepicker .datepicker-months tbody td.month:hover,
+        .datepicker .datepicker-years tbody td.year:hover {
+            background: rgba(92, 149, 233, 0.1);
+        }
+
+        .datepicker .datepicker-days tbody td.active,
+        .datepicker .datepicker-days tbody td.active:hover,
+        .datepicker .datepicker-months tbody td.active,
+        .datepicker .datepicker-months tbody td.active:hover,
+        .datepicker .datepicker-years tbody td.active,
+        .datepicker .datepicker-years tbody td.active:hover {
+            background: linear-gradient(135deg, var(--icon-color), #4a7ec7);
+            color: white;
+            border-radius: 8px;
+        }
+
+        .datepicker .datepicker-days tbody td.today {
+            background: rgba(92, 149, 233, 0.2);
+            color: var(--dark-text);
+            border-radius: 8px;
+        }
+
+        .datepicker .datepicker-days tbody td.today:hover {
+            background: rgba(92, 149, 233, 0.3);
+        }
+
+        .datepicker .datepicker-switch,
+        .datepicker .prev,
+        .datepicker .next {
+            color: var(--icon-color);
+            font-weight: 600;
+        }
+
+        .datepicker .datepicker-switch:hover,
+        .datepicker .prev:hover,
+        .datepicker .next:hover {
+            background: rgba(92, 149, 233, 0.1);
+            border-radius: 8px;
+        }
+
+        .datepicker .dow {
+            color: var(--icon-color);
+            font-weight: 600;
+        }
+
+        .datepicker .datepicker-days tbody td.disabled,
+        .datepicker .datepicker-days tbody td.disabled:hover {
+            color: #ccc;
+            background: transparent;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 
@@ -362,46 +449,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <label>To:</label>
                                     <input type="text" class="form-control" name="date2" placeholder="End" id="date2" autocomplete="off" />
                                 </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-lg-2">
-                                    <label>Department:</label>
-                                    <select class="form-control" name="department" id="department" autocomplete="off">
-                                        <option value="">Select</option>
-                                        <?php
-                                        $dept_result = $db->query("SELECT * FROM department");
-                                        while ($row = $dept_result->fetch_assoc()) {
-                                            echo "<option value='{$row['department_name']}'>{$row['department_name']}</option>";
-                                        }
-                                        ?>
-                                    </select>
-                                </div>
-                                <div class="col-lg-2">
-                                    <label>Location:</label>
-                                    <select class="form-control mb-4" name="location" id="location" autocomplete="off">
-                                        <option value="">Select</option>
-                                        <option value="Gate">Gate</option>
-                                        <?php
-                                        $room_result = $db->query("SELECT * FROM rooms");
-                                        while ($row = $room_result->fetch_assoc()) {
-                                            echo "<option value='{$row['room']}'>{$row['room']}</option>";
-                                        }
-                                        ?>
-                                    </select>
-                                </div>
                                 <div class="col-lg-2">
                                     <label>Role:</label>
                                     <select class="form-control dept_ID" name="role" id="role" autocomplete="off">
-                                        <option value="">Select</option>
+                                        <option value="">All Roles</option>
                                         <?php
-                                        $role_result = $db->query("SELECT * FROM role");
+                                        $role_result = $db->query("SELECT * FROM role WHERE role != 'Instructor'");
                                         while ($row = $role_result->fetch_assoc()) {
                                             echo "<option value='{$row['role']}'>{$row['role']}</option>";
                                         }
                                         ?>
                                     </select>
                                 </div>
-                                <div class="col-lg-3 mt-4">
+                                <div class="col-lg-2 mt-4">
                                     <label></label>
                                     <div class="button-container">
                                         <button type="submit" class="btn btn-filter" id="btn_search">
@@ -412,7 +472,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         </button>
                                     </div>
                                 </div>
-                                <div class="col-lg-3 mt-4" style="text-align:right;">
+                                <div class="col-lg-2 mt-4" style="text-align:right;">
                                     <label></label>
                                     <button type="button" class="btn btn-print" id="btn_print">
                                         <i class="fa fa-print"></i> Print
@@ -427,12 +487,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <tr>
                                         <th>Photo</th>
                                         <th>Full Name</th>
-                                        <th>Department</th>
-                                        <th>Location</th>
-                                        <th>Role</th>
+                                        <th>ID Number</th>
                                         <th>Time In</th>
                                         <th>Time Out</th>
-                                        <th>Log Date</th>
+                                        <th>Date</th>
                                     </tr>
                                 </thead>
                                 <tbody id="load_data">
@@ -440,24 +498,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     if (!empty($filtered_data)) {
                                         foreach ($filtered_data as $row) {
                                             echo '<tr>';
-                                            echo '<td><center><img src="uploads/' . $row['photo'] . '" class="personnel-photo" alt="Personnel Photo"></center></td>';
-                                            echo '<td>' . $row['first_name'] . ' ' . $row['last_name'] . '</td>';
-                                            echo '<td>' . $row['department'] . '</td>';
-                                            echo '<td>' . $row['location'] . '</td>';
-                                            echo '<td>' . $row['role'] . '</td>';
-                                            echo '<td>' . date("h:i A", strtotime($row['time_in'])) . '</td>';
                                             
-                                            if ($row['time_out'] === '?' || $row['time_out'] === '' || is_null($row['time_out'])) {
-                                                echo '<td>' . $row['time_out'] . '</td>';
+                                            // Display photo using the same function as personell.php
+                                            $photoPath = getPersonnelPhoto($row['photo']);
+                                            echo '<td><center>';
+                                            echo '<img class="personnel-photo" src="' . $photoPath . '" ';
+                                            echo 'onerror="this.onerror=null; this.src=\'../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg\';" ';
+                                            echo 'alt="' . htmlspecialchars($row['first_name'] . ' ' . $row['last_name']) . '" ';
+                                            echo 'style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #dee2e6;">';
+                                            echo '</center></td>';
+                                            
+                                            // Display name - prefer name from personell table if available
+                                            if (!empty($row['first_name']) && !empty($row['last_name'])) {
+                                                echo '<td>' . $row['first_name'] . ' ' . $row['last_name'] . '</td>';
                                             } else {
-                                                echo '<td>' . date("h:i A", strtotime($row['time_out'])) . '</td>';
+                                                echo '<td>' . $row['name'] . '</td>';
                                             }
                                             
-                                            echo '<td>' . $row['date_logged'] . '</td>';
+                                            echo '<td>' . $row['id_number'] . '</td>';
+                                            
+                                            // Display time in
+                                            if (!empty($row['time_in']) && $row['time_in'] != '00:00:00') {
+                                                echo '<td>' . date("h:i A", strtotime($row['time_in'])) . '</td>';
+                                            } else {
+                                                echo '<td>-</td>';
+                                            }
+                                            
+                                            // Display time out
+                                            if (!empty($row['time_out']) && $row['time_out'] != '00:00:00') {
+                                                echo '<td>' . date("h:i A", strtotime($row['time_out'])) . '</td>';
+                                            } else {
+                                                echo '<td>-</td>';
+                                            }
+                                            
+                                            echo '<td>' . $row['date'] . '</td>';
                                             echo '</tr>';
                                         }
                                     } else {
-                                        echo '<tr><td colspan="8">No records found.</td></tr>';
+                                        echo '<tr><td colspan="10">No records found.</td></tr>';
                                     }
                                     ?>
                                 </tbody>
@@ -472,6 +550,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top"><i class="bi bi-arrow-up"></i></a>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap-datepicker@1.9.0/dist/js/bootstrap-datepicker.min.js"></script>
     <script src="lib/chart/chart.min.js"></script>
@@ -487,11 +566,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <script type="text/javascript">
     $(document).ready(function() {
-        // Initialize datepickers
+        // Get today's date
+        var today = new Date();
+        
+        // Initialize datepickers with blue theme and future dates disabled
         $('#date1, #date2').datepicker({
             format: 'mm/dd/yyyy',
             autoclose: true,
-            todayHighlight: true
+            todayHighlight: true,
+            endDate: today, // Disable future dates
+            templates: {
+                leftArrow: '<i class="fa fa-chevron-left text-primary"></i>',
+                rightArrow: '<i class="fa fa-chevron-right text-primary"></i>'
+            }
+        }).on('show', function() {
+            // Add custom class to datepicker dropdown for styling
+            $('.datepicker').addClass('blue-theme');
         });
         
         // Handle search button click
@@ -505,7 +595,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             $('#load_data').empty();
-            $loader = $('<tr><td colspan="8"><center><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Searching....</center></td></tr>');
+            $loader = $('<tr><td colspan="10"><center><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Searching....</center></td></tr>');
             $loader.appendTo('#load_data');
             
             setTimeout(function() {

@@ -310,6 +310,27 @@
             width: 1rem;
             height: 1rem;
         }
+
+        /* DataTables Search Input Styling */
+        .dataTables_filter input {
+            border-radius: 8px;
+            border: 1.5px solid #e3e6f0;
+            padding: 8px 12px;
+            transition: var(--transition);
+            background-color: var(--light-bg);
+        }
+
+        .dataTables_filter input:focus {
+            border-color: var(--icon-color);
+            box-shadow: 0 0 0 3px rgba(92, 149, 233, 0.15);
+            background-color: white;
+            outline: none;
+        }
+
+        .dataTables_filter label {
+            font-weight: 600;
+            color: var(--dark-text);
+        }
     </style>
 </head>
 
@@ -449,6 +470,7 @@
     </div>
 
     <!-- JavaScript Libraries -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
@@ -466,8 +488,43 @@
     <!-- Visitor CRUD JavaScript -->
     <script>
     $(document).ready(function() {
-        // Initialize DataTable
-        $('#myDataTable').DataTable({ order: [[0, 'desc']] });
+        // Initialize DataTable with search restrictions
+        var table = $('#myDataTable').DataTable({
+            order: [[0, 'desc']],
+            language: {
+                search: "Search ID Number:"
+            }
+        });
+
+        // Restrict search input to numbers and hyphen only
+        $('.dataTables_filter input').on('input', function() {
+            var value = $(this).val();
+            // Remove any non-digit and non-hyphen characters
+            var filteredValue = value.replace(/[^\d-]/g, '');
+            
+            // If value was changed, update the input and trigger search
+            if (value !== filteredValue) {
+                $(this).val(filteredValue);
+                table.search(filteredValue).draw();
+            }
+        });
+
+        // Prevent paste of non-numeric characters
+        $('.dataTables_filter input').on('paste', function(e) {
+            var pasteData = e.originalEvent.clipboardData.getData('text');
+            // Only allow paste if it contains only numbers and hyphens
+            if (!/^[\d-]*$/.test(pasteData)) {
+                e.preventDefault();
+                // Optional: Show a message to user
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Invalid Input',
+                    text: 'Only numbers and hyphens are allowed in search',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+            }
+        });
 
         // Format ID number input (0000-0000 format)
         document.getElementById('erfid_number').addEventListener('input', function(e) {
