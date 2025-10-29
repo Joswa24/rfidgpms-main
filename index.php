@@ -203,7 +203,13 @@ function validateOtherPersonnel($db, $id_number, $room, $authorizedPersonnel) {
         'room_data' => $room
     ];
 }
-
+function getSubjectDetails($db, $subject, $room) {
+    $stmt = $db->prepare("SELECT year_level, section FROM room_schedules WHERE subject = ? AND room_name = ? LIMIT 1");
+    $stmt->bind_param("ss", $subject, $room);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    return $result->fetch_assoc() ?? ['year_level' => '1st Year', 'section' => 'A'];
+}
 // =====================================================================
 // MAIN LOGIN PROCESSING
 // =====================================================================
@@ -267,17 +273,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             'time' => $_POST['selected_time'] ?? ''
         ];
         $redirectUrl = 'main1.php';
-        
+                
+
         // Record instructor session start time
         $currentTime = date('Y-m-d H:i:s');
         $_SESSION['instructor_login_time'] = $currentTime;
+
+        // Get year_level and section from the selected subject
+        $subjectDetails = getSubjectDetails($db, $selected_subject, $selected_room);
+        $yearLevel = $subjectDetails['year_level'] ?? "1st Year";
+        $section = $subjectDetails['section'] ?? "A";
 
         // Create instructor attendance summary record
         $instructorId = $userData['id'];
         $instructorName = $userData['fullname'];
         $subjectName = $selected_subject;
-        $yearLevel = "1st Year";
-        $section = "A";
         $sessionDate = date('Y-m-d');
         $timeIn = date('H:i:s');
 
@@ -290,9 +300,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $stmt->bind_param("issssss", $instructorId, $instructorName, $subjectName, $yearLevel, $section, $sessionDate, $timeIn);
         $stmt->execute();
         $_SESSION['attendance_session_id'] = $stmt->insert_id;
-        
-    }
 
+    }
     // Regenerate session ID to prevent session fixation
     session_regenerate_id(true);
 
@@ -883,45 +892,47 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </div>
     
     <!-- Subject Selection Modal -->
-    <div class="modal fade" id="subjectModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Select Your Subject for <span id="modalRoomName"></span></h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+    <!-- Subject Selection Modal -->
+<div class="modal fade" id="subjectModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Select Your Subject for <span id="modalRoomName"></span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info mb-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Please select the subject you're currently teaching in this room and click "Confirm Selection".
                 </div>
-                <div class="modal-body">
-                    <div class="alert alert-info mb-3">
-                        <i class="fas fa-info-circle me-2"></i>
-                        Please select the subject you're currently teaching in this room and click "Confirm Selection".
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table subject-table" id="subjectTable">
-                            <thead>
-                                <tr>
-                                    <th width="5%">Select</th>
-                                    <th>Subject</th>
-                                    <th>Section</th>
-                                    <th>Day</th>
-                                    <th>Time</th>
-                                </tr>
-                            </thead>
-                            <tbody id="subjectList">
-                                <!-- Subjects will be loaded here via AJAX -->
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="table-responsive">
+                    <table class="table subject-table" id="subjectTable">
+                        <thead>
+                            <tr>
+                                <th width="5%">Select</th>
+                                <th>Subject</th>
+                                <th>Year Level</th>
+                                <th>Section</th>
+                                <th>Day</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="subjectList">
+                            <!-- Subjects will be loaded here via AJAX -->
+                        </tbody>
+                    </table>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" id="cancelSubject">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="confirmSubject" disabled>
-                        <span class="spinner-border spinner-border-sm d-none" id="confirmSpinner" role="status" aria-hidden="true"></span>
-                        Confirm Selection
-                    </button>
-                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="cancelSubject">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmSubject" disabled>
+                    <span class="spinner-border spinner-border-sm d-none" id="confirmSpinner" role="status" aria-hidden="true"></span>
+                    Confirm Selection
+                </button>
             </div>
         </div>
     </div>
+</div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="admin/js/bootstrap.bundle.min.js"></script>
@@ -1248,96 +1259,115 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
 
         // Display subjects in the modal table
-        function displaySubjects(schedules, selectedRoom) {
-            let html = '';
-            const now = new Date();
-            const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' });
-            const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
-            
-            let hasAvailableSubjects = false;
-            
-            schedules.forEach(schedule => {
-                const isToday = schedule.day === currentDay;
-                
-                // Parse subject start time into minutes
-                let startMinutes = null;
-                let endMinutes = null;
-                
-                if (schedule.start_time) {
-                    const [hour, minute, second] = schedule.start_time.split(':');
-                    startMinutes = parseInt(hour, 10) * 60 + parseInt(minute, 10);
-                }
-                
-                if (schedule.end_time) {
-                    const [hour, minute, second] = schedule.end_time.split(':');
-                    endMinutes = parseInt(hour, 10) * 60 + parseInt(minute, 10);
-                }
-                
-                // Determine if subject is available for selection
-                // Available if it's today and current time is before or during the class
-                const isEnabled = isToday && startMinutes !== null && 
-                                 (currentTimeMinutes <= endMinutes);
-                
-                const startTimeFormatted = schedule.start_time ? 
-                    new Date(`1970-01-01T${schedule.start_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
-                    'N/A';
-                    
-                const endTimeFormatted = schedule.end_time ? 
-                    new Date(`1970-01-01T${schedule.end_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
-                    'N/A';
-                
-                // Determine row styling
-                let rowClass = '';
-                let statusBadge = '';
-                
-                if (!isToday) {
-                    rowClass = 'table-secondary';
-                    statusBadge = '<span class="badge bg-secondary ms-1">Not Today</span>';
-                } else if (!isEnabled) {
-                    rowClass = 'table-warning';
-                    statusBadge = '<span class="badge bg-warning ms-1">Class Ended</span>';
-                } else {
-                    hasAvailableSubjects = true;
-                    statusBadge = '<span class="badge bg-success ms-1">Available</span>';
-                }
-                
-                html += `
-                    <tr class="modal-subject-row ${rowClass}">
-                        <td>
-                            <input type="radio" class="form-check-input subject-radio" 
-                                   name="selectedSubject"
-                                   data-subject="${schedule.subject || ''}"
-                                   data-room="${schedule.room_name || selectedRoom}"
-                                   data-time="${startTimeFormatted} - ${endTimeFormatted}"
-                                   ${!isEnabled ? 'disabled' : ''}>
-                        </td>
-                        <td>
-                            ${schedule.subject || 'N/A'}
-                            ${statusBadge}
-                        </td>
-                        <td>${schedule.section || 'N/A'}</td>
-                        <td>${schedule.day || 'N/A'}</td>
-                        <td>${startTimeFormatted} - ${endTimeFormatted}</td>
-                    </tr>`;
-            });
-            
-            // Add header message about availability
-            if (!hasAvailableSubjects && schedules.length > 0) {
-                html = `
-                    <tr>
-                        <td colspan="5" class="text-center">
-                            <div class="alert alert-info mb-0">
-                                <i class="fas fa-info-circle me-2"></i>
-                                No available subjects at this time. Subjects are only available on their scheduled day.
-                            </div>
-                        </td>
-                    </tr>
-                ` + html;
-            }
-            
-            $('#subjectList').html(html);
-        }
+        // In the displaySubjects function in index.php, update the table headers and rows:
 
+// Display subjects in the modal table - FIXED VERSION
+function displaySubjects(schedules, selectedRoom) {
+    let html = '';
+    const now = new Date();
+    const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' });
+    const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
+    
+    let hasAvailableSubjects = false;
+    
+    // Clear existing content and start building rows
+    schedules.forEach(schedule => {
+        const isToday = schedule.day === currentDay;
+        
+        // Parse subject start time into minutes
+        let startMinutes = null;
+        let endMinutes = null;
+        
+        if (schedule.start_time) {
+            const [hour, minute, second] = schedule.start_time.split(':');
+            startMinutes = parseInt(hour, 10) * 60 + parseInt(minute, 10);
+        }
+        
+        if (schedule.end_time) {
+            const [hour, minute, second] = schedule.end_time.split(':');
+            endMinutes = parseInt(hour, 10) * 60 + parseInt(minute, 10);
+        }
+        
+        // Determine if subject is available for selection
+        const isEnabled = isToday && startMinutes !== null && 
+                         (currentTimeMinutes <= endMinutes);
+        
+        const startTimeFormatted = schedule.start_time ? 
+            new Date(`1970-01-01T${schedule.start_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
+            'N/A';
+            
+        const endTimeFormatted = schedule.end_time ? 
+            new Date(`1970-01-01T${schedule.end_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
+            'N/A';
+        
+        // Determine row styling
+        let rowClass = '';
+        let statusBadge = '';
+        
+        if (!isToday) {
+            rowClass = 'table-secondary';
+            statusBadge = '<span class="badge bg-secondary ms-1">Not Today</span>';
+        } else if (!isEnabled) {
+            rowClass = 'table-warning';
+            statusBadge = '<span class="badge bg-warning ms-1">Class Ended</span>';
+        } else {
+            hasAvailableSubjects = true;
+            statusBadge = '<span class="badge bg-success ms-1">Available</span>';
+        }
+        
+        html += `
+            <tr class="modal-subject-row ${rowClass}">
+                <td>
+                    <input type="radio" class="form-check-input subject-radio" 
+                           name="selectedSubject"
+                           data-subject="${schedule.subject || ''}"
+                           data-room="${schedule.room_name || selectedRoom}"
+                           data-time="${startTimeFormatted} - ${endTimeFormatted}"
+                           data-year-level="${schedule.year_level || ''}"
+                           data-section="${schedule.section || ''}"
+                           ${!isEnabled ? 'disabled' : ''}>
+                </td>
+                <td>
+                    ${schedule.subject || 'N/A'}
+                    ${statusBadge}
+                </td>
+                <td>${schedule.year_level || 'N/A'}</td>
+                <td>${schedule.section || 'N/A'}</td>
+                <td>${schedule.day || 'N/A'}</td>
+                <td>${startTimeFormatted} - ${endTimeFormatted}</td>
+            </tr>`;
+    });
+    
+    // If no available subjects but we have schedules, show message
+    if (!hasAvailableSubjects && schedules.length > 0) {
+        html = `
+            <tr>
+                <td colspan="6" class="text-center">
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        No available subjects at this time. Subjects are only available on their scheduled day.
+                    </div>
+                </td>
+            </tr>
+        ` + html;
+    }
+    
+    // If no schedules at all
+    if (schedules.length === 0) {
+        html = `
+            <tr>
+                <td colspan="6" class="text-center">
+                    <div class="alert alert-warning mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        No subjects found for this room.
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+    
+    $('#subjectList').html(html);
+}
         // Handle subject selection with radio buttons (single selection)
         $(document).on('change', '.subject-radio', function() {
             if ($(this).is(':checked') && !$(this).is(':disabled')) {

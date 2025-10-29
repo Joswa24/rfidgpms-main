@@ -33,6 +33,89 @@ function verifyInstructorSession() {
     return true;
 }
 
+// NEW: Get allowed year and section for current instructor and subject
+function getAllowedYearAndSection($db, $instructor_id, $subject_name, $room_name) {
+    $query = "SELECT year_level, section FROM room_schedules 
+              WHERE instructor = ? AND subject = ? AND room_name = ? 
+              LIMIT 1";
+    
+    $stmt = $db->prepare($query);
+    if (!$stmt) {
+        error_log("❌ Failed to prepare year/section query: " . $db->error);
+        return ['year_level' => null, 'section' => null];
+    }
+    
+    // Get instructor name from ID
+    $instructor_stmt = $db->prepare("SELECT fullname FROM instructor WHERE id = ?");
+    $instructor_stmt->bind_param("i", $instructor_id);
+    $instructor_stmt->execute();
+    $instructor_result = $instructor_stmt->get_result();
+    $instructor = $instructor_result->fetch_assoc();
+    $instructor_name = $instructor['fullname'] ?? '';
+    $instructor_stmt->close();
+    
+    $stmt->bind_param("sss", $instructor_name, $subject_name, $room_name);
+    
+    if (!$stmt->execute()) {
+        error_log("❌ Failed to execute year/section query: " . $stmt->error);
+        return ['year_level' => null, 'section' => null];
+    }
+    
+    $result = $stmt->get_result();
+    $data = $result->fetch_assoc();
+    $stmt->close();
+    
+    if ($data) {
+        error_log("✅ Allowed year/section found: " . $data['year_level'] . " - " . $data['section']);
+        return $data;
+    } else {
+        error_log("❌ No year/section found for instructor: $instructor_name, subject: $subject_name, room: $room_name");
+        return ['year_level' => null, 'section' => null];
+    }
+}
+
+// NEW: Check if student is in allowed year and section
+function isStudentInAllowedClass($db, $student_id, $allowed_year, $allowed_section) {
+    if (!$allowed_year || !$allowed_section) {
+        error_log("⚠️ No year/section restrictions set");
+        return true; // No restrictions
+    }
+    
+    $query = "SELECT year_level, section FROM students WHERE id_number = ?";
+    $stmt = $db->prepare($query);
+    
+    if (!$stmt) {
+        error_log("❌ Failed to prepare student class query: " . $db->error);
+        return false;
+    }
+    
+    $stmt->bind_param("s", $student_id);
+    
+    if (!$stmt->execute()) {
+        error_log("❌ Failed to execute student class query: " . $stmt->error);
+        return false;
+    }
+    
+    $result = $stmt->get_result();
+    $student = $result->fetch_assoc();
+    $stmt->close();
+    
+    if (!$student) {
+        error_log("❌ Student not found: $student_id");
+        return false;
+    }
+    
+    $is_allowed = ($student['year_level'] == $allowed_year && $student['section'] == $allowed_section);
+    
+    if (!$is_allowed) {
+        error_log("❌ Student class mismatch: Student is {$student['year_level']}-{$student['section']}, Required: $allowed_year-$allowed_section");
+    } else {
+        error_log("✅ Student class matches: {$student['year_level']}-{$student['section']}");
+    }
+    
+    return $is_allowed;
+}
+
 // Verify session immediately
 if (!verifyInstructorSession()) {
     // Log detailed session info for debugging
@@ -44,19 +127,21 @@ if (!verifyInstructorSession()) {
     header("Location: index.php");
     exit();
 }
-        // When instructor logs out, revert their active swaps
-        function revertInstructorSwaps($db, $instructor_id) {
-            $query = "UPDATE schedule_swaps SET is_active = FALSE 
-                    WHERE instructor_id = ? AND is_active = TRUE";
-            $stmt = $db->prepare($query);
-            $stmt->bind_param("i", $instructor_id);
-            $stmt->execute();
-        }
 
-        // Call this when instructor logs out
-        if (isset($_SESSION['access']['instructor']['id'])) {
-            revertInstructorSwaps($db, $_SESSION['access']['instructor']['id']);
-        }
+// When instructor logs out, revert their active swaps
+function revertInstructorSwaps($db, $instructor_id) {
+    $query = "UPDATE schedule_swaps SET is_active = FALSE 
+            WHERE instructor_id = ? AND is_active = TRUE";
+    $stmt = $db->prepare($query);
+    $stmt->bind_param("i", $instructor_id);
+    $stmt->execute();
+}
+
+// Call this when instructor logs out
+if (isset($_SESSION['access']['instructor']['id'])) {
+    revertInstructorSwaps($db, $_SESSION['access']['instructor']['id']);
+}
+
 // Record instructor login time when opening the portal
 if (isset($_SESSION['access']['instructor']['id']) && !isset($_SESSION['instructor_login_time'])) {
     $instructor_id = $_SESSION['access']['instructor']['id'];
@@ -96,57 +181,79 @@ if (isset($_SESSION['access']['instructor']['id']) && !isset($_SESSION['instruct
     $check_session->close();
 }
 
-    // ✅ NEW: Check if instructor is logged in and has login time
+// ✅ NEW: Check if instructor is logged in and has login time
+if (!isset($_SESSION['instructor_login_time']) && isset($_SESSION['access']['instructor'])) {
+    $currentTime = date('Y-m-d H:i:s');
+    $_SESSION['instructor_login_time'] = $currentTime;
     
-    if (!isset($_SESSION['instructor_login_time']) && isset($_SESSION['access']['instructor'])) {
-        $currentTime = date('Y-m-d H:i:s');
-        $_SESSION['instructor_login_time'] = $currentTime;
-        
-        // Create instructor attendance summary if not exists
-        $instructorId = $_SESSION['access']['instructor']['id'];
-        $instructorName = $_SESSION['access']['instructor']['fullname'];
-        $subjectName = $_SESSION['access']['subject']['name'] ?? 'General Subject';
-        $department = $_SESSION['access']['room']['department'] ?? 'General';
-        $location = $_SESSION['access']['room']['room'] ?? 'Classroom';
-        
-        // Extract year level and section from subject name or use defaults
-        $yearLevel = "1st Year";
-        $section = "A";
-        
-        // Try to extract from subject name (assuming format like "Math 101 - 1A")
-        if (isset($_SESSION['access']['subject']['name'])) {
-            $subjectParts = explode(' - ', $_SESSION['access']['subject']['name']);
-            if (count($subjectParts) > 1) {
-                $section = end($subjectParts);
-            }
-        }
-        
-        $sessionDate = date('Y-m-d');
-        $timeIn = date('H:i:s');
-        
-        $sessionSql = "INSERT INTO instructor_attendance_summary 
-                    (instructor_id, instructor_name, subject_name, year_level, section, 
-                        total_students, present_count, absent_count, attendance_rate,
-                        session_date, time_in, time_out) 
-                    VALUES (?, ?, ?, ?, ?, 0, 0, 0, 0.00, ?, ?, '00:00:00')";
-        $stmt = $db->prepare($sessionSql);
-        $stmt->bind_param("issssss", $instructorId, $instructorName, $subjectName, $yearLevel, $section, $sessionDate, $timeIn);
-        
-        if ($stmt->execute()) {
-            $_SESSION['attendance_session_id'] = $stmt->insert_id;
+    // Create instructor attendance summary if not exists
+    $instructorId = $_SESSION['access']['instructor']['id'];
+    $instructorName = $_SESSION['access']['instructor']['fullname'];
+    $subjectName = $_SESSION['access']['subject']['name'] ?? 'General Subject';
+    $department = $_SESSION['access']['room']['department'] ?? 'General';
+    $location = $_SESSION['access']['room']['room'] ?? 'Classroom';
+    
+    // Extract year level and section from subject name or use defaults
+    $yearLevel = "1st Year";
+    $section = "A";
+    
+    // Try to extract from subject name (assuming format like "Math 101 - 1A")
+    if (isset($_SESSION['access']['subject']['name'])) {
+        $subjectParts = explode(' - ', $_SESSION['access']['subject']['name']);
+        if (count($subjectParts) > 1) {
+            $section = end($subjectParts);
         }
     }
+    
+    $sessionDate = date('Y-m-d');
+    $timeIn = date('H:i:s');
+    
+    $sessionSql = "INSERT INTO instructor_attendance_summary 
+                (instructor_id, instructor_name, subject_name, year_level, section, 
+                    total_students, present_count, absent_count, attendance_rate,
+                    session_date, time_in, time_out) 
+                VALUES (?, ?, ?, ?, ?, 0, 0, 0, 0.00, ?, ?, '00:00:00')";
+    $stmt = $db->prepare($sessionSql);
+    $stmt->bind_param("issssss", $instructorId, $instructorName, $subjectName, $yearLevel, $section, $sessionDate, $timeIn);
+    
+    if ($stmt->execute()) {
+        $_SESSION['attendance_session_id'] = $stmt->insert_id;
+    }
+}
 
-    // Initialize session variables with proper checks
-    $_SESSION['allowed_section'] = $_SESSION['allowed_section'] ?? null;
-    $_SESSION['allowed_year'] = $_SESSION['allowed_year'] ?? null;
-    $_SESSION['is_first_student'] = $_SESSION['is_first_student'] ?? true;
+// NEW: Get allowed year and section for current session
+$allowed_year = null;
+$allowed_section = null;
 
-    // Safely get department and location from session
-    $department = isset($_SESSION['access']['room']['department']) ? 
-                $_SESSION['access']['room']['department'] : 'Department';
-    $location = isset($_SESSION['access']['room']['room']) ? 
-                $_SESSION['access']['room']['room'] : 'Location';
+if (isset($_SESSION['access']['instructor']['id']) && 
+    isset($_SESSION['access']['subject']['name']) && 
+    isset($_SESSION['access']['room']['room'])) {
+    
+    $instructor_id = $_SESSION['access']['instructor']['id'];
+    $subject_name = $_SESSION['access']['subject']['name'];
+    $room_name = $_SESSION['access']['room']['room'];
+    
+    $class_data = getAllowedYearAndSection($db, $instructor_id, $subject_name, $room_name);
+    $allowed_year = $class_data['year_level'];
+    $allowed_section = $class_data['section'];
+    
+    // Store in session for use in process_barcode.php
+    $_SESSION['allowed_year'] = $allowed_year;
+    $_SESSION['allowed_section'] = $allowed_section;
+    
+    error_log("🎯 Session restrictions set - Year: $allowed_year, Section: $allowed_section");
+}
+
+// REMOVED: First student logic - no longer needed
+// Initialize session variables with proper checks
+$_SESSION['allowed_section'] = $allowed_section;
+$_SESSION['allowed_year'] = $allowed_year;
+
+// Safely get department and location from session
+$department = isset($_SESSION['access']['room']['department']) ? 
+            $_SESSION['access']['room']['department'] : 'Department';
+$location = isset($_SESSION['access']['room']['room']) ? 
+            $_SESSION['access']['room']['room'] : 'Location';
 
 // Check for force redirect
 if (isset($_SESSION['access']['force_redirect'])) {
@@ -155,9 +262,9 @@ if (isset($_SESSION['access']['force_redirect'])) {
 }
 
 // Fetch data from the about table
- $logo1 = $nameo = $address = $logo2 = "";
- $sql = "SELECT * FROM about LIMIT 1";
- $result = $db->query($sql);
+$logo1 = $nameo = $address = $logo2 = "";
+$sql = "SELECT * FROM about LIMIT 1";
+$result = $db->query($sql);
 
 if ($result && $result->num_rows > 0) {
     $row = $result->fetch_assoc();

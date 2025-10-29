@@ -936,59 +936,149 @@ function getPhotoForResponse($userData) {
             font-size: 0.7rem;
             font-weight: bold;
         }
-        /* Visitor Modal Styles */
-            .visitor-photo-container {
-                background: var(--light-bg);
-                border-radius: 8px;
-                padding: 15px;
-                text-align: center;
-            }
+        /* Visitor Modal Styles - Adjusted Container */
+.visitor-modal .modal-content {
+    border-radius: var(--border-radius);
+    border: none;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
 
-            .visitor-photo-preview {
-                width: 120px;
-                height: 120px;
-                border-radius: 8px;
-                object-fit: cover;
-                border: 2px solid var(--icon-color);
-                background: white;
-            }
+.visitor-modal .modal-header {
+    background: linear-gradient(135deg, var(--icon-color), #4361ee);
+    color: white;
+    border-bottom: none;
+    padding: 15px 20px;
+}
 
-            #visitorInfoModal .form-label {
-                font-weight: 600;
-                color: var(--dark-text);
-                margin-bottom: 5px;
-            }
+.visitor-modal .modal-header .btn-close {
+    filter: invert(1);
+}
 
-            #visitorInfoModal .form-control,
-            #visitorInfoModal .form-select {
-                border: 2px solid var(--accent-color);
-                border-radius: 6px;
-                padding: 8px 12px;
-                font-size: 0.9rem;
-                transition: var(--transition);
-            }
+.visitor-modal .modal-body {
+    padding: 20px;
+    background: var(--light-bg);
+}
 
-            #visitorInfoModal .form-control:focus,
-            #visitorInfoModal .form-select:focus {
-                border-color: var(--icon-color);
-                box-shadow: 0 0 0 3px rgba(92, 149, 233, 0.1);
-            }
+.visitor-modal .modal-footer {
+    border-top: none;
+    padding: 15px 20px;
+    background: white;
+}
 
-            #visitorInfoModal .modal-header {
-                border-bottom: 2px solid rgba(255, 193, 7, 0.3);
-            }
+.visitor-modal .form-label {
+    font-weight: 600;
+    color: var(--dark-text);
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    text-align: left;
+    display: block;
+}
 
-            #visitorInfoModal .btn-warning {
-                background: linear-gradient(135deg, #ffc107, #fd7e14);
-                border: none;
-                color: white;
-                font-weight: 600;
-            }
+.visitor-modal .form-control,
+.visitor-modal .form-select {
+    border: 2px solid var(--accent-color);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+    transition: var(--transition);
+    background: white;
+    width: 100%;
+}
 
-            #visitorInfoModal .btn-warning:hover {
-                background: linear-gradient(135deg, #e0a800, #dc6502);
-                transform: translateY(-1px);
-            }
+.visitor-modal .form-control:focus,
+.visitor-modal .form-select:focus {
+    border-color: var(--icon-color);
+    box-shadow: 0 0 0 3px rgba(92, 149, 233, 0.15);
+    background: white;
+}
+
+.visitor-modal .form-control.is-invalid {
+    border-color: #e74a3b;
+    box-shadow: 0 0 0 3px rgba(231, 74, 59, 0.15);
+}
+
+.visitor-modal .invalid-feedback {
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-top: 5px;
+    text-align: left;
+}
+
+.visitor-modal .btn-warning {
+    background: linear-gradient(135deg, var(--warning-color), #f4a261);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 25px;
+    font-weight: 600;
+    color: white;
+    transition: var(--transition);
+    box-shadow: 0 4px 12px rgba(246, 194, 62, 0.3);
+}
+
+.visitor-modal .btn-warning:hover {
+    background: linear-gradient(135deg, #e0a800, #dc6502);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(246, 194, 62, 0.4);
+}
+
+.visitor-modal .btn-secondary {
+    background: linear-gradient(135deg, #6c757d, #495057);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 25px;
+    font-weight: 600;
+    transition: var(--transition);
+}
+
+.visitor-modal .btn-secondary:hover {
+    background: linear-gradient(135deg, #5a6268, #3d4348);
+    transform: translateY(-2px);
+}
+
+.visitor-info-alert {
+    background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
+    border: none;
+    border-radius: 8px;
+    color: var(--dark-text);
+    padding: 12px 15px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.visitor-info-alert i {
+    color: var(--icon-color);
+}
+
+.character-count {
+    font-size: 0.75rem;
+    color: #6c757d;
+    text-align: right;
+    margin-top: 5px;
+}
+
+.character-count.warning {
+    color: #e74a3b;
+    font-weight: 600;
+}
+
+/* Make modal more compact */
+.visitor-modal .modal-dialog {
+    max-width: 500px;
+}
+
+.visitor-modal .col-12 {
+    padding: 0;
+}
+
+/* Adjust spacing for compact layout */
+.visitor-modal .mb-3 {
+    margin-bottom: 1rem !important;
+}
+
+.visitor-modal .modal-body {
+    padding: 20px;
+}
     </style>
 </head>
 
@@ -1030,85 +1120,132 @@ function getPhotoForResponse($userData) {
             </div>
         </div>
     </div>
-    <!-- Visitor Information Modal -->
-    <div class="modal fade" id="visitorInfoModal" tabindex="-1" aria-labelledby="visitorInfoModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header bg-warning text-dark">
-                    <h5 class="modal-title" id="visitorInfoModalLabel">
-                        <i class="fas fa-user-clock me-2"></i>Visitor Registration Required
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        Please provide your information for gate access
+    <!-- Visitor Information Modal - Adjusted Container Size -->
+<div class="modal fade visitor-modal" id="visitorInfoModal" tabindex="-1" aria-labelledby="visitorInfoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-md">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="visitorInfoModalLabel">
+                    <i class="fas fa-user-clock me-2"></i>Visitor Registration Required
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="visitor-info-alert">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-info-circle fa-lg me-3"></i>
+                        <div>
+                            <h6 class="mb-1" style="color: var(--icon-color);">Visitor Registration</h6>
+                            <p class="mb-0">Please provide your information for gate access. All fields marked with <span class="text-danger">*</span> are required.</p>
+                        </div>
                     </div>
-                    
-                    <div class="row">
-                        <div class="col-md-4 text-center mb-3">
-                            <div class="visitor-photo-container">
-                                <img id="visitorPhotoPreview" 
-                                    src="admin/uploads/students/default.png" 
-                                    alt="Visitor Photo" 
-                                    class="visitor-photo-preview">
+                </div>
+                
+                <div class="row">
+                    <div class="col-12">
+                        <form id="visitorInfoForm" novalidate>
+                            <input type="hidden" id="visitorID" value="">
+                            
+                            <!-- Full Name Field -->
+                            <div class="mb-3">
+                                <label for="fullName" class="form-label">
+                                    <i class="fas fa-user me-1"></i>Full Name <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="fullName" 
+                                       required 
+                                       placeholder="Enter your full name (letters and spaces only)"
+                                       maxlength="100"
+                                       pattern="[A-Za-z\s]+"
+                                       oninput="validateFullName(this)">
+                                <div class="invalid-feedback">
+                                    Please enter a valid full name (letters and spaces only, no numbers or special characters).
+                                </div>
+                                <div class="character-count" id="nameCharCount">0/100 characters</div>
                             </div>
-                        </div>
-                        <div class="col-md-8">
-                            <form id="visitorInfoForm">
-                                <input type="hidden" id="visitorID" value="">
-                                
-                                <div class="mb-3">
-                                    <label for="fullName" class="form-label">Full Name <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="fullName" required 
-                                        placeholder="Enter your full name">
+                            
+                            <!-- Contact Number Field -->
+                            <div class="mb-3">
+                                <label for="contactNumber" class="form-label">
+                                    <i class="fas fa-phone me-1"></i>Contact Number <span class="text-danger">*</span>
+                                </label>
+                                <input type="tel" 
+                                       class="form-control" 
+                                       id="contactNumber" 
+                                       required 
+                                       placeholder="Enter 11-digit contact number"
+                                       maxlength="11"
+                                       pattern="[0-9]{11}"
+                                       oninput="validateContactNumber(this)">
+                                <div class="invalid-feedback">
+                                    Please enter a valid 11-digit contact number (numbers only).
                                 </div>
-                                
-                                <div class="mb-3">
-                                    <label for="contactNumber" class="form-label">Contact Number <span class="text-danger">*</span></label>
-                                    <input type="tel" class="form-control" id="contactNumber" required 
-                                        placeholder="Enter your contact number">
+                                <div class="character-count" id="contactCharCount">0/11 digits</div>
+                            </div>
+                            
+                            <!-- Purpose of Visit -->
+                            <div class="mb-3">
+                                <label for="purpose" class="form-label">
+                                    <i class="fas fa-bullseye me-1"></i>Purpose of Visit <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select" id="purpose" required onchange="toggleOtherPurpose()">
+                                    <option value="">Select purpose...</option>
+                                    <option value="Meeting">Meeting</option>
+                                    <option value="Delivery">Delivery</option>
+                                    <option value="Maintenance">Maintenance</option>
+                                    <option value="Interview">Interview</option>
+                                    <option value="Training">Training</option>
+                                    <option value="Official Business">Official Business</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                                <div class="invalid-feedback">
+                                    Please select a purpose for your visit.
                                 </div>
-                                
-                                <div class="mb-3">
-                                    <label for="purpose" class="form-label">Purpose of Visit <span class="text-danger">*</span></label>
-                                    <select class="form-select" id="purpose" required>
-                                        <option value="">Select purpose...</option>
-                                        <option value="Meeting">Meeting</option>
-                                        <option value="Delivery">Delivery</option>
-                                        <option value="Maintenance">Maintenance</option>
-                                        <option value="Interview">Interview</option>
-                                        <option value="Training">Training</option>
-                                        <option value="Other">Other</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="mb-3" id="otherPurposeContainer" style="display: none;">
-                                    <label for="otherPurpose" class="form-label">Specify Purpose</label>
-                                    <input type="text" class="form-control" id="otherPurpose" 
-                                        placeholder="Please specify your purpose">
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label for="personVisiting" class="form-label">Person/Department Visiting</label>
-                                    <input type="text" class="form-control" id="personVisiting" 
-                                        placeholder="Who are you visiting?">
-                                </div>
-                            </form>
-                        </div>
+                            </div>
+                            
+                            <!-- Other Purpose Field (Conditional) -->
+                            <div class="mb-3" id="otherPurposeContainer" style="display: none;">
+                                <label for="otherPurpose" class="form-label">
+                                    <i class="fas fa-edit me-1"></i>Specify Purpose
+                                </label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="otherPurpose" 
+                                       placeholder="Please specify your purpose"
+                                       maxlength="100"
+                                       oninput="updateCharacterCount('otherPurpose', 'otherPurposeCharCount', 100)">
+                                <div class="character-count" id="otherPurposeCharCount">0/100 characters</div>
+                            </div>
+                            
+                            <!-- Person/Department Visiting -->
+                            <div class="mb-3">
+                                <label for="personVisiting" class="form-label">
+                                    <i class="fas fa-building me-1"></i>Person/Department Visiting
+                                </label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="personVisiting" 
+                                       placeholder="Who are you visiting? (Optional)"
+                                       maxlength="100"
+                                       oninput="updateCharacterCount('personVisiting', 'personVisitingCharCount', 100)">
+                                <div class="character-count" id="personVisitingCharCount">0/100 characters</div>
+                            </div>
+                        </form>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-warning" id="submitVisitorInfo">
-                        <i class="fas fa-check me-2"></i>Submit & Record Access
-                    </button>
-                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-warning" id="submitVisitorInfo">
+                    <i class="fas fa-check me-2"></i>Submit & Record Access
+                </button>
             </div>
         </div>
     </div>
-
+</div>
 <!-- Main Container - Scroll Design -->
 <div class="main-container">
     <!-- Navigation Tabs -->
@@ -2162,6 +2299,210 @@ function clearAndResetScanner() {
     
     // Restart scanner
     restartScanner();
+}
+// Input validation functions for visitor modal
+function validateFullName(input) {
+    const value = input.value.trim();
+    const nameRegex = /^[A-Za-z\s]+$/;
+    const charCount = document.getElementById('nameCharCount');
+    
+    // Update character count
+    charCount.textContent = `${value.length}/100 characters`;
+    if (value.length > 80) {
+        charCount.classList.add('warning');
+    } else {
+        charCount.classList.remove('warning');
+    }
+    
+    // Validate pattern
+    if (value && !nameRegex.test(value)) {
+        input.classList.add('is-invalid');
+        return false;
+    } else {
+        input.classList.remove('is-invalid');
+        return true;
+    }
+}
+
+function validateContactNumber(input) {
+    const value = input.value.trim();
+    const contactRegex = /^[0-9]{0,11}$/;
+    const charCount = document.getElementById('contactCharCount');
+    
+    // Update character count
+    charCount.textContent = `${value.length}/11 digits`;
+    if (value.length === 11) {
+        charCount.classList.add('warning');
+    } else {
+        charCount.classList.remove('warning');
+    }
+    
+    // Remove any non-numeric characters
+    const numericValue = value.replace(/[^0-9]/g, '');
+    if (numericValue !== value) {
+        input.value = numericValue;
+    }
+    
+    // Validate pattern
+    if (value && !contactRegex.test(value)) {
+        input.classList.add('is-invalid');
+        return false;
+    } else {
+        input.classList.remove('is-invalid');
+        return true;
+    }
+}
+
+function updateCharacterCount(inputId, countId, maxLength) {
+    const input = document.getElementById(inputId);
+    const count = document.getElementById(countId);
+    const value = input.value;
+    
+    count.textContent = `${value.length}/${maxLength} characters`;
+    if (value.length > maxLength * 0.8) {
+        count.classList.add('warning');
+    } else {
+        count.classList.remove('warning');
+    }
+}
+
+function toggleOtherPurpose() {
+    const purpose = document.getElementById('purpose').value;
+    const otherContainer = document.getElementById('otherPurposeContainer');
+    const otherInput = document.getElementById('otherPurpose');
+    
+    if (purpose === 'Other') {
+        otherContainer.style.display = 'block';
+        otherInput.required = true;
+    } else {
+        otherContainer.style.display = 'none';
+        otherInput.required = false;
+        otherInput.value = '';
+    }
+}
+
+// Enhanced form validation for visitor submission
+function validateVisitorForm() {
+    const fullName = document.getElementById('fullName');
+    const contactNumber = document.getElementById('contactNumber');
+    const purpose = document.getElementById('purpose');
+    const otherPurpose = document.getElementById('otherPurpose');
+    
+    let isValid = true;
+    
+    // Validate Full Name
+    if (!validateFullName(fullName) || !fullName.value.trim()) {
+        fullName.classList.add('is-invalid');
+        isValid = false;
+    } else {
+        fullName.classList.remove('is-invalid');
+    }
+    
+    // Validate Contact Number
+    if (!validateContactNumber(contactNumber) || contactNumber.value.length !== 11) {
+        contactNumber.classList.add('is-invalid');
+        isValid = false;
+    } else {
+        contactNumber.classList.remove('is-invalid');
+    }
+    
+    // Validate Purpose
+    if (!purpose.value) {
+        purpose.classList.add('is-invalid');
+        isValid = false;
+    } else {
+        purpose.classList.remove('is-invalid');
+    }
+    
+    // Validate Other Purpose if selected
+    if (purpose.value === 'Other' && !otherPurpose.value.trim()) {
+        otherPurpose.classList.add('is-invalid');
+        isValid = false;
+    } else {
+        otherPurpose.classList.remove('is-invalid');
+    }
+    
+    return isValid;
+}
+
+// Update the submitVisitorInfo function to use new validation
+function submitVisitorInfo() {
+    const form = document.getElementById('visitorInfoForm');
+    const submitBtn = document.getElementById('submitVisitorInfo');
+    
+    // Validate form
+    if (!validateVisitorForm()) {
+        showVisitorAlert('Please correct the errors in the form before submitting.', 'danger');
+        return;
+    }
+    
+    // Show loading state
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+    submitBtn.disabled = true;
+    
+    // Prepare data
+    const visitorData = {
+        visitor_id: document.getElementById('visitorID').value,
+        full_name: document.getElementById('fullName').value.trim(),
+        contact_number: document.getElementById('contactNumber').value.trim(),
+        purpose: document.getElementById('purpose').value === 'Other' ? 
+                 document.getElementById('otherPurpose').value.trim() : 
+                 document.getElementById('purpose').value,
+        person_visiting: document.getElementById('personVisiting').value.trim(),
+        department: "<?php echo $department; ?>",
+        location: "<?php echo $location; ?>",
+        is_visitor_submission: true
+    };
+    
+    // Send data to server
+    $.ajax({
+        type: "POST",
+        url: "process_gate.php",
+        data: visitorData,
+        dataType: 'json',
+        success: function(response) {
+            if (response.success) {
+                showVisitorAlert('Visitor access recorded successfully!', 'success');
+                
+                // Update UI with visitor data
+                updateGateUI({
+                    full_name: visitorData.full_name,
+                    id_number: visitorData.visitor_id,
+                    department: visitorData.department,
+                    role: 'Visitor',
+                    photo: 'admin/uploads/students/default.png',
+                    time_in_out: 'Time In Recorded',
+                    alert_class: 'alert-success'
+                });
+                
+                // Close modal after delay and show confirmation
+                setTimeout(() => {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('visitorInfoModal'));
+                    modal.hide();
+                    
+                    // Show confirmation modal
+                    showGateConfirmationModal({
+                        full_name: visitorData.full_name,
+                        id_number: visitorData.visitor_id,
+                        department: visitorData.department,
+                        role: 'Visitor',
+                        photo: 'admin/uploads/students/default.png',
+                        time_in_out: 'Time In Recorded'
+                    });
+                }, 1500);
+                
+            } else {
+                showVisitorAlert(response.message || 'Error recording visitor access', 'danger');
+                submitBtn.innerHTML = '<i class="fas fa-check me-2"></i>Submit & Record Access';
+                submitBtn.disabled = false;
+            }
+        },
+        error: function(xhr, status, error) {
+            showVisitorAlert('Error processing visitor information. Please try again.', 'danger');
+            submitBtn.innerHTML = '<i class="fas fa-check me-2"></i>Submit & Record Access';
+            submitBtn.disabled = false;
+        }
+    });
 }
 </script>
 
