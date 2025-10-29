@@ -269,27 +269,49 @@ function checkVisitorCard($db, $barcode) {
         $visitor = $result->fetch_assoc();
         $stmt->close();
         
-        // Check if this visitor has already registered today
+        // Check if this visitor has an incomplete visit today (needs timeout)
+        $incomplete_visit_query = "SELECT id FROM visitor_logs WHERE visitor_id = ? AND DATE(time_in) = CURDATE() AND (time_out IS NULL OR time_out = '00:00:00' OR time_out = '')";
+        $incomplete_stmt = $db->prepare($incomplete_visit_query);
+        $incomplete_stmt->bind_param("s", $barcode);
+        $incomplete_stmt->execute();
+        $incomplete_result = $incomplete_stmt->get_result();
+        
+        if ($incomplete_result->num_rows > 0) {
+            // Visitor has incomplete visit - should timeout, not ask for info
+            $incomplete_stmt->close();
+            return ['requires_visitor_info' => false];
+        }
+        $incomplete_stmt->close();
+        
+        // Check if this visitor has no registration today or completed visit
         $today = date('Y-m-d');
-        $existingLog = $db->prepare("SELECT id FROM visitor_logs WHERE visitor_id = ? AND DATE(time_in) = ?");
+        $existingLog = $db->prepare("SELECT id, time_out FROM visitor_logs WHERE visitor_id = ? AND DATE(time_in) = ? ORDER BY id DESC LIMIT 1");
         $existingLog->bind_param("ss", $barcode, $today);
         $existingLog->execute();
         $logResult = $existingLog->get_result();
         
         if ($logResult->num_rows === 0) {
-            // Visitor card found but no registration today - require info
+            // No visit today - require info
+            $existingLog->close();
             return ['requires_visitor_info' => true, 'visitor_id' => $barcode];
+        } else {
+            $visit_data = $logResult->fetch_assoc();
+            // If already timed out today, allow new registration
+            if (!empty($visit_data['time_out']) && $visit_data['time_out'] != '00:00:00') {
+                $existingLog->close();
+                return ['requires_visitor_info' => true, 'visitor_id' => $barcode];
+            }
+            $existingLog->close();
         }
-        $existingLog->close();
+        
+        // Should have been caught by incomplete visit check
+        return ['requires_visitor_info' => false];
     }
     $stmt->close();
     
     return ['requires_visitor_info' => false];
 }
 
-/**
- * Process visitor information submission
- */
 function processVisitorSubmission($db, $postData) {
     $visitor_id = $postData['visitor_id'] ?? '';
     $full_name = $postData['full_name'] ?? '';
@@ -305,49 +327,122 @@ function processVisitorSubmission($db, $postData) {
     }
     
     try {
-        // First, verify this is a valid visitor card
-        $checkStmt = $db->prepare("SELECT id FROM visitor WHERE rfid_number = ?");
+        // First, check if this visitor already has a time in today (for time out)
+        $existing_visit_query = "SELECT * FROM visitor_logs 
+                               WHERE visitor_id = ? 
+                               AND DATE(time_in) = CURDATE() 
+                               AND (time_out IS NULL OR time_out = '00:00:00')
+                               ORDER BY time_in DESC LIMIT 1";
+        $checkStmt = $db->prepare($existing_visit_query);
         $checkStmt->bind_param("s", $visitor_id);
         $checkStmt->execute();
         $checkResult = $checkStmt->get_result();
         
-        if ($checkResult->num_rows === 0) {
-            return ['success' => false, 'message' => 'Invalid visitor card ID'];
-        }
-        
-        // Insert visitor record
-        $stmt = $db->prepare("INSERT INTO visitor_logs 
-                             (visitor_id, full_name, contact_number, purpose, person_visiting, department, location, time_in) 
-                             VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
-        $stmt->bind_param("sssssss", $visitor_id, $full_name, $contact_number, $purpose, $person_visiting, $department, $location);
-        
-        if ($stmt->execute()) {
-            // Also insert into gate_logs
-            insertIntoGateLogs($db, 'visitor', 0, $visitor_id, $full_name, 'IN', $department, $location, date('Y-m-d H:i:s'), 'N/A');
+        if ($checkResult->num_rows > 0) {
+            // Visitor exists and needs time out
+            $existing_visit = $checkResult->fetch_assoc();
+            $checkStmt->close();
             
-            return [
-                'success' => true, 
-                'message' => 'Visitor access recorded successfully',
-                'full_name' => $full_name,
-                'id_number' => $visitor_id,
-                'department' => $department,
-                'role' => 'Visitor',
-                'photo' => getPhotoForResponse(['person_type' => 'visitor']),
-                'time_in_out' => 'Time In Recorded',
-                'alert_class' => 'alert-success',
-                'voice' => "Welcome {$full_name}. Time in recorded."
-            ];
+            // Process time out
+            return processVisitorTimeOutFromSubmission($db, $visitor_id, $department, $location);
         } else {
-            return ['success' => false, 'message' => 'Failed to record visitor access'];
+            $checkStmt->close();
+            
+            // Verify this is a valid visitor card
+            $cardCheckStmt = $db->prepare("SELECT id FROM visitor WHERE rfid_number = ?");
+            $cardCheckStmt->bind_param("s", $visitor_id);
+            $cardCheckStmt->execute();
+            $cardCheckResult = $cardCheckStmt->get_result();
+            
+            if ($cardCheckResult->num_rows === 0) {
+                $cardCheckStmt->close();
+                return ['success' => false, 'message' => 'Invalid visitor card ID'];
+            }
+            $cardCheckStmt->close();
+            
+            // Insert new visitor record (time in)
+            $stmt = $db->prepare("INSERT INTO visitor_logs 
+                                 (visitor_id, full_name, contact_number, purpose, person_visiting, department, location, time_in) 
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
+            $stmt->bind_param("sssssss", $visitor_id, $full_name, $contact_number, $purpose, $person_visiting, $department, $location);
+            
+            if ($stmt->execute()) {
+                // Also insert into gate_logs
+                insertIntoGateLogs($db, 'visitor', 0, $visitor_id, $full_name, 'IN', $department, $location, date('Y-m-d H:i:s'), 'N/A');
+                
+                return [
+                    'success' => true, 
+                    'message' => 'Visitor access recorded successfully',
+                    'full_name' => $full_name,
+                    'id_number' => $visitor_id,
+                    'department' => $department,
+                    'role' => 'Visitor',
+                    'photo' => getPhotoForResponse(['person_type' => 'visitor']),
+                    'time_in_out' => 'Time In Recorded',
+                    'alert_class' => 'alert-success',
+                    'voice' => "Welcome {$full_name}. Time in recorded.",
+                    'time_in' => date('h:i A'),
+                    'status' => 'success',
+                    'attendance_type' => 'time_in'
+                ];
+            } else {
+                return ['success' => false, 'message' => 'Failed to record visitor access'];
+            }
+            
+            $stmt->close();
         }
-        
-        $stmt->close();
-        $checkStmt->close();
     } catch (Exception $e) {
         return ['success' => false, 'message' => 'Database error: ' . $e->getMessage()];
     }
 }
 
+/**
+ * Process visitor time out from submission (when visitor scans again after registration)
+ */
+function processVisitorTimeOutFromSubmission($db, $visitor_id, $department, $location) {
+    $updateStmt = $db->prepare("UPDATE visitor_logs SET time_out = NOW() WHERE visitor_id = ? AND DATE(time_in) = CURDATE() AND (time_out IS NULL OR time_out = '00:00:00')");
+    $updateStmt->bind_param("s", $visitor_id);
+    
+    if ($updateStmt->execute()) {
+        // Get visitor details for response
+        $visitorStmt = $db->prepare("SELECT full_name, time_in FROM visitor_logs WHERE visitor_id = ? AND DATE(time_in) = CURDATE() ORDER BY id DESC LIMIT 1");
+        $visitorStmt->bind_param("s", $visitor_id);
+        $visitorStmt->execute();
+        $visitorResult = $visitorStmt->get_result();
+        $visitorData = $visitorResult->fetch_assoc();
+        $visitorStmt->close();
+        
+        $full_name = $visitorData['full_name'] ?? 'Visitor';
+        $timeInDisplay = !empty($visitorData['time_in']) ? date('h:i A', strtotime($visitorData['time_in'])) : 'N/A';
+        
+        // Also update gate_logs
+        updateGateLogs($db, 'visitor', 0, $visitor_id, $full_name, 'OUT', $department, $location, date('Y-m-d H:i:s'));
+        
+        return [
+            'success' => true,
+            'message' => 'Visitor time out recorded successfully',
+            'full_name' => $full_name,
+            'id_number' => $visitor_id,
+            'department' => $department,
+            'role' => 'Visitor',
+            'photo' => getPhotoForResponse(['person_type' => 'visitor']),
+            'time_in_out' => 'Time Out Recorded',
+            'alert_class' => 'alert-warning',
+            'voice' => "Time out recorded for {$full_name}",
+            'time_out' => date('h:i A'),
+            'time_in' => $timeInDisplay,
+            'status' => 'success',
+            'attendance_type' => 'time_out'
+        ];
+    } else {
+        return [
+            'success' => false, 
+            'message' => 'Failed to record time out',
+            'error' => 'Failed to record time out'
+        ];
+    }
+    $updateStmt->close();
+}
 // ============================================
 // MAIN GATE PROCESSING LOGIC
 // ============================================
@@ -443,57 +538,90 @@ if ($result->num_rows > 0) {
             $person_type = 'personell';
             $stmt->close();
         } else {
+    $stmt->close();
+    
+    // FIRST: Check if this is a visitor that needs to time out (has time in but no time out today)
+    $visitor_timeout_query = "SELECT *, 'visitor' as person_type, full_name, visitor_id 
+                             FROM visitor_logs 
+                             WHERE visitor_id = ? 
+                             AND DATE(time_in) = CURDATE() 
+                             AND (time_out IS NULL OR time_out = '00:00:00' OR time_out = '')
+                             ORDER BY time_in DESC LIMIT 1";
+    $stmt = $db->prepare($visitor_timeout_query);
+    $stmt->bind_param("s", $barcode);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    error_log("VISITOR TIMEOUT CHECK: Found " . $result->num_rows . " visitors needing timeout for ID: " . $barcode);
+
+    if ($result->num_rows > 0) {
+        $person = $result->fetch_assoc();
+        $person_type = 'visitor';
+        $stmt->close();
+        
+        error_log("PROCESSING VISITOR TIMEOUT for: " . $person['full_name']);
+        
+        // Process visitor timeout
+        processVisitorTimeOut($db, $person, $current_department, $current_location);
+        exit;
+    } else {
+        $stmt->close();
+        
+        // SECOND: Check if this is a valid visitor card (in visitor table)
+        $visitor_card_query = "SELECT id, rfid_number FROM visitor WHERE rfid_number = ? LIMIT 1";
+        $stmt = $db->prepare($visitor_card_query);
+        $stmt->bind_param("s", $barcode);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows > 0) {
+            // This is a valid visitor card
+            $visitor_card = $result->fetch_assoc();
             $stmt->close();
             
-            // Check visitor logs for existing visitor (time out)
-            $visitor_log_query = "SELECT *, 'visitor' as person_type, full_name 
-                                 FROM visitor_logs 
-                                 WHERE visitor_id = ? 
-                                 AND DATE(time_in) = CURDATE() 
-                                 AND time_out IS NULL 
-                                 ORDER BY time_in DESC LIMIT 1";
-            $stmt = $db->prepare($visitor_log_query);
-            $stmt->bind_param("s", $barcode);
-            $stmt->execute();
-            $result = $stmt->get_result();
-
-            if ($result->num_rows > 0) {
-                $person = $result->fetch_assoc();
-                $person_type = 'visitor';
-                $stmt->close();
+            // Check if visitor has any record today (for debugging)
+            $today_visit_query = "SELECT id, time_in, time_out FROM visitor_logs WHERE visitor_id = ? AND DATE(time_in) = CURDATE() ORDER BY id DESC LIMIT 1";
+            $today_stmt = $db->prepare($today_visit_query);
+            $today_stmt->bind_param("s", $barcode);
+            $today_stmt->execute();
+            $today_result = $today_stmt->get_result();
+            
+            error_log("VISITOR TODAY CHECK: Found " . $today_result->num_rows . " visits today for ID: " . $barcode);
+            
+            if ($today_result->num_rows > 0) {
+                $today_visit = $today_result->fetch_assoc();
+                error_log("VISITOR TODAY DATA: time_in=" . ($today_visit['time_in'] ?? 'NULL') . ", time_out=" . ($today_visit['time_out'] ?? 'NULL'));
                 
-                // Process visitor timeout directly
-                processVisitorTimeOut($db, $person, $current_department, $current_location);
-                exit;
-            } else {
-                $stmt->close();
-                
-                // Check if this is a visitor card that hasn't been used today
-                $visitor_card_query = "SELECT id, rfid_number FROM visitor WHERE rfid_number = ? LIMIT 1";
-                $stmt = $db->prepare($visitor_card_query);
-                $stmt->bind_param("s", $barcode);
-                $stmt->execute();
-                $result = $stmt->get_result();
-                
-                if ($result->num_rows > 0) {
-                    // This is a valid visitor card but no record for today
-                    $visitor = $result->fetch_assoc();
-                    $stmt->close();
-                    
-                    // Return response indicating visitor info is needed
+                // Check if already timed out today
+                if (!empty($today_visit['time_out']) && $today_visit['time_out'] != '00:00:00') {
+                    // Visitor already completed visit today - allow new registration
                     echo json_encode([
                         'requires_visitor_info' => true, 
                         'visitor_id' => $barcode,
-                        'message' => 'Visitor card detected. Please provide visitor information.'
+                        'message' => 'New visit detected. Please provide visitor information.'
                     ]);
-                    exit;
                 } else {
-                    $stmt->close();
-                    echo json_encode(['error' => 'ID NOT FOUND']);
-                    exit;
+                    // This should have been caught by the first query - something went wrong
+                    error_log("VISITOR LOGIC ERROR: Should have been caught by timeout query");
+                    echo json_encode(['error' => 'Visitor processing error. Please try again.']);
                 }
+            } else {
+                // No visit today - require info for time in
+                echo json_encode([
+                    'requires_visitor_info' => true, 
+                    'visitor_id' => $barcode,
+                    'message' => 'Visitor card detected. Please provide visitor information.'
+                ]);
             }
+            $today_stmt->close();
+            exit;
+        } else {
+            $stmt->close();
+            echo json_encode(['error' => 'ID NOT FOUND']);
+            exit;
         }
+    }
+}
     }
 }
 
@@ -521,7 +649,7 @@ if ($result->num_rows > 0) {
     'student' => 'students_glogs',
     'instructor' => 'instructor_glogs',
     'personell' => 'personell_glogs',
-    'visitor' => 'visitor_glogs'
+    'visitor' => 'visitor_logs'
 ];
 
  $specific_table = $specific_log_tables[$person_type];
@@ -678,10 +806,15 @@ exit;
  * Process visitor time out
  */
 function processVisitorTimeOut($db, $visitor, $department, $location) {
-    $updateStmt = $db->prepare("UPDATE visitor_logs SET time_out = NOW() WHERE visitor_id = ? AND DATE(time_in) = CURDATE() AND time_out IS NULL");
+    error_log("ATTEMPTING VISITOR TIMEOUT for: " . $visitor['visitor_id']);
+    
+    $updateStmt = $db->prepare("UPDATE visitor_logs SET time_out = NOW() WHERE visitor_id = ? AND DATE(time_in) = CURDATE() AND (time_out IS NULL OR time_out = '00:00:00' OR time_out = '')");
     $updateStmt->bind_param("s", $visitor['visitor_id']);
     
     if ($updateStmt->execute()) {
+        $affected_rows = $updateStmt->affected_rows;
+        error_log("VISITOR TIMEOUT SUCCESS: Updated " . $affected_rows . " rows for visitor: " . $visitor['visitor_id']);
+        
         // Also update gate_logs
         updateGateLogs($db, 'visitor', 0, $visitor['visitor_id'], $visitor['full_name'], 'OUT', $department, $location, date('Y-m-d H:i:s'));
         
@@ -694,25 +827,41 @@ function processVisitorTimeOut($db, $visitor, $department, $location) {
         $timeInDisplay = !empty($timeInData['time_in']) ? date('h:i A', strtotime($timeInData['time_in'])) : 'N/A';
         $timeInStmt->close();
         
+        // Get photo for response
+        $photo_data = getPhotoForResponse(['person_type' => 'visitor']);
+        
+        // COMPLETE response matching the standard format
         echo json_encode([
             'full_name' => $visitor['full_name'],
             'id_number' => $visitor['visitor_id'],
             'department' => $department,
+            'location' => $location,
             'role' => 'Visitor',
-            'photo' => getPhotoForResponse(['person_type' => 'visitor']),
+            'photo' => $photo_data,
             'time_in_out' => 'Time Out Recorded',
             'alert_class' => 'alert-warning',
             'voice' => "Time out recorded for {$visitor['full_name']}",
             'time_out' => date('h:i A'),
             'time_in' => $timeInDisplay,
-            'status' => 'success'
+            'status' => 'success',
+            'attendance_type' => 'time_out',
+            'actual_time_in' => $timeInData['time_in'] ?? null,
+            'actual_time_out' => date('Y-m-d H:i:s'),
+            'display_time_in' => $timeInDisplay,
+            'display_time_out' => date('h:i A')
         ]);
     } else {
-        echo json_encode(['error' => 'Failed to record time out']);
+        error_log("VISITOR TIMEOUT FAILED: " . $updateStmt->error);
+        echo json_encode([
+            'error' => 'Failed to record time out: ' . $updateStmt->error,
+            'voice' => 'Error recording time out',
+            'time_in_out' => 'Failed to record time out',
+            'alert_class' => 'alert-danger',
+            'status' => 'error'
+        ]);
     }
     $updateStmt->close();
 }
-
 /**
  * Ensure gate_stats table exists (will be created automatically if missing)
  */

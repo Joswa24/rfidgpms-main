@@ -27,11 +27,14 @@ include 'connection.php';
 // =====================================================================
 // GET PENDING EXITS DETAILS - FIXED VERSION
 // =====================================================================
+// =====================================================================
+// GET PENDING EXITS DETAILS - FIXED VERSION WITH TIME_IN
+// =====================================================================
 function getPendingExits($db) {
     $query = "SELECT gl.id_number, 
                      COALESCE(s.fullname, i.fullname, CONCAT_WS(' ', p.first_name, p.last_name), v.name, gl.name) as full_name,
                      gl.person_type, 
-                     gl.created_at as entry_time
+                     gl.time_in as entry_time
               FROM gate_logs gl
               LEFT JOIN students s ON gl.person_type = 'student' AND gl.person_id = s.id
               LEFT JOIN instructor i ON gl.person_type = 'instructor' AND gl.person_id = i.id
@@ -45,7 +48,7 @@ function getPendingExits($db) {
                   WHERE direction = 'OUT' 
                   AND DATE(created_at) = CURDATE()
               )
-              ORDER BY gl.created_at DESC";
+              ORDER BY gl.time_in DESC";
     
     $stmt = $db->prepare($query);
     if (!$stmt) {
@@ -1049,10 +1052,15 @@ function debugNameResolution($log) {
                                             </span>
                                         </td>
                                         <td>
-                                            <small class="text-muted">
-                                                <?php echo date('M j, Y h:i A', strtotime($pending['entry_time'])); ?>
-                                            </small>
-                                        </td>
+                            <small class="text-muted">
+                                <?php 
+                                    $entryTime = $pending['entry_time'] ?? null;
+                                    echo $entryTime && $entryTime != '00:00:00' && $entryTime != '?' 
+                                        ? date('h:i A', strtotime($entryTime)) 
+                                        : '-';
+                                ?>
+                            </small>
+                        </td>
                                     </tr>
                                     <?php endforeach; ?>
                                 </tbody>
