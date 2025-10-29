@@ -112,6 +112,9 @@ if (isset($_GET['edit'])) {
             font-weight: 600;
             border: none;
             padding: 15px 12px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
 
         .table td {
@@ -123,7 +126,28 @@ if (isset($_GET['edit'])) {
         .table-responsive {
             border-radius: var(--border-radius);
             overflow: hidden;
-            max-height: 600px;
+            max-height: 700px; /* Increased from 600px */
+            position: relative;
+        }
+
+        /* Custom scrollbar for table */
+        .table-responsive::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        .table-responsive::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .table-responsive::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, var(--icon-color), #4361ee);
+            border-radius: 10px;
+        }
+
+        .table-responsive::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #4361ee, var(--icon-color));
         }
 
         .badge {
@@ -475,6 +499,31 @@ if (isset($_GET['edit'])) {
             display: flex;
             align-items: center;
         }
+
+        /* Form validation styles */
+        .form-control.is-invalid, .form-select.is-invalid {
+            border-color: var(--danger-color);
+            background-image: none;
+        }
+
+        .form-control.is-valid, .form-select.is-valid {
+            border-color: var(--success-color);
+            background-image: none;
+        }
+
+        .invalid-feedback {
+            color: var(--danger-color);
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+            display: block;
+        }
+
+        .valid-feedback {
+            color: var(--success-color);
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+            display: block;
+        }
     </style>
 </head>
 
@@ -770,7 +819,7 @@ if (isset($_GET['edit'])) {
                                                         <?php
                                                     endwhile; ?>
                                                     </select>
-                                                    <span class="error-message" id="department-error"></span>
+                                                    <div class="invalid-feedback" id="department-error"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -782,7 +831,7 @@ if (isset($_GET['edit'])) {
                                                         <option value="">Select Room</option>
                                                         <!-- Rooms will be populated dynamically based on department -->
                                                     </select>
-                                                    <span class="error-message" id="room_name-error"></span>
+                                                    <div class="invalid-feedback" id="room_name-error"></div>
                                                 </div>
                                             </div>
                                             <div class="col-lg-6 col-md-6 col-sm-12 mt-1">
@@ -795,7 +844,7 @@ if (isset($_GET['edit'])) {
                                                         <option value="3rd Year">3rd Year</option>
                                                         <option value="4th Year">4th Year</option>
                                                     </select>
-                                                    <span class="error-message" id="year_level-error"></span>
+                                                    <div class="invalid-feedback" id="year_level-error"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -807,14 +856,14 @@ if (isset($_GET['edit'])) {
                                                         <option value="">Select Subject</option>
                                                         <!-- Subjects will be populated dynamically based on year level -->
                                                     </select>
-                                                    <span class="error-message" id="subject-error"></span>
+                                                    <div class="invalid-feedback" id="subject-error"></div>
                                                 </div>
                                             </div>
                                             <div class="col-lg-6 col-md-6 col-sm-12">
                                                 <div class="form-group">
                                                     <label class="fw-bold">Section:</label>
                                                     <input type="text" name="section" id="add_section" class="form-control" required placeholder="Input Section..">
-                                                    <span class="error-message" id="section-error"></span>
+                                                    <div class="invalid-feedback" id="section-error"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -831,7 +880,7 @@ if (isset($_GET['edit'])) {
                                                         }
                                                         ?>
                                                     </select>
-                                                    <span class="error-message" id="day-error"></span>
+                                                    <div class="invalid-feedback" id="day-error"></div>
                                                 </div>
                                             </div>
                                             <div class="col-lg-8 col-md-6 col-sm-12">
@@ -849,7 +898,7 @@ if (isset($_GET['edit'])) {
                                                             </option>
                                                         <?php endwhile; ?>
                                                     </select>
-                                                    <span class="error-message" id="instructor-error"></span>
+                                                    <div class="invalid-feedback" id="instructor-error"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -858,14 +907,14 @@ if (isset($_GET['edit'])) {
                                                 <div class="form-group">
                                                     <label class="fw-bold">Start Time:</label>
                                                     <input type="time" name="start_time" id="add_start_time" class="form-control" required>
-                                                    <span class="error-message" id="start_time-error"></span>
+                                                    <div class="invalid-feedback" id="start_time-error"></div>
                                                 </div>
                                             </div>
                                             <div class="col-lg-6 col-md-6 col-sm-12">
                                                 <div class="form-group">
                                                     <label class="fw-bold">End Time:</label>
                                                     <input type="time" name="end_time" id="add_end_time" class="form-control" required>
-                                                    <span class="error-message" id="end_time-error"></span>
+                                                    <div class="invalid-feedback" id="end_time-error"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -911,14 +960,18 @@ if (isset($_GET['edit'])) {
                                                     <label class="fw-bold">Department:</label>
                                                     <select name="department" id="edepartment" class="form-control" required>
                                                         <option value="">Select Department</option>
+                                                        <?php 
+                                                        $all_departments->data_seek(0);
+                                                        while ($dept = $all_departments->fetch_assoc()):
+                                                        if ($dept['department_name'] !== 'Main'): 
+                                                        endif;?>
+                                                            <option value="<?= htmlspecialchars($dept['department_name']) ?>">
+                                                                <?= htmlspecialchars($dept['department_name']) ?>
+                                                            </option>
                                                         <?php
-                                                        $departments = $db->query("SELECT * FROM department ORDER BY department_name");
-                                                        while ($dept = $departments->fetch_assoc()) {
-                                                            echo '<option value="'.htmlspecialchars($dept['department_name']).'">'.htmlspecialchars($dept['department_name']).'</option>';
-                                                        }
-                                                        ?>
+                                                    endwhile; ?>
                                                     </select>
-                                                    <span class="error-message" id="edepartment-error"></span>
+                                                    <div class="invalid-feedback" id="edepartment-error"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -935,7 +988,7 @@ if (isset($_GET['edit'])) {
                                                         }
                                                         ?>
                                                     </select>
-                                                    <span class="error-message" id="eroom_name-error"></span>
+                                                    <div class="invalid-feedback" id="eroom_name-error"></div>
                                                 </div>
                                             </div>
                                             <div class="col-lg-6 col-md-6 col-sm-12 mt-1">
@@ -948,7 +1001,7 @@ if (isset($_GET['edit'])) {
                                                         <option value="3rd Year">3rd Year</option>
                                                         <option value="4th Year">4th Year</option>
                                                     </select>
-                                                    <span class="error-message" id="eyear_level-error"></span>
+                                                    <div class="invalid-feedback" id="eyear_level-error"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -968,14 +1021,14 @@ if (isset($_GET['edit'])) {
                                                         }
                                                         ?>
                                                     </select>
-                                                    <span class="error-message" id="esubject-error"></span>
+                                                    <div class="invalid-feedback" id="esubject-error"></div>
                                                 </div>
                                             </div>
                                             <div class="col-lg-6 col-md-6 col-sm-12">
                                                 <div class="form-group">
                                                     <label class="fw-bold">Section:</label>
                                                     <input type="text" name="section" id="esection" class="form-control" required>
-                                                    <span class="error-message" id="esection-error"></span>
+                                                    <div class="invalid-feedback" id="esection-error"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -991,7 +1044,7 @@ if (isset($_GET['edit'])) {
                                                         }
                                                         ?>
                                                     </select>
-                                                    <span class="error-message" id="eday-error"></span>
+                                                    <div class="invalid-feedback" id="eday-error"></div>
                                                 </div>
                                             </div>
                                             <div class="col-lg-8 col-md-6 col-sm-12">
@@ -1006,7 +1059,7 @@ if (isset($_GET['edit'])) {
                                                         }
                                                         ?>
                                                     </select>
-                                                    <span class="error-message" id="einstructor-error"></span>
+                                                    <div class="invalid-feedback" id="einstructor-error"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1015,14 +1068,14 @@ if (isset($_GET['edit'])) {
                                                 <div class="form-group">
                                                     <label class="fw-bold">Start Time:</label>
                                                     <input type="time" name="start_time" id="estart_time" class="form-control" required>
-                                                    <span class="error-message" id="estart_time-error"></span>
+                                                    <div class="invalid-feedback" id="estart_time-error"></div>
                                                 </div>
                                             </div>
                                             <div class="col-lg-6 col-md-6 col-sm-12">
                                                 <div class="form-group">
                                                     <label class="fw-bold">End Time:</label>
                                                     <input type="time" name="end_time" id="eend_time" class="form-control" required>
-                                                    <span class="error-message" id="eend_time-error"></span>
+                                                    <div class="invalid-feedback" id="eend_time-error"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1068,7 +1121,7 @@ if (isset($_GET['edit'])) {
                                                 </option>
                                             <?php endwhile; ?>
                                         </select>
-                                        <span class="error-message" id="swap_instructor1-error"></span>
+                                        <div class="invalid-feedback" id="swap_instructor1-error"></div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
@@ -1084,7 +1137,7 @@ if (isset($_GET['edit'])) {
                                                 </option>
                                             <?php endwhile; ?>
                                         </select>
-                                        <span class="error-message" id="swap_instructor2-error"></span>
+                                        <div class="invalid-feedback" id="swap_instructor2-error"></div>
                                     </div>
                                 </div>
                             </div>
@@ -1103,7 +1156,7 @@ if (isset($_GET['edit'])) {
                                                 </option>
                                             <?php endwhile; ?>
                                         </select>
-                                        <span class="error-message" id="swap_room-error"></span>
+                                        <div class="invalid-feedback" id="swap_room-error"></div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
@@ -1118,7 +1171,7 @@ if (isset($_GET['edit'])) {
                                             }
                                             ?>
                                         </select>
-                                        <span class="error-message" id="swap_day-error"></span>
+                                        <div class="invalid-feedback" id="swap_day-error"></div>
                                     </div>
                                 </div>
                             </div>
@@ -1245,12 +1298,20 @@ if (isset($_GET['edit'])) {
         }
 
         $(document).ready(function() {
-            // Initialize DataTable
+            // Initialize DataTable with enhanced scrolling
             var dataTable = $('#myDataTable').DataTable({
                 order: [[8, 'desc']],
                 stateSave: true,
                 language: {
                     search: "Search all columns:"
+                },
+                scrollY: '600px', // Set fixed height for vertical scrolling
+                scrollX: true,    // Enable horizontal scrolling
+                scrollCollapse: true,
+                paging: false,    // Disable pagination to use scrolling instead
+                fixedHeader: {
+                    header: true,
+                    headerOffset: $('#navbar').outerHeight()
                 }
             });
 
@@ -1515,10 +1576,107 @@ if (isset($_GET['edit'])) {
             // Reset ADD modal when closed
             $('#scheduleModal').on('hidden.bs.modal', function () {
                 $(this).find('form')[0].reset();
-                $('.error-message').text('');
+                $('.invalid-feedback').text('');
+                $('.form-control, .form-select').removeClass('is-invalid is-valid');
                 // Reset dropdowns to show all options
                 filterRoomsByDepartment('');
                 filterSubjectsByYearLevel('');
+            });
+
+            // =============================================
+            // EDIT MODAL FILTERING FUNCTIONALITY
+            // =============================================
+
+            // Function to filter rooms based on selected department in EDIT modal
+            function filterEditRoomsByDepartment(department) {
+                const roomSelect = $('#eroom_name');
+                roomSelect.empty().append('<option value="">Select Room</option>');
+                
+                if (department) {
+                    const filteredRooms = roomData.filter(room => room.department === department);
+                    
+                    if (filteredRooms.length === 0) {
+                        roomSelect.append('<option value="" disabled class="option-disabled">No rooms available for this department</option>');
+                    } else {
+                        filteredRooms.forEach(room => {
+                            roomSelect.append(`<option value="${room.room}">${room.room}</option>`);
+                        });
+                    }
+                } else {
+                    // Show all rooms if no department selected
+                    roomData.forEach(room => {
+                        roomSelect.append(`<option value="${room.room}">${room.room}</option>`);
+                    });
+                }
+            }
+
+            // Function to filter subjects based on selected year level in EDIT modal
+            function filterEditSubjectsByYearLevel(yearLevel) {
+                const subjectSelect = $('#esubject');
+                subjectSelect.empty().append('<option value="">Select Subject</option>');
+                
+                if (yearLevel) {
+                    const filteredSubjects = subjectData.filter(subject => subject.year_level === yearLevel);
+                    
+                    if (filteredSubjects.length === 0) {
+                        subjectSelect.append('<option value="" disabled class="option-disabled">No subjects available for this year level</option>');
+                    } else {
+                        filteredSubjects.forEach(subject => {
+                            subjectSelect.append(`<option value="${subject.subject_name}">${subject.subject_code} - ${subject.subject_name}</option>`);
+                        });
+                    }
+                } else {
+                    // Show all subjects if no year level selected
+                    subjectData.forEach(subject => {
+                        subjectSelect.append(`<option value="${subject.subject_name}">${subject.subject_code} - ${subject.subject_name}</option>`);
+                    });
+                }
+            }
+
+            // Department change handler for EDIT modal
+            $('#edepartment').change(function() {
+                const selectedDepartment = $(this).val();
+                filterEditRoomsByDepartment(selectedDepartment);
+                
+                // Auto-select room if only one option available
+                const roomSelect = $('#eroom_name');
+                if (roomSelect.find('option').length === 2 && !roomSelect.find('option:first').hasClass('option-disabled')) {
+                    roomSelect.val(roomSelect.find('option:last').val());
+                }
+            });
+
+            // Year level change handler for EDIT modal
+            $('#eyear_level').change(function() {
+                const selectedYearLevel = $(this).val();
+                filterEditSubjectsByYearLevel(selectedYearLevel);
+                
+                // Auto-select subject if only one option available
+                const subjectSelect = $('#esubject');
+                if (subjectSelect.find('option').length === 2 && !subjectSelect.find('option:first').hasClass('option-disabled')) {
+                    subjectSelect.val(subjectSelect.find('option:last').val());
+                }
+            });
+
+            // Room selection handler to auto-fill department in EDIT modal
+            $('#eroom_name').change(function() {
+                const selectedRoom = $(this).val();
+                if (selectedRoom) {
+                    const room = roomData.find(r => r.room === selectedRoom);
+                    if (room) {
+                        $('#edepartment').val(room.department);
+                    }
+                }
+            });
+
+            // Subject selection handler to auto-fill year level in EDIT modal
+            $('#esubject').change(function() {
+                const selectedSubject = $(this).val();
+                if (selectedSubject) {
+                    const subject = subjectData.find(s => s.subject_name === selectedSubject);
+                    if (subject) {
+                        $('#eyear_level').val(subject.year_level);
+                    }
+                }
             });
 
             // ==========
@@ -1541,6 +1699,10 @@ if (isset($_GET['edit'])) {
 
                 console.log('Editing schedule:', id, $getroomname, $getsubject);
 
+                // Clear any previous validation messages
+                $('.invalid-feedback').text('');
+                $('.form-control, .form-select').removeClass('is-invalid is-valid');
+                
                 // Populate edit form
                 $('#edit_scheduleid').val(id);
                 $('#edepartment').val($getdepartment);
@@ -1553,9 +1715,6 @@ if (isset($_GET['edit'])) {
                 $('#estart_time').val($getstarttime);
                 $('#eend_time').val($getendtime);
                 
-                // Clear any previous error messages
-                $('.error-message').text('');
-                
                 // Show modal
                 $('#editscheduleModal').modal('show');
             });
@@ -1566,7 +1725,10 @@ if (isset($_GET['edit'])) {
             $('#scheduleForm').submit(function(e) {
                 e.preventDefault();
                 
-                $('.error-message').text('');
+                // Clear previous validation messages
+                $('.invalid-feedback').text('');
+                $('.form-control, .form-select').removeClass('is-invalid is-valid');
+                
                 const department = $('#add_department').val();
                 const room_name = $('#add_room_name').val();
                 const year_level = $('#add_year_level').val();
@@ -1581,42 +1743,79 @@ if (isset($_GET['edit'])) {
 
                 // Validation
                 if (!department) { 
+                    $('#add_department').addClass('is-invalid');
                     $('#department-error').text('Department is required'); 
                     isValid = false; 
+                } else {
+                    $('#add_department').addClass('is-valid');
                 }
+                
                 if (!room_name) { 
+                    $('#add_room_name').addClass('is-invalid');
                     $('#room_name-error').text('Room name is required'); 
                     isValid = false; 
+                } else {
+                    $('#add_room_name').addClass('is-valid');
                 }
+                
                 if (!year_level) { 
+                    $('#add_year_level').addClass('is-invalid');
                     $('#year_level-error').text('Year level is required'); 
                     isValid = false; 
+                } else {
+                    $('#add_year_level').addClass('is-valid');
                 }
+                
                 if (!subject) { 
+                    $('#add_subject').addClass('is-invalid');
                     $('#subject-error').text('Subject is required'); 
                     isValid = false; 
+                } else {
+                    $('#add_subject').addClass('is-valid');
                 }
+                
                 if (!section) { 
+                    $('#add_section').addClass('is-invalid');
                     $('#section-error').text('Section is required'); 
                     isValid = false; 
+                } else {
+                    $('#add_section').addClass('is-valid');
                 }
+                
                 if (!day) { 
+                    $('#add_day').addClass('is-invalid');
                     $('#day-error').text('Day is required'); 
                     isValid = false; 
+                } else {
+                    $('#add_day').addClass('is-valid');
                 }
+                
                 if (!instructor) { 
+                    $('#add_instructor').addClass('is-invalid');
                     $('#instructor-error').text('Instructor is required'); 
                     isValid = false; 
+                } else {
+                    $('#add_instructor').addClass('is-valid');
                 }
+                
                 if (!start_time) { 
+                    $('#add_start_time').addClass('is-invalid');
                     $('#start_time-error').text('Start time is required'); 
                     isValid = false; 
+                } else {
+                    $('#add_start_time').addClass('is-valid');
                 }
+                
                 if (!end_time) { 
+                    $('#add_end_time').addClass('is-invalid');
                     $('#end_time-error').text('End time is required'); 
                     isValid = false; 
+                } else {
+                    $('#add_end_time').addClass('is-valid');
                 }
+                
                 if (start_time && end_time && start_time >= end_time) {
+                    $('#add_start_time, #add_end_time').addClass('is-invalid');
                     $('#start_time-error, #end_time-error').text('End time must be after start time'); 
                     isValid = false; 
                 }
@@ -1702,6 +1901,10 @@ if (isset($_GET['edit'])) {
             $('#editScheduleForm').submit(function(e) {
                 e.preventDefault();
                 
+                // Clear previous validation messages
+                $('.invalid-feedback').text('');
+                $('.form-control, .form-select').removeClass('is-invalid is-valid');
+                
                 const id = $('#edit_scheduleid').val();
                 const department = $('#edepartment').val();
                 const room_name = $('#eroom_name').val();
@@ -1715,65 +1918,83 @@ if (isset($_GET['edit'])) {
 
                 // Validation
                 let isValid = true;
+                
                 if (!department) { 
+                    $('#edepartment').addClass('is-invalid');
                     $('#edepartment-error').text('Department is required'); 
                     isValid = false; 
-                } else { 
-                    $('#edepartment-error').text(''); 
+                } else {
+                    $('#edepartment').addClass('is-valid');
                 }
+                
                 if (!room_name) { 
+                    $('#eroom_name').addClass('is-invalid');
                     $('#eroom_name-error').text('Room name is required'); 
                     isValid = false; 
-                } else { 
-                    $('#eroom_name-error').text(''); 
+                } else {
+                    $('#eroom_name').addClass('is-valid');
                 }
+                
                 if (!year_level) { 
+                    $('#eyear_level').addClass('is-invalid');
                     $('#eyear_level-error').text('Year level is required'); 
                     isValid = false; 
-                } else { 
-                    $('#eyear_level-error').text(''); 
+                } else {
+                    $('#eyear_level').addClass('is-valid');
                 }
+                
                 if (!subject) { 
+                    $('#esubject').addClass('is-invalid');
                     $('#esubject-error').text('Subject is required'); 
                     isValid = false; 
-                } else { 
-                    $('#esubject-error').text(''); 
+                } else {
+                    $('#esubject').addClass('is-valid');
                 }
+                
                 if (!section) { 
+                    $('#esection').addClass('is-invalid');
                     $('#esection-error').text('Section is required'); 
                     isValid = false; 
-                } else { 
-                    $('#esection-error').text(''); 
+                } else {
+                    $('#esection').addClass('is-valid');
                 }
+                
                 if (!day) { 
+                    $('#eday').addClass('is-invalid');
                     $('#eday-error').text('Day is required'); 
                     isValid = false; 
-                } else { 
-                    $('#eday-error').text(''); 
+                } else {
+                    $('#eday').addClass('is-valid');
                 }
+                
                 if (!instructor) { 
+                    $('#einstructor').addClass('is-invalid');
                     $('#einstructor-error').text('Instructor is required'); 
                     isValid = false; 
-                } else { 
-                    $('#einstructor-error').text(''); 
+                } else {
+                    $('#einstructor').addClass('is-valid');
                 }
+                
                 if (!start_time) { 
+                    $('#estart_time').addClass('is-invalid');
                     $('#estart_time-error').text('Start time is required'); 
                     isValid = false; 
-                } else { 
-                    $('#estart_time-error').text(''); 
+                } else {
+                    $('#estart_time').addClass('is-valid');
                 }
+                
                 if (!end_time) { 
+                    $('#eend_time').addClass('is-invalid');
                     $('#eend_time-error').text('End time is required'); 
                     isValid = false; 
-                } else { 
-                    $('#eend_time-error').text(''); 
+                } else {
+                    $('#eend_time').addClass('is-valid');
                 }
+                
                 if (start_time && end_time && start_time >= end_time) {
+                    $('#estart_time, #eend_time').addClass('is-invalid');
                     $('#estart_time-error, #eend_time-error').text('End time must be after start time'); 
                     isValid = false; 
-                } else {
-                    $('#estart_time-error, #eend_time-error').text(''); 
                 }
                 
                 if (!isValid) return;
@@ -1919,7 +2140,8 @@ if (isset($_GET['edit'])) {
 
             // Reset edit modal when closed
             $('#editscheduleModal').on('hidden.bs.modal', function () {
-                $('.error-message').text('');
+                $('.invalid-feedback').text('');
+                $('.form-control, .form-select').removeClass('is-invalid is-valid');
             });
 
 
@@ -1936,7 +2158,8 @@ if (isset($_GET['edit'])) {
             // Find schedules button click handler
             $('#findSchedulesBtn').click(function() {
                 // Clear previous results and errors
-                $('.error-message').text('');
+                $('.invalid-feedback').text('');
+                $('.form-control, .form-select').removeClass('is-invalid is-valid');
                 $('#swapPreview').hide();
                 $('#confirmSwapBtn').prop('disabled', true);
                 instructor1Schedules = [];
@@ -1954,28 +2177,41 @@ if (isset($_GET['edit'])) {
                 let isValid = true;
                 
                 if (!instructor1) {
+                    $('#swap_instructor1').addClass('is-invalid');
                     $('#swap_instructor1-error').text('Please select the first instructor');
                     isValid = false;
+                } else {
+                    $('#swap_instructor1').addClass('is-valid');
                 }
                 
                 if (!instructor2) {
+                    $('#swap_instructor2').addClass('is-invalid');
                     $('#swap_instructor2-error').text('Please select the second instructor');
                     isValid = false;
+                } else {
+                    $('#swap_instructor2').addClass('is-valid');
                 }
                 
                 if (instructor1 === instructor2) {
+                    $('#swap_instructor1, #swap_instructor2').addClass('is-invalid');
                     $('#swap_instructor1-error, #swap_instructor2-error').text('Please select two different instructors');
                     isValid = false;
                 }
                 
                 if (!room) {
+                    $('#swap_room').addClass('is-invalid');
                     $('#swap_room-error').text('Please select a room');
                     isValid = false;
+                } else {
+                    $('#swap_room').addClass('is-valid');
                 }
                 
                 if (!day) {
+                    $('#swap_day').addClass('is-invalid');
                     $('#swap_day-error').text('Please select a day');
                     isValid = false;
+                } else {
+                    $('#swap_day').addClass('is-valid');
                 }
                 
                 if (!isValid) return;
@@ -2250,7 +2486,8 @@ if (isset($_GET['edit'])) {
             // Reset swap modal when closed
             $('#swapScheduleModal').on('hidden.bs.modal', function () {
                 $(this).find('form')[0].reset();
-                $('.error-message').text('');
+                $('.invalid-feedback').text('');
+                $('.form-control, .form-select').removeClass('is-invalid is-valid');
                 $('#swapPreview').hide();
                 $('#confirmSwapBtn').prop('disabled', true);
                 instructor1Schedules = [];

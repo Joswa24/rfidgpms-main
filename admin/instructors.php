@@ -399,6 +399,17 @@ function getInstructorPhoto($photo) {
         .photo-preview-container:hover .instructor-photo {
             transform: scale(1.05);
         }
+
+        /* Validation styles */
+        .input-error {
+            border-color: var(--danger-color) !important;
+            box-shadow: 0 0 0 3px rgba(231, 74, 59, 0.15) !important;
+        }
+
+        .input-valid {
+            border-color: var(--success-color) !important;
+            box-shadow: 0 0 0 3px rgba(28, 200, 138, 0.15) !important;
+        }
     </style>
 </head>
 
@@ -530,7 +541,8 @@ function getInstructorPhoto($photo) {
                                                     <select required class="form-control dept_ID" name="department_id" id="department_id" autocomplete="off">
                                                         <option value="">Select Department</option>
                                                         <?php
-                                                            $sql = "SELECT * FROM department ORDER BY department_name";
+                                                            // Modified query to exclude "Main" department
+                                                            $sql = "SELECT * FROM department WHERE department_name != 'Main' ORDER BY department_name";
                                                             $result = $db->query($sql);
                                                             while ($dept = $result->fetch_assoc()) {
                                                                 echo "<option value='{$dept['department_id']}'>{$dept['department_name']}</option>";
@@ -544,7 +556,7 @@ function getInstructorPhoto($photo) {
                                             <div class="col-lg-5 col-md-6 col-sm-12" id="idnumberz">
                                                 <div class="form-group">
                                                     <label><b>ID Number:</b></label>
-                                                    <input required type="text" class="form-control" name="id_number" id="id_number" autocomplete="off" placeholder="0000-0000">
+                                                    <input required type="text" class="form-control" name="id_number" id="id_number" autocomplete="off" placeholder="0000-0000" maxlength="9">
                                                     <span class="error-message" id="id_number-error"></span>
                                                 </div>
                                             </div>
@@ -610,7 +622,8 @@ function getInstructorPhoto($photo) {
                                                     <select class="form-control dept_ID" name="department_id" id="edepartment_id" autocomplete="off">
                                                         <option class="edit-dept-val" value=""></option>
                                                         <?php
-                                                            $sql = "SELECT * FROM department ORDER BY department_name";
+                                                            // Modified query to exclude "Main" department
+                                                            $sql = "SELECT * FROM department WHERE department_name != 'Main' ORDER BY department_name";
                                                             $result = $db->query($sql);
                                                             while ($dept = $result->fetch_assoc()) {
                                                                 echo "<option value='{$dept['department_id']}'>{$dept['department_name']}</option>";
@@ -624,7 +637,7 @@ function getInstructorPhoto($photo) {
                                             <div class="col-lg-5 col-md-6 col-sm-12" id="idnumberz">
                                                 <div class="form-group">
                                                     <label><b>ID Number:</b></label>
-                                                    <input required type="text" class="form-control edit-idnumber" name="id_number" id="eid_number" autocomplete="off" placeholder="0000-0000">
+                                                    <input required type="text" class="form-control edit-idnumber" name="id_number" id="eid_number" autocomplete="off" placeholder="0000-0000" maxlength="9">
                                                     <span class="error-message" id="eid_number-error"></span>
                                                 </div>
                                             </div>
@@ -684,13 +697,87 @@ function getInstructorPhoto($photo) {
                 $('.preview-1').attr('src', '../assets/img/pngtree-vector-add-user-icon-png-image_780447.jpg');
             }
 
-            // Format ID number input as user types
-            $('#id_number, #eid_number').on('input', function() {
-                var value = $(this).val().replace(/-/g, '');
+            // Input validation for ID Number - only allow numbers and dash
+            function validateIdNumber(input) {
+                // Remove any non-digit or non-dash characters
+                let value = input.value.replace(/[^\d-]/g, '');
+                
+                // Format as 0000-0000
                 if (value.length > 4) {
                     value = value.substring(0, 4) + '-' + value.substring(4, 8);
                 }
-                $(this).val(value);
+                
+                input.value = value;
+            }
+
+            // Enhanced ID Number formatting function
+            function formatIdNumber(input) {
+                let value = input.value.replace(/[^\d]/g, ''); // Remove all non-digits
+                
+                // If user enters 8 digits directly (00000000), format as 0000-0000
+                if (value.length === 8) {
+                    value = value.substring(0, 4) + '-' + value.substring(4, 8);
+                }
+                // If user enters more than 4 digits, add dash after 4th digit
+                else if (value.length > 4) {
+                    value = value.substring(0, 4) + '-' + value.substring(4, 8);
+                }
+                
+                input.value = value;
+            }
+
+            // Input validation for Full Name - only allow letters and certain special characters
+            function validateFullName(input) {
+                // Allow letters, spaces, hyphens, apostrophes, and periods
+                let value = input.value.replace(/[^a-zA-Z\s\-\.\']/g, '');
+                
+                // Capitalize first letter of each word
+                value = value.replace(/\b\w/g, l => l.toUpperCase());
+                
+                input.value = value;
+            }
+
+            // Apply validation to ID Number fields
+            $('#id_number').on('input', function() {
+                formatIdNumber(this);
+            });
+
+            $('#eid_number').on('input', function() {
+                formatIdNumber(this);
+            });
+
+            // Apply validation to Full Name fields
+            $('#fullname').on('input', function() {
+                validateFullName(this);
+            });
+
+            $('#efullname').on('input', function() {
+                validateFullName(this);
+            });
+
+            // Prevent paste of invalid characters
+            $('#id_number, #eid_number').on('paste', function(e) {
+                e.preventDefault();
+                let pasteData = (e.originalEvent.clipboardData || window.clipboardData).getData('text');
+                let sanitizedData = pasteData.replace(/[^\d-]/g, '');
+                
+                // Format as 0000-0000
+                if (sanitizedData.length > 4) {
+                    sanitizedData = sanitizedData.substring(0, 4) + '-' + sanitizedData.substring(4, 8);
+                }
+                
+                this.value = sanitizedData;
+            });
+
+            $('#fullname, #efullname').on('paste', function(e) {
+                e.preventDefault();
+                let pasteData = (e.originalEvent.clipboardData || window.clipboardData).getData('text');
+                let sanitizedData = pasteData.replace(/[^a-zA-Z\s\-\.\']/g, '');
+                
+                // Capitalize first letter of each word
+                sanitizedData = sanitizedData.replace(/\b\w/g, l => l.toUpperCase());
+                
+                this.value = sanitizedData;
             });
 
             // Enhanced AJAX error handling
@@ -765,18 +852,34 @@ function getInstructorPhoto($photo) {
                 // Validation
                 if (!department_id) { 
                     $('#department_id-error').text('Department is required'); 
+                    $('#department_id').addClass('input-error');
                     isValid = false; 
+                } else {
+                    $('#department_id').removeClass('input-error').addClass('input-valid');
                 }
+                
                 if (!id_number) { 
                     $('#id_number-error').text('ID Number is required'); 
+                    $('#id_number').addClass('input-error');
                     isValid = false; 
                 } else if (!/^\d{4}-\d{4}$/.test(id_number)) {
                     $('#id_number-error').text('Invalid ID format. Must be in 0000-0000 format'); 
+                    $('#id_number').addClass('input-error');
                     isValid = false; 
+                } else {
+                    $('#id_number').removeClass('input-error').addClass('input-valid');
                 }
+                
                 if (!fullname) { 
                     $('#fullname-error').text('Full name is required'); 
+                    $('#fullname').addClass('input-error');
                     isValid = false; 
+                } else if (!/^[a-zA-Z\s\-\.\']+$/.test(fullname)) {
+                    $('#fullname-error').text('Full name should only contain letters, spaces, hyphens, apostrophes, and periods'); 
+                    $('#fullname').addClass('input-error');
+                    isValid = false; 
+                } else {
+                    $('#fullname').removeClass('input-error').addClass('input-valid');
                 }
                 
                 // Photo validation
@@ -870,24 +973,34 @@ function getInstructorPhoto($photo) {
                 let isValid = true;
                 if (!department_id) { 
                     $('#edepartment_id-error').text('Department is required'); 
+                    $('#edepartment_id').addClass('input-error');
                     isValid = false; 
                 } else { 
-                    $('#edepartment_id-error').text(''); 
+                    $('#edepartment_id').removeClass('input-error').addClass('input-valid');
                 }
+                
                 if (!id_number) { 
                     $('#eid_number-error').text('ID Number is required'); 
+                    $('#eid_number').addClass('input-error');
                     isValid = false; 
                 } else if (!/^\d{4}-\d{4}$/.test(id_number)) {
                     $('#eid_number-error').text('Invalid ID format. Must be in 0000-0000 format'); 
+                    $('#eid_number').addClass('input-error');
                     isValid = false; 
                 } else { 
-                    $('#eid_number-error').text(''); 
+                    $('#eid_number').removeClass('input-error').addClass('input-valid');
                 }
+                
                 if (!fullname) { 
                     $('#efullname-error').text('Full name is required'); 
+                    $('#efullname').addClass('input-error');
+                    isValid = false; 
+                } else if (!/^[a-zA-Z\s\-\.\']+$/.test(fullname)) {
+                    $('#efullname-error').text('Full name should only contain letters, spaces, hyphens, apostrophes, and periods'); 
+                    $('#efullname').addClass('input-error');
                     isValid = false; 
                 } else { 
-                    $('#efullname-error').text(''); 
+                    $('#efullname').removeClass('input-error').addClass('input-valid');
                 }
                 
                 // Photo validation for update
@@ -1039,10 +1152,12 @@ function getInstructorPhoto($photo) {
             // Reset modal when closed
             $('#instructorModal').on('hidden.bs.modal', function () {
                 resetForm();
+                $('.form-control').removeClass('input-error input-valid');
             });
 
             $('#editinstructorModal').on('hidden.bs.modal', function () {
                 $('.error-message').text('');
+                $('.form-control').removeClass('input-error input-valid');
             });
 
             // Image preview functionality for both forms

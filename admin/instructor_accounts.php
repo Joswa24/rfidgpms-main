@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $stmt->close();
         
         // Redirect to prevent form resubmission
-        header("Location: manage_instructor_accounts.php");
+        header("Location: instructor_accounts.php");
         exit;
         
     } elseif (isset($_POST['update_account'])) {
@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $stmt->close();
         
         // Redirect to prevent form resubmission
-        header("Location: manage_instructor_accounts.php");
+        header("Location: instructor_accounts.php");
         exit;
         
     } elseif (isset($_POST['delete_account'])) {
@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $stmt->close();
         
         // Redirect to prevent form resubmission
-        header("Location: manage_instructor_accounts.php");
+        header("Location: instructor_accounts.php");
         exit;
     }
 }
@@ -81,9 +81,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     ORDER BY i.fullname
 ");
 
-// CORRECTED: Fetch all instructor accounts with instructor details
+// CORRECTED: Fetch all instructor accounts with instructor details and photos
  $accounts_query = "
-    SELECT ia.*, i.fullname, i.id_number, i.department_id, d.department_name 
+    SELECT ia.*, i.fullname, i.id_number, i.department_id, i.photo, d.department_name 
     FROM instructor_accounts ia 
     INNER JOIN instructor i ON ia.instructor_id = i.id 
     LEFT JOIN department d ON i.department_id = d.department_id 
@@ -95,6 +95,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 if (!$accounts_result) {
     die("Query failed: " . $db->error);
 }
+
+// Define photo directory path
+ $photo_directory = "../uploads/instructors/";
 ?>
 
 <!DOCTYPE html>
@@ -431,6 +434,13 @@ if (!$accounts_result) {
             transform: translateY(-50%);
             cursor: pointer;
             color: var(--dark-text);
+            z-index: 10;
+            background: transparent;
+            border: none;
+        }
+
+        .toggle-password:hover {
+            color: var(--icon-color);
         }
 
         .status-badge {
@@ -438,8 +448,8 @@ if (!$accounts_result) {
             padding: 0.35em 0.65em;
         }
 
-        /* Instructor icon styling */
-        .instructor-icon {
+        /* Instructor photo styling */
+        .instructor-photo {
             width: 40px;
             height: 40px;
             border-radius: 50%;
@@ -452,6 +462,51 @@ if (!$accounts_result) {
             color: white;
             font-size: 1.2rem;
             box-shadow: 0 4px 8px rgba(92, 149, 233, 0.3);
+        }
+
+        .instructor-photo img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        /* Password strength indicator */
+        .password-strength {
+            height: 5px;
+            margin-top: 5px;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .strength-weak {
+            background-color: #dc3545;
+            width: 25%;
+        }
+
+        .strength-fair {
+            background-color: #fd7e14;
+            width: 50%;
+        }
+
+        .strength-good {
+            background-color: #ffc107;
+            width: 75%;
+        }
+
+        .strength-strong {
+            background-color: #198754;
+            width: 100%;
+        }
+
+        .password-feedback {
+            font-size: 0.875rem;
+            margin-top: 5px;
+        }
+
+        .password-masked {
+            font-family: monospace;
+            letter-spacing: 2px;
         }
     </style>
 </head>
@@ -507,8 +562,8 @@ if (!$accounts_result) {
                                     <tr>
                                         <th scope="col">Instructor</th>
                                         <th scope="col">ID Number</th>
-                                        <th scope="col">Department</th>
                                         <th scope="col">Username</th>
+                                        <th scope="col">Password</th>
                                         <th scope="col">Last Login</th>
                                         <th scope="col">Status</th>
                                         <th scope="col">Action</th>
@@ -520,17 +575,26 @@ if (!$accounts_result) {
                                             <tr class="table-<?php echo $account['id'];?>">
                                                 <td>
                                                     <div class="d-flex align-items-center">
-                                                        <div class="instructor-icon me-2">
-                                                            <i class="fas fa-user-tie"></i>
+                                                        <div class="instructor-photo me-2">
+                                                            <?php if (!empty($account['photo']) && file_exists($photo_directory . $account['photo'])): ?>
+                                                                <img src="<?php echo $photo_directory . $account['photo']; ?>" alt="<?php echo htmlspecialchars($account['fullname']); ?>">
+                                                            <?php else: ?>
+                                                                <i class="fas fa-user-tie"></i>
+                                                            <?php endif; ?>
                                                         </div>
-                                                        <strong><?php echo htmlspecialchars($account['fullname']); ?></strong>
+                                                        <div>
+                                                            <strong><?php echo htmlspecialchars($account['fullname']); ?></strong><br>
+                                                            <small class="text-muted"><?php echo htmlspecialchars($account['department_name'] ?? 'N/A'); ?></small>
+                                                        </div>
                                                     </div>
                                                 </td>
                                                 <td><?php echo htmlspecialchars($account['id_number']); ?></td>
-                                                <td><?php echo htmlspecialchars($account['department_name'] ?? 'N/A'); ?></td>
                                                 <td><?php echo htmlspecialchars($account['username']); ?></td>
                                                 <td>
-                                                    <?php echo $account['last_login'] ? date('M j, Y g:i A', strtotime($account['last_login'])) : 'Never'; ?>
+                                                    <span class="password-masked">••••••••</span>
+                                                </td>
+                                                <td>
+                                                    <?php echo $account['last_login'] ? date('M j, Y', strtotime($account['last_login'])) : 'Never'; ?>
                                                 </td>
                                                 <td>
                                                     <span class="badge bg-success status-badge">Active</span>
@@ -625,17 +689,20 @@ if (!$accounts_result) {
                                     <label for="password" class="form-label">Password</label>
                                     <input type="password" class="form-control" id="password" name="password" required 
                                            placeholder="Enter password">
-                                    <span class="toggle-password" onclick="togglePassword('password')">
+                                    <button type="button" class="toggle-password" onclick="togglePassword('password')">
                                         <i class="fas fa-eye"></i>
-                                    </span>
+                                    </button>
+                                    <div class="password-strength" id="passwordStrength"></div>
+                                    <div class="password-feedback" id="passwordFeedback"></div>
                                 </div>
                                 <div class="mb-3 password-field">
                                     <label for="confirm_password" class="form-label">Confirm Password</label>
                                     <input type="password" class="form-control" id="confirm_password" name="confirm_password" required 
                                            placeholder="Confirm password">
-                                    <span class="toggle-password" onclick="togglePassword('confirm_password')">
+                                    <button type="button" class="toggle-password" onclick="togglePassword('confirm_password')">
                                         <i class="fas fa-eye"></i>
-                                    </span>
+                                    </button>
+                                    <div class="password-feedback" id="confirmPasswordFeedback"></div>
                                 </div>
                             </div>
                             <div class="modal-footer">
@@ -678,17 +745,20 @@ if (!$accounts_result) {
                                     <label for="edit_password" class="form-label">New Password (leave blank to keep current)</label>
                                     <input type="password" class="form-control" id="edit_password" name="password" 
                                            placeholder="Enter new password to change">
-                                    <span class="toggle-password" onclick="togglePassword('edit_password')">
+                                    <button type="button" class="toggle-password" onclick="togglePassword('edit_password')">
                                         <i class="fas fa-eye"></i>
-                                    </span>
+                                    </button>
+                                    <div class="password-strength" id="editPasswordStrength"></div>
+                                    <div class="password-feedback" id="editPasswordFeedback"></div>
                                 </div>
                                 <div class="mb-3 password-field">
                                     <label for="edit_confirm_password" class="form-label">Confirm New Password</label>
                                     <input type="password" class="form-control" id="edit_confirm_password" name="confirm_password" 
                                            placeholder="Confirm new password">
-                                    <span class="toggle-password" onclick="togglePassword('edit_confirm_password')">
+                                    <button type="button" class="toggle-password" onclick="togglePassword('edit_confirm_password')">
                                         <i class="fas fa-eye"></i>
-                                    </span>
+                                    </button>
+                                    <div class="password-feedback" id="editConfirmPasswordFeedback"></div>
                                 </div>
                             </div>
                             <div class="modal-footer">
@@ -763,21 +833,116 @@ if (!$accounts_result) {
             ]
         });
 
-        // Toggle password visibility
-        function togglePassword(fieldId) {
-            const field = document.getElementById(fieldId);
-            const icon = field.nextElementSibling.querySelector('i');
-            
-            if (field.type === 'password') {
-                field.type = 'text';
-                icon.classList.remove('fa-eye');
-                icon.classList.add('fa-eye-slash');
+        // Password strength checker
+        function checkPasswordStrength(password) {
+            let strength = 0;
+            let feedback = '';
+
+            // Check password length
+            if (password.length >= 8) strength++;
+            if (password.length >= 12) strength++;
+
+            // Check for mixed case
+            if (password.match(/([a-z].*[A-Z])|([A-Z].*[a-z])/)) strength++;
+
+            // Check for numbers
+            if (password.match(/([0-9])/)) strength++;
+
+            // Check for special characters
+            if (password.match(/([!,%,&,@,#,$,^,*,?,_,~])/)) strength++;
+
+            // Determine strength level
+            if (password.length === 0) {
+                return { level: 0, feedback: '' };
+            } else if (password.length < 6) {
+                return { level: 1, feedback: 'Too short' };
+            } else if (strength < 3) {
+                return { level: 2, feedback: 'Weak' };
+            } else if (strength < 5) {
+                return { level: 3, feedback: 'Good' };
             } else {
-                field.type = 'password';
-                icon.classList.remove('fa-eye-slash');
-                icon.classList.add('fa-eye');
+                return { level: 4, feedback: 'Strong' };
             }
         }
+
+        // Update password strength indicator
+        function updatePasswordStrength(password, strengthBar, feedbackElement) {
+            const result = checkPasswordStrength(password);
+            
+            // Reset classes
+            strengthBar.className = 'password-strength';
+            feedbackElement.textContent = result.feedback;
+            
+            // Apply appropriate class based on strength
+            switch(result.level) {
+                case 0:
+                    strengthBar.style.width = '0%';
+                    feedbackElement.textContent = '';
+                    break;
+                case 1:
+                    strengthBar.classList.add('strength-weak');
+                    feedbackElement.style.color = '#dc3545';
+                    break;
+                case 2:
+                    strengthBar.classList.add('strength-weak');
+                    feedbackElement.style.color = '#dc3545';
+                    break;
+                case 3:
+                    strengthBar.classList.add('strength-good');
+                    feedbackElement.style.color = '#ffc107';
+                    break;
+                case 4:
+                    strengthBar.classList.add('strength-strong');
+                    feedbackElement.style.color = '#198754';
+                    break;
+            }
+        }
+
+        // Check password confirmation
+        function checkPasswordConfirmation(password, confirmPassword, feedbackElement) {
+            if (confirmPassword.length === 0) {
+                feedbackElement.textContent = '';
+                feedbackElement.style.color = '';
+            } else if (password === confirmPassword) {
+                feedbackElement.textContent = 'Passwords match';
+                feedbackElement.style.color = '#198754';
+            } else {
+                feedbackElement.textContent = 'Passwords do not match';
+                feedbackElement.style.color = '#dc3545';
+            }
+        }
+
+        // Add modal password strength checking
+        $('#password').on('input', function() {
+            const password = $(this).val();
+            updatePasswordStrength(password, $('#passwordStrength')[0], $('#passwordFeedback')[0]);
+            
+            // Also check confirmation
+            const confirmPassword = $('#confirm_password').val();
+            checkPasswordConfirmation(password, confirmPassword, $('#confirmPasswordFeedback')[0]);
+        });
+
+        $('#confirm_password').on('input', function() {
+            const password = $('#password').val();
+            const confirmPassword = $(this).val();
+            checkPasswordConfirmation(password, confirmPassword, $('#confirmPasswordFeedback')[0]);
+        });
+
+        // Edit modal password strength checking
+        $('#edit_password').on('input', function() {
+            const password = $(this).val();
+            updatePasswordStrength(password, $('#editPasswordStrength')[0], $('#editPasswordFeedback')[0]);
+            
+            // Also check confirmation
+            const confirmPassword = $('#edit_confirm_password').val();
+            checkPasswordConfirmation(password, confirmPassword, $('#editConfirmPasswordFeedback')[0]);
+        });
+
+        $('#edit_confirm_password').on('input', function() {
+            const password = $('#edit_password').val();
+            const confirmPassword = $(this).val();
+            checkPasswordConfirmation(password, confirmPassword, $('#editConfirmPasswordFeedback')[0]);
+        });
 
         // Update selected instructor info in add modal
         document.getElementById('instructor_id').addEventListener('change', function() {
@@ -808,7 +973,7 @@ if (!$accounts_result) {
             const password = document.getElementById('edit_password').value;
             const confirmPassword = document.getElementById('edit_confirm_password').value;
             
-            if (password !== confirmPassword) {
+            if (password && password !== confirmPassword) {
                 e.preventDefault();
                 Swal.fire({
                     icon: 'error',
@@ -830,9 +995,12 @@ if (!$accounts_result) {
             $('#edit_instructor_name').text(fullname);
             $('#edit_username').val(username);
             
-            // Clear password fields
+            // Clear password fields and reset strength indicators
             $('#edit_password').val('');
             $('#edit_confirm_password').val('');
+            $('#editPasswordStrength').removeClass().addClass('password-strength').css('width', '0%');
+            $('#editPasswordFeedback').text('');
+            $('#editConfirmPasswordFeedback').text('');
             
             // Show the modal
             $('#editAccountModal').modal('show');
@@ -851,6 +1019,23 @@ if (!$accounts_result) {
             $('#deleteAccountModal').modal('show');
         });
     });
+
+    // Toggle password visibility function
+    function togglePassword(fieldId) {
+        const passwordField = document.getElementById(fieldId);
+        const toggleButton = passwordField.nextElementSibling;
+        const icon = toggleButton.querySelector('i');
+        
+        if (passwordField.type === 'password') {
+            passwordField.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            passwordField.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
     </script>
 </body>
 </html>
