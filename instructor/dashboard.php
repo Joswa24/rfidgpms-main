@@ -31,7 +31,7 @@ if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > 
     header("Location: index.php?timeout=1");
     exit();
 }
- $_SESSION['last_activity'] = time();
+$_SESSION['last_activity'] = time();
 
 // ✅ Hijack Prevention
 if (!isset($_SESSION['user_agent'])) {
@@ -54,11 +54,11 @@ if (!$db || $db->connect_error) {
 }
 
 // ✅ Fetch Updated Instructor Information
- $instructor_info = null;
- $instructor_id = $_SESSION['instructor_id'];
+$instructor_info = null;
+$instructor_id = $_SESSION['instructor_id'];
 
 // FIXED QUERY: Removed email and contact_number columns
- $stmt = $db->prepare("
+$stmt = $db->prepare("
     SELECT i.fullname, i.id_number, d.department_name
     FROM instructor i 
     LEFT JOIN department d ON i.department_id = d.department_id 
@@ -91,15 +91,15 @@ if ($stmt) {
 }
 
 // ✅ Fetch Instructor Schedules (UPDATED TO USE INSTRUCTOR NAME INSTEAD OF ID)
- $today_classes = [];
- $upcoming_classes = [];
+$today_classes = [];
+$upcoming_classes = [];
 
 // Get instructor's fullname
- $instructor_name = $_SESSION['fullname'];
+$instructor_name = $_SESSION['fullname'];
 
 // Today's classes (UPDATED QUERY)
- $today_day = date("l");
- $stmt = $db->prepare("
+$today_day = date("l");
+$stmt = $db->prepare("
     SELECT subject, room_name, section, start_time, end_time, day, year_level
     FROM room_schedules
     WHERE instructor = ? AND day = ?
@@ -114,7 +114,7 @@ if ($stmt) {
 }
 
 // Upcoming classes (week overview) - UPDATED QUERY
- $stmt = $db->prepare("
+$stmt = $db->prepare("
     SELECT subject, room_name, section, start_time, end_time, day, year_level
     FROM room_schedules
     WHERE instructor = ?
@@ -129,25 +129,27 @@ if ($stmt) {
     $stmt->close();
 }
 
-// ✅ Fetch today's attendance summary for dashboard display
- $today_attendance_summary = [];
- $today_date = date('Y-m-d');
+// ✅ Fetch today's attendance summary from archived_attendance_logs
+$today_attendance_summary = [];
+$today_date = date('Y-m-d');
 
- $attendance_summary_query = "
+// Query to get attendance summary by class for today
+$attendance_summary_query = "
     SELECT 
         year_level as year,
         section,
         subject_name as subject,
-        present_count,
-        absent_count,
-        total_students,
-        attendance_rate
-    FROM instructor_attendance_summary 
+        COUNT(CASE WHEN status = 'Present' THEN 1 END) as present_count,
+        COUNT(CASE WHEN status = 'Absent' THEN 1 END) as absent_count,
+        COUNT(*) as total_students,
+        ROUND((COUNT(CASE WHEN status = 'Present' THEN 1 END) / COUNT(*) * 100), 1) as attendance_rate
+    FROM archived_attendance_logs 
     WHERE instructor_id = ? AND session_date = ?
+    GROUP BY year_level, section, subject_name
     ORDER BY year_level, section
 ";
 
- $attendance_stmt = $db->prepare($attendance_summary_query);
+$attendance_stmt = $db->prepare($attendance_summary_query);
 if ($attendance_stmt) {
     $attendance_stmt->bind_param("ss", $instructor_id, $today_date);
     $attendance_stmt->execute();
@@ -159,9 +161,101 @@ if ($attendance_stmt) {
     $attendance_stmt->close();
 }
 
-// Get current date for display
- $currentDate = date('F j, Y');
+// ✅ Fetch recent attendance activity from archived_attendance_logs
+$recent_attendance_activity = [];
+$recent_activity_query = "
+    SELECT 
+        student_id,
+        id_number,
+        fullname,
+        department,
+        location,
+        time_in,
+        time_out,
+        status,
+        subject_name,
+        room,
+        session_date,
+        archived_at
+    FROM archived_attendance_logs 
+    WHERE instructor_id = ? 
+    ORDER BY archived_at DESC 
+    LIMIT 10
+";
 
+$recent_stmt = $db->prepare($recent_activity_query);
+if ($recent_stmt) {
+    $recent_stmt->bind_param("i", $instructor_id);
+    $recent_stmt->execute();
+    $recent_result = $recent_stmt->get_result();
+    
+    while ($recent_row = $recent_result->fetch_assoc()) {
+        $recent_attendance_activity[] = $recent_row;
+    }
+    $recent_stmt->close();
+}
+
+// ✅ Fetch weekly attendance data for charts
+$weekly_attendance_data = [];
+for ($i = 6; $i >= 0; $i--) {
+    $date = date('Y-m-d', strtotime("-$i days"));
+    $dayName = date('D', strtotime($date));
+    
+    $weekly_query = "
+        SELECT 
+            COUNT(CASE WHEN status = 'Present' THEN 1 END) as total_present,
+            COUNT(CASE WHEN status = 'Absent' THEN 1 END) as total_absent,
+            COUNT(*) as total_students
+        FROM archived_attendance_logs 
+        WHERE instructor_id = ? AND session_date = ?
+    ";
+    
+    $weekly_stmt = $db->prepare($weekly_query);
+    if ($weekly_stmt) {
+        $weekly_stmt->bind_param("ss", $instructor_id, $date);
+        $weekly_stmt->execute();
+        $weekly_result = $weekly_stmt->get_result();
+        
+        $present = 0;
+        $absent = 0;
+        $total = 0;
+        
+        if ($weekly_result && $row = $weekly_result->fetch_assoc()) {
+            $present = $row['total_present'] ?? 0;
+            $absent = $row['total_absent'] ?? 0;
+            $total = $row['total_students'] ?? 0;
+        }
+        
+        $rate = $total > 0 ? round(($present / $total) * 100, 1) : 0;
+        
+        $weekly_attendance_data[] = [
+            'day' => $dayName,
+            'date' => $date,
+            'present' => $present,
+            'absent' => $absent,
+            'total' => $total,
+            'rate' => $rate
+        ];
+        
+        $weekly_stmt->close();
+    }
+}
+
+// Get current date for display
+$currentDate = date('F j, Y');
+
+// Calculate overall statistics
+$total_present = 0;
+$total_absent = 0;
+$total_students = 0;
+
+foreach ($today_attendance_summary as $summary) {
+    $total_present += $summary['present_count'];
+    $total_absent += $summary['absent_count'];
+    $total_students += $summary['total_students'];
+}
+
+$overall_attendance_rate = $total_students > 0 ? round(($total_present / $total_students) * 100, 1) : 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -1153,198 +1247,157 @@ if ($attendance_stmt) {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script type="text/javascript">
-        // Load Google Charts
-        google.charts.load('current', {'packages':['corechart']});
-        google.charts.setOnLoadCallback(drawCharts);
+    // Load Google Charts
+    google.charts.load('current', {'packages':['corechart']});
+    google.charts.setOnLoadCallback(drawCharts);
 
-        function drawCharts() {
-            drawWeeklyAttendanceChart();
-            drawAttendanceByClassChart();
-        }
+    function drawCharts() {
+        drawWeeklyAttendanceChart();
+        drawAttendanceByClassChart();
+    }
 
-        function drawWeeklyAttendanceChart() {
-            // Weekly attendance data
-            const weeklyData = <?php 
-                // Generate weekly attendance data
-                $weekly_data = [];
-                for ($i = 6; $i >= 0; $i--) {
-                    $date = date('Y-m-d', strtotime("-$i days"));
-                    $dayName = date('D', strtotime($date));
-                    
-                    // Get attendance data for this day
-                    $query = "SELECT 
-                                SUM(present_count) as total_present,
-                                SUM(absent_count) as total_absent,
-                                SUM(total_students) as total_students
-                              FROM instructor_attendance_summary 
-                              WHERE instructor_id = ? AND session_date = ?";
-                    $stmt = $db->prepare($query);
-                    $stmt->bind_param("ss", $instructor_id, $date);
-                    $stmt->execute();
-                    $result = $stmt->get_result();
-                    
-                    $present = 0;
-                    $absent = 0;
-                    $total = 0;
-                    
-                    if ($result && $row = $result->fetch_assoc()) {
-                        $present = $row['total_present'] ?? 0;
-                        $absent = $row['total_absent'] ?? 0;
-                        $total = $row['total_students'] ?? 0;
-                    }
-                    
-                    $rate = $total > 0 ? round(($present / $total) * 100, 1) : 0;
-                    
-                    $weekly_data[] = [
-                        'day' => $dayName,
-                        'date' => $date,
-                        'present' => $present,
-                        'absent' => $absent,
-                        'total' => $total,
-                        'rate' => $rate
-                    ];
-                }
-                echo json_encode($weekly_data);
-            ?>;
-            
-            const data = new google.visualization.DataTable();
-            data.addColumn('string', 'Day');
-            data.addColumn('number', 'Attendance Rate (%)');
-            data.addColumn('number', 'Present');
-            data.addColumn('number', 'Absent');
-            
-            weeklyData.forEach(day => {
-                data.addRow([
-                    day.day, 
-                    parseInt(day.rate),
-                    parseInt(day.present),
-                    parseInt(day.absent)
-                ]);
-            });
-
-            const options = {
-                title: '',
-                curveType: 'function',
-                legend: { position: 'bottom' },
-                colors: ['#5c95e9', '#1cc88a', '#e74a3b'],
-                backgroundColor: 'transparent',
-                chartArea: {width: '85%', height: '70%', top: 20, bottom: 80},
-                hAxis: {
-                    textStyle: {color: '#5a5c69', fontSize: 12},
-                    gridlines: { color: 'transparent' },
-                    baselineColor: '#5a5c69',
-                    showTextEvery: 1,
-                    slantedText: false
-                },
-                vAxis: {
-                    title: 'Attendance Rate (%)',
-                    titleTextStyle: {color: '#5a5c69', bold: true, fontSize: 12},
-                    minValue: 0,
-                    maxValue: 100,
-                    gridlines: { 
-                        color: '#f0f0f0',
-                        count: 5
-                    },
-                    baseline: 0,
-                    baselineColor: '#5a5c69',
-                    format: '0',
-                    viewWindow: {
-                        min: 0,
-                        max: 100
-                    },
-                    textStyle: {color: '#5a5c69', fontSize: 11}
-                },
-                titleTextStyle: {
-                    color: '#5a5c69',
-                    fontSize: 16,
-                    bold: true
-                },
-                lineWidth: 3,
-                pointSize: 5,
-                animation: {
-                    startup: true,
-                    duration: 1000,
-                    easing: 'out'
-                },
-                series: {
-                    0: { type: 'line', pointSize: 6 },
-                    1: { type: 'bars' },
-                    2: { type: 'bars' }
-                }
-            };
-
-            const chart = new google.visualization.ComboChart(document.getElementById('weeklyAttendanceChart'));
-            chart.draw(data, options);
-        }
-
-        function drawAttendanceByClassChart() {
-            // Today's attendance by class data
-            const attendanceData = <?php 
-                $attendance_by_class = [];
-                foreach ($today_attendance_summary as $summary) {
-                    $attendance_by_class[] = [
-                        'class' => $summary['subject'] . ' (' . $summary['year'] . '-' . $summary['section'] . ')',
-                        'present' => $summary['present_count'],
-                        'absent' => $summary['absent_count'],
-                        'rate' => $summary['attendance_rate']
-                    ];
-                }
-                echo json_encode($attendance_by_class);
-            ?>;
-            
-            const data = new google.visualization.DataTable();
-            data.addColumn('string', 'Class');
-            data.addColumn('number', 'Present');
-            data.addColumn('number', 'Absent');
-            
-            attendanceData.forEach(item => {
-                data.addRow([
-                    item.class, 
-                    parseInt(item.present),
-                    parseInt(item.absent)
-                ]);
-            });
-
-            const options = {
-                title: '',
-                pieHole: 0.3,
-                backgroundColor: 'transparent',
-                chartArea: {
-                    width: '95%', 
-                    height: '80%',
-                    top: 10, 
-                    left: 0,
-                    right: 0,
-                    bottom: 10
-                },
-                legend: {
-                    position: 'bottom'
-                },
-                pieSliceText: 'percentage',
-                colors: ['#1cc88a', '#e74a3b'],
-                pieSliceBorderColor: 'white',
-                pieSliceBorderWidth: 2,
-                is3D: false,
-                pieStartAngle: 0,
-                sliceVisibilityThreshold: 0,
-                enableInteractivity: true,
-                tooltip: { 
-                    trigger: 'focus',
-                    showColorCode: true,
-                    text: 'both',
-                    isHtml: true
-                }
-            };
-
-            const chart = new google.visualization.PieChart(document.getElementById('attendanceByClassChart'));
-            chart.draw(data, options);
-        }
-
-        // Redraw charts on window resize
-        window.addEventListener('resize', function() {
-            drawCharts();
+    function drawWeeklyAttendanceChart() {
+        // Weekly attendance data from PHP
+        const weeklyData = <?php echo json_encode($weekly_attendance_data); ?>;
+        
+        const data = new google.visualization.DataTable();
+        data.addColumn('string', 'Day');
+        data.addColumn('number', 'Attendance Rate (%)');
+        data.addColumn('number', 'Present');
+        data.addColumn('number', 'Absent');
+        
+        weeklyData.forEach(day => {
+            data.addRow([
+                day.day, 
+                parseFloat(day.rate),
+                parseInt(day.present),
+                parseInt(day.absent)
+            ]);
         });
-    </script>
+
+        const options = {
+            title: '',
+            curveType: 'function',
+            legend: { position: 'bottom' },
+            colors: ['#5c95e9', '#1cc88a', '#e74a3b'],
+            backgroundColor: 'transparent',
+            chartArea: {width: '85%', height: '70%', top: 20, bottom: 80},
+            hAxis: {
+                textStyle: {color: '#5a5c69', fontSize: 12},
+                gridlines: { color: 'transparent' },
+                baselineColor: '#5a5c69',
+                showTextEvery: 1,
+                slantedText: false
+            },
+            vAxis: {
+                title: 'Attendance Rate (%)',
+                titleTextStyle: {color: '#5a5c69', bold: true, fontSize: 12},
+                minValue: 0,
+                maxValue: 100,
+                gridlines: { 
+                    color: '#f0f0f0',
+                    count: 5
+                },
+                baseline: 0,
+                baselineColor: '#5a5c69',
+                format: '0',
+                viewWindow: {
+                    min: 0,
+                    max: 100
+                },
+                textStyle: {color: '#5a5c69', fontSize: 11}
+            },
+            titleTextStyle: {
+                color: '#5a5c69',
+                fontSize: 16,
+                bold: true
+            },
+            lineWidth: 3,
+            pointSize: 5,
+            animation: {
+                startup: true,
+                duration: 1000,
+                easing: 'out'
+            },
+            series: {
+                0: { type: 'line', pointSize: 6 },
+                1: { type: 'bars' },
+                2: { type: 'bars' }
+            }
+        };
+
+        const chart = new google.visualization.ComboChart(document.getElementById('weeklyAttendanceChart'));
+        chart.draw(data, options);
+    }
+
+    function drawAttendanceByClassChart() {
+        // Today's attendance by class data from PHP
+        const attendanceData = <?php 
+            $attendance_by_class = [];
+            foreach ($today_attendance_summary as $summary) {
+                $attendance_by_class[] = [
+                    'class' => $summary['subject'] . ' (' . $summary['year'] . '-' . $summary['section'] . ')',
+                    'present' => $summary['present_count'],
+                    'absent' => $summary['absent_count'],
+                    'rate' => $summary['attendance_rate']
+                ];
+            }
+            echo json_encode($attendance_by_class);
+        ?>;
+        
+        const data = new google.visualization.DataTable();
+        data.addColumn('string', 'Class');
+        data.addColumn('number', 'Present');
+        data.addColumn('number', 'Absent');
+        
+        attendanceData.forEach(item => {
+            data.addRow([
+                item.class, 
+                parseInt(item.present),
+                parseInt(item.absent)
+            ]);
+        });
+
+        const options = {
+            title: '',
+            pieHole: 0.3,
+            backgroundColor: 'transparent',
+            chartArea: {
+                width: '95%', 
+                height: '80%',
+                top: 10, 
+                left: 0,
+                right: 0,
+                bottom: 10
+            },
+            legend: {
+                position: 'bottom'
+            },
+            pieSliceText: 'percentage',
+            colors: ['#1cc88a', '#e74a3b'],
+            pieSliceBorderColor: 'white',
+            pieSliceBorderWidth: 2,
+            is3D: false,
+            pieStartAngle: 0,
+            sliceVisibilityThreshold: 0,
+            enableInteractivity: true,
+            tooltip: { 
+                trigger: 'focus',
+                showColorCode: true,
+                text: 'both',
+                isHtml: true
+            }
+        };
+
+        const chart = new google.visualization.PieChart(document.getElementById('attendanceByClassChart'));
+        chart.draw(data, options);
+    }
+
+    // Redraw charts on window resize
+    window.addEventListener('resize', function() {
+        drawCharts();
+    });
+</script>
 
     <script>
         // Update current time every second

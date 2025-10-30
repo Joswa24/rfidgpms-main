@@ -178,7 +178,7 @@ try {
                     'full_name' => $student['fullname'],
                     'id_number' => $student['id_number'],
                     'department' => $student['department_name'],
-                    'year' => $student['year'],
+                    'year_level' => $student['year'], // FIXED: Changed from 'year' to 'year_level'
                     'section' => $student['section'],
                     'photo' => $photoPath,
                     'time_in_out' => 'Time Out Recorded Successfully',
@@ -217,7 +217,7 @@ try {
                     'full_name' => $student['fullname'],
                     'id_number' => $student['id_number'],
                     'department' => $student['department_name'],
-                    'year' => $student['year'],
+                    'year_level' => $student['year'], // FIXED: Changed from 'year' to 'year_level'
                     'section' => $student['section'],
                     'photo' => $photoPath,
                     'time_in_out' => 'Time In Recorded Successfully',
@@ -257,7 +257,7 @@ try {
                 'full_name' => $student['fullname'],
                 'id_number' => $student['id_number'],
                 'department' => $student['department_name'],
-                'year' => $student['year'],
+                'year_level' => $student['year'], // FIXED: Changed from 'year' to 'year_level'
                 'section' => $student['section'],
                 'photo' => $photoPath,
                 'time_in_out' => 'Time In Recorded Successfully',
