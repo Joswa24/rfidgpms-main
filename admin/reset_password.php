@@ -26,7 +26,176 @@ if (isset($_GET['token']) && !empty($_GET['token'])) {
 
 // Debug: Check what token we received
 error_log("Reset Password - Token received: " . ($token ? $token : 'EMPTY'));
+class PasswordStrengthValidator {
+    
+    /**
+     * Check password strength and return detailed analysis
+     * 
+     * @param string $password The password to evaluate
+     * @return array Detailed strength analysis
+     */
+    public static function checkPasswordStrength($password) {
+        $score = 0;
+        $maxScore = 100;
+        $feedback = [];
+        $requirements = [];
+        
+        // Length check
+        $length = strlen($password);
+        if ($length >= 12) {
+            $score += 25;
+            $feedback[] = "✓ Good length (12+ characters)";
+        } elseif ($length >= 8) {
+            $score += 15;
+            $feedback[] = "✓ Minimum length met (8+ characters)";
+        } else {
+            $feedback[] = "✗ Password too short (minimum 8 characters required)";
+            $requirements[] = "at least 8 characters";
+        }
+        
+        // Uppercase letters check
+        if (preg_match('/[A-Z]/', $password)) {
+            $score += 20;
+            $uppercaseCount = preg_match_all('/[A-Z]/', $password);
+            $feedback[] = "✓ Contains uppercase letters ($uppercaseCount found)";
+        } else {
+            $feedback[] = "✗ Missing uppercase letters (A-Z)";
+            $requirements[] = "uppercase letters (A-Z)";
+        }
+        
+        // Lowercase letters check
+        if (preg_match('/[a-z]/', $password)) {
+            $score += 15;
+            $lowercaseCount = preg_match_all('/[a-z]/', $password);
+            $feedback[] = "✓ Contains lowercase letters ($lowercaseCount found)";
+        } else {
+            $feedback[] = "✗ Missing lowercase letters (a-z)";
+            $requirements[] = "lowercase letters (a-z)";
+        }
+        
+        // Numbers check
+        if (preg_match('/[0-9]/', $password)) {
+            $score += 20;
+            $numberCount = preg_match_all('/[0-9]/', $password);
+            $feedback[] = "✓ Contains numbers ($numberCount found)";
+        } else {
+            $feedback[] = "✗ Missing numbers (0-9)";
+            $requirements[] = "numbers (0-9)";
+        }
+        
+        // Special characters check
+        if (preg_match('/[!@#$%^&*(),.?":{}|<>~\[\]_+\-=\\\/]/', $password)) {
+            $score += 20;
+            $specialCount = preg_match_all('/[!@#$%^&*(),.?":{}|<>~\[\]_+\-=\\\/]/', $password);
+            $feedback[] = "✓ Contains special characters ($specialCount found)";
+        } else {
+            $feedback[] = "✗ Missing special characters (!@#$% etc.)";
+            $requirements[] = "special characters (!@#$%^&* etc.)";
+        }
+        
+        // Determine strength level
+        $strengthLevel = self::getStrengthLevel($score);
+        $colorClass = self::getStrengthColor($strengthLevel);
+        
+        return [
+            'score' => $score,
+            'max_score' => $maxScore,
+            'percentage' => round(($score / $maxScore) * 100),
+            'strength_level' => $strengthLevel,
+            'color_class' => $colorClass,
+            'feedback' => $feedback,
+            'requirements_missing' => $requirements,
+            'is_acceptable' => $score >= 60, // Minimum acceptable score
+            'is_strong' => $score >= 80
+        ];
+    }
+    
+    /**
+     * Get strength level based on score
+     */
+    private static function getStrengthLevel($score) {
+        if ($score >= 90) return 'Very Strong';
+        if ($score >= 80) return 'Strong';
+        if ($score >= 70) return 'Good';
+        if ($score >= 60) return 'Fair';
+        if ($score >= 40) return 'Weak';
+        return 'Very Weak';
+    }
+    
+    /**
+     * Get CSS color class based on strength level
+     */
+    private static function getStrengthColor($strengthLevel) {
+        switch ($strengthLevel) {
+            case 'Very Strong': return 'strength-very-strong';
+            case 'Strong': return 'strength-strong';
+            case 'Good': return 'strength-good';
+            case 'Fair': return 'strength-fair';
+            case 'Weak': return 'strength-weak';
+            default: return 'strength-very-weak';
+        }
+    }
+    
+    /**
+     * Quick validation for minimum requirements
+     */
+    public static function validatePassword($password, $minLength = 8) {
+        if (strlen($password) < $minLength) {
+            return false;
+        }
+        
+        $hasUpper = preg_match('/[A-Z]/', $password);
+        $hasLower = preg_match('/[a-z]/', $password);
+        $hasNumber = preg_match('/[0-9]/', $password);
+        $hasSpecial = preg_match('/[!@#$%^&*(),.?":{}|<>~\[\]_+\-=\\\/]/', $password);
+        
+        // Require at least 3 out of 4 character types
+        $characterTypes = [$hasUpper, $hasLower, $hasNumber, $hasSpecial];
+        $typeCount = count(array_filter($characterTypes));
+        
+        return $typeCount >= 3;
+    }
+}
 
+/**
+ * Display password strength meter (HTML output)
+ */
+function displayPasswordStrengthMeter($password) {
+    $strength = PasswordStrengthValidator::checkPasswordStrength($password);
+    
+    $html = '<div class="password-strength-meter">';
+    $html .= '<div class="strength-header">';
+    $html .= '<span>Password Strength: </span>';
+    $html .= '<strong class="' . $strength['color_class'] . '">' . $strength['strength_level'] . '</strong>';
+    $html .= '<span> (' . $strength['percentage'] . '%)</span>';
+    $html .= '</div>';
+    
+    // Progress bar
+    $html .= '<div class="progress" style="height: 8px; margin: 10px 0;">';
+    $html .= '<div class="progress-bar ' . $strength['color_class'] . '" role="progressbar" ';
+    $html .= 'style="width: ' . $strength['percentage'] . '%;" ';
+    $html .= 'aria-valuenow="' . $strength['percentage'] . '" aria-valuemin="0" aria-valuemax="100"></div>';
+    $html .= '</div>';
+    
+    // Feedback
+    $html .= '<div class="strength-feedback">';
+    foreach ($strength['feedback'] as $item) {
+        $html .= '<div class="feedback-item">' . htmlspecialchars($item) . '</div>';
+    }
+    $html .= '</div>';
+    
+    // Requirements (if any missing)
+    if (!empty($strength['requirements_missing'])) {
+        $html .= '<div class="requirements-missing">';
+        $html .= '<strong>Missing requirements:</strong> ';
+        $html .= implode(', ', $strength['requirements_missing']);
+        $html .= '</div>';
+    }
+    
+    $html .= '</div>';
+    
+    return $html;
+}
 // Validate token
 if (!empty($token)) {
     try {
@@ -204,6 +373,19 @@ if (isset($_SESSION['temp_reset_token']) && $valid_token) {
             background-color: var(--light-bg);
         }
         
+        .password-toggle {
+            background-color: var(--light-bg);
+            border: none;
+            color: var(--accent-color);
+            cursor: pointer;
+            padding: 0.75rem 1rem;
+            transition: color 0.3s ease;
+        }
+        
+        .password-toggle:hover {
+            color: var(--secondary-color);
+        }
+        
         .btn-reset {
             background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
             border: none;
@@ -233,6 +415,55 @@ if (isset($_SESSION['temp_reset_token']) && $valid_token) {
             text-align: center;
             margin-top: 20px;
         }
+        
+        .password-strength-meter {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+        }
+        
+        .strength-header {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .progress {
+            background-color: #e9ecef;
+            border-radius: 4px;
+        }
+        
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        
+        .strength-feedback {
+            font-size: 0.875rem;
+            margin-top: 10px;
+        }
+        
+        .feedback-item {
+            margin: 2px 0;
+        }
+        
+        .requirements-missing {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            color: #856404;
+        }
+        
+        /* Strength color classes */
+        .strength-very-strong { color: #198754; background-color: #198754; }
+        .strength-strong { color: #20c997; background-color: #20c997; }
+        .strength-good { color: #0dcaf0; background-color: #0dcaf0; }
+        .strength-fair { color: #ffc107; background-color: #ffc107; }
+        .strength-weak { color: #fd7e14; background-color: #fd7e14; }
+        .strength-very-weak { color: #dc3545; background-color: #dc3545; }
     </style>
 </head>
 <body>
@@ -272,6 +503,9 @@ if (isset($_SESSION['temp_reset_token']) && $valid_token) {
                             <span class="input-group-text"><i class="fas fa-lock"></i></span>
                             <input type="password" class="form-control" id="new_password" name="new_password" 
                                    placeholder="Enter new password (min. 8 characters)" required minlength="8">
+                            <button type="button" class="password-toggle" id="toggleNewPassword">
+                                <i class="fas fa-eye"></i>
+                            </button>
                         </div>
                         <div class="password-strength" id="passwordStrength"></div>
                     </div>
@@ -282,6 +516,9 @@ if (isset($_SESSION['temp_reset_token']) && $valid_token) {
                             <span class="input-group-text"><i class="fas fa-lock"></i></span>
                             <input type="password" class="form-control" id="confirm_password" name="confirm_password" 
                                    placeholder="Confirm new password" required minlength="8">
+                            <button type="button" class="password-toggle" id="toggleConfirmPassword">
+                                <i class="fas fa-eye"></i>
+                            </button>
                         </div>
                         <div class="password-match" id="passwordMatch"></div>
                     </div>
@@ -313,6 +550,35 @@ if (isset($_SESSION['temp_reset_token']) && $valid_token) {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Password toggle functionality
+        function setupPasswordToggle(passwordFieldId, toggleButtonId) {
+            const passwordField = document.getElementById(passwordFieldId);
+            const toggleButton = document.getElementById(toggleButtonId);
+            const eyeIcon = toggleButton.querySelector('i');
+            
+            toggleButton.addEventListener('click', function() {
+                const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordField.setAttribute('type', type);
+                
+                // Toggle eye icon
+                if (type === 'text') {
+                    eyeIcon.classList.remove('fa-eye');
+                    eyeIcon.classList.add('fa-eye-slash');
+                    toggleButton.setAttribute('title', 'Hide password');
+                } else {
+                    eyeIcon.classList.remove('fa-eye-slash');
+                    eyeIcon.classList.add('fa-eye');
+                    toggleButton.setAttribute('title', 'Show password');
+                }
+            });
+        }
+
+        // Initialize password toggles
+        document.addEventListener('DOMContentLoaded', function() {
+            setupPasswordToggle('new_password', 'toggleNewPassword');
+            setupPasswordToggle('confirm_password', 'toggleConfirmPassword');
+        });
+
         // Password strength indicator
         const passwordInput = document.getElementById('new_password');
         const strengthText = document.getElementById('passwordStrength');
@@ -384,6 +650,104 @@ if (isset($_SESSION['temp_reset_token']) && $valid_token) {
                 btn.disabled = true;
             });
         }
+
+        function checkPasswordStrengthRealTime(password) {
+            let score = 0;
+            let feedback = [];
+            
+            // Length
+            if (password.length >= 12) {
+                score += 25;
+                feedback.push("✓ Good length (12+ characters)");
+            } else if (password.length >= 8) {
+                score += 15;
+                feedback.push("✓ Minimum length met (8+ characters)");
+            } else {
+                feedback.push("✗ Password too short (minimum 8 characters required)");
+            }
+            
+            // Uppercase
+            if (/[A-Z]/.test(password)) {
+                score += 20;
+                const count = (password.match(/[A-Z]/g) || []).length;
+                feedback.push(`✓ Contains uppercase letters (${count} found)`);
+            } else {
+                feedback.push("✗ Missing uppercase letters (A-Z)");
+            }
+            
+            // Lowercase
+            if (/[a-z]/.test(password)) {
+                score += 15;
+                const count = (password.match(/[a-z]/g) || []).length;
+                feedback.push(`✓ Contains lowercase letters (${count} found)`);
+            } else {
+                feedback.push("✗ Missing lowercase letters (a-z)");
+            }
+            
+            // Numbers
+            if (/[0-9]/.test(password)) {
+                score += 20;
+                const count = (password.match(/[0-9]/g) || []).length;
+                feedback.push(`✓ Contains numbers (${count} found)`);
+            } else {
+                feedback.push("✗ Missing numbers (0-9)");
+            }
+            
+            // Special characters
+            if (/[!@#$%^&*(),.?":{}|<>~\[\]_+\-=\\\/]/.test(password)) {
+                score += 20;
+                const count = (password.match(/[!@#$%^&*(),.?":{}|<>~\[\]_+\-=\\\/]/g) || []).length;
+                feedback.push(`✓ Contains special characters (${count} found)`);
+            } else {
+                feedback.push("✗ Missing special characters (!@#$% etc.)");
+            }
+            
+            return {
+                score: score,
+                percentage: Math.round((score / 100) * 100),
+                feedback: feedback
+            };
+        }
+
+        // Enhanced password strength meter with real-time feedback
+        document.addEventListener('DOMContentLoaded', function() {
+            const passwordInput = document.getElementById('new_password');
+            if (passwordInput) {
+                const meterContainer = document.createElement('div');
+                passwordInput.parentNode.appendChild(meterContainer);
+                
+                passwordInput.addEventListener('input', function() {
+                    const password = this.value;
+                    if (password.length === 0) {
+                        meterContainer.innerHTML = '';
+                        return;
+                    }
+                    
+                    const strength = checkPasswordStrengthRealTime(password);
+                    
+                    let html = '<div class="strength-header">';
+                    html += '<span>Password Strength: </span>';
+                    html += '<span> (' + strength.percentage + '%)</span>';
+                    html += '</div>';
+                    
+                    html += '<div class="progress" style="height: 8px; margin: 10px 0;">';
+                    html += '<div class="progress-bar" role="progressbar" ';
+                    html += 'style="width: ' + strength.percentage + '%; background-color: ';
+                    html += strength.percentage >= 80 ? '#198754' : 
+                            strength.percentage >= 60 ? '#ffc107' : 
+                            strength.percentage >= 40 ? '#fd7e14' : '#dc3545';
+                    html += '"></div></div>';
+                    
+                    html += '<div class="strength-feedback">';
+                    strength.feedback.forEach(item => {
+                        html += '<div class="feedback-item">' + item + '</div>';
+                    });
+                    html += '</div>';
+                    
+                    meterContainer.innerHTML = html;
+                });
+            }
+        });
     </script>
 </body>
 </html>
