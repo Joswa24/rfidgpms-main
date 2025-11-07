@@ -101,4 +101,8 @@ RewriteRule ^(.*)$ - [F,L]
         Order allow,deny
         Allow from all
     </IfModule>
+<<<<<<< HEAD
 </FilesMatch>
+=======
+</FilesMatch>
+>>>>>>> e93cc44877a02c0419dcba57e671cf2b57e2767a

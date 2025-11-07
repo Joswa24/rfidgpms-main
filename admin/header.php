@@ -146,6 +146,7 @@ setSecurityHeaders();
         }
     </style>
 </head>
+<<<<<<< HEAD
 <script>
 function executeRecaptcha() {
     grecaptcha.ready(function() {
@@ -165,3 +166,5 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+=======
+>>>>>>> e93cc44877a02c0419dcba57e671cf2b57e2767a
