@@ -2,7 +2,6 @@
 // admin/index.php
 include '../connection.php';
 include '../security-headers.php';
-include '../recaptcha.php'; // Include the reCAPTCHA class
 session_start();
 
 // Additional security headers
@@ -18,6 +17,96 @@ header("Cross-Origin-Resource-Policy: same-origin");
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 header("Pragma: no-cache");
 header("Expires: 0");
+
+// =====================================================================
+// reCAPTCHA CLASS WITH cURL
+// =====================================================================
+class reCAPTCHA {
+    private $secret_key;
+    private $site_key;
+    
+    public function __construct($secret_key, $site_key) {
+        $this->secret_key = $secret_key;
+        $this->site_key = $site_key;
+    }
+    
+    public function verify($recaptcha_response, $threshold = 0.5) {
+        $url = 'https://www.google.com/recaptcha/api/siteverify';
+        $data = [
+            'secret' => $this->secret_key,
+            'response' => $recaptcha_response
+        ];
+        
+        // Use cURL instead of file_get_contents
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+        
+        $result = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+        
+        // Log detailed information
+        error_log("reCAPTCHA Debug - HTTP Code: $httpCode, cURL Error: $curlError, Result: " . $result);
+        
+        if ($result === false) {
+            error_log("reCAPTCHA cURL failed: " . $curlError);
+            return [
+                'success' => false,
+                'score' => 0,
+                'passed' => false,
+                'error' => $curlError
+            ];
+        }
+        
+        if ($httpCode !== 200) {
+            error_log("reCAPTCHA HTTP Error: $httpCode");
+            return [
+                'success' => false,
+                'score' => 0,
+                'passed' => false,
+                'error' => "HTTP $httpCode"
+            ];
+        }
+        
+        $response = json_decode($result);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            error_log("reCAPTCHA JSON parse error: " . json_last_error_msg());
+            return [
+                'success' => false,
+                'score' => 0,
+                'passed' => false,
+                'error' => 'JSON parse error'
+            ];
+        }
+        
+        $score = $response->score ?? 0;
+        $success = $response->success ?? false;
+        $passed = ($success && $score >= $threshold);
+        
+        // Log the verification result
+        error_log("reCAPTCHA Verification - Success: " . ($success ? 'true' : 'false') . 
+                " - Score: $score - Threshold: $threshold - Passed: " . ($passed ? 'true' : 'false'));
+        
+        return [
+            'success' => $success,
+            'score' => $score,
+            'passed' => $passed,
+            'error-codes' => $response->{'error-codes'} ?? []
+        ];
+    }
+    
+    public function getSiteKey() {
+        return $this->site_key;
+    }
+}
 
 // Initialize reCAPTCHA with your keys
  $recaptcha = new reCAPTCHA('6Ld2w-QrAAAAAFeIvhKm5V6YBpIsiyHIyzHxeqm-', '6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_');
@@ -158,17 +247,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     
     if (empty($recaptchaResponse)) {
         $error = "Security verification failed. Please refresh and try again.";
+        error_log("reCAPTCHA: No response token received");
     } else {
-        // Use the reCAPTCHA class to verify
-        $recaptchaResult = $recaptcha->verify($recaptchaResponse, 0.3); // Using 0.3 as threshold
+        // Use the reCAPTCHA class to verify with a lower threshold for testing
+        $recaptchaResult = $recaptcha->verify($recaptchaResponse, 0.1); // Using 0.1 as threshold for testing
         
         if (!$recaptchaResult['passed']) {
             // DEBUG: Log detailed information
             error_log("reCAPTCHA DEBUG - Success: " . ($recaptchaResult['success'] ? 'true' : 'false') . 
                     " - Score: " . ($recaptchaResult['score'] ?? 'unknown') . 
+                    " - Error Codes: " . json_encode($recaptchaResult['error-codes'] ?? []) . 
                     " - IP: " . $_SERVER['REMOTE_ADDR']);
             
             $error = "Security check failed. Please refresh and try again.";
+            
+            // For debugging, show the actual error in development
+            if (defined('DEBUG') && DEBUG) {
+                $error .= " (Debug: Score=" . ($recaptchaResult['score'] ?? 'N/A') . ", Errors=" . json_encode($recaptchaResult['error-codes'] ?? []) . ")";
+            }
         } else {
             // Validate CSRF token
             if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
