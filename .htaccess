@@ -6,21 +6,43 @@ RewriteEngine On
 # 1. Redirect direct .php requests to the clean URL (prevents duplicate content)
 RewriteCond %{THE_REQUEST} \s/([^/]+)\.php[\s?] [NC]
 RewriteRule ^ /%1 [R=301,L]
-# Specific rules for admin pages
-RewriteRule ^admin/dashboard/?$ admin/dashboard.php [NC,L]
-RewriteRule ^admin/users/?$ admin/attendance_logs.php [NC,L]
-RewriteRule ^admin/settings/?$ admin/settings.php [NC,L]
-RewriteRule ^admin/reports/?$ admin/students.php [NC,L]
 
-# 2. Redirect requests for index.php to the root
+RewriteCond %{THE_REQUEST} \s/admin/([^/]+)\.php[\s?] [NC]
+RewriteRule ^ admin/%1 [R=301,L]
+
+# 2. Specific rules for admin pages (based on your sidebar navigation)
+RewriteRule ^admin/dashboard/?$ admin/dashboard.php [NC,L]
+RewriteRule ^admin/department/?$ admin/department.php [NC,L]
+RewriteRule ^admin/room/?$ admin/room.php [NC,L]
+RewriteRule ^admin/role/?$ admin/role.php [NC,L]
+RewriteRule ^admin/personell/?$ admin/personell.php [NC,L]
+RewriteRule ^admin/personell_logs/?$ admin/personell_logs.php [NC,L]
+RewriteRule ^admin/visitor/?$ admin/visitor.php [NC,L]
+RewriteRule ^admin/visitor_logs/?$ admin/visitor_logs.php [NC,L]
+RewriteRule ^admin/students/?$ admin/students.php [NC,L]
+RewriteRule ^admin/instructors/?$ admin/instructors.php [NC,L]
+RewriteRule ^admin/instructor_accounts/?$ admin/instructor_accounts.php [NC,L]
+RewriteRule ^admin/manage_subjects/?$ admin/manage_subjects.php [NC,L]
+RewriteRule ^admin/dtr/?$ admin/dtr.php [NC,L]
+RewriteRule ^admin/student_logs/?$ admin/student_logs.php [NC,L]
+RewriteRule ^admin/attendance_log/?$ admin/attendance_log.php [NC,L]
+RewriteRule ^admin/room_schedule/?$ admin/room_schedule.php [NC,L]
+RewriteRule ^admin/settings/?$ admin/settings.php [NC,L]
+
+# 3. Redirect requests for index.php to the root
 RewriteRule ^index\.php$ / [R=301,L]
 
-# 3. Internally rewrite clean URLs to the .php file
+# 4. Internally rewrite clean URLs to the .php file
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME}.php -f
 RewriteRule ^([^/]+)$ $1.php [L]
 
+# 5. Handle admin subdirectory clean URLs
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}\.php -f
+RewriteRule ^admin/([^/]+)$ admin/$1.php [L]
 
 # ======= SECURITY HEADERS & PROTECTION =======
 
@@ -32,6 +54,7 @@ Header always set X-Content-Type-Options "nosniff"
 Header always set X-Frame-Options "SAMEORIGIN"
 Header always set X-XSS-Protection "1; mode=block"
 Header always set Referrer-Policy "strict-origin-when-cross-origin"
+Header always set Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()"
 
 # Disable server signature
 ServerSignature Off
@@ -67,4 +90,15 @@ RewriteRule ^(.*)$ - [F,L]
 
 <FilesMatch "^\.">
     Deny from all
+</FilesMatch>
+
+# Protect admin directory
+<FilesMatch "\.(php)$">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
 </FilesMatch>
