@@ -531,23 +531,32 @@ include '../connection.php';
     <!-- Template Javascript -->
     <script src="js/main.js"></script>
     <script>
-        function executeRecaptcha() {
-    grecaptcha.ready(function() {
-        grecaptcha.execute('6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_', {action: 'submit'}).then(function(token) {
-            document.getElementById('g-recaptcha-response').value = token;
+        function getRecaptchaToken() {
+    return new Promise((resolve, reject) => {
+        if (typeof grecaptcha === 'undefined') {
+            resolve('');
+            return;
+        }
+        
+        grecaptcha.ready(function() {
+            grecaptcha.execute('6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_', {action: 'submit'}).then(function(token) {
+                resolve(token);
+            }).catch(function(error) {
+                console.error('reCAPTCHA error:', error);
+                resolve(''); // Resolve with empty string to avoid blocking
+            });
         });
     });
 }
 
-// Execute reCAPTCHA when form is about to be submitted
-document.addEventListener('DOMContentLoaded', function() {
-    const forms = document.querySelectorAll('form');
-    forms.forEach(form => {
-        form.addEventListener('submit', function(e) {
-            executeRecaptcha();
+// Initialize reCAPTCHA
+function initRecaptcha() {
+    if (typeof grecaptcha !== 'undefined') {
+        grecaptcha.ready(function() {
+            console.log('reCAPTCHA initialized');
         });
-    });
-});
+    }
+}
    $(document).ready(function() {
     // Initialize DataTable
     var dataTable = $('#myDataTable').DataTable({
