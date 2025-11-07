@@ -1,5 +1,6 @@
 <?php
 // admin/index.php
+define('DEBUG', true);
 include '../connection.php';
 include '../security-headers.php';
 session_start();
