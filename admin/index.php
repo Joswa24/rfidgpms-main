@@ -2,6 +2,7 @@
 // admin/index.php
 include '../connection.php';
 include '../security-headers.php';
+include_once 'recaptcha.php'; 
 session_start();
 
 // Additional security headers
@@ -19,11 +20,11 @@ header("Pragma: no-cache");
 header("Expires: 0");
 
 // Initialize variables
-$maxAttempts = 3;
-$lockoutTime = 30;
-$error = '';
-$success = '';
-$twoFactorRequired = false;
+ $maxAttempts = 3;
+ $lockoutTime = 30;
+ $error = '';
+ $success = '';
+ $twoFactorRequired = false;
 
 // Initialize session variables
 if (!isset($_SESSION['login_attempts'])) {
@@ -36,115 +37,13 @@ if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
+// Initialize reCAPTCHA
+ $recaptcha = new reCAPTCHA('6Ld2w-QrAAAAAFeIvhKm5V6YBpIsiyHIyzHxeqm-', '6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_');
+
 // Redirect if already logged in
 if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true && isset($_SESSION['2fa_verified']) && $_SESSION['2fa_verified'] === true) {
     header('Location: dashboard.php');
     exit();
-}
-
-// Handle 2FA verification
-// Handle 2FA verification
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_2fa'])) {
-    // Combine the 6 input fields into one code
-    $verificationCode = '';
-    for ($i = 1; $i <= 6; $i++) {
-        $fieldName = "code_$i";
-        $verificationCode .= isset($_POST[$fieldName]) ? trim($_POST[$fieldName]) : '';
-    }
-    
-    error_log("2FA Verification Attempt - Code: " . str_repeat('*', strlen($verificationCode)));
-    
-    if (empty($verificationCode) || strlen($verificationCode) !== 6) {
-        $error = "Please enter the complete 6-digit verification code.";
-        $twoFactorRequired = true;
-    } elseif (!ctype_digit($verificationCode)) {
-        $error = "Invalid verification code format. Please enter only numbers.";
-        $twoFactorRequired = true;
-    } else {
-        try {
-            // Check if session variables exist
-            if (!isset($_SESSION['temp_user_id']) || !isset($_SESSION['temp_username']) || !isset($_SESSION['temp_email'])) {
-                $error = "Session expired. Please login again.";
-                $twoFactorRequired = false;
-                // Clear any existing session data
-                unset($_SESSION['temp_user_id'], $_SESSION['temp_username'], $_SESSION['temp_email'], $_SESSION['password_verified']);
-            } else {
-                $userId = $_SESSION['temp_user_id'];
-                $username = $_SESSION['temp_username'];
-                $email = $_SESSION['temp_email'];
-                
-                // Debug logging
-                error_log("Verifying 2FA for user ID: $userId");
-                
-                // Check if verification code is valid
-                $stmt = $db->prepare("SELECT id, admin_id, verification_code, expires_at FROM admin_2fa_codes WHERE admin_id = ? AND verification_code = ? AND is_used = 0 AND expires_at > NOW()");
-                $stmt->bind_param("is", $userId, $verificationCode);
-                $stmt->execute();
-                $result = $stmt->get_result();
-                
-                if ($result->num_rows > 0) {
-                    $codeData = $result->fetch_assoc();
-                    $codeId = $codeData['id'];
-                    
-                    // Mark code as used
-                    $stmt = $db->prepare("UPDATE admin_2fa_codes SET is_used = 1, used_at = NOW() WHERE id = ?");
-                    $stmt->bind_param("i", $codeId);
-                    
-                    if ($stmt->execute()) {
-                        // Log successful 2FA verification
-                        logAccessAttempt($userId, $username, '2FA Verification', 'success');
-                        
-                        // Set success message before redirect
-                        $_SESSION['login_success'] = "Two-factor authentication successful! Welcome, " . htmlspecialchars($username);
-                        
-                        // Complete login process - THIS WILL REDIRECT TO DASHBOARD
-                        completeLoginProcess($userId, $username, $email);
-                        exit(); // Ensure script stops after redirect
-                    } else {
-                        throw new Exception("Failed to mark 2FA code as used");
-                    }
-                    
-                } else {
-                    $error = "Invalid verification code. Please try again.";
-                    $twoFactorRequired = true;
-                    
-                    // Log failed 2FA attempt
-                    logAccessAttempt($userId, $username, 'Failed 2FA - Invalid Code', 'failed');
-                }
-            }
-        } catch (Exception $e) {
-            error_log("2FA verification error: " . $e->getMessage());
-            $error = "Database error. Please try again.";
-            $twoFactorRequired = true;
-        }
-    }
-}
-
-// Handle resend 2FA code
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resend_2fa'])) {
-    try {
-        if (!isset($_SESSION['temp_user_id']) || !isset($_SESSION['temp_email'])) {
-            $error = "Session expired. Please login again.";
-        } else {
-            $userId = $_SESSION['temp_user_id'];
-            $email = $_SESSION['temp_email'];
-            
-            // Generate and send new 2FA code
-            $verificationCode = generate2FACode($userId, $email);
-            
-            if ($verificationCode) {
-                $success = "A new verification code has been sent to your email.";
-                $twoFactorRequired = true;
-            } else {
-                $error = "Failed to send verification code. Please try again.";
-                $twoFactorRequired = true;
-            }
-        }
-    } catch (Exception $e) {
-        error_log("Error resending 2FA code: " . $e->getMessage());
-        $error = "Error sending verification code. Please try again.";
-        $twoFactorRequired = true;
-    }
 }
 
 // Handle login form submission
@@ -154,61 +53,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
         $error = "Security token invalid. Please refresh the page.";
     } else {
-        // Check lockout
-        if ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime) {
-            $remainingTime = $lockoutTime - (time() - $_SESSION['lockout_time']);
-            $error = "Too many failed attempts. Please wait " . $remainingTime . " seconds before trying again.";
+        // Verify reCAPTCHA
+        $recaptcha_response = $_POST['g-recaptcha-response'] ?? '';
+        $verification = $recaptcha->verify($recaptcha_response, 0.5);
+        
+        if (!$verification['passed']) {
+            $error = "reCAPTCHA verification failed. Please try again.";
         } else {
-            // Reset attempts if lockout expired
-            if ((time() - $_SESSION['lockout_time']) >= $lockoutTime && $_SESSION['login_attempts'] >= $maxAttempts) {
-                $_SESSION['login_attempts'] = 0;
-                $_SESSION['lockout_time'] = 0;
-            }
-
-            $username = trim($_POST['username']);
-            $password = trim($_POST['password']);
-            
-            // Input validation
-            if (empty($username) || empty($password)) {
-                $error = "Please enter both username and password.";
-            } elseif (strlen($username) > 50 || strlen($password) > 255) {
-                $error = "Invalid input length.";
+            // Check lockout
+            if ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime) {
+                $remainingTime = $lockoutTime - (time() - $_SESSION['lockout_time']);
+                $error = "Too many failed attempts. Please wait " . $remainingTime . " seconds before trying again.";
             } else {
-                try {
-                    $stmt = $db->prepare("SELECT * FROM user WHERE username = ?");
-                    if (!$stmt) {
-                        throw new Exception("Database error");
-                    }
-                    
-                    $stmt->bind_param("s", $username);
-                    $stmt->execute();
-                    $result = $stmt->get_result();
-                    
-                    if ($result->num_rows > 0) {
-                        $user = $result->fetch_assoc();
+                // Reset attempts if lockout expired
+                if ((time() - $_SESSION['lockout_time']) >= $lockoutTime && $_SESSION['login_attempts'] >= $maxAttempts) {
+                    $_SESSION['login_attempts'] = 0;
+                    $_SESSION['lockout_time'] = 0;
+                }
+
+                $username = trim($_POST['username']);
+                $password = trim($_POST['password']);
+                
+                // Input validation
+                if (empty($username) || empty($password)) {
+                    $error = "Please enter both username and password.";
+                } elseif (strlen($username) > 50 || strlen($password) > 255) {
+                    $error = "Invalid input length.";
+                } else {                  
+                    try {
+                        $stmt = $db->prepare("SELECT * FROM user WHERE username = ?");
+                        if (!$stmt) {
+                            throw new Exception("Database error");
+                        }
                         
-                        if (password_verify($password, $user['password'])) {
-                            // Log successful login
-                            logAccessAttempt($user['id'], $user['username'], 'Login', 'success');
+                        $stmt->bind_param("s", $username);
+                        $stmt->execute();
+                        $result = $stmt->get_result();
+                        
+                        if ($result->num_rows > 0) {
+                            $user = $result->fetch_assoc();
                             
-                            // Reset login attempts
-                            $_SESSION['login_attempts'] = 0;
-                            $_SESSION['lockout_time'] = 0;
-                            
-                            // Store user info in session for 2FA verification
-                            $_SESSION['temp_user_id'] = $user['id'];
-                            $_SESSION['temp_username'] = $user['username'];
-                            $_SESSION['temp_email'] = $user['email'];
-                            $_SESSION['password_verified'] = true;
-                            
-                            // Generate and send 2FA code
-                            $verificationCode = generate2FACode($user['id'], $user['email']);
-                            
-                            if ($verificationCode) {
-                                $twoFactorRequired = true;
-                                $success = "Verification code sent to your email.";
+                            if (password_verify($password, $user['password'])) {
+                                // Log successful login
+                                logAccessAttempt($user['id'], $user['username'], 'Login', 'success');
+                                
+                                // Reset login attempts
+                                $_SESSION['login_attempts'] = 0;
+                                $_SESSION['lockout_time'] = 0;
+                                
+                                // Store user info in session for 2FA verification
+                                $_SESSION['temp_user_id'] = $user['id'];
+                                $_SESSION['temp_username'] = $user['username'];
+                                $_SESSION['temp_email'] = $user['email'];
+                                $_SESSION['password_verified'] = true;
+                                
+                                // Generate and send 2FA code
+                                $verificationCode = generate2FACode($user['id'], $user['email']);
+                                
+                                if ($verificationCode) {
+                                    $twoFactorRequired = true;
+                                    $success = "Verification code sent to your email.";
+                                } else {
+                                    $error = "Failed to send verification code. Please try again.";
+                                }
                             } else {
-                                $error = "Failed to send verification code. Please try again.";
+                                // Log failed login attempt
+                                logAccessAttempt(0, $username, 'Failed Login', 'failed');
+                                
+                                $_SESSION['login_attempts']++;
+                                $attemptsLeft = $maxAttempts - $_SESSION['login_attempts'];
+                                if ($attemptsLeft > 0) {
+                                    $error = "Invalid username or password. Attempts remaining: " . $attemptsLeft;
+                                } else {
+                                    $_SESSION['lockout_time'] = time();
+                                    $error = "Too many failed attempts. Please wait 30 seconds before trying again.";
+                                }
                             }
                         } else {
                             // Log failed login attempt
@@ -223,22 +142,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                                 $error = "Too many failed attempts. Please wait 30 seconds before trying again.";
                             }
                         }
-                    } else {
-                        // Log failed login attempt
-                        logAccessAttempt(0, $username, 'Failed Login', 'failed');
-                        
-                        $_SESSION['login_attempts']++;
-                        $attemptsLeft = $maxAttempts - $_SESSION['login_attempts'];
-                        if ($attemptsLeft > 0) {
-                            $error = "Invalid username or password. Attempts remaining: " . $attemptsLeft;
-                        } else {
-                            $_SESSION['lockout_time'] = time();
-                            $error = "Too many failed attempts. Please wait 30 seconds before trying again.";
-                        }
+                    } catch (Exception $e) {
+                        error_log("Login error: " . $e->getMessage());
+                        $error = "Database error. Please try again.";
                     }
-                } catch (Exception $e) {
-                    error_log("Login error: " . $e->getMessage());
-                    $error = "Database error. Please try again.";
                 }
             }
         }
@@ -360,7 +267,6 @@ function generate2FACode($userId, $email) {
 }
 
 // UPDATED Function to send 2FA code via email
-// UPDATED Function to send 2FA code via email
 function send2FACodeEmail($email, $verificationCode) {
     try {
         // Validate email
@@ -461,8 +367,8 @@ function send2FACodeEmail($email, $verificationCode) {
 }
 
 // Check if user is currently locked out
-$isLockedOut = ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime);
-$remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lockout_time'])) : 0;
+ $isLockedOut = ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime);
+ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lockout_time'])) : 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -472,7 +378,7 @@ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lock
     <title>Admin Login - RFID System</title>
     
     <!-- Security Meta Tags -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self';">
     <meta http-equiv="X-Frame-Options" content="DENY">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta name="referrer" content="strict-origin-when-cross-origin">
@@ -484,6 +390,9 @@ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lock
     <meta name="description" content="Gate and Personnel Management System">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    
+    <!-- reCAPTCHA v3 -->
+    <script src="https://www.google.com/recaptcha/api.js?render=6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_"></script>
     
     <style>
         :root {
@@ -973,6 +882,7 @@ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lock
             <form method="POST" id="loginForm" autocomplete="on">
                 <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                 <input type="hidden" name="login" value="1">
+                <input type="hidden" name="g-recaptcha-response" id="recaptchaResponse">
 
                 <div class="form-group">
                     <label for="username" class="form-label"><i class="fas fa-user"></i>Username</label>
@@ -1099,6 +1009,26 @@ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lock
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
+        // reCAPTCHA v3
+        function getRecaptchaToken() {
+            return new Promise((resolve, reject) => {
+                if (typeof grecaptcha === 'undefined') {
+                    console.error('reCAPTCHA not loaded');
+                    resolve('');
+                    return;
+                }
+                
+                grecaptcha.ready(function() {
+                    grecaptcha.execute('6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_', {action: 'login'}).then(function(token) {
+                        resolve(token);
+                    }).catch(function(error) {
+                        console.error('reCAPTCHA error:', error);
+                        resolve('');
+                    });
+                });
+            });
+        }
+
         // Toggle password visibility
         function togglePassword() {
             const passwordField = document.getElementById("password");
@@ -1117,14 +1047,16 @@ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lock
             }
         }
 
-        // Login form submission
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
+        // Login form submission with reCAPTCHA
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
             const isLockedOut = <?php echo $isLockedOut ? 'true' : 'false'; ?>;
             
             if (isLockedOut) {
                 e.preventDefault();
                 return;
             }
+            
+            e.preventDefault();
             
             // Show loading state
             const loginBtn = document.getElementById('loginBtn');
@@ -1134,6 +1066,32 @@ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lock
             loginText.textContent = 'Authenticating...';
             loginSpinner.classList.remove('d-none');
             loginBtn.disabled = true;
+            
+            try {
+                // Get reCAPTCHA token
+                const recaptchaToken = await getRecaptchaToken();
+                
+                // Set the token in the hidden field
+                document.getElementById('recaptchaResponse').value = recaptchaToken;
+                
+                // Submit the form
+                this.submit();
+            } catch (error) {
+                console.error('Error during login:', error);
+                
+                // Reset button state
+                loginText.textContent = 'Sign In';
+                loginSpinner.classList.add('d-none');
+                loginBtn.disabled = false;
+                
+                // Show error message
+                Swal.fire({
+                    title: 'Authentication Error',
+                    text: 'An error occurred during authentication. Please try again.',
+                    icon: 'error',
+                    confirmButtonColor: '#4e73df'
+                });
+            }
         });
 
         // Enhanced 2FA verification handling
@@ -1213,140 +1171,134 @@ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lock
         /**
          * Submit 2FA Form with Enhanced Validation
          */
-        /**
- * Submit 2FA Form with Enhanced Validation
- */
-/**
- * Submit 2FA Form with Enhanced Validation
- */
-function submit2FAForm() {
-    const codeInputs = document.querySelectorAll('.verification-code-input');
-    const verifyBtn = document.getElementById('verifyBtn');
-    const verifyText = document.getElementById('verifyText');
-    const verifySpinner = document.getElementById('verifySpinner');
-    const validationMessage = document.getElementById('codeValidationMessage');
-    
-    // Check if all fields are filled
-    const allFilled = Array.from(codeInputs).every(input => input.value.length === 1);
-    
-    if (!allFilled) {
-        // Show validation error
-        validationMessage.classList.add('show');
-        codeInputs.forEach(input => {
-            if (input.value.length === 0) {
-                input.classList.add('error');
-            }
-        });
-        
-        // Focus on first empty field
-        const firstEmpty = Array.from(codeInputs).find(input => input.value.length === 0);
-        if (firstEmpty) firstEmpty.focus();
-        
-        return;
-    }
-    
-    // Hide validation message
-    validationMessage.classList.remove('show');
-    
-    // Show loading state
-    verifyText.textContent = 'Verifying...';
-    verifySpinner.classList.remove('d-none');
-    verifyBtn.disabled = true;
-    
-    // Hide any existing alerts
-    hideModalAlerts();
-    
-    // Get the complete verification code
-    const verificationCode = Array.from(codeInputs).map(input => input.value).join('');
-    
-    // Validate it's a 6-digit number
-    if (!/^\d{6}$/.test(verificationCode)) {
-        showModalError('Please enter a valid 6-digit code.');
-        verifyText.textContent = 'Verify Code';
-        verifySpinner.classList.add('d-none');
-        verifyBtn.disabled = false;
-        return;
-    }
-    
-    // Submit the form via AJAX to handle response better
-    submit2FAViaAJAX(verificationCode);
-}
-
-/**
- * Submit 2FA via AJAX for better user experience
- */
-function submit2FAViaAJAX(verificationCode) {
-    const formData = new FormData();
-    formData.append('verify_2fa', '1');
-    formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
-    
-    // Add individual code fields
-    for (let i = 0; i < 6; i++) {
-        formData.append(`code_${i + 1}`, verificationCode[i]);
-    }
-    
-    fetch('', {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => response.text())
-    .then(data => {
-        // Check if response contains success indicators
-        if (data.includes('dashboard.php') || data.includes('login_success')) {
-            // Success - redirect to dashboard
-            showModalSuccess('Verification successful! Redirecting to dashboard...');
+        function submit2FAForm() {
+            const codeInputs = document.querySelectorAll('.verification-code-input');
+            const verifyBtn = document.getElementById('verifyBtn');
+            const verifyText = document.getElementById('verifyText');
+            const verifySpinner = document.getElementById('verifySpinner');
+            const validationMessage = document.getElementById('codeValidationMessage');
             
-            setTimeout(() => {
-                window.location.href = 'dashboard.php';
-            }, 1500);
-        } else if (data.includes('Invalid verification code') || data.includes('error')) {
-            // Failed verification
-            showModalError('Invalid verification code. Please try again.');
-            reset2FAForm();
-        } else {
-            // Generic error
-            showModalError('Verification failed. Please try again.');
-            reset2FAForm();
+            // Check if all fields are filled
+            const allFilled = Array.from(codeInputs).every(input => input.value.length === 1);
+            
+            if (!allFilled) {
+                // Show validation error
+                validationMessage.classList.add('show');
+                codeInputs.forEach(input => {
+                    if (input.value.length === 0) {
+                        input.classList.add('error');
+                    }
+                });
+                
+                // Focus on first empty field
+                const firstEmpty = Array.from(codeInputs).find(input => input.value.length === 0);
+                if (firstEmpty) firstEmpty.focus();
+                
+                return;
+            }
+            
+            // Hide validation message
+            validationMessage.classList.remove('show');
+            
+            // Show loading state
+            verifyText.textContent = 'Verifying...';
+            verifySpinner.classList.remove('d-none');
+            verifyBtn.disabled = true;
+            
+            // Hide any existing alerts
+            hideModalAlerts();
+            
+            // Get the complete verification code
+            const verificationCode = Array.from(codeInputs).map(input => input.value).join('');
+            
+            // Validate it's a 6-digit number
+            if (!/^\d{6}$/.test(verificationCode)) {
+                showModalError('Please enter a valid 6-digit code.');
+                verifyText.textContent = 'Verify Code';
+                verifySpinner.classList.add('d-none');
+                verifyBtn.disabled = false;
+                return;
+            }
+            
+            // Submit the form via AJAX to handle response better
+            submit2FAViaAJAX(verificationCode);
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showModalError('Network error. Please try again.');
-        reset2FAForm();
-    });
-}
 
-/**
- * Reset 2FA form state
- */
-function reset2FAForm() {
-    const verifyBtn = document.getElementById('verifyBtn');
-    const verifyText = document.getElementById('verifyText');
-    const verifySpinner = document.getElementById('verifySpinner');
-    const codeInputs = document.querySelectorAll('.verification-code-input');
-    
-    // Reset button state
-    verifyText.textContent = 'Verify Code';
-    verifySpinner.classList.add('d-none');
-    verifyBtn.disabled = false;
-    
-    // Clear and focus on first input
-    codeInputs.forEach(input => {
-        input.value = '';
-        input.classList.add('error');
-    });
-    
-    // Focus on first input
-    document.getElementById('code_1').focus();
-    
-    // Remove error class after a delay
-    setTimeout(() => {
-        codeInputs.forEach(input => input.classList.remove('error'));
-    }, 2000);
-}
+        /**
+         * Submit 2FA via AJAX for better user experience
+         */
+        function submit2FAViaAJAX(verificationCode) {
+            const formData = new FormData();
+            formData.append('verify_2fa', '1');
+            formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+            
+            // Add individual code fields
+            for (let i = 0; i < 6; i++) {
+                formData.append(`code_${i + 1}`, verificationCode[i]);
+            }
+            
+            fetch('', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.text())
+            .then(data => {
+                // Check if response contains success indicators
+                if (data.includes('dashboard.php') || data.includes('login_success')) {
+                    // Success - redirect to dashboard
+                    showModalSuccess('Verification successful! Redirecting to dashboard...');
+                    
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.php';
+                    }, 1500);
+                } else if (data.includes('Invalid verification code') || data.includes('error')) {
+                    // Failed verification
+                    showModalError('Invalid verification code. Please try again.');
+                    reset2FAForm();
+                } else {
+                    // Generic error
+                    showModalError('Verification failed. Please try again.');
+                    reset2FAForm();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showModalError('Network error. Please try again.');
+                reset2FAForm();
+            });
+        }
+
+        /**
+         * Reset 2FA form state
+         */
+        function reset2FAForm() {
+            const verifyBtn = document.getElementById('verifyBtn');
+            const verifyText = document.getElementById('verifyText');
+            const verifySpinner = document.getElementById('verifySpinner');
+            const codeInputs = document.querySelectorAll('.verification-code-input');
+            
+            // Reset button state
+            verifyText.textContent = 'Verify Code';
+            verifySpinner.classList.add('d-none');
+            verifyBtn.disabled = false;
+            
+            // Clear and focus on first input
+            codeInputs.forEach(input => {
+                input.value = '';
+                input.classList.add('error');
+            });
+            
+            // Focus on first input
+            document.getElementById('code_1').focus();
+            
+            // Remove error class after a delay
+            setTimeout(() => {
+                codeInputs.forEach(input => input.classList.remove('error'));
+            }, 2000);
+        }
 
         /**
          * Show Error in Modal
