@@ -50,15 +50,31 @@ function verifyRecaptcha($secretKey) {
 // Verify reCAPTCHA for all POST requests (except specific cases)
 $recaptchaSecret = '6Ld2w-QrAAAAAFeIvhKm5V6YBpIsiyHIyzHxeqm-'; 
 
-// Skip reCAPTCHA for certain actions if needed
-$skipRecaptchaActions = ['find_schedules_for_swap', 'get_all_rooms', 'get_instructors_by_room', 'get_room_days', 'get_instructor_schedule', 'get_active_swaps'];
+// Skip reCAPTCHA for CRUD operations and other non-sensitive actions
+$skipRecaptchaActions = [
+    'add_department', 'update_department', 'delete_department', 
+    'add_room', 'update_room', 'delete_room',
+    'add_role', 'update_role', 'delete_role',
+    'add_personnel', 'update_personnel', 'delete_personnel',
+    'add_student', 'update_student', 'delete_student',
+    'add_instructor', 'update_instructor', 'delete_instructor',
+    'add_subject', 'update_subject', 'delete_subject',
+    'add_schedule', 'update_schedule', 'delete_schedule',
+    'add_visitor', 'update_visitor', 'delete_visitor',
+    // SIMPLIFIED SWAP SCHEDULE ACTIONS
+    'get_all_rooms', 'get_instructors_by_room', 'get_room_days',
+    'get_instructor_schedule', 'swap_time_schedule', 'get_active_swaps', 'revert_swap',
+    'find_all_schedules_for_swap',
+    // Legacy actions
+    'find_schedules_for_swap', 'swap_schedules'
+];
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !in_array($action, $skipRecaptchaActions)) {
+// Only verify reCAPTCHA for sensitive actions that are not in the skip list
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action']) && !in_array($_GET['action'], $skipRecaptchaActions)) {
     if (!verifyRecaptcha($recaptchaSecret)) {
         jsonResponse('error', 'reCAPTCHA verification failed. Please try again.');
     }
 }
-
 // Function to send JSON response
 function jsonResponse($status, $message, $data = []) {
     // Clear any previous output

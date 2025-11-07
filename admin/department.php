@@ -537,26 +537,42 @@ include '../connection.php';
             resolve('');
             return;
         }
-        
-        grecaptcha.ready(function() {
-            grecaptcha.execute('6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_', {action: 'submit'}).then(function(token) {
-                resolve(token);
-            }).catch(function(error) {
-                console.error('reCAPTCHA error:', error);
-                resolve(''); // Resolve with empty string to avoid blocking
+            
+            grecaptcha.ready(function() {
+                grecaptcha.execute('6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_', {action: 'submit'}).then(function(token) {
+                    resolve(token);
+                }).catch(function(error) {
+                    console.error('reCAPTCHA error:', error);
+                    resolve(''); // Resolve with empty string to avoid blocking
+                });
             });
         });
-    });
-}
+    }
 
-// Initialize reCAPTCHA
-function initRecaptcha() {
-    if (typeof grecaptcha !== 'undefined') {
-        grecaptcha.ready(function() {
-            console.log('reCAPTCHA initialized');
+    // Initialize reCAPTCHA
+    function initRecaptcha() {
+        if (typeof grecaptcha !== 'undefined') {
+            grecaptcha.ready(function() {
+                console.log('reCAPTCHA initialized');
+            });
+        }
+    }
+        async function makeAjaxRequest(url, data) {
+        // Get reCAPTCHA token
+        const recaptchaToken = await getRecaptchaToken();
+        
+        // Add reCAPTCHA token to data
+        data['g-recaptcha-response'] = recaptchaToken;
+        
+        return $.ajax({
+            type: "POST",
+            url: url,
+            data: data,
+            dataType: 'json'
         });
     }
-}
+
+
    $(document).ready(function() {
     // Initialize DataTable
     var dataTable = $('#myDataTable').DataTable({
@@ -586,70 +602,68 @@ function initRecaptcha() {
     // ==============
     // CREATE (ADD)
     // ==============
-    $('#departmentForm').submit(function(e) {
-        e.preventDefault();
-        
-        var inputField = document.getElementById('department_name');
-        var inputField1 = document.getElementById('department_description');
+    $('#departmentForm').submit(async function(e) {
+    e.preventDefault();
+    
+    var inputField = document.getElementById('department_name');
+    var inputField1 = document.getElementById('department_description');
 
-        // Validate inputs
-        if (!validateInput(inputField, 'deptname-error', 'Department name is required') || 
-            !validateInput(inputField1, 'deptname-desc', 'Description is required')) {
-            return;
-        }
+    // Validate inputs
+    if (!validateInput(inputField, 'deptname-error', 'Department name is required') || 
+        !validateInput(inputField1, 'deptname-desc', 'Description is required')) {
+        return;
+    }
 
-        var dptname = $('#department_name').val();
-        var dptdesc = $('#department_description').val();
-        
-        // Show loading state
-        $('#btn-department').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
-        $('#btn-department').prop('disabled', true);
+    var dptname = $('#department_name').val();
+    var dptdesc = $('#department_description').val();
+    
+    // Show loading state
+    $('#btn-department').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
+    $('#btn-department').prop('disabled', true);
 
-        $.ajax({
-            type: "POST",
-            url: "transac.php?action=add_department",
-            data: { dptname: dptname, dptdesc: dptdesc },
-            dataType: 'json',
-            success: function(response) {
-                // Reset button state
-                $('#btn-department').html('Save');
-                $('#btn-department').prop('disabled', false);
-                
-                if (response.status === 'success') {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success!',
-                        text: response.message,
-                        showConfirmButton: false,
-                        timer: 1500
-                    }).then(() => {
-                        $('#departmentModal').modal('hide');
-                        location.reload();
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error!',
-                        text: response.message
-                    });
-                }
-            },
-            error: function(xhr, status, error) {
-                // Reset button state
-                $('#btn-department').html('Save');
-                $('#btn-department').prop('disabled', false);
-                
-                console.log('XHR Response:', xhr.responseText);
-                console.log('Status:', status);
-                console.log('Error:', error);
-                
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error!',
-                    text: 'An error occurred while processing your request'
-                });
-            }
+    try {
+        const response = await makeAjaxRequest("transac.php?action=add_department", { 
+            dptname: dptname, 
+            dptdesc: dptdesc 
         });
+
+        // Reset button state
+        $('#btn-department').html('Save');
+        $('#btn-department').prop('disabled', false);
+        
+        if (response.status === 'success') {
+            Swal.fire({
+                icon: 'success',
+                title: 'Success!',
+                text: response.message,
+                showConfirmButton: false,
+                timer: 1500
+            }).then(() => {
+                $('#departmentModal').modal('hide');
+                location.reload();
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error!',
+                text: response.message
+            });
+        }
+    } catch (error) {
+        // Reset button state
+        $('#btn-department').html('Save');
+        $('#btn-department').prop('disabled', false);
+        
+        console.log('Error:', error);
+        
+        Swal.fire({
+            icon: 'error',
+            title: 'Error!',
+            text: 'An error occurred while processing your request'
+        });
+    }
+});
+
     });
 
     // ==========
