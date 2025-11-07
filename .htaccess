@@ -6,6 +6,11 @@ RewriteEngine On
 # 1. Redirect direct .php requests to the clean URL (prevents duplicate content)
 RewriteCond %{THE_REQUEST} \s/([^/]+)\.php[\s?] [NC]
 RewriteRule ^ /%1 [R=301,L]
+# Specific rules for admin pages
+RewriteRule ^admin/dashboard/?$ admin/dashboard.php [NC,L]
+RewriteRule ^admin/users/?$ admin/attendance_logs.php [NC,L]
+RewriteRule ^admin/settings/?$ admin/settings.php [NC,L]
+RewriteRule ^admin/reports/?$ admin/students.php [NC,L]
 
 # 2. Redirect requests for index.php to the root
 RewriteRule ^index\.php$ / [R=301,L]
