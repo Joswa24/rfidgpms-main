@@ -2,7 +2,7 @@
 // admin/index.php
 include '../connection.php';
 include '../security-headers.php';
-include_once 'recaptcha.php'; 
+include_once '../recaptcha.php'; 
 session_start();
 
 // Additional security headers
