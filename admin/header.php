@@ -32,7 +32,7 @@ function setSecurityHeaders() {
     header("Content-Security-Policy: " . implode("; ", $csp));
     
     // HTTP Strict Transport Security (HSTS)
-    header("Strict-Transport-Security: max-age=31536000; includeSubDomains; preload");
+    header("Strict-Transport-Security: max-age=31536000; includeSubDomains");
     
     // X-Content-Type-Options
     header("X-Content-Type-Options: nosniff");
