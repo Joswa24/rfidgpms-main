@@ -599,21 +599,7 @@ include '../connection.php';
         document.getElementById('departmentForm').reset();
     }
 
-    // Updated AJAX functions with reCAPTCHA
-async function makeAjaxRequest(url, data) {
-    // Get reCAPTCHA token
-    const recaptchaToken = await getRecaptchaToken();
     
-    // Add reCAPTCHA token to data
-    data['g-recaptcha-response'] = recaptchaToken;
-    
-    return $.ajax({
-        type: "POST",
-        url: url,
-        data: data,
-        dataType: 'json'
-    });
-}
 
 // ==============
 // CREATE (ADD) - UPDATED
