@@ -531,23 +531,24 @@ include '../connection.php';
     <!-- Template Javascript -->
     <script src="js/main.js"></script>
     <script>
-        function getRecaptchaToken() {
+        function getRecaptchaToken() {function getRecaptchaToken() {
     return new Promise((resolve, reject) => {
         if (typeof grecaptcha === 'undefined') {
-            resolve('');
+            console.error('reCAPTCHA not loaded');
+            resolve(''); // Resolve with empty string to avoid blocking
             return;
         }
-            
-            grecaptcha.ready(function() {
-                grecaptcha.execute('6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_', {action: 'submit'}).then(function(token) {
-                    resolve(token);
-                }).catch(function(error) {
-                    console.error('reCAPTCHA error:', error);
-                    resolve(''); // Resolve with empty string to avoid blocking
-                });
+        
+        grecaptcha.ready(function() {
+            grecaptcha.execute('6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_', {action: 'submit'}).then(function(token) {
+                resolve(token);
+            }).catch(function(error) {
+                console.error('reCAPTCHA error:', error);
+                resolve(''); // Resolve with empty string to avoid blocking
             });
         });
-    }
+    });
+}
 
     // Initialize reCAPTCHA
     function initRecaptcha() {
@@ -557,7 +558,8 @@ include '../connection.php';
             });
         }
     }
-        async function makeAjaxRequest(url, data) {
+        async function makeAjaxRequest(url, data) {async function makeAjaxRequest(url, data) {
+    try {
         // Get reCAPTCHA token
         const recaptchaToken = await getRecaptchaToken();
         
@@ -570,7 +572,12 @@ include '../connection.php';
             data: data,
             dataType: 'json'
         });
+    } catch (error) {
+        console.error('Error making AJAX request:', error);
+        // Return a rejected promise to handle the error in the calling code
+        return Promise.reject(error);
     }
+}
 
 
    $(document).ready(function() {
@@ -604,7 +611,7 @@ include '../connection.php';
 // ==============
 // CREATE (ADD) - UPDATED
 // ==============
-$('#departmentForm').submit(async function(e) {
+ $('#departmentForm').submit(async function(e) {
     e.preventDefault();
     
     var inputField = document.getElementById('department_name');
@@ -661,7 +668,7 @@ $('#departmentForm').submit(async function(e) {
         Swal.fire({
             icon: 'error',
             title: 'Error!',
-            text: 'An error occurred while processing your request'
+            text: 'An error occurred while processing your request. Please check your reCAPTCHA configuration.'
         });
     }
 });

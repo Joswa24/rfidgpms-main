@@ -20,6 +20,7 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true ||
 include '../connection.php';
 
 // Add this function to verify reCAPTCHA
+// Add this function to verify reCAPTCHA
 function verifyRecaptcha($secretKey) {
     $token = $_POST['g-recaptcha-response'] ?? '';
     if (empty($token)) {
@@ -47,29 +48,16 @@ function verifyRecaptcha($secretKey) {
     return $response->success && $response->score > 0.5; // Adjust threshold as needed
 }
 
-// Verify reCAPTCHA for all POST requests (except specific cases)
-$recaptchaSecret = '6Ld2w-QrAAAAAFeIvhKm5V6YBpIsiyHIyzHxeqm-'; 
+// Verify reCAPTCHA for all POST requests
+ $recaptchaSecret = '6Ld2w-QrAAAAAFeIvhKm5V6YBpIsiyHIyzHxeqm-'; 
 
-// Skip reCAPTCHA for CRUD operations and other non-sensitive actions
-$skipRecaptchaActions = [
-    'add_department', 'update_department', 'delete_department', 
-    'add_room', 'update_room', 'delete_room',
-    'add_role', 'update_role', 'delete_role',
-    'add_personnel', 'update_personnel', 'delete_personnel',
-    'add_student', 'update_student', 'delete_student',
-    'add_instructor', 'update_instructor', 'delete_instructor',
-    'add_subject', 'update_subject', 'delete_subject',
-    'add_schedule', 'update_schedule', 'delete_schedule',
-    'add_visitor', 'update_visitor', 'delete_visitor',
-    // SIMPLIFIED SWAP SCHEDULE ACTIONS
+// Only skip reCAPTCHA for non-sensitive actions
+ $skipRecaptchaActions = [
     'get_all_rooms', 'get_instructors_by_room', 'get_room_days',
-    'get_instructor_schedule', 'swap_time_schedule', 'get_active_swaps', 'revert_swap',
-    'find_all_schedules_for_swap',
-    // Legacy actions
-    'find_schedules_for_swap', 'swap_schedules'
+    'get_instructor_schedule', 'get_active_swaps', 'find_all_schedules_for_swap'
 ];
 
-// Only verify reCAPTCHA for sensitive actions that are not in the skip list
+// Verify reCAPTCHA for all POST requests except those in the skip list
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action']) && !in_array($_GET['action'], $skipRecaptchaActions)) {
     if (!verifyRecaptcha($recaptchaSecret)) {
         jsonResponse('error', 'reCAPTCHA verification failed. Please try again.');
