@@ -2,6 +2,7 @@
 // admin/index.php
 include '../connection.php';
 include '../security-headers.php';
+include '../recapcha.php';
 session_start();
 
 // Additional security headers
