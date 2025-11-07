@@ -6,9 +6,10 @@ function setSecurityHeaders() {
     
     // Enhanced Content Security Policy with reCAPTCHA
     header("Content-Security-Policy: default-src 'self'; script-src 'self' https://www.google.com https://www.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://ajax.googleapis.com https://fonts.googleapis.com 'unsafe-inline'; style-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google.com; frame-ancestors 'none';");
-
+    
     // HTTP Strict Transport Security (HSTS) - Enhanced
     header("Strict-Transport-Security: max-age=31536000; includeSubDomains; preload");
+    header("Strict-Transport-Security: max-age=31536000; includeSubDomains");
     
     // Other security headers (removed duplicates)
     header("X-Content-Type-Options: nosniff");
