@@ -41,12 +41,12 @@ function getPendingExits($db) {
               LEFT JOIN personell p ON gl.person_type = 'personell' AND gl.person_id = p.id
               LEFT JOIN visitor v ON gl.person_type = 'visitor' AND gl.person_id = v.id
               WHERE gl.direction = 'IN' 
-              AND DATE(gl.created_at) = CURDATE() 
+              AND DATE(gl.date) = CURDATE() 
               AND gl.id_number NOT IN (
                   SELECT id_number 
                   FROM gate_logs 
                   WHERE direction = 'OUT' 
-                  AND DATE(created_at) = CURDATE()
+                  AND DATE(date) = CURDATE()
               )
               ORDER BY gl.time_in DESC";
     
@@ -128,7 +128,7 @@ $query = "SELECT
     gl.location,
     gl.time_in,
     gl.time_out,
-    gl.created_at
+    gl.date
 FROM gate_logs gl
 LEFT JOIN students s ON gl.person_type = 'student' AND gl.person_id = s.id
 LEFT JOIN instructor i ON gl.person_type = 'instructor' AND gl.person_id = i.id
@@ -141,7 +141,7 @@ $types = '';
 
 // Apply filters safely
 if (!empty($date_filter)) {
-    $query .= " AND DATE(gl.created_at) = ?";
+    $query .= " AND DATE(gl.date) = ?";
     $params[] = $date_filter;
     $types .= 's';
 }
@@ -167,7 +167,7 @@ if (!empty($search_term)) {
     $types .= 'sss';
 }
 
-$query .= " ORDER BY gl.created_at DESC";
+$query .= " ORDER BY gl.date DESC";
 
 // Execute query with improved error handling
 $logs = [];
@@ -216,7 +216,7 @@ try {
     
     // Fallback: try a simple query to see if we can get any data
     try {
-        $fallback_query = "SELECT * FROM gate_logs ORDER BY created_at DESC LIMIT 50";
+        $fallback_query = "SELECT * FROM gate_logs ORDER BY date DESC LIMIT 50";
         $fallback_result = $db->query($fallback_query);
         if ($fallback_result) {
             $logs = $fallback_result->fetch_all(MYSQLI_ASSOC);
@@ -247,7 +247,7 @@ function getGateStats($db, $date, $department = null, $location = null) {
 
     try {
         // Base filters
-        $where = "WHERE DATE(created_at) = ?";
+        $where = "WHERE DATE(date) = ?";
         $types = "s";
         $params = [$date];
 
@@ -299,7 +299,7 @@ function getGateStats($db, $date, $department = null, $location = null) {
 
         // Pending exits count (entrants without corresponding exit same day)
         // Build pending subquery filters similarly
-        $pending_where = "WHERE direction = 'IN' AND DATE(created_at) = ?";
+        $pending_where = "WHERE direction = 'IN' AND DATE(date) = ?";
         $pending_types = "s";
         $pending_params = [$date];
         if (!empty($department)) {
@@ -317,7 +317,7 @@ function getGateStats($db, $date, $department = null, $location = null) {
             FROM gate_logs gl
             $pending_where
             AND gl.id_number NOT IN (
-                SELECT id_number FROM gate_logs WHERE direction = 'OUT' AND DATE(created_at) = ?" .
+                SELECT id_number FROM gate_logs WHERE direction = 'OUT' AND DATE(date) = ?" .
                 (empty($department) ? "" : " AND department = ?") .
                 (empty($location) ? "" : " AND location = ?") .
             ")";
@@ -933,7 +933,7 @@ function debugNameResolution($log) {
                                     <td>
                                         <small class="text-muted">
                                             <?php 
-                                                $timeValue = $log['created_at'] ?? null;
+                                                $timeValue = $log['date'] ?? null;
                                                 echo $timeValue 
                                                     ? date('M j, Y', strtotime($timeValue)) 
                                                     : 'N/A';

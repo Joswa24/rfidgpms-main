@@ -1,19 +1,24 @@
 <?php
 session_start();
 include 'header.php';
+if (isset($_SESSION['success_message'])) {
+    echo '<div class="alert alert-success">' . $_SESSION['success_message'] . '</div>';
+    unset($_SESSION['success_message']);
+}
+if (isset($_SESSION['error_message'])) {
+    echo '<div class="alert alert-danger">' . $_SESSION['error_message'] . '</div>';
+    unset($_SESSION['error_message']);
+}
+
+// Check if user is logged in and 2FA verified
+if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true || 
+    !isset($_SESSION['2fa_verified']) || $_SESSION['2fa_verified'] !== true) {
+    header('Location: index.php');
+    exit();
+}
+// Include connection
 include '../connection.php';
 
-// Fetch data from the about table (for logo, name, etc.)
-$logo1 = $logo2 = $nameo = $address = '';
-$sql = "SELECT * FROM about LIMIT 1";
-$result = $db->query($sql);
-if ($result && $result->num_rows > 0) {
-    $row = $result->fetch_assoc();
-    $logo1 = $row['logo1'];
-    $nameo = $row['name'];
-    $address = $row['address'];
-    $logo2 = $row['logo2'];
-}
 
 // Determine if we're viewing current or archived logs
 $view = isset($_GET['view']) ? $_GET['view'] : 'current';

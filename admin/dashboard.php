@@ -873,6 +873,72 @@ error_log("DASHBOARD DEBUG: " . json_encode($debug_info));
             50% { transform: scale(1.05); }
             100% { transform: scale(1); }
         }
+        /* Backup button styles */
+#backupBtn {
+    transition: all 0.3s ease;
+}
+
+#backupBtn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+#backupBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Form switch styling */
+.form-check-input:checked {
+    background-color: #5c95e9;
+    border-color: #5c95e9;
+}
+
+/* Backup status styling */
+#backupStatus {
+    transition: all 0.3s ease;
+}
+
+/* Notification styling */
+.alert {
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* Backup section styling */
+.backup-section {
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    padding: 20px;
+    margin-bottom: 20px;
+    border-left: 4px solid var(--info-color);
+}
+
+.backup-section .card-title {
+    color: var(--dark-text);
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.backup-section .card-text {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.backup-section .btn-primary {
+    background: linear-gradient(135deg, var(--info-color), #4361ee);
+    border: none;
+}
+
+.backup-section .form-switch {
+    margin-right: 15px;
+}
+
+.backup-section .form-check-label {
+    font-size: 0.9rem;
+    color: var(--dark-text);
+}
     </style>
 </head>
 
@@ -899,6 +965,35 @@ error_log("DASHBOARD DEBUG: " . json_encode($debug_info));
                                 <div class="alert alert-info d-flex align-items-center mt-3">
                                     <i class="fas fa-info-circle me-2"></i>
                                     <span>All statistics and charts reset daily at midnight.</span>
+                                </div>
+                                
+                                <!-- Database Backup Section - MOVED TO TOP -->
+                                <div class="backup-section mt-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h5 class="card-title mb-1"><i class="fas fa-database me-2"></i>Database Backup</h5>
+                                            <p class="card-text text-muted mb-0">Create backups of your database to prevent data loss</p>
+                                        </div>
+                                        <div class="d-flex align-items-center">
+                                            <div class="form-check form-switch me-3">
+                                                <input class="form-check-input" type="checkbox" id="autoBackupToggle">
+                                                <label class="form-check-label" for="autoBackupToggle">
+                                                    Auto-backup every 30s
+                                                </label>
+                                            </div>
+                                            <button id="backupBtn" class="btn btn-primary">
+                                                <i class="fas fa-download me-2"></i>Backup Now
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="card-footer bg-light mt-3" id="backupStatus" style="display: none;">
+                                        <div class="d-flex align-items-center">
+                                            <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                            <span id="backupStatusText">Creating backup...</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1390,28 +1485,145 @@ error_log("DASHBOARD DEBUG: " . json_encode($debug_info));
         // Check for new day every minute
         setInterval(checkNewDay, 60000);
         checkNewDay(); // Initial check
+        
+        // Database Backup Functionality
+        let autoBackupInterval = null;
+
+        // Manual backup on button click
+        $('#backupBtn').click(function() {
+            createBackup();
+        });
+
+        // Toggle auto-backup
+        $('#autoBackupToggle').change(function() {
+            if ($(this).is(':checked')) {
+                // Start auto-backup every 30 seconds
+                autoBackupInterval = setInterval(function() {
+                    createBackup(true); // true indicates this is an automatic backup
+                }, 30000);
+                
+                // Show notification
+                showNotification('Auto-backup enabled. Database will be backed up every 30 seconds.', 'info');
+            } else {
+                // Stop auto-backup
+                if (autoBackupInterval) {
+                    clearInterval(autoBackupInterval);
+                    autoBackupInterval = null;
+                }
+                
+                // Show notification
+                showNotification('Auto-backup disabled.', 'warning');
+            }
+        });
+
+        // Function to create backup
+        function createBackup(isAuto = false) {
+            // Show backup status
+            $('#backupStatus').show();
+            $('#backupStatusText').text('Creating backup...');
+            
+            // Disable button during backup
+            $('#backupBtn').prop('disabled', true);
+            
+            // Make AJAX request to backup.php
+            $.ajax({
+                url: 'backup.php',
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    if (response.success) {
+                        $('#backupStatusText').html(
+                            '<i class="fas fa-check-circle text-success me-2"></i>' +
+                            'Backup created successfully! File: ' + response.file + 
+                            ' (' + response.size + ') at ' + response.time
+                        );
+                        
+                        // Show success notification
+                        if (!isAuto) {
+                            showNotification('Database backup created successfully!', 'success');
+                            
+                            // Trigger download of the backup file
+                            window.location.href = 'backup.php?download=' + response.file;
+                        }
+                        
+                        // Hide status after 5 seconds
+                        setTimeout(function() {
+                            $('#backupStatus').fadeOut();
+                        }, 5000);
+                    } else {
+                        $('#backupStatusText').html(
+                            '<i class="fas fa-exclamation-triangle text-danger me-2"></i>' +
+                            'Backup failed. Please try again.'
+                        );
+                        
+                        // Show error notification
+                        showNotification('Failed to create database backup!', 'danger');
+                    }
+                },
+                error: function() {
+                    $('#backupStatusText').html(
+                        '<i class="fas fa-exclamation-triangle text-danger me-2"></i>' +
+                        'Backup failed. Server error.'
+                    );
+                    
+                    // Show error notification
+                    showNotification('Failed to create database backup! Server error.', 'danger');
+                },
+                complete: function() {
+                    // Re-enable button
+                    $('#backupBtn').prop('disabled', false);
+                }
+            });
+        }
+
+        // Function to show notification
+        function showNotification(message, type) {
+            // Create notification element
+            const notification = $(`
+                <div class="alert alert-${type} alert-dismissible fade show position-fixed" 
+                     style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `);
+            
+            // Add to body
+            $('body').append(notification);
+            
+            // Auto-dismiss after 5 seconds
+            setTimeout(function() {
+                notification.alert('close');
+            }, 5000);
+        }
     </script>
 
     <script>
     $(document).ready(function() {
-        // Initialize DataTable for logs
+        // Initialize DataTable for logs - FIXED VERSION
         $('#logsTable').DataTable({
-            order: [[3, 'desc']], // Order by Time In (newest first)
+            order: [[3, 'desc']], // Order by Time In (newest first) - 4th column (0-based index)
             pageLength: 15,
             responsive: true,
             language: {
                 search: "Search logs:",
                 lengthMenu: "Show _MENU_ entries",
                 info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                infoEmpty: "Showing 0 to 0 of 0 entries",
+                infoFiltered: "(filtered from _MAX_ total entries)",
+                emptyTable: "No entrance logs found for today.",
+                zeroRecords: "No matching records found",
                 paginate: {
                     previous: "Previous",
                     next: "Next"
                 }
-            }
+            },
+            dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rt<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>'
         });
 
         // Auto-refresh dashboard every 60 seconds
         setInterval(function() {
+            // Optional: Add a visual indicator before refresh
+            console.log('Auto-refreshing dashboard...');
             window.location.reload();
         }, 60000);
     });

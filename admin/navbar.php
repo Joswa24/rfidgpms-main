@@ -1,15 +1,21 @@
 <?php
-include '../connection.php';
-$logo1 = "";
-// Fetch data from the about table
-$sql = "SELECT * FROM about LIMIT 1";
-$result = $db->query($sql);
+if (isset($_SESSION['success_message'])) {
+    echo '<div class="alert alert-success">' . $_SESSION['success_message'] . '</div>';
+    unset($_SESSION['success_message']);
+}
+if (isset($_SESSION['error_message'])) {
+    echo '<div class="alert alert-danger">' . $_SESSION['error_message'] . '</div>';
+    unset($_SESSION['error_message']);
+}
 
-if ($result->num_rows > 0) {
-    // Output data of each row
-    $row = $result->fetch_assoc();
-    $logo1 = $row['logo1'];
-} 
+// Check if user is logged in and 2FA verified
+if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true || 
+    !isset($_SESSION['2fa_verified']) || $_SESSION['2fa_verified'] !== true) {
+    header('Location: index.php');
+    exit();
+}
+// Include connection
+include '../connection.php';
 
 $username = "";
 // Fetch data from the about table
@@ -128,7 +134,7 @@ if ($result1->num_rows > 0) {
     </a>
 
     <div class="navbar-nav align-items-center ms-auto">
-        <span class="user-greeting d-none d-md-inline">Welcome, <?php echo explode(' ', $username)[0]; ?>!</span>
+        <span class="user-greeting d-none d-md-inline">Welcome,</span>
         
         <div class="nav-item dropdown">
             <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
@@ -136,9 +142,6 @@ if ($result1->num_rows > 0) {
                 <span class="d-none d-lg-inline-flex"><?php echo $username; ?></span>
             </a>
             <div class="dropdown-menu dropdown-menu-end border-0 rounded-0 m-0">
-                <a href="profile.php" class="dropdown-item">
-                    <i class="fas fa-user-circle me-2"></i> My Profile
-                </a>
                 <a href="settings.php" class="dropdown-item">
                     <i class="fas fa-cog me-2"></i> Settings
                 </a>

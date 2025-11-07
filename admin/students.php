@@ -10,7 +10,15 @@ if (isset($_SESSION['error_message'])) {
     unset($_SESSION['error_message']);
 }
 
+// Check if user is logged in and 2FA verified
+if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true || 
+    !isset($_SESSION['2fa_verified']) || $_SESSION['2fa_verified'] !== true) {
+    header('Location: index.php');
+    exit();
+}
+// Include connection
 include '../connection.php';
+session_start();
 
 function getStudentPhoto($photo) {
     $basePath = '../uploads/students/';
@@ -1356,56 +1364,106 @@ function setIDNumberValue(field, value) {
         }
 
         // Filter grouped view
-        function filterGroupedView(yearVal, sectionVal, searchVal) {
-            let visibleGroups = 0;
+        // Replace your existing filterGroupedView function with this improved version:
+
+// Filter grouped view
+function filterGroupedView(yearVal, sectionVal, searchVal) {
+    let visibleGroups = 0;
+    
+    $('.card.mb-3').each(function() {
+        const $group = $(this);
+        const groupHeader = $group.find('.card-header h6').text().toLowerCase();
+        const groupYear = $group.find('.card-header h6').text().split(' - ')[0]?.trim();
+        const groupSection = $group.find('.card-header h6').text().split(' - ')[1]?.replace('Section', '').trim();
+        
+        let visibleRows = 0;
+        
+        // Filter rows within this group
+        $group.find('tbody tr').each(function() {
+            const $row = $(this);
+            const rowText = $row.text().toLowerCase();
+            const rowYear = $row.find('td:nth-child(5)').text().trim() || groupYear;
+            const rowSection = $row.find('td:nth-child(6)').text().trim() || groupSection;
             
-            $('.card.mb-3').each(function() {
-                const $group = $(this);
-                const groupHeader = $group.find('.card-header h6').text().toLowerCase();
-                const groupYear = $group.find('.card-header h6').text().split(' - ')[0]?.trim();
-                const groupSection = $group.find('.card-header h6').text().split(' - ')[1]?.replace('Section', '').trim();
-                
-                let visibleRows = 0;
-                
-                // Filter rows within this group
-                $group.find('tbody tr').each(function() {
-                    const $row = $(this);
-                    const rowText = $row.text().toLowerCase();
-                    const rowYear = $row.find('td:nth-child(5)').text().trim() || groupYear;
-                    const rowSection = $row.find('td:nth-child(6)').text().trim() || groupSection;
-                    
-                    const yearMatch = !yearVal || rowYear === yearVal;
-                    const sectionMatch = !sectionVal || rowSection === sectionVal;
-                    const searchMatch = !searchVal || rowText.includes(searchVal);
-                    
-                    if (yearMatch && sectionMatch && searchMatch) {
-                        $row.show();
-                        visibleRows++;
-                    } else {
-                        $row.hide();
-                    }
-                });
-                
-                // Show/hide group based on visible rows
-                if (visibleRows > 0) {
-                    $group.show();
-                    visibleGroups++;
-                    
-                    // Update student count badge
-                    const $badge = $group.find('.student-count-badge');
-                    $badge.text(visibleRows + ' students');
-                } else {
-                    $group.hide();
-                }
-            });
+            const yearMatch = !yearVal || rowYear === yearVal;
+            const sectionMatch = !sectionVal || rowSection === sectionVal;
+            const searchMatch = !searchVal || rowText.includes(searchVal);
             
-            // Show message if no groups are visible
-            if (visibleGroups === 0) {
-                showNoResultsMessage();
+            if (yearMatch && sectionMatch && searchMatch) {
+                $row.show();
+                visibleRows++;
             } else {
-                hideNoResultsMessage();
+                $row.hide();
             }
+        });
+        
+        // Show/hide group based on visible rows
+        if (visibleRows > 0) {
+            $group.show();
+            visibleGroups++;
+            
+            // Update student count badge
+            const $badge = $group.find('.student-count-badge');
+            $badge.text(visibleRows + ' students');
+        } else {
+            $group.hide();
         }
+    });
+    
+    // Show message if no groups are visible
+    if (visibleGroups === 0) {
+        showNoResultsMessage();
+    } else {
+        hideNoResultsMessage();
+    }
+}
+
+// Also update your applyFilters function to ensure it properly calls filterGroupedView:
+
+// Main filter function
+function applyFilters() {
+    const yearVal = $('#filterYear').val();
+    const sectionVal = $('#filterSection').val();
+    const searchVal = $('#searchInput').val().toLowerCase();
+    
+    // Get current active view
+    const activeView = $('.btn-view-toggle.active').data('view');
+    
+    if (activeView === 'table') {
+        filterTableView(yearVal, sectionVal, searchVal);
+    } else if (activeView === 'grouped') {
+        filterGroupedView(yearVal, sectionVal, searchVal);
+    }
+}
+
+// Add these helper functions if they don't exist:
+
+// Show no results message
+function showNoResultsMessage() {
+    if (!$('#noResultsMessage').length) {
+        const message = `
+            <div id="noResultsMessage" class="alert alert-info text-center">
+                <i class="fas fa-info-circle me-2"></i>
+                No students found matching the current filters.
+            </div>
+        `;
+        $('#groupedView').prepend(message);
+    }
+}
+
+// Hide no results message
+function hideNoResultsMessage() {
+    $('#noResultsMessage').remove();
+}
+
+// Finally, make sure your event listeners for the filters are set up correctly:
+
+// Event listeners for filters
+ $('#filterYear, #filterSection').on('change', applyFilters);
+ $('#searchInput').on('keyup', function() {
+    clearTimeout($(this).data('timeout'));
+    $(this).data('timeout', setTimeout(applyFilters, 500));
+});
 
         // Show no results message
         function showNoResultsMessage() {

@@ -652,6 +652,141 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             border-left: 4px solid var(--warning-color);
         }
 
+        /* Scanner Container Styles */
+        .scanner-container {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border: 3px dashed #dee2e6;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .scanner-container:hover {
+            border-color: var(--accent-color);
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+        }
+        
+        .scanner-container.scanning {
+            border-color: var(--accent-color);
+            background: linear-gradient(135deg, #e8f5e8, #d4edda);
+            border-style: solid;
+        }
+        
+        .scanner-container.scanned {
+            border-color: var(--success-color);
+            background: linear-gradient(135deg, #e8f5e8, #d4edda);
+            border-style: solid;
+        }
+        
+        .scanner-icon {
+            font-size: 3rem;
+            color: var(--accent-color);
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .scanner-container.scanning .scanner-icon {
+            color: var(--accent-color);
+            animation: scan 1s infinite;
+        }
+        
+        .scanner-container.scanned .scanner-icon {
+            color: var(--success-color);
+        }
+        
+        @keyframes scan {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0); }
+        }
+        
+        .scanner-title {
+            font-weight: 700;
+            color: var(--dark-text);
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+        
+        .scanner-instruction {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+        
+        .barcode-display {
+            font-family: 'Courier New', monospace;
+            font-size: 1.5rem;
+            font-weight: bold;
+            letter-spacing: 3px;
+            color: #2c3e50;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #ced4da;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            word-break: break-all;
+            width: 100%;
+            margin-top: 15px;
+        }
+        
+        .barcode-placeholder {
+            color: #6c757d;
+            font-style: italic;
+            font-size: 1rem;
+        }
+        
+        .barcode-value {
+            color: var(--success-color);
+            animation: highlight 1s ease;
+        }
+        
+        @keyframes highlight {
+            0% { 
+                background-color: #d1f7e9;
+                transform: scale(1.05);
+            }
+            100% { 
+                background-color: white;
+                transform: scale(1);
+            }
+        }
+
+        .scan-indicator {
+            text-align: center;
+            margin: 10px 0;
+            color: var(--accent-color);
+            font-weight: 600;
+        }
+        
+        .scan-animation {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .hidden-field {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+            height: 0;
+            width: 0;
+        }
+
         /* Modal Styles */
         .modal-content {
             border-radius: var(--border-radius);
@@ -775,6 +910,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 height: 70px;
                 width: 90px;
             }
+
+            .scanner-container {
+                padding: 20px;
+                min-height: 120px;
+            }
+            
+            .scanner-icon {
+                font-size: 2.5rem;
+            }
+            
+            .barcode-display {
+                font-size: 1.2rem;
+                letter-spacing: 2px;
+            }
         }
 
         /* Animation for form elements */
@@ -805,6 +954,32 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         .form-text {
             font-size: 13px;
             margin-top: 5px;
+        }
+
+        /* ID Input Mode Toggle */
+        .input-mode-toggle {
+            display: flex;
+            background: var(--light-bg);
+            border-radius: 8px;
+            padding: 4px;
+            margin-bottom: 15px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: transparent;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .mode-btn.active {
+            background: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            color: var(--accent-color);
         }
     </style>
 </head>
@@ -857,14 +1032,38 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label for="id-input" class="form-label"><i class="fas fa-id-card"></i>ID Number</label>
-                    <input type="text" class="form-control" id="id-input" name="Pid_number" 
-                           placeholder="0000-0000" required autocomplete="username"
-                           pattern="[0-9]{4}-[0-9]{4}" 
-                           title="Please enter ID in format: 0000-0000">
-                    <small class="form-text text-muted">Scan your ID barcode or type manually (format: 0000-0000)</small>
+                <!-- ID Input Mode Toggle - REMOVED since we only want Scan Only -->
+                
+                <!-- Option 2: Scan Only -->
+                <div class="form-group" id="scanInputGroup">
+                    <label class="form-label"><i class="fas fa-barcode"></i>Scan ID Card</label>
+                    
+                    <!-- Scanner Box - This is where users click and scan -->
+                    <div class="scanner-container" id="scannerBox">
+                        <div class="scanner-icon">
+                            <i class="fas fa-barcode"></i>
+                        </div>
+                        <div class="scanner-title" id="scannerTitle">
+                            Click to Activate Scanner
+                        </div>
+                        <div class="scanner-instruction" id="scannerInstruction">
+                            Click this box then scan your ID card
+                        </div>
+                        
+                        <!-- Barcode Display Area -->
+                        <div class="barcode-display" id="barcodeDisplay">
+                            <span class="barcode-placeholder" id="barcodePlaceholder">Barcode will appear here after scanning</span>
+                            <span id="barcodeValue" class="d-none"></span>
+                        </div>
+                    </div>
+
+                    <div class="scan-indicator scan-animation" id="scanIndicator">
+                        <i class="fas fa-rss me-2"></i>Scanner Ready - Click the box above to start scanning
+                    </div>
                 </div>
+                
+                <!-- Hidden field for scan mode -->
+                <input type="text" class="hidden-field" id="scan-id-input" name="Pid_number" required>
                 
                 <!-- Gate access information -->
                 <div id="gateAccessInfo" class="gate-access-info d-none">
@@ -892,47 +1091,46 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </div>
     
     <!-- Subject Selection Modal -->
-    <!-- Subject Selection Modal -->
-<div class="modal fade" id="subjectModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Select Your Subject for <span id="modalRoomName"></span></h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="alert alert-info mb-3">
-                    <i class="fas fa-info-circle me-2"></i>
-                    Please select the subject you're currently teaching in this room and click "Confirm Selection".
+    <div class="modal fade" id="subjectModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Select Your Subject for <span id="modalRoomName"></span></h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="table-responsive">
-                    <table class="table subject-table" id="subjectTable">
-                        <thead>
-                            <tr>
-                                <th width="5%">Select</th>
-                                <th>Subject</th>
-                                <th>Year Level</th>
-                                <th>Section</th>
-                                <th>Day</th>
-                                <th>Time</th>
-                            </tr>
-                        </thead>
-                        <tbody id="subjectList">
-                            <!-- Subjects will be loaded here via AJAX -->
-                        </tbody>
-                    </table>
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Please select the subject you're currently teaching in this room and click "Confirm Selection".
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table subject-table" id="subjectTable">
+                            <thead>
+                                <tr>
+                                    <th width="5%">Select</th>
+                                    <th>Subject</th>
+                                    <th>Year Level</th>
+                                    <th>Section</th>
+                                    <th>Day</th>
+                                    <th>Time</th>
+                                </tr>
+                            </thead>
+                            <tbody id="subjectList">
+                                <!-- Subjects will be loaded here via AJAX -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" id="cancelSubject">Cancel</button>
-                <button type="button" class="btn btn-primary" id="confirmSubject" disabled>
-                    <span class="spinner-border spinner-border-sm d-none" id="confirmSpinner" role="status" aria-hidden="true"></span>
-                    Confirm Selection
-                </button>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="cancelSubject">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="confirmSubject" disabled>
+                        <span class="spinner-border spinner-border-sm d-none" id="confirmSpinner" role="status" aria-hidden="true"></span>
+                        Confirm Selection
+                    </button>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="admin/js/bootstrap.bundle.min.js"></script>
@@ -948,8 +1146,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         console.error = function() {};
     }
 
+    // Scanner state management
+    let isScannerActive = false;
+    let scanBuffer = '';
+    let scanTimeout;
+
     $(document).ready(function() {
-        // Security: Add integrity checks for external resources (if needed)
+        // Initialize scanner functionality
+        initScanner();
         
         // Password visibility toggle
         $('#togglePassword').click(function() {
@@ -963,17 +1167,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 passwordField.attr('type', 'password');
                 icon.removeClass('fa-eye-slash').addClass('fa-eye');
             }
-        });
-
-        // ID Number Input Handling with Formatting
-        const idInput = $('#id-input');
-
-        idInput.on('input', function(e) {
-            let value = $(this).val().replace(/\D/g, '');
-            if (value.length > 4) {
-                value = value.substring(0, 4) + '-' + value.substring(4, 8);
-            }
-            $(this).val(value);
         });
         
         // Show/hide gate access info based on department selection
@@ -991,19 +1184,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Initial check
         $('#roomdpt').trigger('change');
 
-        // Form submission handler - REMOVED reCAPTCHA
+        // Form submission handler
         $('#logform').on('submit', function(e) {
             e.preventDefault();
             
-            const idNumber = $('#id-input').val();
+            const idNumber = $('#scan-id-input').val();
             const password = $('#password').val();
             const department = $('#roomdpt').val();
             const selectedRoom = $('#location').val();
             
             // Validate ID format
             if (!/^\d{4}-\d{4}$/.test(idNumber)) {
-                showAlert('Please enter a valid ID number (format: 0000-0000)');
-                idInput.focus();
+                showAlert('Please scan a valid ID card (format: 0000-0000)');
+                activateScanner();
                 return;
             }
             
@@ -1090,7 +1283,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         // Show subject selection modal
         function showSubjectSelectionModal() {
-            const idNumber = $('#id-input').val();
+            const idNumber = $('#scan-id-input').val();
             const selectedRoom = $('#location').val();
             
             if (!idNumber || !selectedRoom) {
@@ -1258,116 +1451,114 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             `);
         }
 
-        // Display subjects in the modal table
-        // In the displaySubjects function in index.php, update the table headers and rows:
-
-// Display subjects in the modal table - FIXED VERSION
-function displaySubjects(schedules, selectedRoom) {
-    let html = '';
-    const now = new Date();
-    const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' });
-    const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
-    
-    let hasAvailableSubjects = false;
-    
-    // Clear existing content and start building rows
-    schedules.forEach(schedule => {
-        const isToday = schedule.day === currentDay;
-        
-        // Parse subject start time into minutes
-        let startMinutes = null;
-        let endMinutes = null;
-        
-        if (schedule.start_time) {
-            const [hour, minute, second] = schedule.start_time.split(':');
-            startMinutes = parseInt(hour, 10) * 60 + parseInt(minute, 10);
-        }
-        
-        if (schedule.end_time) {
-            const [hour, minute, second] = schedule.end_time.split(':');
-            endMinutes = parseInt(hour, 10) * 60 + parseInt(minute, 10);
-        }
-        
-        // Determine if subject is available for selection
-        const isEnabled = isToday && startMinutes !== null && 
-                         (currentTimeMinutes <= endMinutes);
-        
-        const startTimeFormatted = schedule.start_time ? 
-            new Date(`1970-01-01T${schedule.start_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
-            'N/A';
+        // Display subjects in the modal table - FIXED VERSION
+        function displaySubjects(schedules, selectedRoom) {
+            let html = '';
+            const now = new Date();
+            const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' });
+            const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
             
-        const endTimeFormatted = schedule.end_time ? 
-            new Date(`1970-01-01T${schedule.end_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
-            'N/A';
-        
-        // Determine row styling
-        let rowClass = '';
-        let statusBadge = '';
-        
-        if (!isToday) {
-            rowClass = 'table-secondary';
-            statusBadge = '<span class="badge bg-secondary ms-1">Not Today</span>';
-        } else if (!isEnabled) {
-            rowClass = 'table-warning';
-            statusBadge = '<span class="badge bg-warning ms-1">Class Ended</span>';
-        } else {
-            hasAvailableSubjects = true;
-            statusBadge = '<span class="badge bg-success ms-1">Available</span>';
+            let hasAvailableSubjects = false;
+            
+            // Clear existing content and start building rows
+            schedules.forEach(schedule => {
+                const isToday = schedule.day === currentDay;
+                
+                // Parse subject start time into minutes
+                let startMinutes = null;
+                let endMinutes = null;
+                
+                if (schedule.start_time) {
+                    const [hour, minute, second] = schedule.start_time.split(':');
+                    startMinutes = parseInt(hour, 10) * 60 + parseInt(minute, 10);
+                }
+                
+                if (schedule.end_time) {
+                    const [hour, minute, second] = schedule.end_time.split(':');
+                    endMinutes = parseInt(hour, 10) * 60 + parseInt(minute, 10);
+                }
+                
+                // Determine if subject is available for selection
+                const isEnabled = isToday && startMinutes !== null && 
+                                 (currentTimeMinutes <= endMinutes);
+                
+                const startTimeFormatted = schedule.start_time ? 
+                    new Date(`1970-01-01T${schedule.start_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
+                    'N/A';
+                    
+                const endTimeFormatted = schedule.end_time ? 
+                    new Date(`1970-01-01T${schedule.end_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
+                    'N/A';
+                
+                // Determine row styling
+                let rowClass = '';
+                let statusBadge = '';
+                
+                if (!isToday) {
+                    rowClass = 'table-secondary';
+                    statusBadge = '<span class="badge bg-secondary ms-1">Not Today</span>';
+                } else if (!isEnabled) {
+                    rowClass = 'table-warning';
+                    statusBadge = '<span class="badge bg-warning ms-1">Class Ended</span>';
+                } else {
+                    hasAvailableSubjects = true;
+                    statusBadge = '<span class="badge bg-success ms-1">Available</span>';
+                }
+                
+                html += `
+                    <tr class="modal-subject-row ${rowClass}">
+                        <td>
+                            <input type="radio" class="form-check-input subject-radio" 
+                                   name="selectedSubject"
+                                   data-subject="${schedule.subject || ''}"
+                                   data-room="${schedule.room_name || selectedRoom}"
+                                   data-time="${startTimeFormatted} - ${endTimeFormatted}"
+                                   data-year-level="${schedule.year_level || ''}"
+                                   data-section="${schedule.section || ''}"
+                                   ${!isEnabled ? 'disabled' : ''}>
+                        </td>
+                        <td>
+                            ${schedule.subject || 'N/A'}
+                            ${statusBadge}
+                        </td>
+                        <td>${schedule.year_level || 'N/A'}</td>
+                        <td>${schedule.section || 'N/A'}</td>
+                        <td>${schedule.day || 'N/A'}</td>
+                        <td>${startTimeFormatted} - ${endTimeFormatted}</td>
+                    </tr>`;
+            });
+            
+            // If no available subjects but we have schedules, show message
+            if (!hasAvailableSubjects && schedules.length > 0) {
+                html = `
+                    <tr>
+                        <td colspan="6" class="text-center">
+                            <div class="alert alert-info mb-0">
+                                <i class="fas fa-info-circle me-2"></i>
+                                No available subjects at this time. Subjects are only available on their scheduled day.
+                            </div>
+                        </td>
+                    </tr>
+                ` + html;
+            }
+            
+            // If no schedules at all
+            if (schedules.length === 0) {
+                html = `
+                    <tr>
+                        <td colspan="6" class="text-center">
+                            <div class="alert alert-warning mb-0">
+                                <i class="fas fa-info-circle me-2"></i>
+                                No subjects found for this room.
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
+            
+            $('#subjectList').html(html);
         }
-        
-        html += `
-            <tr class="modal-subject-row ${rowClass}">
-                <td>
-                    <input type="radio" class="form-check-input subject-radio" 
-                           name="selectedSubject"
-                           data-subject="${schedule.subject || ''}"
-                           data-room="${schedule.room_name || selectedRoom}"
-                           data-time="${startTimeFormatted} - ${endTimeFormatted}"
-                           data-year-level="${schedule.year_level || ''}"
-                           data-section="${schedule.section || ''}"
-                           ${!isEnabled ? 'disabled' : ''}>
-                </td>
-                <td>
-                    ${schedule.subject || 'N/A'}
-                    ${statusBadge}
-                </td>
-                <td>${schedule.year_level || 'N/A'}</td>
-                <td>${schedule.section || 'N/A'}</td>
-                <td>${schedule.day || 'N/A'}</td>
-                <td>${startTimeFormatted} - ${endTimeFormatted}</td>
-            </tr>`;
-    });
-    
-    // If no available subjects but we have schedules, show message
-    if (!hasAvailableSubjects && schedules.length > 0) {
-        html = `
-            <tr>
-                <td colspan="6" class="text-center">
-                    <div class="alert alert-info mb-0">
-                        <i class="fas fa-info-circle me-2"></i>
-                        No available subjects at this time. Subjects are only available on their scheduled day.
-                    </div>
-                </td>
-            </tr>
-        ` + html;
-    }
-    
-    // If no schedules at all
-    if (schedules.length === 0) {
-        html = `
-            <tr>
-                <td colspan="6" class="text-center">
-                    <div class="alert alert-warning mb-0">
-                        <i class="fas fa-info-circle me-2"></i>
-                        No subjects found for this room.
-                    </div>
-                </td>
-            </tr>
-        `;
-    }
-    
-    $('#subjectList').html(html);
-}
+
         // Handle subject selection with radio buttons (single selection)
         $(document).on('change', '.subject-radio', function() {
             if ($(this).is(':checked') && !$(this).is(':disabled')) {
@@ -1409,9 +1600,9 @@ function displaySubjects(schedules, selectedRoom) {
 
         // Handle modal hidden event
         $('#subjectModal').on('hidden.bs.modal', function() {
-            // If no subject was selected, focus back on ID input
+            // If no subject was selected, focus back on scanner
             if (!$('#selected_subject').val()) {
-                $('#id-input').focus();
+                activateScanner();
             }
         });
 
@@ -1430,7 +1621,6 @@ function displaySubjects(schedules, selectedRoom) {
                 type: 'POST',
                 data: formData,
                 dataType: 'json',
-                // In the submitLoginForm() function in index.php, update the success handler:
                 success: function(response) {
                     Swal.close();
                     if (response.status === 'success') {
@@ -1507,11 +1697,209 @@ function displaySubjects(schedules, selectedRoom) {
                 });
         });
 
-        // Initial focus
+        // Initial focus - activate scanner by default
         setTimeout(function() {
-            idInput.focus();
+            activateScanner();
         }, 300);
     });
+
+    // =====================================================================
+    // SCANNER FUNCTIONALITY - FIXED VERSION
+    // =====================================================================
+    function initScanner() {
+        const scannerBox = document.getElementById('scannerBox');
+        const scanIndicator = document.getElementById('scanIndicator');
+
+        // Click on scanner box to activate
+        scannerBox.addEventListener('click', function() {
+            if (!isScannerActive) {
+                activateScanner();
+            }
+        });
+
+        // Listen for key events on the entire document when scanner is active
+        document.addEventListener('keydown', handleKeyPress);
+    }
+
+    // Activate scanner
+    function activateScanner() {
+        isScannerActive = true;
+        const scannerBox = document.getElementById('scannerBox');
+        const scannerTitle = document.getElementById('scannerTitle');
+        const scannerInstruction = document.getElementById('scannerInstruction');
+        const scanIndicator = document.getElementById('scanIndicator');
+        const scannerIcon = scannerBox.querySelector('.scanner-icon i');
+
+        // Update UI for active scanning
+        scannerBox.classList.add('scanning');
+        scannerBox.classList.remove('scanned');
+        scannerTitle.textContent = 'Scanner Active - Scan Now';
+        scannerInstruction.textContent = 'Point your barcode scanner and scan the ID card';
+        scanIndicator.innerHTML = '<i class="fas fa-barcode me-2"></i>Scanner Active - Ready to receive scan';
+        scanIndicator.style.color = 'var(--accent-color)';
+        scannerIcon.className = 'fas fa-barcode';
+
+        // Clear any previous scan
+        scanBuffer = '';
+        clearTimeout(scanTimeout);
+
+        console.log('Scanner activated - ready to scan');
+    }
+
+    // Deactivate scanner
+    function deactivateScanner() {
+        isScannerActive = false;
+        const scannerBox = document.getElementById('scannerBox');
+        const scanIndicator = document.getElementById('scanIndicator');
+
+        scannerBox.classList.remove('scanning');
+        scanIndicator.innerHTML = '<i class="fas fa-rss me-2"></i>Scanner Ready - Click the box to scan again';
+        scanIndicator.style.color = 'var(--accent-color)';
+
+        console.log('Scanner deactivated');
+    }
+
+    // Handle key presses for scanner input - FIXED VERSION
+    function handleKeyPress(e) {
+        // Only process scanner input if scanner is active AND we're not in a form field
+        if (!isScannerActive || isTypingInFormField(e)) {
+            return;
+        }
+
+        // Clear buffer if it's been too long between keystrokes
+        clearTimeout(scanTimeout);
+
+        // If Enter key is pressed, process the scan
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            processScan(scanBuffer);
+            scanBuffer = '';
+            return;
+        }
+
+        // Add character to buffer (ignore modifier keys and special keys)
+        if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+            e.preventDefault();
+            scanBuffer += e.key;
+            console.log('Scanner input:', e.key, 'Buffer:', scanBuffer);
+        }
+
+        // Set timeout to clear buffer if no activity
+        scanTimeout = setTimeout(() => {
+            console.log('Scanner buffer cleared due to inactivity');
+            scanBuffer = '';
+        }, 200);
+    }
+
+    // Check if user is typing in a form field (password field, etc.)
+    function isTypingInFormField(e) {
+        const activeElement = document.activeElement;
+        const formFields = ['INPUT', 'TEXTAREA', 'SELECT'];
+        
+        if (formFields.includes(activeElement.tagName)) {
+            // Allow typing in password field and other form fields
+            return true;
+        }
+        
+        return false;
+    }
+
+    // Function to format ID number as 0000-0000
+    function formatIdNumber(id) {
+        // Remove any non-digit characters
+        const cleaned = id.replace(/\D/g, '');
+        
+        // Format as 0000-0000 if we have 8 digits
+        if (cleaned.length === 8) {
+            return cleaned.substring(0, 4) + '-' + cleaned.substring(4, 8);
+        }
+        
+        // Return original if not 8 digits
+        return cleaned;
+    }
+
+    // Process the scanned data
+    function processScan(data) {
+        if (data.trim().length > 0) {
+            // Format the scanned data as 0000-0000
+            const formattedValue = formatIdNumber(data.trim());
+            
+            console.log('Raw scan data:', data);
+            console.log('Formatted ID:', formattedValue);
+            
+            // Update the hidden input field
+            $('#scan-id-input').val(formattedValue);
+            
+            // Update barcode display
+            updateBarcodeDisplay(formattedValue);
+            
+            // Update scanner UI
+            const scannerBox = document.getElementById('scannerBox');
+            const scannerTitle = document.getElementById('scannerTitle');
+            const scannerInstruction = document.getElementById('scannerInstruction');
+            const scanIndicator = document.getElementById('scanIndicator');
+            
+            scannerBox.classList.remove('scanning');
+            scannerBox.classList.add('scanned');
+            scannerTitle.textContent = 'ID Scanned Successfully!';
+            scannerInstruction.textContent = 'ID: ' + formattedValue;
+            scanIndicator.innerHTML = '<i class="fas fa-check-circle me-2"></i>Barcode scanned successfully!';
+            scanIndicator.style.color = 'var(--success-color)';
+            
+            // Auto-submit the form after a short delay
+            setTimeout(() => {
+                console.log('Auto-validating scanned ID:', formattedValue);
+                // Trigger form validation
+                $('#logform').trigger('submit');
+            }, 1000);
+            
+            // Deactivate scanner after successful scan
+            setTimeout(deactivateScanner, 2000);
+        }
+    }
+
+    // Update barcode display
+    function updateBarcodeDisplay(value) {
+        const barcodeDisplay = document.getElementById('barcodeDisplay');
+        const barcodePlaceholder = document.getElementById('barcodePlaceholder');
+        const barcodeValue = document.getElementById('barcodeValue');
+        
+        // Hide placeholder and show actual value
+        barcodePlaceholder.classList.add('d-none');
+        barcodeValue.textContent = value;
+        barcodeValue.classList.remove('d-none');
+        barcodeValue.classList.add('barcode-value');
+        
+        // Add visual feedback
+        barcodeDisplay.classList.add('barcode-value');
+        
+        // Remove highlight animation after it completes
+        setTimeout(() => {
+            barcodeDisplay.classList.remove('barcode-value');
+        }, 1000);
+    }
+
+    // Reset scanner UI to initial state
+    function resetScannerUI() {
+        const scannerBox = document.getElementById('scannerBox');
+        const scannerTitle = document.getElementById('scannerTitle');
+        const scannerInstruction = document.getElementById('scannerInstruction');
+        const scanIndicator = document.getElementById('scanIndicator');
+        const barcodePlaceholder = document.getElementById('barcodePlaceholder');
+        const barcodeValue = document.getElementById('barcodeValue');
+        
+        scannerBox.classList.remove('scanning', 'scanned');
+        scannerTitle.textContent = 'Click to Activate Scanner';
+        scannerInstruction.textContent = 'Click this box then scan your ID card';
+        scanIndicator.innerHTML = '<i class="fas fa-rss me-2"></i>Scanner Ready - Click the box above to start scanning';
+        scanIndicator.style.color = 'var(--accent-color)';
+        barcodePlaceholder.classList.remove('d-none');
+        barcodeValue.classList.add('d-none');
+        barcodeValue.textContent = '';
+        
+        // Deactivate scanner
+        deactivateScanner();
+    }
     </script>
 </body>
-</html> 
+</html>

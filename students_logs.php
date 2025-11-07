@@ -1046,6 +1046,138 @@ if (isset($_GET['ajax']) && isset($_GET['id_number'])) {
         ::-webkit-scrollbar-thumb:hover {
             background: #4a7fe0;
         }
+        .scanner-container {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border: 3px dashed #dee2e6;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .scanner-container:hover {
+            border-color: var(--accent-color);
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+        }
+
+        .scanner-container.scanning {
+            border-color: var(--accent-color);
+            background: linear-gradient(135deg, #e8f5e8, #d4edda);
+            border-style: solid;
+        }
+
+        .scanner-container.scanned {
+            border-color: var(--success-color);
+            background: linear-gradient(135deg, #e8f5e8, #d4edda);
+            border-style: solid;
+        }
+
+        .scanner-icon {
+            font-size: 3rem;
+            color: var(--accent-color);
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .scanner-container.scanning .scanner-icon {
+            color: var(--accent-color);
+            animation: scan 1s infinite;
+        }
+
+        .scanner-container.scanned .scanner-icon {
+            color: var(--success-color);
+        }
+
+        @keyframes scan {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0); }
+        }
+
+        .scanner-title {
+            font-weight: 700;
+            color: var(--dark-text);
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+
+        .scanner-instruction {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+
+        .barcode-display {
+            font-family: 'Courier New', monospace;
+            font-size: 1.5rem;
+            font-weight: bold;
+            letter-spacing: 3px;
+            color: #2c3e50;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #ced4da;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            word-break: break-all;
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        .barcode-placeholder {
+            color: #6c757d;
+            font-style: italic;
+            font-size: 1rem;
+        }
+
+        .barcode-value {
+            color: var(--success-color);
+            animation: highlight 1s ease;
+        }
+
+        @keyframes highlight {
+            0% { 
+                background-color: #d1f7e9;
+                transform: scale(1.05);
+            }
+            100% { 
+                background-color: white;
+                transform: scale(1);
+            }
+        }
+
+        .scan-indicator {
+            text-align: center;
+            margin: 10px 0;
+            color: var(--accent-color);
+            font-weight: 600;
+        }
+
+        .scan-animation {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        /* Disable manual input styling */
+        .manual-input-disabled {
+            opacity: 0.6;
+            pointer-events: none;
+            background-color: #f8f9fa;
+        }
     </style>
 </head>
 <body>
@@ -1306,39 +1438,63 @@ if (isset($_GET['ajax']) && isset($_GET['id_number'])) {
 
             <!-- Verification Modal -->
             <?php if (isset($_SESSION['access']['instructor']['id'])): ?>
-            <div class="modal fade" id="idModal" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Instructor Verification</h5>
-                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="text-center mb-3">
-                                <h5>Verifying: <?php echo htmlspecialchars($_SESSION['access']['instructor']['fullname'] ?? 'Instructor'); ?></h5>
-                                <p class="text-muted">Your ID: <?php echo htmlspecialchars($_SESSION['access']['instructor']['id_number'] ?? 'N/A'); ?></p>
-                                <p class="text-muted">Scan your ID barcode or enter manually</p>
-                            </div>
-                            <form id="verifyForm" method="post">
-                                <div class="mb-3">
-                                    <label for="idInput" class="form-label">ID Number</label>
-                                    <input type="text" class="form-control" id="idInput" name="id_number" 
-                                        placeholder="<?php echo htmlspecialchars($_SESSION['access']['instructor']['id_number'] ?? 'Scan your ID'); ?>" 
-                                        required autofocus
-                                        data-scanner-input="true">
-                                    <div class="form-text">Position cursor in field and scan your ID</div>
-                                    <input type="hidden" name="save_attendance" value="1">
+            <div class="modal fade" id="idModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Instructor Verification - Scan Required</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="text-center mb-3">
+                            <h5>Verifying: <?php echo htmlspecialchars($_SESSION['access']['instructor']['fullname'] ?? 'Instructor'); ?></h5>
+                            <p class="text-muted">Your ID: <?php echo htmlspecialchars($_SESSION['access']['instructor']['id_number'] ?? 'N/A'); ?></p>
+                            
+                            <!-- Scanner Box -->
+                            <div class="scanner-container mt-4" id="scannerBox" style="min-height: 200px;">
+                                <div class="scanner-icon">
+                                    <i class="fas fa-barcode"></i>
                                 </div>
-                            </form>
+                                <div class="scanner-title" id="scannerTitle">
+                                    Click to Activate Scanner
+                                </div>
+                                <div class="scanner-instruction" id="scannerInstruction">
+                                    Click this box then scan your ID card
+                                </div>
+                                
+                                <!-- Barcode Display Area -->
+                                <div class="barcode-display mt-3" id="barcodeDisplay">
+                                    <span class="barcode-placeholder" id="barcodePlaceholder">Barcode will appear here after scanning</span>
+                                    <span id="barcodeValue" class="d-none"></span>
+                                </div>
+                            </div>
+
+                            <div class="scan-indicator scan-animation mt-3" id="scanIndicator">
+                                <i class="fas fa-rss me-2"></i>Scanner Ready - Click the box above to start scanning
+                            </div>
                         </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" form="verifyForm" class="btn btn-primary">Verify</button>
+                        
+                        <!-- Hidden form for submission -->
+                        <form id="verifyForm" method="post">
+                            <input type="hidden" id="scanIdInput" name="id_number" value="">
+                            <input type="hidden" name="save_attendance" value="1">
+                        </form>
+                        
+                        <div class="alert alert-info mt-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Scan Only:</strong> Manual input is disabled. Please use your ID card scanner.
                         </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" form="verifyForm" class="btn btn-primary" id="verifyBtn" disabled>
+                            <i class="fas fa-check me-2"></i>Verify & Save
+                        </button>
                     </div>
                 </div>
             </div>
-            <?php endif; ?>
+        </div>
+        <?php endif; ?>
         </div>
     </div>
 </div>
@@ -1501,6 +1657,224 @@ if (isset($_GET['ajax']) && isset($_GET['id_number'])) {
         }, 30000);
         <?php endif; ?>
     });
+
+// Scanner functionality for the modal
+document.addEventListener('DOMContentLoaded', function() {
+    const idModal = document.getElementById('idModal');
+    const scannerBox = document.getElementById('scannerBox');
+    const scanIndicator = document.getElementById('scanIndicator');
+    const verifyBtn = document.getElementById('verifyBtn');
+    const scanIdInput = document.getElementById('scanIdInput');
+    
+    let isScannerActive = false;
+    let scanBuffer = '';
+    let scanTimeout;
+
+    // Initialize scanner when modal opens
+    if (idModal) {
+        idModal.addEventListener('shown.bs.modal', function() {
+            activateScanner();
+        });
+        
+        idModal.addEventListener('hidden.bs.modal', function() {
+            deactivateScanner();
+            resetScannerUI();
+            verifyBtn.disabled = true;
+        });
+    }
+
+    // Scanner box click handler
+    if (scannerBox) {
+        scannerBox.addEventListener('click', function() {
+            if (!isScannerActive) {
+                activateScanner();
+            }
+        });
+    }
+
+    // Global key listener for scanner input
+    document.addEventListener('keydown', handleKeyPress);
+
+    function activateScanner() {
+        isScannerActive = true;
+        const scannerTitle = document.getElementById('scannerTitle');
+        const scannerInstruction = document.getElementById('scannerInstruction');
+        const scannerIcon = scannerBox.querySelector('.scanner-icon i');
+
+        // Update UI for active scanning
+        scannerBox.classList.add('scanning');
+        scannerBox.classList.remove('scanned');
+        scannerTitle.textContent = 'Scanner Active - Scan Now';
+        scannerInstruction.textContent = 'Point your barcode scanner and scan the ID card';
+        scanIndicator.innerHTML = '<i class="fas fa-barcode me-2"></i>Scanner Active - Ready to receive scan';
+        scanIndicator.style.color = 'var(--accent-color)';
+        scannerIcon.className = 'fas fa-barcode';
+
+        // Clear any previous scan
+        scanBuffer = '';
+        clearTimeout(scanTimeout);
+        scanIdInput.value = '';
+        verifyBtn.disabled = true;
+
+        console.log('Scanner activated - ready to scan');
+    }
+
+    function deactivateScanner() {
+        isScannerActive = false;
+        scanIndicator.innerHTML = '<i class="fas fa-rss me-2"></i>Scanner Ready - Click the box to scan again';
+        scanIndicator.style.color = 'var(--accent-color)';
+        console.log('Scanner deactivated');
+    }
+
+    function resetScannerUI() {
+        const scannerTitle = document.getElementById('scannerTitle');
+        const scannerInstruction = document.getElementById('scannerInstruction');
+        const barcodePlaceholder = document.getElementById('barcodePlaceholder');
+        const barcodeValue = document.getElementById('barcodeValue');
+        
+        scannerBox.classList.remove('scanning', 'scanned');
+        scannerTitle.textContent = 'Click to Activate Scanner';
+        scannerInstruction.textContent = 'Click this box then scan your ID card';
+        barcodePlaceholder.classList.remove('d-none');
+        barcodeValue.classList.add('d-none');
+        barcodeValue.textContent = '';
+    }
+
+    function handleKeyPress(e) {
+        if (!isScannerActive) return;
+
+        // Prevent default behavior for most keys during scanning
+        if (e.key.length === 1 || e.key === 'Enter') {
+            e.preventDefault();
+        }
+
+        // Clear buffer if it's been too long between keystrokes
+        clearTimeout(scanTimeout);
+
+        // If Enter key is pressed, process the scan
+        if (e.key === 'Enter') {
+            processScan(scanBuffer);
+            scanBuffer = '';
+            return;
+        }
+
+        // Add character to buffer (ignore modifier keys)
+        if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+            scanBuffer += e.key;
+            console.log('Scanner input:', e.key, 'Buffer:', scanBuffer);
+        }
+
+        // Set timeout to clear buffer if no activity
+        scanTimeout = setTimeout(() => {
+            console.log('Scanner buffer cleared due to inactivity');
+            scanBuffer = '';
+        }, 200);
+    }
+
+    function formatIdNumber(id) {
+        // Remove any non-digit characters
+        const cleaned = id.replace(/\D/g, '');
+        
+        // Format as 0000-0000 if we have 8 digits
+        if (cleaned.length === 8) {
+            return cleaned.substring(0, 4) + '-' + cleaned.substring(4, 8);
+        }
+        
+        // Return original if not 8 digits
+        return cleaned;
+    }
+
+    function processScan(data) {
+        if (data.trim().length > 0) {
+            // Format the scanned data as 0000-0000
+            const formattedValue = formatIdNumber(data.trim());
+            
+            console.log('Raw scan data:', data);
+            console.log('Formatted ID:', formattedValue);
+            
+            // Update the hidden input field
+            scanIdInput.value = formattedValue;
+            
+            // Update barcode display
+            updateBarcodeDisplay(formattedValue);
+            
+            // Update scanner UI
+            const scannerTitle = document.getElementById('scannerTitle');
+            const scannerInstruction = document.getElementById('scannerInstruction');
+            
+            scannerBox.classList.remove('scanning');
+            scannerBox.classList.add('scanned');
+            scannerTitle.textContent = 'ID Scanned Successfully!';
+            scannerInstruction.textContent = 'ID: ' + formattedValue;
+            scanIndicator.innerHTML = '<i class="fas fa-check-circle me-2"></i>Barcode scanned successfully!';
+            scanIndicator.style.color = 'var(--success-color)';
+            
+            // Enable verify button
+            verifyBtn.disabled = false;
+            
+            // Auto-confirm after a short delay
+            setTimeout(() => {
+                confirmAttendanceSave();
+            }, 1000);
+            
+            // Deactivate scanner after successful scan
+            setTimeout(deactivateScanner, 2000);
+        }
+    }
+
+    function updateBarcodeDisplay(value) {
+        const barcodeDisplay = document.getElementById('barcodeDisplay');
+        const barcodePlaceholder = document.getElementById('barcodePlaceholder');
+        const barcodeValue = document.getElementById('barcodeValue');
+        
+        // Hide placeholder and show actual value
+        barcodePlaceholder.classList.add('d-none');
+        barcodeValue.textContent = value;
+        barcodeValue.classList.remove('d-none');
+        barcodeValue.classList.add('barcode-value');
+        
+        // Add visual feedback
+        barcodeDisplay.classList.add('barcode-value');
+        
+        // Remove highlight animation after it completes
+        setTimeout(() => {
+            barcodeDisplay.classList.remove('barcode-value');
+        }, 1000);
+    }
+
+    function confirmAttendanceSave() {
+        Swal.fire({
+            title: 'Confirm Save Attendance',
+            text: 'This will record your time-out and save classmates data to your instructor panel. Continue?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, save it!',
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById('verifyForm').submit();
+            } else {
+                // Reset scanner if cancelled
+                resetScannerUI();
+                activateScanner();
+                verifyBtn.disabled = true;
+            }
+        });
+    }
+
+    // Handle verify button click
+    if (verifyBtn) {
+        verifyBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (!verifyBtn.disabled) {
+                confirmAttendanceSave();
+            }
+        });
+    }
+});
+
 </script>
 </body>
 </html>

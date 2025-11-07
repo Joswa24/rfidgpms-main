@@ -127,7 +127,7 @@ try {
 
     if ($result->num_rows === 0) {
         echo json_encode([
-            'error' => 'Student ID not found in database.',
+            'error' => 'Student ID not found.',
             'voice' => 'Student ID not found'
         ]);
         exit;

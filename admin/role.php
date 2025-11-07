@@ -1,6 +1,4 @@
 <?php
-session_start();
-// Display success/error messages
 if (isset($_SESSION['success_message'])) {
     echo '<div class="alert alert-success">' . $_SESSION['success_message'] . '</div>';
     unset($_SESSION['success_message']);
@@ -9,11 +7,24 @@ if (isset($_SESSION['error_message'])) {
     echo '<div class="alert alert-danger">' . $_SESSION['error_message'] . '</div>';
     unset($_SESSION['error_message']);
 }
+
+// Check if user is logged in and 2FA verified
+if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true || 
+    !isset($_SESSION['2fa_verified']) || $_SESSION['2fa_verified'] !== true) {
+    header('Location: index.php');
+    exit();
+}
+// Include connection
+include '../connection.php';
+
+// Check if connection is successful
+if (!$db) {
+    die("Database connection failed: " . mysqli_connect_error());
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <?php include 'header.php'; ?>
-<?php include '../connection.php'; ?>
 
 <head>
     <meta charset="UTF-8">
