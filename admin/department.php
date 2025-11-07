@@ -531,48 +531,53 @@ include '../connection.php';
     <!-- Template Javascript -->
     <script src="js/main.js"></script>
     <script>
-        // Add reCAPTCHA function
-function getRecaptchaToken() {
-    return new Promise((resolve, reject) => {
-        if (typeof grecaptcha === 'undefined') {
-            resolve('');
-            return;
-        }
-        
-        grecaptcha.ready(function() {
-            grecaptcha.execute('YOUR_SITE_KEY', {action: 'submit'}).then(function(token) {
-                resolve(token);
-            }).catch(function(error) {
-                console.error('reCAPTCHA error:', error);
-                resolve(''); // Resolve with empty string to avoid blocking
-            });
+        function executeRecaptcha() {
+    grecaptcha.ready(function() {
+        grecaptcha.execute('6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_', {action: 'submit'}).then(function(token) {
+            document.getElementById('g-recaptcha-response').value = token;
         });
     });
 }
 
-// Initialize reCAPTCHA
-function initRecaptcha() {
-    if (typeof grecaptcha !== 'undefined') {
-        grecaptcha.ready(function() {
-            console.log('reCAPTCHA initialized');
+// Execute reCAPTCHA when form is about to be submitted
+document.addEventListener('DOMContentLoaded', function() {
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            executeRecaptcha();
         });
-    }
-}
-
-// Call this when page loads
-$(document).ready(function() {
-    initRecaptcha();
-    
-    // Your existing DataTable initialization...
+    });
+});
+   $(document).ready(function() {
+    // Initialize DataTable
     var dataTable = $('#myDataTable').DataTable({
         order: [[0, 'desc']],
         stateSave: true
     });
 
+    // Helper function to validate inputs
+    function validateInput(input, errorId, message) {
+        if (input.value === '') {
+            document.getElementById(errorId).innerHTML = message;
+            input.focus();
+            return false;
+        } else {
+            document.getElementById(errorId).innerHTML = '';
+            return true;
+        }
+    }
+
+    // Helper function to reset form
+    function resetForm() {
+        document.getElementById('deptname-error').innerHTML = '';
+        document.getElementById('deptname-desc').innerHTML = '';
+        document.getElementById('departmentForm').reset();
+    }
+
     // ==============
-    // CREATE (ADD) - MODIFIED
+    // CREATE (ADD)
     // ==============
-    $('#departmentForm').submit(async function(e) {
+    $('#departmentForm').submit(function(e) {
         e.preventDefault();
         
         var inputField = document.getElementById('department_name');
@@ -587,9 +592,6 @@ $(document).ready(function() {
         var dptname = $('#department_name').val();
         var dptdesc = $('#department_description').val();
         
-        // Get reCAPTCHA token
-        const recaptchaToken = await getRecaptchaToken();
-        
         // Show loading state
         $('#btn-department').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
         $('#btn-department').prop('disabled', true);
@@ -597,11 +599,7 @@ $(document).ready(function() {
         $.ajax({
             type: "POST",
             url: "transac.php?action=add_department",
-            data: { 
-                dptname: dptname, 
-                dptdesc: dptdesc,
-                'g-recaptcha-response': recaptchaToken
-            },
+            data: { dptname: dptname, dptdesc: dptdesc },
             dataType: 'json',
             success: function(response) {
                 // Reset button state
@@ -646,9 +644,23 @@ $(document).ready(function() {
     });
 
     // ==========
-    // UPDATE - MODIFIED
+    // READ (EDIT)
     // ==========
-    $('#btn-editdepartment').click(async function(e) {
+    $(document).on('click', '.e_department_id', function() {
+        var id = $(this).data('id');
+        var name = $(this).attr('department_name');
+        var desc = $(this).attr('department_desc');
+        
+        $('#edit_departmentname').val(name);
+        $('#edit_departmentdescription').val(desc);
+        $('#edit_departmentid').val(id);
+        $('#editdepartment-modal').modal('show');
+    });
+
+    // ==========
+    // UPDATE
+    // ==========
+    $('#btn-editdepartment').click(function(e) {
         e.preventDefault();
         var inputField = document.getElementById('edit_departmentname');
         var inputField1 = document.getElementById('edit_departmentdescription');
@@ -663,9 +675,6 @@ $(document).ready(function() {
         var dptname = $('#edit_departmentname').val();
         var dptdesc = $('#edit_departmentdescription').val();
         
-        // Get reCAPTCHA token
-        const recaptchaToken = await getRecaptchaToken();
-        
         // Show loading state
         $(this).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
         $(this).prop('disabled', true);
@@ -673,12 +682,7 @@ $(document).ready(function() {
         $.ajax({
             type: "POST",
             url: "transac.php?action=update_department",
-            data: { 
-                id: id, 
-                dptname: dptname, 
-                dptdesc: dptdesc,
-                'g-recaptcha-response': recaptchaToken
-            },
+            data: { id: id, dptname: dptname, dptdesc: dptdesc },
             dataType: 'json',
             success: function(response) {
                 // Reset button state
@@ -723,13 +727,20 @@ $(document).ready(function() {
     });
 
     // ==========
-    // DELETE - MODIFIED
+    // DELETE
     // ==========
-    $(document).on('click', '#btn-deldepartment', async function() {
-        var id = $('#delete_departmentid').val();
+    $(document).on('click', '.d_department_id', function() {
+        var id = $(this).data('id');
+        var name = $(this).attr('department_name');
         
-        // Get reCAPTCHA token
-        const recaptchaToken = await getRecaptchaToken();
+        $('#delete_departmentname').val(name);
+        $('#delete_departmentid').val(id);
+        $('#deldepartment-modal').modal('show');
+    });
+
+    // Handle the actual deletion when "Yes" is clicked in the modal
+    $(document).on('click', '#btn-deldepartment', function() {
+        var id = $('#delete_departmentid').val();
         
         // Show loading indicator
         $('#btn-deldepartment').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...');
@@ -738,10 +749,7 @@ $(document).ready(function() {
         $.ajax({
             type: 'POST',
             url: 'transac.php?action=delete_department',
-            data: { 
-                id: id,
-                'g-recaptcha-response': recaptchaToken
-            },
+            data: { id: id },
             dataType: 'json',
             success: function(response) {
                 // Reset button state
@@ -788,7 +796,12 @@ $(document).ready(function() {
             }
         });
     });
-});
+
+    // Reset modal when closed
+    $('#departmentModal').on('hidden.bs.modal', function () {
+        resetForm();
+    });
+    });
     </script>
 </body>
 </html>
