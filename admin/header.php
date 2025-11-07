@@ -1,98 +1,63 @@
 <?php
 // Security Headers Configuration for RFID-GPMS
 function setSecurityHeaders() {
-    // Remove PHP version and server information
+    // Remove PHP version header
     header_remove('X-Powered-By');
-    header_remove('Server');
     
-    // Enhanced Permissions Policy
-    header("Permissions-Policy: accelerometer=(), autoplay=(), camera=(), cross-origin-isolated=(), display-capture=(), document-domain=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), keyboard-map=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), sync-xhr=(), usb=(), web-share=(), xr-spatial-tracking=()");
+    // Enhanced Content Security Policy with reCAPTCHA
+    header("Content-Security-Policy: default-src 'self'; script-src 'self' https://www.google.com https://www.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://ajax.googleapis.com https://fonts.googleapis.com 'unsafe-inline'; style-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://www.google.com; frame-ancestors 'none';");
+
+    //Other security headers
+    header("X-Content-Type-Options: nosniff");
+    header("X-Frame-Options: SAMEORIGIN");
+    header("X-XSS-Protection: 1; mode=block");
+    header("Referrer-Policy: strict-origin-when-cross-origin");
+    header("Strict-Transport-Security: max-age=31536000; includeSubDomains");
+    header("X-Frame-Options: DENY");
+    header("X-Content-Type-Options: nosniff");
+    header("X-XSS-Protection: 1; mode=block");
+    header("Referrer-Policy: strict-origin-when-cross-origin");
+    header("Permissions-Policy: geolocation=(), microphone=(), camera=()");
+    header("X-Permitted-Cross-Domain-Policies: none");
+    header("Cross-Origin-Embedder-Policy: require-corp");
+    header("Cross-Origin-Opener-Policy: same-origin");
+    header("Cross-Origin-Resource-Policy: same-origin");
+    header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+    header("Pragma: no-cache");
+    header("Expires: 0");    
+
+    // Permissions Policy
+    header('Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=()');
     
-    // Enhanced Content Security Policy
+    // Content Security Policy
     $csp = [
         "default-src 'self'",
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://ajax.googleapis.com",
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://ajax.googleapis.com",
         "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com",
         "font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.gstatic.com",
         "img-src 'self' data: https:",
-        "connect-src 'self' https://www.google.com https://recaptcha.google.com",
-        "frame-src 'self' https://www.google.com",
-        "frame-ancestors 'none'",
+        "connect-src 'self'",
+        "frame-ancestors 'self'",
         "base-uri 'self'",
         "form-action 'self'",
         "object-src 'none'",
-        "media-src 'self'",
-        "worker-src 'self'",
-        "manifest-src 'self'",
-        "prefetch-src 'self'",
-        "child-src 'self'",
-        "upgrade-insecure-requests"
+        "media-src 'self'"
     ];
     
     header("Content-Security-Policy: " . implode("; ", $csp));
     
-    // HTTP Strict Transport Security (HSTS)
-    header("Strict-Transport-Security: max-age=31536000; includeSubDomains");
-    
-    // X-Content-Type-Options
-    header("X-Content-Type-Options: nosniff");
-    
-    // X-Frame-Options (for older browsers)
-    header("X-Frame-Options: DENY");
-    
-    // X-XSS-Protection (for older browsers)
-    header("X-XSS-Protection: 0"); // Disabled in favor of CSP
-    
-    // Referrer Policy
-    header("Referrer-Policy: strict-origin-when-cross-origin");
-    
-    // Cross-Origin Policies
-    header("Cross-Origin-Embedder-Policy: require-corp");
-    header("Cross-Origin-Opener-Policy: same-origin");
-    header("Cross-Origin-Resource-Policy: same-origin");
-    
     // Cache control for dynamic pages
-    header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-    header("Pragma: no-cache");
-    header("Expires: 0");
-}
-
-// Enhanced session cookie settings
-function secureSession() {
-    ini_set('session.cookie_httponly', 1);
-    ini_set('session.cookie_secure', 1);
-    ini_set('session.cookie_samesite', 'Strict');
-    ini_set('session.use_strict_mode', 1);
-    ini_set('session.cookie_lifetime', 0); // Until browser closes
-    
-    // Additional session security
-    session_set_cookie_params([
-        'lifetime' => 0,
-        'path' => '/',
-        'domain' => $_SERVER['HTTP_HOST'],
-        'secure' => true,
-        'httponly' => true,
-        'samesite' => 'Strict'
-    ]);
-}
-
-// Call security functions
-setSecurityHeaders();
-secureSession();
-
-// Start session with enhanced security
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-    
-    // Regenerate session ID periodically to prevent fixation
-    if (!isset($_SESSION['last_regeneration'])) {
-        session_regenerate_id(true);
-        $_SESSION['last_regeneration'] = time();
-    } elseif (time() - $_SESSION['last_regeneration'] > 1800) { // 30 minutes
-        session_regenerate_id(true);
-        $_SESSION['last_regeneration'] = time();
+    if (in_array(pathinfo($_SERVER['SCRIPT_NAME'], PATHINFO_EXTENSION), ['php', 'html'])) {
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+        header('Expires: 0');
     }
+
+    
 }
+
+// Call this function at the beginning of every PHP file
+setSecurityHeaders();
 ?>
 <head>
     <meta charset="utf-8">
@@ -100,23 +65,7 @@ if (session_status() === PHP_SESSION_NONE) {
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
     <meta content="" name="keywords">
     <meta content="" name="description">
-    
-    <!-- Additional security meta tags -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.google.com https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://ajax.googleapis.com; style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: https:;">
-    <meta http-equiv="Strict-Transport-Security" content="max-age=31536000; includeSubDomains; preload">
-    <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    <meta http-equiv="X-Frame-Options" content="DENY">
-    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
-    
     <link rel="icon" href="uploads/logo.jpg" type="image/jpg">
-
-    <!-- Preconnect for performance -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preconnect" href="https://www.google.com">
-    <link rel="preconnect" href="https://www.gstatic.com">
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-    <link rel="preconnect" href="https://cdn.jsdelivr.net">
 
     <!-- Favicon -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.min.js"></script>
@@ -124,6 +73,8 @@ if (session_status() === PHP_SESSION_NONE) {
     <script src="https://www.google.com/recaptcha/api.js?render=6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_"></script>
 
     <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Icons & Styles -->
@@ -137,7 +88,7 @@ if (session_status() === PHP_SESSION_NONE) {
     
     <!-- jQuery & UI -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.10.2/jquery-ui.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.10.2/jquery-ui.min.js"></script>
     <link rel="stylesheet" href="//code.jquery.com/ui/1.13.0/themes/base/jquery-ui.css">
     
     <!-- DataTables -->
