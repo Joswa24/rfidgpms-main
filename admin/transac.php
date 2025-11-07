@@ -20,11 +20,13 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true ||
 include '../connection.php';
 
 // Add this function to verify reCAPTCHA
+// Replace your reCAPTCHA verification section with this:
+
 // Add this function to verify reCAPTCHA
 function verifyRecaptcha($secretKey) {
     $token = $_POST['g-recaptcha-response'] ?? '';
     if (empty($token)) {
-        return false;
+        return ['success' => false, 'message' => 'reCAPTCHA token is missing'];
     }
 
     $url = 'https://www.google.com/recaptcha/api/siteverify';
@@ -43,9 +45,34 @@ function verifyRecaptcha($secretKey) {
 
     $context = stream_context_create($options);
     $result = file_get_contents($url, false, $context);
+    
+    if ($result === false) {
+        return ['success' => false, 'message' => 'Failed to verify reCAPTCHA with Google'];
+    }
+    
     $response = json_decode($result);
-
-    return $response->success && $response->score > 0.5; // Adjust threshold as needed
+    
+    if (!$response->success) {
+        $errorCodes = $response->{'error-codes'} ?? [];
+        $errorMessage = 'reCAPTCHA verification failed';
+        
+        if (in_array('invalid-input-secret', $errorCodes)) {
+            $errorMessage = 'Invalid reCAPTCHA secret key';
+        } elseif (in_array('invalid-input-response', $errorCodes)) {
+            $errorMessage = 'Invalid reCAPTCHA response token';
+        } elseif (in_array('timeout-or-duplicate', $errorCodes)) {
+            $errorMessage = 'reCAPTCHA token has expired or already used';
+        }
+        
+        return ['success' => false, 'message' => $errorMessage];
+    }
+    
+    // Check score (for v3)
+    if (isset($response->score) && $response->score < 0.5) {
+        return ['success' => false, 'message' => 'reCAPTCHA score too low. Please try again.'];
+    }
+    
+    return ['success' => true];
 }
 
 // Verify reCAPTCHA for all POST requests
@@ -59,8 +86,9 @@ function verifyRecaptcha($secretKey) {
 
 // Verify reCAPTCHA for all POST requests except those in the skip list
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action']) && !in_array($_GET['action'], $skipRecaptchaActions)) {
-    if (!verifyRecaptcha($recaptchaSecret)) {
-        jsonResponse('error', 'reCAPTCHA verification failed. Please try again.');
+    $recaptchaResult = verifyRecaptcha($recaptchaSecret);
+    if (!$recaptchaResult['success']) {
+        jsonResponse('error', $recaptchaResult['message']);
     }
 }
 // Function to send JSON response
