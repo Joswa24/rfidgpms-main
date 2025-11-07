@@ -3,10 +3,11 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: sql210.infinityfree.com
--- Generation Time: Oct 29, 2025 at 02:16 AM
+-- Generation Time: Nov 07, 2025 at 04:59 AM
 -- Server version: 11.4.7-MariaDB
 -- PHP Version: 7.2.22
 
+SET FOREIGN_KEY_CHECKS=0;
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 SET AUTOCOMMIT = 0;
 START TRANSACTION;
@@ -26,6 +27,8 @@ SET time_zone = "+00:00";
 
 --
 -- Table structure for table `about`
+--
+-- Creation: Oct 11, 2025 at 02:30 PM
 --
 
 CREATE TABLE `about` (
@@ -47,6 +50,8 @@ INSERT INTO `about` (`id`, `logo1`, `logo2`, `name`, `address`) VALUES
 
 --
 -- Table structure for table `access_rules`
+--
+-- Creation: Oct 11, 2025 at 02:30 PM
 --
 
 CREATE TABLE `access_rules` (
@@ -77,6 +82,9 @@ INSERT INTO `access_rules` (`id`, `rule_name`, `rule_type`, `target_type`, `targ
 --
 -- Table structure for table `admin_2fa_codes`
 --
+-- Creation: Oct 29, 2025 at 06:08 AM
+-- Last update: Nov 07, 2025 at 05:24 AM
+--
 
 CREATE TABLE `admin_2fa_codes` (
   `id` int(11) NOT NULL,
@@ -93,12 +101,15 @@ CREATE TABLE `admin_2fa_codes` (
 --
 
 INSERT INTO `admin_2fa_codes` (`id`, `admin_id`, `verification_code`, `expires_at`, `is_used`, `used_at`, `created_at`) VALUES
-(2, 69, '578154', '2025-10-29 14:19:26', 0, NULL, '2025-10-29 06:09:26');
+(44, 69, '627183', '2025-11-07 13:34:08', 1, '2025-11-06 21:24:45', '2025-11-07 05:24:08');
 
 -- --------------------------------------------------------
 
 --
 -- Table structure for table `admin_access_logs`
+--
+-- Creation: Oct 26, 2025 at 05:15 AM
+-- Last update: Nov 07, 2025 at 05:31 AM
 --
 
 CREATE TABLE `admin_access_logs` (
@@ -118,91 +129,64 @@ CREATE TABLE `admin_access_logs` (
 --
 
 INSERT INTO `admin_access_logs` (`id`, `admin_id`, `username`, `login_time`, `logout_time`, `ip_address`, `user_agent`, `location`, `location_details`, `activity`, `status`, `created_at`) VALUES
-(20, 0, 'wawa123', '2025-10-27 00:46:13', NULL, '122.54.73.136', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Guiwanon, Central Visayas, Philippines', NULL, 'Failed Login', 'failed', '2025-10-27 07:46:13'),
-(19, 0, 'wawa123', '2025-10-27 00:45:54', NULL, '122.54.73.136', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Guiwanon, Central Visayas, Philippines', NULL, 'Failed Login', 'failed', '2025-10-27 07:45:54'),
-(4, 69, 'wawa123', '2025-10-23 14:40:05', '2025-10-23 14:52:25', '112.208.67.152', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-23 21:40:05'),
-(18, 0, 'wawa123', '2025-10-27 00:38:24', NULL, '122.54.73.136', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Guiwanon, Central Visayas, Philippines', NULL, 'Failed Login', 'failed', '2025-10-27 07:38:24'),
-(17, 0, 'wawa123', '2025-10-27 00:37:06', NULL, '112.198.45.144', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Manila, Metro Manila, Philippines', NULL, 'Failed Login', 'failed', '2025-10-27 07:37:06'),
-(16, 69, 'wawa123', '2025-10-26 18:49:17', NULL, '122.52.55.244', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Bacoor, Calabarzon, Philippines', NULL, 'Login', 'success', '2025-10-27 01:49:17'),
-(15, 69, 'wawa123', '2025-10-26 21:56:03', NULL, '112.208.67.152', 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36', 'Cebu City, Central Visayas, Philippines', '{\"country\":\"Philippines\",\"region\":\"Central Visayas\",\"city\":\"Cebu City\",\"zip\":\"6000\",\"lat\":10.3099000000000007304379323613829910755157470703125,\"lon\":123.893000000000000682121026329696178436279296875,\"timezone\":\"Asia\\/Manila\",\"ip\":\"112.208.67.152\"}', 'Dashboard Access', 'success', '2025-10-26 13:56:03'),
-(10, 69, 'wawa123', '2025-10-25 03:23:39', '2025-10-25 14:07:53', '112.208.67.152', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-25 10:23:39'),
-(11, 69, 'wawa123', '2025-10-25 14:08:09', '2025-10-25 14:58:42', '112.208.67.152', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-25 21:08:09'),
-(14, 69, 'wawa123', '2025-10-26 06:55:01', NULL, '112.208.67.152', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-26 13:55:01'),
-(13, 69, 'jessica', '2025-10-26 13:15:06', NULL, '112.208.67.152', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Dashboard Access', 'success', '2025-10-26 05:15:06'),
-(21, 69, 'wawa123', '2025-10-27 01:31:23', NULL, '122.54.73.136', 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36', 'Guiwanon, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-27 08:31:23'),
-(22, 69, 'wawa123', '2025-10-27 01:38:28', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-27 08:38:28'),
-(23, 69, 'wawa123', '2025-10-27 16:38:34', '2025-10-27 01:51:00', '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Manila, Metro Manila, Philippines', '{\"country\":\"Philippines\",\"region\":\"Central Visayas\",\"city\":\"Cebu City\",\"zip\":\"6000\",\"lat\":10.3099000000000007304379323613829910755157470703125,\"lon\":123.893000000000000682121026329696178436279296875,\"timezone\":\"Asia\\/Manila\",\"ip\":\"124.217.19.87\"}', 'Dashboard Access', 'success', '2025-10-27 08:38:34'),
-(24, 0, 'wawa123', '2025-10-27 01:40:13', NULL, '122.54.73.136', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Guiwanon, Central Visayas, Philippines', NULL, 'Failed Login', 'failed', '2025-10-27 08:40:13'),
-(25, 69, 'wawa123', '2025-10-27 01:40:39', NULL, '122.54.73.136', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Guiwanon, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-27 08:40:39'),
-(26, 69, 'wawa123', '2025-10-27 01:51:42', '2025-10-27 02:23:27', '112.198.45.144', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-27 08:51:42'),
-(27, 69, 'wawa123', '2025-10-27 04:10:24', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-27 11:10:24'),
-(28, 69, 'wawa123', '2025-10-28 06:05:06', NULL, '124.217.19.87', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-28 13:05:06'),
-(29, 69, 'wawa123', '2025-10-28 21:07:38', '2025-10-28 06:09:39', '124.217.19.87', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', '{\"country\":\"Philippines\",\"region\":\"Central Visayas\",\"city\":\"Cebu City\",\"zip\":\"6000\",\"lat\":10.3099000000000007304379323613829910755157470703125,\"lon\":123.893000000000000682121026329696178436279296875,\"timezone\":\"Asia\\/Manila\",\"ip\":\"124.217.19.87\"}', 'Dashboard Access', 'success', '2025-10-28 13:07:38'),
-(30, 69, 'wawa123', '2025-10-28 06:52:58', '2025-10-28 10:11:02', '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-28 13:52:58'),
-(31, 69, 'wawa123', '2025-10-28 16:44:51', '2025-10-28 16:44:59', '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-28 23:44:51'),
-(32, 69, 'wawa123', '2025-10-28 16:57:48', '2025-10-28 17:00:40', '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-28 23:57:48'),
-(33, 69, 'wawa123', '2025-10-28 17:01:03', '2025-10-28 17:12:53', '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, PH', NULL, 'Login', 'success', '2025-10-29 00:01:03'),
-(34, 69, 'wawa123', '2025-10-28 17:13:03', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Unknown', NULL, 'Login', 'success', '2025-10-29 00:13:03'),
-(35, 69, 'wawa123', '2025-10-28 17:15:44', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 00:15:44'),
-(36, 69, 'wawa123', '2025-10-28 17:15:59', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 00:15:59'),
-(37, 69, 'wawa123', '2025-10-28 17:16:05', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 00:16:05'),
-(38, 69, 'wawa123', '2025-10-28 17:16:17', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Unknown', NULL, 'Login', 'success', '2025-10-29 00:16:17'),
-(39, 69, 'wawa123', '2025-10-28 17:17:37', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 00:17:37'),
-(40, 69, 'wawa123', '2025-10-28 17:18:56', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 00:18:56'),
-(41, 69, 'wawa123', '2025-10-28 17:21:53', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Unknown', NULL, 'Login', 'success', '2025-10-29 00:21:53'),
-(42, 69, 'wawa123', '2025-10-28 17:25:20', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 00:25:20'),
-(43, 69, 'wawa123', '2025-10-28 17:27:24', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 00:27:24'),
-(44, 69, 'wawa123', '2025-10-28 17:28:15', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 00:28:15'),
-(45, 69, 'wawa123', '2025-10-28 17:28:23', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 00:28:23'),
-(46, 69, 'wawa123', '2025-10-28 17:33:57', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 00:33:57'),
-(47, 69, 'wawa123', '2025-10-28 17:37:16', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 00:37:16'),
-(48, 69, 'wawa123', '2025-10-28 17:37:25', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 00:37:25'),
-(49, 69, 'wawa123', '2025-10-28 17:38:17', '2025-10-28 17:46:54', '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, PH', NULL, 'Login', 'success', '2025-10-29 00:38:17'),
-(50, 69, 'wawa123', '2025-10-28 17:47:07', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 00:47:07'),
-(51, 69, 'wawa123', '2025-10-28 17:53:22', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 00:53:22'),
-(52, 69, 'wawa123', '2025-10-28 18:01:08', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 01:01:08'),
-(53, 69, 'wawa123', '2025-10-28 18:32:44', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 01:32:44'),
-(54, 69, 'wawa123', '2025-10-28 18:33:56', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 01:33:56'),
-(55, 69, 'wawa123', '2025-10-28 18:37:42', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 01:37:42'),
-(56, 69, 'wawa123', '2025-10-28 18:38:31', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 01:38:31'),
-(57, 69, 'wawa123', '2025-10-28 18:44:59', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 01:44:59'),
-(58, 69, 'wawa123', '2025-10-28 18:46:01', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 01:46:01'),
-(59, 69, 'wawa123', '2025-10-28 18:48:19', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 01:48:19'),
-(60, 69, 'wawa123', '2025-10-28 18:58:39', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, PH', NULL, 'Login', 'success', '2025-10-29 01:58:39'),
-(61, 69, 'wawa123', '2025-10-28 18:59:29', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 01:59:29'),
-(62, 69, 'wawa123', '2025-10-28 19:07:12', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 02:07:12'),
-(63, 69, 'wawa123', '2025-10-28 19:08:32', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 02:08:32'),
-(64, 69, 'wawa123', '2025-10-28 19:19:22', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 02:19:22'),
-(65, 69, 'wawa123', '2025-10-28 21:22:35', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 04:22:35'),
-(66, 69, 'wawa123', '2025-10-28 21:24:40', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 04:24:40'),
-(67, 69, 'wawa123', '2025-10-28 21:24:50', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 04:24:50'),
-(68, 69, 'wawa123', '2025-10-28 21:25:24', '2025-10-28 21:27:06', '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 04:25:24'),
-(69, 69, 'wawa123', '2025-10-28 21:27:15', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 04:27:15'),
-(70, 69, 'wawa123', '2025-10-29 12:27:23', '2025-10-28 21:27:48', '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', '{\"country\":\"Philippines\",\"region\":\"Central Visayas\",\"city\":\"Cebu City\",\"zip\":\"6000\",\"lat\":10.3099000000000007304379323613829910755157470703125,\"lon\":123.893000000000000682121026329696178436279296875,\"timezone\":\"Asia\\/Manila\",\"ip\":\"124.217.19.87\"}', 'Dashboard Access', 'success', '2025-10-29 04:27:23'),
-(71, 69, 'wawa123', '2025-10-28 22:06:37', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 05:06:37'),
-(72, 69, 'wawa123', '2025-10-28 22:07:08', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 05:07:08'),
-(73, 69, 'wawa123', '2025-10-28 22:07:17', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 05:07:17'),
-(74, 69, 'wawa123', '2025-10-28 22:11:02', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 05:11:02'),
-(75, 69, 'wawa123', '2025-10-28 22:11:08', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 05:11:08'),
-(76, 69, 'wawa123', '2025-10-28 22:12:12', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 05:12:12'),
-(77, 69, 'wawa123', '2025-10-28 22:12:23', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 05:12:23'),
-(78, 69, 'wawa123', '2025-10-28 22:13:28', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 05:13:28'),
-(79, 69, 'wawa123', '2025-10-28 22:23:29', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 05:23:29'),
-(80, 69, 'wawa123', '2025-10-28 22:23:39', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 05:23:39'),
-(81, 69, 'wawa123', '2025-10-28 22:24:05', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 05:24:05'),
-(82, 69, 'wawa123', '2025-10-28 22:26:29', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 05:26:29'),
-(83, 69, 'wawa123', '2025-10-28 22:26:57', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 05:26:57'),
-(84, 69, 'wawa123', '2025-10-28 22:38:39', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 05:38:39'),
-(85, 0, 'wawa123', '2025-10-28 22:42:04', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Failed Login', 'failed', '2025-10-29 05:42:04'),
-(86, 69, 'wawa123', '2025-10-28 22:42:15', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 05:42:15'),
-(87, 69, 'wawa123', '2025-10-28 23:09:09', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 06:09:09'),
-(88, 69, 'wawa123', '2025-10-28 23:09:26', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-10-29 06:09:26'),
-(89, 0, 'dasd', '2025-10-28 23:10:07', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Failed Login', 'failed', '2025-10-29 06:10:07');
+(161, 69, 'wawa123', '2025-11-06 21:24:45', '2025-11-06 21:31:39', '175.176.69.181', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Adlaon, Central Visayas, Philippines', NULL, '2FA Verification', 'success', '2025-11-07 05:24:45'),
+(160, 69, 'wawa123', '2025-11-06 21:24:08', NULL, '175.176.69.181', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Adlaon, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-07 05:24:08'),
+(159, 0, 'sddfasd', '2025-11-06 21:23:51', NULL, '175.176.69.181', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Adlaon, Central Visayas, Philippines', NULL, 'Failed Login', 'failed', '2025-11-07 05:23:51'),
+(158, 0, 'sddfasd', '2025-11-06 21:18:30', NULL, '175.176.69.181', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Adlaon, Central Visayas, Philippines', NULL, 'Failed Login', 'failed', '2025-11-07 05:18:30'),
+(157, 0, 'sddfasd', '2025-11-06 21:18:25', NULL, '175.176.69.181', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Adlaon, Central Visayas, Philippines', NULL, 'Failed Login', 'failed', '2025-11-07 05:18:25'),
+(107, 69, 'wawa123', '2025-10-30 11:20:32', '2025-10-29 20:20:43', '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', '{\"country\":\"Philippines\",\"region\":\"Central Visayas\",\"city\":\"Cebu City\",\"zip\":\"6000\",\"lat\":10.3099000000000007304379323613829910755157470703125,\"lon\":123.893000000000000682121026329696178436279296875,\"timezone\":\"Asia\\/Manila\",\"ip\":\"124.217.19.87\"}', 'Dashboard Access', 'success', '2025-10-30 03:20:32'),
+(156, 0, 'sddfasd', '2025-11-06 21:18:21', NULL, '175.176.69.181', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Adlaon, Central Visayas, Philippines', NULL, 'Failed Login', 'failed', '2025-11-07 05:18:21'),
+(155, 69, 'wawa123', '2025-11-06 21:17:51', '2025-11-06 21:18:15', '175.176.69.181', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Adlaon, Central Visayas, Philippines', NULL, '2FA Verification', 'success', '2025-11-07 05:17:51'),
+(154, 69, 'wawa123', '2025-11-06 21:17:14', NULL, '175.176.69.181', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Adlaon, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-07 05:17:14'),
+(153, 69, 'wawa123', '2025-11-06 21:00:27', '2025-11-06 21:17:01', '175.176.69.181', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Adlaon, Central Visayas, Philippines', NULL, '2FA Verification', 'success', '2025-11-07 05:00:27'),
+(152, 69, 'wawa123', '2025-11-06 20:58:25', NULL, '175.176.69.181', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Adlaon, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-07 04:58:25'),
+(113, 69, 'wawa123', '2025-11-02 01:24:02', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 08:24:02'),
+(114, 0, 'Wawa123', '2025-11-02 01:24:27', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Failed Login', 'failed', '2025-11-02 08:24:27'),
+(115, 69, 'wawa123', '2025-11-02 01:24:34', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 08:24:34'),
+(116, 69, 'wawa123', '2025-11-02 01:25:28', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 08:25:28'),
+(117, 0, 'wawa123', '2025-11-02 01:40:37', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Failed Login', 'failed', '2025-11-02 08:40:37'),
+(118, 69, 'wawa123', '2025-11-02 01:40:43', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 08:40:43'),
+(119, 69, 'wawa123', '2025-11-02 01:45:55', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 08:45:55'),
+(120, 69, 'wawa123', '2025-11-02 01:48:35', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 08:48:35'),
+(121, 69, 'wawa123', '2025-11-02 01:48:48', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 08:48:48'),
+(122, 69, 'wawa123', '2025-11-02 01:49:24', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 08:49:24'),
+(123, 69, 'wawa123', '2025-11-02 01:49:51', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 08:49:51'),
+(124, 69, 'wawa123', '2025-11-02 01:55:34', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 08:55:34'),
+(125, 69, 'wawa123', '2025-11-02 01:56:12', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 08:56:12'),
+(126, 69, 'wawa123', '2025-11-02 01:01:10', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 09:01:10'),
+(127, 69, 'wawa123', '2025-11-02 01:01:18', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 09:01:18'),
+(128, 69, 'wawa123', '2025-11-02 01:01:26', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 09:01:26'),
+(129, 69, 'wawa123', '2025-11-02 01:04:35', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 09:04:35'),
+(130, 69, 'wawa123', '2025-11-02 01:07:30', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 09:07:30'),
+(131, 0, 'wawa123', '2025-11-02 01:08:15', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Failed Login', 'failed', '2025-11-02 09:08:15'),
+(132, 0, 'wawa123', '2025-11-02 01:10:34', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Failed Login', 'failed', '2025-11-02 09:10:34'),
+(133, 69, 'wawa123', '2025-11-02 01:13:33', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 09:13:33'),
+(134, 0, 'wawa123', '2025-11-02 01:49:29', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Failed Login', 'failed', '2025-11-02 09:49:29'),
+(135, 0, '123wawa123', '2025-11-02 01:49:37', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Failed Login', 'failed', '2025-11-02 09:49:37'),
+(136, 69, 'wawa123', '2025-11-02 01:49:50', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 09:49:50'),
+(137, 69, 'wawa123', '2025-11-02 01:54:32', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 09:54:32'),
+(138, 69, 'wawa123', '2025-11-02 02:14:26', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 10:14:26'),
+(139, 69, 'wawa123', '2025-11-02 02:29:00', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 10:29:00'),
+(140, 69, 'wawa123', '2025-11-02 02:29:50', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, '2FA Verification', 'success', '2025-11-02 10:29:50'),
+(141, 69, 'wawa123', '2025-11-03 03:47:02', '2025-11-02 12:13:06', '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', '{\"country\":\"Philippines\",\"region\":\"Central Visayas\",\"city\":\"Cebu City\",\"zip\":\"6000\",\"lat\":10.3099000000000007304379323613829910755157470703125,\"lon\":123.893000000000000682121026329696178436279296875,\"timezone\":\"Asia\\/Manila\",\"ip\":\"124.217.19.87\"}', 'Dashboard Access', 'success', '2025-11-02 19:47:02'),
+(142, 69, 'wawa123', '2025-11-02 13:25:49', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 21:25:49'),
+(143, 69, 'wawa123', '2025-11-02 13:26:14', '2025-11-02 13:55:05', '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, '2FA Verification', 'success', '2025-11-02 21:26:14'),
+(144, 69, 'wawa123', '2025-11-02 13:55:14', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 21:55:14'),
+(145, 69, 'wawa123', '2025-11-02 13:58:26', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 21:58:26'),
+(146, 69, 'wawa123', '2025-11-02 13:58:47', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, '2FA Verification', 'success', '2025-11-02 21:58:47'),
+(147, 69, 'wawa123', '2025-11-02 14:54:34', NULL, '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, 'Login', 'success', '2025-11-02 22:54:34'),
+(148, 69, 'wawa123', '2025-11-02 14:54:59', '2025-11-02 15:48:20', '124.217.19.87', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Cebu City, Central Visayas, Philippines', NULL, '2FA Verification', 'success', '2025-11-02 22:54:59'),
+(149, 69, 'wawa123', '2025-11-06 07:55:20', NULL, '160.25.231.57', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Makati City, Metro Manila, Philippines', NULL, 'Login', 'success', '2025-11-06 15:55:20'),
+(150, 69, 'wawa123', '2025-11-06 07:55:51', NULL, '160.25.231.57', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Makati City, Metro Manila, Philippines', NULL, '2FA Verification', 'success', '2025-11-06 15:55:51'),
+(151, 69, 'wawa123', '2025-11-06 23:57:59', '2025-11-06 07:58:58', '160.25.231.57', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', 'Makati City, Metro Manila, Philippines', '{\"country\":\"Philippines\",\"region\":\"Metro Manila\",\"city\":\"Makati City\",\"zip\":\"1209\",\"lat\":14.5585000000000004405364961712621152400970458984375,\"lon\":121.0268999999999977035258780233561992645263671875,\"timezone\":\"Asia\\/Manila\",\"ip\":\"160.25.231.57\"}', 'Dashboard Access', 'success', '2025-11-06 15:57:59');
 
 -- --------------------------------------------------------
 
 --
 -- Table structure for table `admin_logs`
+--
+-- Creation: Oct 25, 2025 at 10:46 PM
+-- Last update: Nov 02, 2025 at 07:58 PM
 --
 
 CREATE TABLE `admin_logs` (
@@ -220,12 +204,17 @@ INSERT INTO `admin_logs` (`id`, `admin_id`, `action`, `timestamp`) VALUES
 (1, 69, 'Deleted visitor log - Name: Visitorr11, ID: 1010-1010', '2025-10-26 06:46:26'),
 (2, 69, 'Forced time out for visitor: Aian Desucatan', '2025-10-26 06:48:25'),
 (3, 69, 'Deleted visitor log - Name: Aian Desucatan, ID: 1010-1010', '2025-10-26 06:52:58'),
-(4, 69, 'Forced time out for visitor: Aian Desucatan', '2025-10-28 23:51:30');
+(4, 69, 'Forced time out for visitor: Aian Desucatan', '2025-10-28 23:51:30'),
+(5, 69, 'Forced time out for visitor: Aswang Kooo', '2025-11-03 03:58:29'),
+(6, 69, 'Deleted visitor log - Name: Visitorr11, ID: 1234-1234', '2025-11-03 03:58:42'),
+(7, 69, 'Forced time out for visitor: Aian Desucatan', '2025-11-03 03:58:53');
 
 -- --------------------------------------------------------
 
 --
 -- Table structure for table `admin_sessions`
+--
+-- Creation: Oct 11, 2025 at 02:30 PM
 --
 
 CREATE TABLE `admin_sessions` (
@@ -279,6 +268,8 @@ INSERT INTO `admin_sessions` (`id`, `location`, `ip_address`, `device`, `date_lo
 --
 -- Table structure for table `archived_attendance_20250727_190813`
 --
+-- Creation: Oct 11, 2025 at 02:30 PM
+--
 
 CREATE TABLE `archived_attendance_20250727_190813` (
   `id` int(11) NOT NULL,
@@ -295,6 +286,9 @@ CREATE TABLE `archived_attendance_20250727_190813` (
 
 --
 -- Table structure for table `archived_attendance_logs`
+--
+-- Creation: Oct 27, 2025 at 04:11 AM
+-- Last update: Nov 02, 2025 at 08:51 PM
 --
 
 CREATE TABLE `archived_attendance_logs` (
@@ -417,12 +411,18 @@ INSERT INTO `archived_attendance_logs` (`id`, `student_id`, `id_number`, `fullna
 (200, 79, '1212-1111', 'Try', 'West - 1st Year Year', 'Sub3', NULL, NULL, 'Absent', 16, 'Ms.Jessica Alcazar', '2025-10-28 00:01:04', '2025-10-28', '1st Year', 'West', 'Sub3', 'ComLab1', NULL),
 (201, 75, '2024-1570', 'John Cyrus Pescante', 'West - 1st Year Year', 'Sub3', '2025-10-28 14:01:50', NULL, 'Present', 16, 'Ms.Jessica Alcazar', '2025-10-28 06:03:14', '2025-10-28', '1st Year', 'West', 'Sub3', 'ComLab1', NULL),
 (202, 77, '2024-1697', 'Rose Ann V. Forrosuelo', 'West - 1st Year Year', 'Sub3', NULL, NULL, 'Absent', 16, 'Ms.Jessica Alcazar', '2025-10-28 06:03:14', '2025-10-28', '1st Year', 'West', 'Sub3', 'ComLab1', NULL),
-(203, 79, '1212-1111', 'Try', 'West - 1st Year Year', 'Sub3', NULL, NULL, 'Absent', 16, 'Ms.Jessica Alcazar', '2025-10-28 06:03:14', '2025-10-28', '1st Year', 'West', 'Sub3', 'ComLab1', NULL);
+(203, 79, '1212-1111', 'Try', 'West - 1st Year Year', 'Sub3', NULL, NULL, 'Absent', 16, 'Ms.Jessica Alcazar', '2025-10-28 06:03:14', '2025-10-28', '1st Year', 'West', 'Sub3', 'ComLab1', NULL),
+(210, 77, '2024-1697', 'Rose Ann V. Forrosuelo', 'West - 1st Year Year', 'Program Logic Formulation', '2025-11-03 04:41:47', NULL, 'Present', 16, 'Ms.Jessica Alcazar', '2025-11-02 20:51:31', '2025-11-03', '1st Year', 'West', 'Program Logic Formulation', 'ComLab1', NULL),
+(209, 79, '1212-1111', 'Try', 'West - 1st Year Year', 'Program Logic Formulation', '2025-11-03 04:41:09', NULL, 'Present', 16, 'Ms.Jessica Alcazar', '2025-11-02 20:51:31', '2025-11-03', '1st Year', 'West', 'Program Logic Formulation', 'ComLab1', NULL),
+(207, 77, '2024-1697', 'Rose Ann V. Forrosuelo', 'West - 1st Year Year', 'Program Logic Formulation', '2025-10-29 23:01:45', '2025-10-29 23:11:59', 'Present', 11, 'Mr.Kurt Alegre', '2025-10-29 15:12:11', '2025-10-29', '1st Year', 'West', 'Program Logic Formulation', 'IT-LEC2', NULL),
+(208, 79, '1212-1111', 'Try', 'West - 1st Year Year', 'Program Logic Formulation', '2025-10-29 23:02:21', '2025-10-29 23:05:07', 'Present', 11, 'Mr.Kurt Alegre', '2025-10-29 15:12:11', '2025-10-29', '1st Year', 'West', 'Program Logic Formulation', 'IT-LEC2', NULL);
 
 -- --------------------------------------------------------
 
 --
 -- Table structure for table `archived_instructor_logs`
+--
+-- Creation: Oct 11, 2025 at 02:30 PM
 --
 
 CREATE TABLE `archived_instructor_logs` (
@@ -481,6 +481,8 @@ INSERT INTO `archived_instructor_logs` (`id`, `instructor_id`, `id_number`, `tim
 --
 -- Table structure for table `attendance_logs`
 --
+-- Creation: Oct 29, 2025 at 02:04 PM
+--
 
 CREATE TABLE `attendance_logs` (
   `id` int(11) NOT NULL,
@@ -503,6 +505,8 @@ CREATE TABLE `attendance_logs` (
 --
 -- Table structure for table `department`
 --
+-- Creation: Oct 11, 2025 at 02:30 PM
+--
 
 CREATE TABLE `department` (
   `department_id` int(11) NOT NULL,
@@ -523,6 +527,8 @@ INSERT INTO `department` (`department_id`, `department_name`, `department_desc`)
 --
 -- Table structure for table `gate_alerts`
 --
+-- Creation: Oct 11, 2025 at 02:30 PM
+--
 
 CREATE TABLE `gate_alerts` (
   `id` int(11) NOT NULL,
@@ -542,6 +548,8 @@ CREATE TABLE `gate_alerts` (
 
 --
 -- Table structure for table `gate_config`
+--
+-- Creation: Oct 11, 2025 at 02:30 PM
 --
 
 CREATE TABLE `gate_config` (
@@ -571,6 +579,8 @@ INSERT INTO `gate_config` (`id`, `config_key`, `config_value`, `description`, `u
 --
 -- Table structure for table `gate_devices`
 --
+-- Creation: Oct 11, 2025 at 02:30 PM
+--
 
 CREATE TABLE `gate_devices` (
   `id` int(11) NOT NULL,
@@ -597,6 +607,8 @@ INSERT INTO `gate_devices` (`id`, `device_name`, `device_location`, `device_type
 
 --
 -- Table structure for table `gate_logs`
+--
+-- Creation: Oct 22, 2025 at 01:21 PM
 --
 
 CREATE TABLE `gate_logs` (
@@ -652,12 +664,37 @@ INSERT INTO `gate_logs` (`id`, `person_type`, `person_id`, `id_number`, `name`, 
 (97, 'instructor', 16, '2024-0117', 'Ms.Jessica Alcazar', 'N/A', 'IN', '19:05:46', '00:00:00', '2025-10-27', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-10-27 11:05:46', 'IN'),
 (98, 'student', 81, '2024-0380', 'Nino Mike S. Zaspa', '4th Year', 'IN', '21:10:42', '00:00:00', '2025-10-28', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-10-28 13:10:42', 'IN'),
 (99, 'student', 80, '0004-0001', 'Angelo Derder', '4th Year', 'IN', '21:11:12', '00:00:00', '2025-10-28', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-10-28 13:11:12', 'IN'),
-(100, 'personell', 5, '9999-9999', 'QueSik', 'N/A', 'OUT', '21:12:40', '21:13:35', '2025-10-28', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-10-28 13:12:40', 'OUT');
+(100, 'personell', 5, '9999-9999', 'QueSik', 'N/A', 'OUT', '21:12:40', '21:13:35', '2025-10-28', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-10-28 13:12:40', 'OUT'),
+(101, 'personell', 4, '6666-6666', 'LomBoy', 'N/A', 'OUT', '19:06:01', '20:20:08', '2025-10-29', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-10-29 11:06:01', 'OUT'),
+(102, 'visitor', 0, '1010-1010', 'Aian Desucatan', 'N/A', 'IN', '19:06:44', '00:00:00', '2025-10-29', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-10-29 11:06:44', 'IN'),
+(103, 'visitor', 0, '1234-1234', 'Nino Mike Zaspa', 'N/A', 'OUT', '19:56:17', '20:17:35', '2025-10-29', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-10-29 11:56:17', 'OUT'),
+(104, 'visitor', 0, '1010-1010', 'joshua pastorpide', 'N/A', 'OUT', '20:23:37', '20:23:52', '2025-10-29', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-10-29 12:23:37', 'OUT'),
+(105, 'visitor', 0, '1234-1234', 'Aswang Kooo', 'N/A', 'OUT', '20:53:58', '20:56:12', '2025-10-29', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-10-29 12:53:58', 'OUT'),
+(106, 'student', 75, '2024-1570', 'John Cyrus Pescante', '3rd Year', 'IN', '16:20:28', '00:00:00', '2025-11-02', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-11-02 08:20:28', 'IN'),
+(107, 'instructor', 16, '2024-0117', 'Ms.Jessica Alcazar', 'N/A', 'IN', '16:20:39', '00:00:00', '2025-11-02', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-11-02 08:20:39', 'IN'),
+(108, 'student', 85, '3333-3333', 'Third Year', '3rd Year', 'IN', '16:21:10', '00:00:00', '2025-11-02', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-11-02 08:21:10', 'IN'),
+(109, 'visitor', 0, '1010-1010', 'Aswang Kooo', 'N/A', 'IN', '16:21:48', '00:00:00', '2025-11-02', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-11-02 08:21:48', 'IN'),
+(110, 'student', 83, '1111-1111', 'ryyyyyy', '4th Year', 'IN', '16:22:14', '00:00:00', '2025-11-02', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-11-02 08:22:14', 'IN'),
+(111, 'student', 79, '1212-1111', 'Try', '1st Year', 'IN', '16:22:31', '00:00:00', '2025-11-02', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-11-02 08:22:31', 'IN'),
+(112, 'instructor', 16, '2024-0117', 'Ms.Jessica Alcazar', 'N/A', 'OUT', '06:44:14', '06:55:29', '2025-11-03', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-11-02 22:44:14', 'OUT'),
+(113, 'student', 77, '2024-1697', 'Rose Ann V. Forrosuelo', '1st Year', 'IN', '06:45:23', '00:00:00', '2025-11-03', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-11-02 22:45:23', 'IN'),
+(114, 'student', 79, '1212-1111', 'Try', '1st Year', 'IN', '06:46:10', '00:00:00', '2025-11-03', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-11-02 22:46:10', 'IN'),
+(115, 'student', 81, '2024-0380', 'Nino Mike S. Zaspa', '4th Year', 'OUT', '06:51:18', '07:41:01', '2025-11-03', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-11-02 22:51:18', 'OUT'),
+(116, 'instructor', 17, '0001-0005', 'Mr.Richard Bracero', 'N/A', 'IN', '06:55:46', '00:00:00', '2025-11-03', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-11-02 22:55:46', 'IN'),
+(117, 'instructor', 13, '0001-0003', 'Mr.Danilo Villarino', 'N/A', 'IN', '06:55:54', '00:00:00', '2025-11-03', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-11-02 22:55:54', 'IN'),
+(118, 'instructor', 12, '0001-0004', 'Mr.Alvin Billiones', 'N/A', 'IN', '06:56:12', '00:00:00', '2025-11-03', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-11-02 22:56:12', 'IN'),
+(119, 'instructor', 11, '0001-0001', 'Mr.Kurt Alegre', 'N/A', 'IN', '06:56:21', '00:00:00', '2025-11-03', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-11-02 22:56:21', 'IN'),
+(120, 'student', 82, '0001-0002', 'Tryyy', '2nd Year', 'IN', '06:56:33', '00:00:00', '2025-11-03', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-11-02 22:56:33', 'IN'),
+(121, 'personell', 4, '6666-6666', 'LomBoy', 'N/A', 'IN', '06:57:32', '00:00:00', '2025-11-03', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-11-02 22:57:32', 'IN'),
+(122, 'personell', 7, '1212-9999', 'JohnyBravo', 'N/A', 'IN', '06:58:19', '00:00:00', '2025-11-03', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-11-02 22:58:19', 'IN'),
+(123, 'visitor', 0, '1010-1010', 'Aian Veneracion', 'N/A', 'IN', '07:08:54', '00:00:00', '2025-11-03', 'Gate', NULL, NULL, NULL, NULL, NULL, 'Main', NULL, '2025-11-02 23:08:54', 'IN');
 
 -- --------------------------------------------------------
 
 --
 -- Table structure for table `gate_statistics`
+--
+-- Creation: Oct 11, 2025 at 02:30 PM
 --
 
 CREATE TABLE `gate_statistics` (
@@ -680,6 +717,8 @@ CREATE TABLE `gate_statistics` (
 
 --
 -- Table structure for table `gate_stats`
+--
+-- Creation: Oct 19, 2025 at 07:32 AM
 --
 
 CREATE TABLE `gate_stats` (
@@ -719,6 +758,9 @@ INSERT INTO `gate_stats` (`id`, `stat_date`, `department`, `location`, `students
 --
 -- Table structure for table `holidays`
 --
+-- Creation: Oct 27, 2025 at 11:55 AM
+-- Last update: Oct 27, 2025 at 11:59 AM
+--
 
 CREATE TABLE `holidays` (
   `id` int(11) NOT NULL,
@@ -740,6 +782,8 @@ INSERT INTO `holidays` (`id`, `date`, `type`, `description`, `created_at`) VALUE
 
 --
 -- Table structure for table `instructor`
+--
+-- Creation: Oct 26, 2025 at 08:20 AM
 --
 
 CREATE TABLE `instructor` (
@@ -771,6 +815,8 @@ INSERT INTO `instructor` (`id`, `photo`, `fullname`, `id_number`, `created_at`, 
 --
 -- Table structure for table `instructor_accounts`
 --
+-- Creation: Oct 11, 2025 at 02:30 PM
+--
 
 CREATE TABLE `instructor_accounts` (
   `id` int(11) NOT NULL,
@@ -789,15 +835,19 @@ CREATE TABLE `instructor_accounts` (
 --
 
 INSERT INTO `instructor_accounts` (`id`, `instructor_id`, `username`, `password`, `created_at`, `updated_at`, `last_login`, `department`, `fullname`) VALUES
-(1, 13, 'Danilo', '$2y$10$2UtUP/YXRuhHumIrvxK8Ve9E0llkmsczH0FFayb6EKX3XnIWZSy/i', '2025-09-08 08:26:12', '2025-10-27 09:12:26', '2025-10-23 ', 'BSIT', 'Mr. Danilo Villariono'),
+(1, 13, 'Danilo', '$2y$10$XiNsqThyOgkgtqUwnnUtCOldujLs9A/I1zMtCWJrl6O3SULuToxlq', '2025-09-08 08:26:12', '2025-10-29 08:03:08', '2025-10-23 ', 'BSIT', 'Mr. Danilo Villariono'),
 (2, 16, 'jessica', '$2y$10$8H3NpcZ9ObhGduz/37BssOc1ytyclaVK2BagMiBYVBZ6yvbA4ESPy', '2025-09-11 23:12:18', '2025-10-27 01:07:46', '2025-10-26 ', 'BSIT', 'Ms.Jessica Alcazar'),
 (3, 12, 'alvin', '$2y$10$bxLgIrb/Y216/EbgHWGyFuT9OBEWMwpXQ5ZrWmMrRH71fDaOsmWjq', '2025-09-11 23:36:14', '2025-10-27 03:30:21', '2025-10-26 ', '', ''),
-(5, 11, 'kurt', '$2y$10$PTvB296WA3RxtvnGWKKYq.XbTrye9WYH7RSSGJE5IoI2QSOwRh5zq', '2025-10-11 16:08:33', '2025-10-23 21:09:06', '2025-10-23 ', '', '');
+(5, 11, 'kurt', '$2y$10$PTvB296WA3RxtvnGWKKYq.XbTrye9WYH7RSSGJE5IoI2QSOwRh5zq', '2025-10-11 16:08:33', '2025-11-03 12:32:04', '2025-11-03 ', '', ''),
+(6, 17, 'richard', '$2y$10$9njuiuDf3vFUIdpo1xJoq.tcq4Ns8gdeLkcly/MM6.3KZMP7ZBecq', '2025-10-29 08:09:52', '2025-10-29 08:09:52', '', '', ''),
+(7, 18, 'emily', '$2y$10$Q4eL0MEX9hCZg/vFDiGvZuQSfoMCo.ouvxZOK3.cFEgt88tbvhUAS', '2025-10-29 08:17:34', '2025-10-29 08:17:34', '', '', '');
 
 -- --------------------------------------------------------
 
 --
 -- Table structure for table `instructor_attendance`
+--
+-- Creation: Oct 11, 2025 at 02:30 PM
 --
 
 CREATE TABLE `instructor_attendance` (
@@ -820,6 +870,8 @@ INSERT INTO `instructor_attendance` (`id`, `date`, `instructor_name`, `instructo
 
 --
 -- Table structure for table `instructor_attendance_summary`
+--
+-- Creation: Oct 27, 2025 at 04:06 AM
 --
 
 CREATE TABLE `instructor_attendance_summary` (
@@ -1017,12 +1069,23 @@ INSERT INTO `instructor_attendance_summary` (`id`, `instructor_id`, `instructor_
 (177, 16, 'Ms.Jessica Alcazar', '', '1st Year', 'A', NULL, 0, 0, 0, '0.00', '2025-10-28', '0000-00-00 00:00:00', '0000-00-00 00:00:00', '2025-10-28 06:00:35'),
 (178, 16, 'Ms.Jessica Alcazar', '', '1st Year', 'A', NULL, 0, 0, 0, '0.00', '2025-10-28', '2014-01-15 00:00:00', '0000-00-00 00:00:00', '2025-10-28 06:01:15'),
 (179, 16, 'Ms.Jessica Alcazar', 'Sub3', '1st Year', 'A', NULL, 0, 0, 0, '0.00', '2025-10-28', '2014-01-21 00:00:00', '0000-00-00 00:00:00', '2025-10-28 06:01:21'),
-(180, 16, 'Ms.Jessica Alcazar', 'Sub3', '1st Year', 'West', 'ComLab1', 3, 1, 2, '33.30', '2025-10-28', '2014-01-21 00:00:00', '2014-03-13 00:00:00', '2025-10-28 06:03:14');
+(180, 16, 'Ms.Jessica Alcazar', 'Sub3', '1st Year', 'West', 'ComLab1', 3, 1, 2, '33.30', '2025-10-28', '2014-01-21 00:00:00', '2014-03-13 00:00:00', '2025-10-28 06:03:14'),
+(181, 16, 'Ms.Jessica Alcazar', '', '1st Year', 'A', NULL, 0, 0, 0, '0.00', '2025-10-29', '2019-04-07 00:00:00', '0000-00-00 00:00:00', '2025-10-29 11:04:07'),
+(182, 16, 'Ms.Jessica Alcazar', '', '1st Year', 'A', NULL, 0, 0, 0, '0.00', '2025-10-29', '2019-04-18 00:00:00', '0000-00-00 00:00:00', '2025-10-29 11:04:18'),
+(195, 11, 'Mr.Kurt Alegre', 'Program Logic Formulation', '4th Year', 'West', 'IT-LEC2', 3, 5, 2, '166.67', '2025-10-29', '0000-00-00 00:00:00', '0000-00-00 00:00:00', '2025-10-29 14:56:17'),
+(196, 11, 'Mr.Kurt Alegre', 'Program Logic Formulation', '1st Year', 'West', 'IT-LEC2', 2, 2, 0, '100.00', '2025-10-29', '0000-00-00 00:00:00', '2023-12-11 00:00:00', '2025-10-29 15:12:11'),
+(197, 16, 'Ms.Jessica Alcazar', '', '1st Year', 'A', NULL, 0, 2, 0, '200.00', '2025-11-03', '0000-00-00 00:00:00', '0000-00-00 00:00:00', '2025-11-02 20:39:48'),
+(198, 16, 'Ms.Jessica Alcazar', 'Program Logic Formulation', '1st Year', 'West', NULL, 0, 2, 0, '200.00', '2025-11-03', '0000-00-00 00:00:00', '0000-00-00 00:00:00', '2025-11-02 20:40:03'),
+(199, 16, 'Ms.Jessica Alcazar', 'Program Logic Formulation', '1st Year', 'West', 'ComLab1', 2, 2, 0, '100.00', '2025-11-03', '0000-00-00 00:00:00', '0000-00-00 00:00:00', '2025-11-02 20:51:31'),
+(200, 16, 'Ms.Jessica Alcazar', '', '1st Year', 'A', NULL, 0, 0, 0, '0.00', '2025-11-03', '2005-09-22 00:00:00', '0000-00-00 00:00:00', '2025-11-02 21:09:22'),
+(201, 16, 'Ms.Jessica Alcazar', '', '1st Year', 'A', NULL, 0, 0, 0, '0.00', '2025-11-03', '0000-00-00 00:00:00', '0000-00-00 00:00:00', '2025-11-02 22:48:05');
 
 -- --------------------------------------------------------
 
 --
 -- Table structure for table `instructor_glogs`
+--
+-- Creation: Oct 11, 2025 at 02:30 PM
 --
 
 CREATE TABLE `instructor_glogs` (
@@ -1051,12 +1114,20 @@ INSERT INTO `instructor_glogs` (`id`, `instructor_id`, `id_number`, `name`, `act
 (32, 16, '2024-0117', 'Ms.Jessica Alcazar', 'IN', '12:57:44', '00:00:00', '2025-10-26', 'PM', 'Gate', 'Main', NULL, '2025-10-26 04:57:44', '2025-10-26'),
 (33, 17, '0001-0005', 'Mr.Richard Bracero', 'OUT', '14:46:45', '16:58:19', '2025-10-26', 'PM', 'Gate', 'Main', NULL, '2025-10-26 06:46:45', '2025-10-26'),
 (34, 12, '0001-0004', 'Mr.Alvin Billiones', 'IN', '15:51:26', '00:00:00', '2025-10-26', 'PM', 'Gate', 'Main', NULL, '2025-10-26 07:51:26', '2025-10-26'),
-(35, 16, '2024-0117', 'Ms.Jessica Alcazar', 'IN', '19:05:46', '00:00:00', '2025-10-27', 'PM', 'Gate', 'Main', NULL, '2025-10-27 11:05:46', '2025-10-27');
+(35, 16, '2024-0117', 'Ms.Jessica Alcazar', 'IN', '19:05:46', '00:00:00', '2025-10-27', 'PM', 'Gate', 'Main', NULL, '2025-10-27 11:05:46', '2025-10-27'),
+(36, 16, '2024-0117', 'Ms.Jessica Alcazar', 'IN', '16:20:39', '00:00:00', '2025-11-02', 'PM', 'Gate', 'Main', NULL, '2025-11-02 08:20:39', '2025-11-02'),
+(37, 16, '2024-0117', 'Ms.Jessica Alcazar', 'OUT', '06:44:14', '06:55:29', '2025-11-03', 'AM', 'Gate', 'Main', NULL, '2025-11-02 22:44:14', '2025-11-03'),
+(38, 17, '0001-0005', 'Mr.Richard Bracero', 'IN', '06:55:46', '00:00:00', '2025-11-03', 'AM', 'Gate', 'Main', NULL, '2025-11-02 22:55:46', '2025-11-03'),
+(39, 13, '0001-0003', 'Mr.Danilo Villarino', 'IN', '06:55:54', '00:00:00', '2025-11-03', 'AM', 'Gate', 'Main', NULL, '2025-11-02 22:55:54', '2025-11-03'),
+(40, 12, '0001-0004', 'Mr.Alvin Billiones', 'IN', '06:56:12', '00:00:00', '2025-11-03', 'AM', 'Gate', 'Main', NULL, '2025-11-02 22:56:12', '2025-11-03'),
+(41, 11, '0001-0001', 'Mr.Kurt Alegre', 'IN', '06:56:21', '00:00:00', '2025-11-03', 'AM', 'Gate', 'Main', NULL, '2025-11-02 22:56:21', '2025-11-03');
 
 -- --------------------------------------------------------
 
 --
 -- Table structure for table `instructor_logs`
+--
+-- Creation: Oct 20, 2025 at 06:23 AM
 --
 
 CREATE TABLE `instructor_logs` (
@@ -1117,12 +1188,16 @@ INSERT INTO `instructor_logs` (`id`, `instructor_id`, `id_number`, `time_in`, `t
 (123, 12, NULL, '2025-10-26 20:29:39', NULL, NULL, NULL, NULL, NULL, 'active'),
 (124, 12, NULL, '2025-10-26 20:33:33', NULL, NULL, NULL, NULL, NULL, 'active'),
 (125, 12, NULL, '2025-10-26 21:16:03', NULL, NULL, NULL, NULL, NULL, 'active'),
-(126, 16, NULL, '2025-10-27 23:03:42', NULL, NULL, NULL, NULL, NULL, 'active');
+(126, 16, NULL, '2025-10-27 23:03:42', NULL, NULL, NULL, NULL, NULL, 'active'),
+(127, 11, NULL, '2025-10-29 07:56:19', NULL, NULL, NULL, NULL, NULL, 'active'),
+(128, 16, NULL, '2025-11-02 12:51:35', NULL, NULL, NULL, NULL, NULL, 'active');
 
 -- --------------------------------------------------------
 
 --
 -- Table structure for table `login_attempts`
+--
+-- Creation: Oct 11, 2025 at 02:30 PM
 --
 
 CREATE TABLE `login_attempts` (
@@ -1138,6 +1213,8 @@ CREATE TABLE `login_attempts` (
 --
 -- Table structure for table `lostcard`
 --
+-- Creation: Oct 11, 2025 at 02:30 PM
+--
 
 CREATE TABLE `lostcard` (
   `id` int(11) NOT NULL,
@@ -1151,6 +1228,8 @@ CREATE TABLE `lostcard` (
 
 --
 -- Table structure for table `lost_found`
+--
+-- Creation: Oct 11, 2025 at 02:30 PM
 --
 
 CREATE TABLE `lost_found` (
@@ -1167,6 +1246,8 @@ CREATE TABLE `lost_found` (
 --
 -- Table structure for table `password_reset_tokens`
 --
+-- Creation: Oct 11, 2025 at 02:30 PM
+--
 
 CREATE TABLE `password_reset_tokens` (
   `id` int(11) NOT NULL,
@@ -1177,20 +1258,13 @@ CREATE TABLE `password_reset_tokens` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Dumping data for table `password_reset_tokens`
---
-
-INSERT INTO `password_reset_tokens` (`id`, `user_id`, `token`, `expires_at`, `used`, `created_at`) VALUES
-(1, 69, 'b5dff83143fda72e2ff50c754cb62769a30b7d7a5e07c5df597cc77fe9fd279b', '2025-10-11 23:45:11', 1, '2025-10-11 14:45:11'),
-(2, 69, '438aa64f27d35f950ceed358c489693dc7f0222a57a314d3498cd57d88ba77dc', '2025-10-12 12:28:49', 1, '2025-10-12 03:28:49'),
-(3, 69, '3adc1d33809b39985e2646fe2e749eac308c7329b34df188ed44f5bc9aff26af', '2025-10-14 23:10:24', 1, '2025-10-14 14:10:25'),
-(4, 69, 'fb1736526a8a2e40b08968cf4c48861099425558c1b6e7d4749127c6abb725f3', '2025-10-21 11:35:29', 1, '2025-10-21 02:35:29');
-
 -- --------------------------------------------------------
 
 --
 -- Table structure for table `personell`
+--
+-- Creation: Oct 25, 2025 at 10:06 AM
+-- Last update: Nov 02, 2025 at 10:37 PM
 --
 
 CREATE TABLE `personell` (
@@ -1219,12 +1293,16 @@ INSERT INTO `personell` (`id`, `id_number`, `last_name`, `first_name`, `date_of_
 (4, '6666-6666', 'Boy', 'Lom', '1996-02-26', 'Staff', 'Regular', 'BSIT', 'Active', '68fdbd3866fc4.png', '2025-10-25 23:16:07', 0),
 (5, '9999-9997', 'Sik', 'Que', '2025-10-08', 'Security Personnel', 'Regular', 'BSIT', 'Active', '68fdc43fa66fa.png', '2025-10-25 23:48:31', 0),
 (6, '7777-7777', 'Reer', 'Weee', '1999-06-09', 'Security Personnel', 'Regular', 'BSIT', 'Active', '68fdc601e5902.png', '2025-10-25 23:56:01', 1),
-(7, '1212-9999', 'Bravo', 'Johny', '2025-10-04', 'Janitor', 'Contractual', 'BSIT', 'Active', '6900db918145f.jpg', '2025-10-28 08:04:49', 0);
+(7, '1212-9999', 'Bravo', 'Johny', '2025-10-04', 'Janitor', 'Contractual', 'BSIT', 'Active', '6900db918145f.jpg', '2025-10-28 08:04:49', 0),
+(8, '2024-0380', 'Derder', 'Angelo', '1997-01-14', 'Security Personnel', 'Regular', 'BSIT', 'Active', '6907dd19ea334.png', '2025-11-02 14:37:13', 0);
 
 -- --------------------------------------------------------
 
 --
 -- Table structure for table `personell_glogs`
+--
+-- Creation: Oct 26, 2025 at 07:07 AM
+-- Last update: Nov 02, 2025 at 10:58 PM
 --
 
 CREATE TABLE `personell_glogs` (
@@ -1251,12 +1329,17 @@ INSERT INTO `personell_glogs` (`id`, `personell_id`, `id_number`, `name`, `actio
 (1, 6, '7777-7777', 'WeeeReer', 'OUT', '15:07:32', '16:59:17', '2025-10-26', 'PM', 'Gate', 'Main', '2025-10-26', '2025-10-26 00:07:32'),
 (2, 5, '9999-9999', 'QueSik', 'IN', '15:26:25', '00:00:00', '2025-10-26', 'PM', 'Gate', 'Main', '2025-10-26', '2025-10-26 00:26:25'),
 (3, 4, '6666-6666', 'LomBoy', 'OUT', '15:33:35', '16:59:06', '2025-10-26', 'PM', 'Gate', 'Main', '2025-10-26', '2025-10-26 00:33:35'),
-(4, 5, '9999-9999', 'QueSik', 'OUT', '21:12:40', '21:13:35', '2025-10-28', 'PM', 'Gate', 'Main', '2025-10-28', '2025-10-28 06:12:40');
+(4, 5, '9999-9999', 'QueSik', 'OUT', '21:12:40', '21:13:35', '2025-10-28', 'PM', 'Gate', 'Main', '2025-10-28', '2025-10-28 06:12:40'),
+(5, 4, '6666-6666', 'LomBoy', 'OUT', '19:06:01', '20:20:08', '2025-10-29', 'PM', 'Gate', 'Main', '2025-10-29', '2025-10-29 04:06:01'),
+(6, 4, '6666-6666', 'LomBoy', 'IN', '06:57:32', '00:00:00', '2025-11-03', 'AM', 'Gate', 'Main', '2025-11-03', '2025-11-02 14:57:32'),
+(7, 7, '1212-9999', 'JohnyBravo', 'IN', '06:58:19', '00:00:00', '2025-11-03', 'AM', 'Gate', 'Main', '2025-11-03', '2025-11-02 14:58:19');
 
 -- --------------------------------------------------------
 
 --
 -- Table structure for table `role`
+--
+-- Creation: Oct 11, 2025 at 02:30 PM
 --
 
 CREATE TABLE `role` (
@@ -1279,6 +1362,8 @@ INSERT INTO `role` (`id`, `role`) VALUES
 
 --
 -- Table structure for table `rooms`
+--
+-- Creation: Oct 11, 2025 at 02:30 PM
 --
 
 CREATE TABLE `rooms` (
@@ -1307,6 +1392,8 @@ INSERT INTO `rooms` (`id`, `room`, `department`, `password`, `desc`, `descr`, `a
 
 --
 -- Table structure for table `rooms_backup`
+--
+-- Creation: Oct 11, 2025 at 02:30 PM
 --
 
 CREATE TABLE `rooms_backup` (
@@ -1337,6 +1424,8 @@ INSERT INTO `rooms_backup` (`id`, `room`, `department`, `password`, `desc`, `des
 --
 -- Table structure for table `room_logs`
 --
+-- Creation: Oct 11, 2025 at 02:30 PM
+--
 
 CREATE TABLE `room_logs` (
   `id` int(11) NOT NULL,
@@ -1352,6 +1441,8 @@ CREATE TABLE `room_logs` (
 
 --
 -- Table structure for table `room_schedules`
+--
+-- Creation: Oct 11, 2025 at 02:30 PM
 --
 
 CREATE TABLE `room_schedules` (
@@ -1375,12 +1466,8 @@ CREATE TABLE `room_schedules` (
 --
 
 INSERT INTO `room_schedules` (`department`, `id`, `room_name`, `room_location`, `room_password`, `subject`, `section`, `year_level`, `start_time`, `end_time`, `day`, `instructor`, `instructor_id`) VALUES
-('BSIT', 13, 'ComLab1', NULL, NULL, 'Networking', 'West', '1st', '11:31:00', '13:47:00', 'Friday', 'Mr.Danilo Villariono', 13),
-('BSIT', 14, 'ComLab1', NULL, NULL, 'Web Development', 'West', '4th', '09:20:00', '11:20:00', 'Monday', 'Mr.Alvin Billiones', 12),
+('BSIT', 14, 'ComLab1', NULL, NULL, 'Physical Activity towards Health and Fitness', 'West', '2nd Year', '07:20:00', '08:20:00', 'Saturday', 'Mr.Alvin Billiones', 12),
 ('BSIT', 15, 'ComLab1', NULL, NULL, 'Mathematics in the Modern Science', 'West', '2nd Year', '09:00:00', '10:30:00', 'Tuesday', 'Mr.Richard Bracero', 16),
-('BSIT', 17, 'ComLab1', NULL, NULL, 'Sub3', 'West', '4th', '15:10:00', '16:15:00', 'Tuesday', 'Ms.Jessica Alcazar', 16),
-('BSIT', 18, 'ComLab1', NULL, NULL, 'Sub4', 'West', '4th', '17:20:00', '19:15:00', 'Tuesday', 'Ms.Jessica Alcazar', 16),
-('BSIT', 20, 'ComLab2', NULL, NULL, 'Web', 'west', '4th', '13:40:00', '15:40:00', 'Tuesday', 'Ms.Jessica Alcazar', 16),
 ('BSIT', 21, 'IT-LEC1', NULL, NULL, 'Fundamentals of Accounting', 'West', '4th Year', '01:59:00', '10:40:00', 'Monday', 'Mr.Kurt Alegre', 11),
 ('BSIT', 24, 'ComLab2', NULL, NULL, 'SUB4-01', 'West', '4th Year', '14:00:00', '15:00:00', 'Saturday', 'Ms.Jessica Alcazar', 16),
 ('BSIT', 25, 'ComLab2', NULL, NULL, 'ITE PROF ELECT 4', 'East', '4th Year', '16:00:00', '17:00:00', 'Saturday', 'Mr.Alvin Billiones', 12),
@@ -1397,12 +1484,17 @@ INSERT INTO `room_schedules` (`department`, `id`, `room_name`, `room_location`, 
 ('BSIT', 38, 'IT-LEC1', NULL, NULL, 'Digital Logic Design (Workshop 1)', 'West', '2nd Year', '08:00:00', '10:00:00', 'Thursday', 'Mr.Danilo Villarino', NULL),
 ('BSIT', 39, 'IT-LEC2', NULL, NULL, 'Program Logic Formulation', 'West', '1st Year', '09:00:00', '11:00:00', 'Friday', 'Mr.Danilo Villarino', NULL),
 ('BSIT', 40, 'IT-LEC2', NULL, NULL, 'ITE PROF ELECT 4', 'West', '4th Year', '13:00:00', '15:00:00', 'Friday', 'Mr.Alvin Billiones', NULL),
-('BSIT', 41, 'IT-LEC2', NULL, NULL, 'Platform Technologies', 'West', '2nd Year', '16:00:00', '17:30:00', 'Friday', 'Mr.Danilo Villarino', NULL);
+('BSIT', 41, 'IT-LEC2', NULL, NULL, 'Platform Technologies', 'West', '2nd Year', '16:00:00', '17:30:00', 'Friday', 'Mr.Danilo Villarino', NULL),
+('BSIT', 42, 'IT-LEC2', NULL, NULL, 'Program Logic Formulation', 'West', '1st Year', '22:10:00', '23:47:00', 'Wednesday', 'Mr.Kurt Alegre', NULL);
 
 -- --------------------------------------------------------
 
 --
 -- Table structure for table `schedule_swaps`
+--
+-- Creation: Oct 23, 2025 at 11:01 AM
+-- Last update: Oct 23, 2025 at 11:01 AM
+-- Last check: Oct 23, 2025 at 11:01 AM
 --
 
 CREATE TABLE `schedule_swaps` (
@@ -1434,6 +1526,8 @@ CREATE TABLE `schedule_swaps` (
 --
 -- Table structure for table `security_logs`
 --
+-- Creation: Oct 11, 2025 at 02:30 PM
+--
 
 CREATE TABLE `security_logs` (
   `id` int(11) NOT NULL,
@@ -1448,6 +1542,8 @@ CREATE TABLE `security_logs` (
 
 --
 -- Table structure for table `stranger_logs`
+--
+-- Creation: Oct 11, 2025 at 02:30 PM
 --
 
 CREATE TABLE `stranger_logs` (
@@ -1481,6 +1577,8 @@ INSERT INTO `stranger_logs` (`id`, `attempts`, `last_log`, `rfid_number`) VALUES
 --
 -- Table structure for table `students`
 --
+-- Creation: Oct 11, 2025 at 02:30 PM
+--
 
 CREATE TABLE `students` (
   `id` int(11) NOT NULL,
@@ -1511,12 +1609,43 @@ INSERT INTO `students` (`id`, `id_number`, `fullname`, `section`, `year`, `statu
 (83, '1111-1111', 'ryyyyyy', 'West', '4th Year', '', '2025-10-19 00:24:06', '2025-10-19 00:24:06', '33', '68f42fa6ea7cc.png', '2025-10-19 00:24:06'),
 (84, '4444-4444', 'Aian Gwapo', 'North', '2nd Year', '', '2025-10-19 14:11:23', '2025-10-19 14:11:23', '33', '68f4f18b3f6cc.png', '2025-10-19 14:11:23'),
 (85, '3333-3333', 'Third Year', 'West', '3rd Year', '', '2025-10-23 03:02:15', '2025-10-23 03:02:15', '33', '68f99ab7755e8.png', '2025-10-23 03:02:15'),
-(86, '0000-0029', 'Hay Nakuu', 'North', '3rd Year', '', '2025-10-26 08:17:42', '2025-10-29 01:28:14', '33', '../uploads/students/6900f', '2025-10-26 08:17:42');
+(86, '0000-0029', 'Hay Nakuu', 'North', '3rd Year', '', '2025-10-26 08:17:42', '2025-10-29 06:49:57', '33', '6901b915ba2a3.png', '2025-10-26 08:17:42');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `students_attendance_logs`
+--
+-- Creation: Oct 29, 2025 at 02:04 PM
+--
+
+CREATE TABLE `students_attendance_logs` (
+  `id` int(11) NOT NULL,
+  `student_id` varchar(20) NOT NULL,
+  `full_name` varchar(255) NOT NULL,
+  `year_level` varchar(50) DEFAULT NULL,
+  `section` varchar(50) DEFAULT NULL,
+  `department` varchar(100) NOT NULL,
+  `location` varchar(100) NOT NULL,
+  `subject_name` varchar(255) DEFAULT NULL,
+  `instructor_name` varchar(255) DEFAULT NULL,
+  `date` date NOT NULL,
+  `time_in` time NOT NULL,
+  `time_out` time DEFAULT NULL,
+  `total_hours` decimal(5,2) DEFAULT NULL,
+  `status` enum('present','absent','late','excused') DEFAULT 'present',
+  `late_minutes` int(11) DEFAULT 0,
+  `notes` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
 --
 -- Table structure for table `students_glogs`
+--
+-- Creation: Oct 11, 2025 at 02:30 PM
 --
 
 CREATE TABLE `students_glogs` (
@@ -1552,12 +1681,58 @@ INSERT INTO `students_glogs` (`id`, `student_id`, `id_number`, `name`, `action`,
 (47, 79, '1212-1111', 'Try', 'IN', '15:35:05', '00:00:00', '2025-10-26', 'PM', 'Gate', 'Main', NULL, '2025-10-26 07:35:05', '2025-10-26'),
 (48, 78, '0000-0001', 'Taee Ka', 'IN', '16:42:48', '00:00:00', '2025-10-26', 'PM', 'Gate', 'Main', NULL, '2025-10-26 08:42:48', '2025-10-26'),
 (49, 81, '2024-0380', 'Nino Mike S. Zaspa', 'IN', '21:10:42', '00:00:00', '2025-10-28', 'PM', 'Gate', 'Main', NULL, '2025-10-28 13:10:42', '2025-10-28'),
-(50, 80, '0004-0001', 'Angelo Derder', 'IN', '21:11:12', '00:00:00', '2025-10-28', 'PM', 'Gate', 'Main', NULL, '2025-10-28 13:11:12', '2025-10-28');
+(50, 80, '0004-0001', 'Angelo Derder', 'IN', '21:11:12', '00:00:00', '2025-10-28', 'PM', 'Gate', 'Main', NULL, '2025-10-28 13:11:12', '2025-10-28'),
+(51, 75, '2024-1570', 'John Cyrus Pescante', 'IN', '16:20:28', '00:00:00', '2025-11-02', 'PM', 'Gate', 'Main', NULL, '2025-11-02 08:20:28', '2025-11-02'),
+(52, 85, '3333-3333', 'Third Year', 'IN', '16:21:10', '00:00:00', '2025-11-02', 'PM', 'Gate', 'Main', NULL, '2025-11-02 08:21:10', '2025-11-02'),
+(53, 83, '1111-1111', 'ryyyyyy', 'IN', '16:22:14', '00:00:00', '2025-11-02', 'PM', 'Gate', 'Main', NULL, '2025-11-02 08:22:14', '2025-11-02'),
+(54, 79, '1212-1111', 'Try', 'IN', '16:22:31', '00:00:00', '2025-11-02', 'PM', 'Gate', 'Main', NULL, '2025-11-02 08:22:31', '2025-11-02'),
+(55, 77, '2024-1697', 'Rose Ann V. Forrosuelo', 'IN', '06:45:23', '00:00:00', '2025-11-03', 'AM', 'Gate', 'Main', NULL, '2025-11-02 22:45:23', '2025-11-03'),
+(56, 79, '1212-1111', 'Try', 'IN', '06:46:10', '00:00:00', '2025-11-03', 'AM', 'Gate', 'Main', NULL, '2025-11-02 22:46:10', '2025-11-03'),
+(57, 81, '2024-0380', 'Nino Mike S. Zaspa', 'OUT', '06:51:18', '07:41:01', '2025-11-03', 'AM', 'Gate', 'Main', NULL, '2025-11-02 22:51:18', '2025-11-03'),
+(58, 82, '0001-0002', 'Tryyy', 'IN', '06:56:33', '00:00:00', '2025-11-03', 'AM', 'Gate', 'Main', NULL, '2025-11-02 22:56:33', '2025-11-03');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `stu_attendance_logs`
+--
+-- Creation: Oct 29, 2025 at 02:07 PM
+--
+
+CREATE TABLE `stu_attendance_logs` (
+  `id` int(11) NOT NULL,
+  `student_id` varchar(20) NOT NULL,
+  `full_name` varchar(255) NOT NULL,
+  `year_level` varchar(50) DEFAULT NULL,
+  `section` varchar(50) DEFAULT NULL,
+  `department` varchar(100) NOT NULL,
+  `location` varchar(100) NOT NULL,
+  `subject_name` varchar(255) DEFAULT NULL,
+  `instructor_name` varchar(255) DEFAULT NULL,
+  `date` date NOT NULL,
+  `time_in` time NOT NULL,
+  `time_out` time DEFAULT NULL,
+  `total_hours` decimal(5,2) DEFAULT NULL,
+  `status` enum('present','absent','late','excused') DEFAULT 'present',
+  `late_minutes` int(11) DEFAULT 0,
+  `notes` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `stu_attendance_logs`
+--
+
+INSERT INTO `stu_attendance_logs` (`id`, `student_id`, `full_name`, `year_level`, `section`, `department`, `location`, `subject_name`, `instructor_name`, `date`, `time_in`, `time_out`, `total_hours`, `status`, `late_minutes`, `notes`, `created_at`, `updated_at`) VALUES
+(1, '1212-1111', 'Unknown Student', NULL, NULL, 'BSIT', 'IT-LEC2', NULL, NULL, '2025-10-29', '22:13:11', '22:13:54', NULL, 'present', 0, NULL, '2025-10-29 14:13:11', '2025-10-29 14:13:54');
 
 -- --------------------------------------------------------
 
 --
 -- Table structure for table `subjects`
+--
+-- Creation: Oct 11, 2025 at 02:30 PM
 --
 
 CREATE TABLE `subjects` (
@@ -1610,6 +1785,8 @@ INSERT INTO `subjects` (`id`, `subject_code`, `subject_name`, `year_level`) VALU
 --
 -- Table structure for table `subjects_backup`
 --
+-- Creation: Oct 11, 2025 at 02:30 PM
+--
 
 CREATE TABLE `subjects_backup` (
   `id` int(11) NOT NULL DEFAULT 0,
@@ -1661,6 +1838,8 @@ INSERT INTO `subjects_backup` (`id`, `subject_code`, `subject_name`, `year_level
 --
 -- Table structure for table `swap_requests`
 --
+-- Creation: Oct 11, 2025 at 02:30 PM
+--
 
 CREATE TABLE `swap_requests` (
   `id` int(11) NOT NULL,
@@ -1679,6 +1858,8 @@ CREATE TABLE `swap_requests` (
 
 --
 -- Table structure for table `user`
+--
+-- Creation: Oct 11, 2025 at 02:30 PM
 --
 
 CREATE TABLE `user` (
@@ -1701,7 +1882,6 @@ CREATE TABLE `user` (
 --
 
 INSERT INTO `user` (`id`, `contact`, `email`, `username`, `password`, `rfid_number`, `failed_attempts`, `last_attempt`, `last_login`, `login_count`, `is_active`, `created_at`) VALUES
-(2, '09560379350', 'kyebejeanu@gmail.com', 'admin', '$2y$10$jcAd4HtKBXyVxRRGNf39sOmX6FzsDb4hOcu6DGRnISwPGNSs6YM4.', '1234567899', 0, NULL, NULL, 0, 1, '2025-09-24 07:52:42'),
 (69, '09954716547', 'joshuapastorpide10@gmail.com', 'wawa123', '$2y$10$cTmVsF3of2sXFGMJapEy.eIJqW6vvMcMBF6turmInapCbdI99v8OO', '', 0, NULL, NULL, 0, 1, '2025-10-09 22:40:36'),
 (2025, '09954716547', 'joshuapastorpide10@gmail.com', 'joshu@', '$2y$10$oB2ziqgEFL8mAn/y.y4cpuX/h4sV.K7vGiLGxmkBUzIzjnVCJhLoG', '', 0, NULL, NULL, 0, 1, '2025-10-09 18:48:27');
 
@@ -1709,6 +1889,8 @@ INSERT INTO `user` (`id`, `contact`, `email`, `username`, `password`, `rfid_numb
 
 --
 -- Table structure for table `visitor`
+--
+-- Creation: Oct 11, 2025 at 02:30 PM
 --
 
 CREATE TABLE `visitor` (
@@ -1738,6 +1920,8 @@ INSERT INTO `visitor` (`id`, `name`, `department`, `contact_number`, `address`, 
 --
 -- Table structure for table `visitor_glogs`
 --
+-- Creation: Oct 11, 2025 at 02:30 PM
+--
 
 CREATE TABLE `visitor_glogs` (
   `id` int(11) NOT NULL,
@@ -1759,6 +1943,9 @@ CREATE TABLE `visitor_glogs` (
 
 --
 -- Table structure for table `visitor_logs`
+--
+-- Creation: Oct 25, 2025 at 10:26 PM
+-- Last update: Nov 02, 2025 at 11:08 PM
 --
 
 CREATE TABLE `visitor_logs` (
@@ -1783,10 +1970,15 @@ INSERT INTO `visitor_logs` (`id`, `visitor_id`, `full_name`, `contact_number`, `
 (1, '1010-1010', 'joshua pastorpide', '09485757555', 'Interview', 'Dino', 'Main', 'Gate', '2025-10-19 03:48:00', NULL, '2025-10-19 10:48:00'),
 (2, '1234-1234', 'Aian Desucatan', '09575575777', 'Delivery', 'Doc. Flor', 'Main', 'Gate', '2025-10-19 03:55:45', NULL, '2025-10-19 10:55:45'),
 (3, '1010-1010', 'Aian Desucatan', '09575575777', 'Delivery', 'Doc. Flor', 'Main', 'Gate', '2025-10-20 01:42:31', NULL, '2025-10-20 08:42:31'),
-(5, '1234-1234', 'Aian Desucatan', '09575575777', 'Maintenance', 'Dino', 'Main', 'Gate', '2025-10-22 00:05:34', NULL, '2025-10-22 07:05:34'),
-(6, '1234-1234', 'Visitorr11', '09575575777', 'Delivery', 'Dino', 'Main', 'Gate', '2025-10-24 23:41:15', NULL, '2025-10-25 06:41:15'),
+(5, '1234-1234', 'Aian Desucatan', '09575575777', 'Maintenance', 'Dino', 'Main', 'Gate', '2025-10-22 00:05:34', '2025-11-03 03:58:53', '2025-10-22 07:05:34'),
+(16, '1010-1010', 'Aian Veneracion', '09847541564', 'Meeting', 'Nino Mike', 'Main', 'Gate', '2025-11-02 15:08:54', NULL, '2025-11-02 23:08:54'),
 (10, '1010-1010', 'Aian Desucatan', '09575575777', 'Gisugo Hatud Sigarilyo hihi', 'Doc. Flor', 'Main', 'Gate', '2025-10-26 01:22:25', '2025-10-28 23:51:30', '2025-10-26 08:22:25'),
-(8, '1234-1234', 'Aian Desucatan', '09575575777', 'Delivery', 'Dino', 'Main', 'Gate', '2025-10-25 00:45:18', '2025-10-26 06:48:25', '2025-10-25 07:45:18');
+(8, '1234-1234', 'Aian Desucatan', '09575575777', 'Delivery', 'Dino', 'Main', 'Gate', '2025-10-25 00:45:18', '2025-10-26 06:48:25', '2025-10-25 07:45:18'),
+(11, '1010-1010', 'Aian Desucatan', '09575575777', 'Gisugo Hatud Sigarilyo hihi', 'joshua', 'Main', 'Gate', '2025-10-29 04:06:44', '2025-10-29 05:17:35', '2025-10-29 11:06:44'),
+(12, '1234-1234', 'Nino Mike Zaspa', '09575575777', 'Sugo sang Classmate', 'Classmate', 'Main', 'Gate', '2025-10-29 04:56:17', '2025-10-29 05:05:26', '2025-10-29 11:56:17'),
+(13, '1010-1010', 'joshua pastorpide', '09485757555', 'Delivery', 'Dino', 'Main', 'Gate', '2025-10-29 05:23:37', '2025-10-29 05:23:52', '2025-10-29 12:23:37'),
+(14, '1234-1234', 'Aswang Kooo', '09343232333', 'Delivery', 'Dino', 'Main', 'Gate', '2025-10-29 05:53:58', '2025-10-29 05:56:12', '2025-10-29 12:53:58'),
+(15, '1010-1010', 'Aswang Kooo', '09485757555', 'Sugo sang Classmate', 'Classmate', 'Main', 'Gate', '2025-11-02 01:21:48', '2025-11-03 03:58:29', '2025-11-02 08:21:48');
 
 --
 -- Indexes for dumped tables
@@ -2052,6 +2244,21 @@ ALTER TABLE `students`
   ADD UNIQUE KEY `id_number` (`id_number`);
 
 --
+-- Indexes for table `students_attendance_logs`
+--
+ALTER TABLE `students_attendance_logs`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_student_daily_attendance` (`student_id`,`date`,`department`,`location`),
+  ADD KEY `idx_student_id` (`student_id`),
+  ADD KEY `idx_date` (`date`),
+  ADD KEY `idx_department` (`department`),
+  ADD KEY `idx_location` (`location`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `idx_student_date` (`student_id`,`date`),
+  ADD KEY `idx_department_date` (`department`,`date`),
+  ADD KEY `idx_instructor_date` (`instructor_name`,`date`);
+
+--
 -- Indexes for table `students_glogs`
 --
 ALTER TABLE `students_glogs`
@@ -2063,6 +2270,21 @@ ALTER TABLE `students_glogs`
   ADD KEY `idx_period` (`period`),
   ADD KEY `idx_students_glogs` (`student_id`,`date_logged`),
   ADD KEY `idx_student_glogs` (`student_id`,`date_logged`);
+
+--
+-- Indexes for table `stu_attendance_logs`
+--
+ALTER TABLE `stu_attendance_logs`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_student_daily_attendance` (`student_id`,`date`,`department`,`location`),
+  ADD KEY `idx_student_id` (`student_id`),
+  ADD KEY `idx_date` (`date`),
+  ADD KEY `idx_department` (`department`),
+  ADD KEY `idx_location` (`location`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `idx_student_date` (`student_id`,`date`),
+  ADD KEY `idx_department_date` (`department`,`date`),
+  ADD KEY `idx_instructor_date` (`instructor_name`,`date`);
 
 --
 -- Indexes for table `subjects`
@@ -2129,7 +2351,7 @@ ALTER TABLE `access_rules`
 -- AUTO_INCREMENT for table `admin_2fa_codes`
 --
 ALTER TABLE `admin_2fa_codes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=45;
 
 --
 -- AUTO_INCREMENT for table `admin_access_logs`
@@ -2141,7 +2363,7 @@ ALTER TABLE `admin_access_logs`
 -- AUTO_INCREMENT for table `admin_logs`
 --
 ALTER TABLE `admin_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `admin_sessions`
@@ -2159,7 +2381,7 @@ ALTER TABLE `archived_attendance_20250727_190813`
 -- AUTO_INCREMENT for table `archived_attendance_logs`
 --
 ALTER TABLE `archived_attendance_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=204;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=211;
 
 --
 -- AUTO_INCREMENT for table `archived_instructor_logs`
@@ -2171,7 +2393,7 @@ ALTER TABLE `archived_instructor_logs`
 -- AUTO_INCREMENT for table `attendance_logs`
 --
 ALTER TABLE `attendance_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=434;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=440;
 
 --
 -- AUTO_INCREMENT for table `department`
@@ -2201,7 +2423,7 @@ ALTER TABLE `gate_devices`
 -- AUTO_INCREMENT for table `gate_logs`
 --
 ALTER TABLE `gate_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=101;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=124;
 
 --
 -- AUTO_INCREMENT for table `gate_statistics`
@@ -2231,7 +2453,7 @@ ALTER TABLE `instructor`
 -- AUTO_INCREMENT for table `instructor_accounts`
 --
 ALTER TABLE `instructor_accounts`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `instructor_attendance`
@@ -2243,19 +2465,19 @@ ALTER TABLE `instructor_attendance`
 -- AUTO_INCREMENT for table `instructor_attendance_summary`
 --
 ALTER TABLE `instructor_attendance_summary`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=181;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=202;
 
 --
 -- AUTO_INCREMENT for table `instructor_glogs`
 --
 ALTER TABLE `instructor_glogs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=36;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=42;
 
 --
 -- AUTO_INCREMENT for table `instructor_logs`
 --
 ALTER TABLE `instructor_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=127;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=129;
 
 --
 -- AUTO_INCREMENT for table `login_attempts`
@@ -2279,19 +2501,19 @@ ALTER TABLE `lost_found`
 -- AUTO_INCREMENT for table `password_reset_tokens`
 --
 ALTER TABLE `password_reset_tokens`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `personell`
 --
 ALTER TABLE `personell`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `personell_glogs`
 --
 ALTER TABLE `personell_glogs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `role`
@@ -2315,7 +2537,7 @@ ALTER TABLE `room_logs`
 -- AUTO_INCREMENT for table `room_schedules`
 --
 ALTER TABLE `room_schedules`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=42;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
 
 --
 -- AUTO_INCREMENT for table `schedule_swaps`
@@ -2342,10 +2564,22 @@ ALTER TABLE `students`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=88;
 
 --
+-- AUTO_INCREMENT for table `students_attendance_logs`
+--
+ALTER TABLE `students_attendance_logs`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `students_glogs`
 --
 ALTER TABLE `students_glogs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=51;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=59;
+
+--
+-- AUTO_INCREMENT for table `stu_attendance_logs`
+--
+ALTER TABLE `stu_attendance_logs`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `subjects`
@@ -2381,7 +2615,7 @@ ALTER TABLE `visitor_glogs`
 -- AUTO_INCREMENT for table `visitor_logs`
 --
 ALTER TABLE `visitor_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- Constraints for dumped tables
@@ -2416,6 +2650,7 @@ ALTER TABLE `instructor_logs`
 --
 ALTER TABLE `password_reset_tokens`
   ADD CONSTRAINT `password_reset_tokens_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE;
+SET FOREIGN_KEY_CHECKS=1;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
