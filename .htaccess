@@ -1,25 +1,37 @@
+# ======= URL REWRITING =======
+
+# Turn on the rewrite engine
 RewriteEngine On
 
-# Remove duplicate RewriteEngine and fix index.php redirect
+# 1. Redirect direct .php requests to the clean URL (prevents duplicate content)
+RewriteCond %{THE_REQUEST} \s/([^/]+)\.php[\s?] [NC]
+RewriteRule ^ /%1 [R=301,L]
+
+# 2. Redirect requests for index.php to the root
 RewriteRule ^index\.php$ / [R=301,L]
 
-# Hide .php extensions
+# 3. Internally rewrite clean URLs to the .php file
+RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_FILENAME}\.php -f
-RewriteRule ^(.*)$ $1.php [L]
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^([^/]+)$ $1.php [L]
+
 
 # ======= SECURITY HEADERS & PROTECTION =======
 
-# Enable HSTS Header
-Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+# Enable HSTS Header (uncomment if you have a valid SSL certificate)
+# Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
 
-# Additional Security Headers
+# Additional Security Headers (non-duplicated)
 Header always set X-Content-Type-Options "nosniff"
 Header always set X-Frame-Options "SAMEORIGIN"
 Header always set X-XSS-Protection "1; mode=block"
 Header always set Referrer-Policy "strict-origin-when-cross-origin"
 
-# Block common attacks
+# Disable server signature
+ServerSignature Off
+
+# Block common attacks in query string
 RewriteCond %{QUERY_STRING} (eval\() [NC,OR]
 RewriteCond %{QUERY_STRING} (base64_encode) [NC,OR]
 RewriteCond %{QUERY_STRING} (javascript:) [NC,OR]
@@ -27,34 +39,23 @@ RewriteCond %{QUERY_STRING} (<script) [NC,OR]
 RewriteCond %{QUERY_STRING} (document\.cookie) [NC]
 RewriteRule ^(.*)$ - [F,L]
 
-# Block SQL injections
+# Block SQL injections in query string
 RewriteCond %{QUERY_STRING} (union.*select) [NC,OR]
 RewriteCond %{QUERY_STRING} (insert.*into) [NC,OR]
 RewriteCond %{QUERY_STRING} (drop.*table) [NC,OR]
 RewriteCond %{QUERY_STRING} (update.*set) [NC]
 RewriteRule ^(.*)$ - [F,L]
 
-# Block file inclusion attacks
+# Block file inclusion attacks in query string
 RewriteCond %{QUERY_STRING} (\.\./|\.\.\\|\.\.%2f|\.\.%5c) [NC]
 RewriteRule ^(.*)$ - [F,L]
 
-# Disable server signature
-ServerSignature Off
-
-# Prevent clickjacking
-Header always set X-Frame-Options "SAMEORIGIN"
-
-# Prevent MIME type sniffing
-Header always set X-Content-Type-Options "nosniff"
-
-# Enable XSS protection
-Header always set X-XSS-Protection "1; mode=block"
-# Block direct access to recaptcha config files
+# Protect sensitive files
 <Files "recaptcha.php">
     Order Allow,Deny
     Deny from all
 </Files>
-# Protect sensitive files
+
 <FilesMatch "\.(env|log|ini|conf|sql)$">
     Deny from all
 </FilesMatch>
