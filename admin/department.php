@@ -530,6 +530,7 @@ include '../connection.php';
     <!-- Template Javascript -->
     <script src="js/main.js"></script>
     <script>
+        
    $(document).ready(function() {
     // Initialize DataTable
     var dataTable = $('#myDataTable').DataTable({

@@ -968,11 +968,12 @@ error_log("DASHBOARD DEBUG: " . json_encode($debug_info));
                                 </div>
                                 
                                 <!-- Database Backup Section - MOVED TO TOP -->
+                                
                                 <div class="backup-section mt-3">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div>
                                             <h5 class="card-title mb-1"><i class="fas fa-database me-2"></i>Database Backup</h5>
-                                            <p class="card-text text-muted mb-0">Create backups of your database to prevent data loss</p>
+                                            <p class="card-text text-muted mb-0">Download immediate SQL backup of your database</p>
                                         </div>
                                         <div class="d-flex align-items-center">
                                             <div class="form-check form-switch me-3">
@@ -982,7 +983,7 @@ error_log("DASHBOARD DEBUG: " . json_encode($debug_info));
                                                 </label>
                                             </div>
                                             <button id="backupBtn" class="btn btn-primary">
-                                                <i class="fas fa-download me-2"></i>Backup Now
+                                                <i class="fas fa-download me-2"></i>Download SQL Backup
                                             </button>
                                         </div>
                                     </div>
@@ -1516,7 +1517,7 @@ error_log("DASHBOARD DEBUG: " . json_encode($debug_info));
             }
         });
 
-        // Function to create backup
+        // Function to create backup and trigger direct download
         function createBackup(isAuto = false) {
             // Show backup status
             $('#backupStatus').show();
@@ -1525,53 +1526,56 @@ error_log("DASHBOARD DEBUG: " . json_encode($debug_info));
             // Disable button during backup
             $('#backupBtn').prop('disabled', true);
             
-            // Make AJAX request to backup.php
+            // Create timestamp for filename
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            const filename = `database_backup_${timestamp}.sql`;
+            
+            // Make AJAX request to backup.php with download parameter
             $.ajax({
-                url: 'backup.php',
+                url: 'backup.php?download=' + filename,
                 type: 'GET',
-                dataType: 'json',
-                success: function(response) {
-                    if (response.success) {
-                        $('#backupStatusText').html(
-                            '<i class="fas fa-check-circle text-success me-2"></i>' +
-                            'Backup created successfully! File: ' + response.file + 
-                            ' (' + response.size + ') at ' + response.time
-                        );
-                        
-                        // Show success notification
-                        if (!isAuto) {
-                            showNotification('Database backup created successfully!', 'success');
-                            
-                            // Trigger download of the backup file
-                            window.location.href = 'backup.php?download=' + response.file;
-                        }
-                        
-                        // Hide status after 5 seconds
-                        setTimeout(function() {
-                            $('#backupStatus').fadeOut();
-                        }, 5000);
-                    } else {
-                        $('#backupStatusText').html(
-                            '<i class="fas fa-exclamation-triangle text-danger me-2"></i>' +
-                            'Backup failed. Please try again.'
-                        );
-                        
-                        // Show error notification
-                        showNotification('Failed to create database backup!', 'danger');
+                xhrFields: {
+                    responseType: 'blob' // Important for file download
+                },
+                success: function(response, status, xhr) {
+                    // Hide backup status
+                    $('#backupStatus').hide();
+                    
+                    // Create a blob from the response
+                    const blob = new Blob([response], { type: 'application/sql' });
+                    
+                    // Create download link
+                    const downloadUrl = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = downloadUrl;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(downloadUrl);
+                    
+                    // Show success notification
+                    if (!isAuto) {
+                        showNotification('Database backup downloaded successfully!', 'success');
                     }
                 },
-                error: function() {
+                error: function(xhr, status, error) {
                     $('#backupStatusText').html(
                         '<i class="fas fa-exclamation-triangle text-danger me-2"></i>' +
-                        'Backup failed. Server error.'
+                        'Backup failed: ' + (xhr.responseText || 'Server error')
                     );
                     
                     // Show error notification
-                    showNotification('Failed to create database backup! Server error.', 'danger');
+                    showNotification('Failed to create database backup! ' + (xhr.responseText || 'Server error'), 'danger');
                 },
                 complete: function() {
                     // Re-enable button
                     $('#backupBtn').prop('disabled', false);
+                    
+                    // Hide status after 3 seconds for errors
+                    setTimeout(function() {
+                        $('#backupStatus').fadeOut();
+                    }, 3000);
                 }
             });
         }
@@ -1581,7 +1585,7 @@ error_log("DASHBOARD DEBUG: " . json_encode($debug_info));
             // Create notification element
             const notification = $(`
                 <div class="alert alert-${type} alert-dismissible fade show position-fixed" 
-                     style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;" role="alert">
+                    style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;" role="alert">
                     ${message}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>

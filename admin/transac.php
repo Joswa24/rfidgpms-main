@@ -1,4 +1,6 @@
 <?php
+session_start();
+date_default_timezone_set('Asia/Manila');
 if (isset($_SESSION['success_message'])) {
     echo '<div class="alert alert-success">' . $_SESSION['success_message'] . '</div>';
     unset($_SESSION['success_message']);
@@ -16,9 +18,46 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true ||
 }
 // Include connection
 include '../connection.php';
-session_start();
-date_default_timezone_set('Asia/Manila');
-session_start();
+
+// Add this function to verify reCAPTCHA
+function verifyRecaptcha($secretKey) {
+    $token = $_POST['g-recaptcha-response'] ?? '';
+    if (empty($token)) {
+        return false;
+    }
+
+    $url = 'https://www.google.com/recaptcha/api/siteverify';
+    $data = [
+        'secret' => $secretKey,
+        'response' => $token
+    ];
+
+    $options = [
+        'http' => [
+            'header' => "Content-type: application/x-www-form-urlencoded\r\n",
+            'method' => 'POST',
+            'content' => http_build_query($data)
+        ]
+    ];
+
+    $context = stream_context_create($options);
+    $result = file_get_contents($url, false, $context);
+    $response = json_decode($result);
+
+    return $response->success && $response->score > 0.5; // Adjust threshold as needed
+}
+
+// Verify reCAPTCHA for all POST requests (except specific cases)
+$recaptchaSecret = '6Ld2w-QrAAAAAFeIvhKm5V6YBpIsiyHIyzHxeqm-'; 
+
+// Skip reCAPTCHA for certain actions if needed
+$skipRecaptchaActions = ['find_schedules_for_swap', 'get_all_rooms', 'get_instructors_by_room', 'get_room_days', 'get_instructor_schedule', 'get_active_swaps'];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !in_array($action, $skipRecaptchaActions)) {
+    if (!verifyRecaptcha($recaptchaSecret)) {
+        jsonResponse('error', 'reCAPTCHA verification failed. Please try again.');
+    }
+}
 
 // Function to send JSON response
 function jsonResponse($status, $message, $data = []) {
