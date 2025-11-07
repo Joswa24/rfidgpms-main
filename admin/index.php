@@ -2,7 +2,7 @@
 // admin/index.php
 include '../connection.php';
 include '../security-headers.php';
-include '../recapcha.php';
+include '../recaptcha.php'; // Include the reCAPTCHA class
 session_start();
 
 // Additional security headers
@@ -19,54 +19,8 @@ header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 header("Pragma: no-cache");
 header("Expires: 0");
 
-// =====================================================================
-// reCAPTCHA VERIFICATION FUNCTION
-// =====================================================================
-function verifyRecaptcha($recaptchaResponse) {
-    $secret_key = '6Ld2w-QrAAAAAFeIvhKm5V6YBpIsiyHIyzHxeqm-';
-    $url = 'https://www.google.com/recaptcha/api/siteverify';
-    
-    $data = [
-        'secret' => $secret_key,
-        'response' => $recaptchaResponse
-    ];
-    
-    // Use cURL instead of file_get_contents (more reliable)
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-    
-    $result = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curlError = curl_error($ch);
-    curl_close($ch);
-    
-    // Log detailed information
-    error_log("reCAPTCHA Debug - HTTP Code: $httpCode, cURL Error: $curlError, Result: " . $result);
-    
-    if ($result === false) {
-        error_log("reCAPTCHA cURL failed: " . $curlError);
-        return (object)['success' => false, 'score' => 0];
-    }
-    
-    if ($httpCode !== 200) {
-        error_log("reCAPTCHA HTTP Error: $httpCode");
-        return (object)['success' => false, 'score' => 0];
-    }
-    
-    $response = json_decode($result);
-    
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        error_log("reCAPTCHA JSON parse error: " . json_last_error_msg());
-        return (object)['success' => false, 'score' => 0];
-    }
-    
-    return $response;
-}
+// Initialize reCAPTCHA with your keys
+ $recaptcha = new reCAPTCHA('6Ld2w-QrAAAAAFeIvhKm5V6YBpIsiyHIyzHxeqm-', '6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_');
 
 // Initialize variables
  $maxAttempts = 3;
@@ -199,19 +153,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resend_2fa'])) {
 // Handle login form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     
-    // Verify reCAPTCHA first
+    // Verify reCAPTCHA first using the class
     $recaptchaResponse = $_POST['recaptcha_response'] ?? '';
     
     if (empty($recaptchaResponse)) {
         $error = "Security verification failed. Please refresh and try again.";
     } else {
-        $recaptchaResult = verifyRecaptcha($recaptchaResponse);
+        // Use the reCAPTCHA class to verify
+        $recaptchaResult = $recaptcha->verify($recaptchaResponse, 0.3); // Using 0.3 as threshold
         
-        if (!$recaptchaResult->success || $recaptchaResult->score < 0.3) {
+        if (!$recaptchaResult['passed']) {
             // DEBUG: Log detailed information
-            error_log("reCAPTCHA DEBUG - Success: " . ($recaptchaResult->success ? 'true' : 'false') . 
-                    " - Score: " . ($recaptchaResult->score ?? 'unknown') . 
-                    " - Errors: " . json_encode($recaptchaResult->{'error-codes'} ?? []) . 
+            error_log("reCAPTCHA DEBUG - Success: " . ($recaptchaResult['success'] ? 'true' : 'false') . 
+                    " - Score: " . ($recaptchaResult['score'] ?? 'unknown') . 
                     " - IP: " . $_SERVER['REMOTE_ADDR']);
             
             $error = "Security check failed. Please refresh and try again.";
@@ -546,8 +500,8 @@ function send2FACodeEmail($email, $verificationCode) {
     <meta name="robots" content="noindex, nofollow">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     
-    <!-- reCAPTCHA API -->
-    <script src="https://www.google.com/recaptcha/api.js?render=6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_"></script>
+    <!-- reCAPTCHA v3 API -->
+    <script src="https://www.google.com/recaptcha/api.js?render=<?php echo $recaptcha->getSiteKey(); ?>"></script>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -1215,7 +1169,7 @@ function send2FACodeEmail($email, $verificationCode) {
             grecaptcha.ready(function() {
                 console.log('✅ reCAPTCHA ready, executing...');
                 
-                grecaptcha.execute('6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_', {action: 'login'})
+                grecaptcha.execute('<?php echo $recaptcha->getSiteKey(); ?>', {action: 'login'})
                 .then(function(token) {
                     console.log('✅ reCAPTCHA token generated:', token.substring(0, 50) + '...');
                     
