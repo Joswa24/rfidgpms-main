@@ -3,7 +3,6 @@
 define('DEBUG', true);
 include '../connection.php';
 include '../security-headers.php';
-include '../recaptcha.php';
 session_start();
 
 // Additional security headers
