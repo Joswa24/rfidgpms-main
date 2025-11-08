@@ -404,14 +404,18 @@ function send2FACodeEmail($email, $verificationCode) {
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         
         // Server settings
+        $mail->isSMTP();
         $mail->Host = 'smtp.gmail.com';
         $mail->SMTPAuth = true;
         $mail->Username = 'joshuapastorpide10@gmail.com';
-        $mail->Password = 'iqnrpnawiuwkioqy'; // NEW app password
-        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS; // Use SSL instead
-        $mail->Port = 465; // SSL port
-
-        // Or try with reduced security (not recommended for production)
+        $mail->Password = 'iqnrpnawiuwkioqy';
+        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = 587;
+        
+        // Enable verbose debugging for troubleshooting
+        $mail->SMTPDebug = 0; // Set to 2 for detailed debugging
+        
+        // SSL context options for better compatibility
         $mail->SMTPOptions = array(
             'ssl' => array(
                 'verify_peer' => false,
