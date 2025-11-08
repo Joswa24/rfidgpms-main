@@ -477,9 +477,9 @@ function send2FACodeEmail($email, $verificationCode) {
                 $mail->Password = $service['password'];
                 $mail->SMTPSecure = $service['encryption'];
                 $mail->Port = $service['port'];
-                
+                $mail->Timeout = 30;
                 // Debug level (0 for production, 2 for debugging)
-                $mail->SMTPDebug = $debugMode ? 2 : 0;
+                $mail->SMTPDebug =0;
                 
                 // SSL context options for better compatibility
                 $mail->SMTPOptions = array(
