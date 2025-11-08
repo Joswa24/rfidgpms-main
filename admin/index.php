@@ -4,6 +4,9 @@ include '../connection.php';
 include '../security-headers.php';
 session_start();
 
+// DEVELOPMENT MODE - SET TO false IN PRODUCTION
+define('DEV_MODE', true); // Change to false when deploying to production
+
 // Enable error reporting for debugging (remove in production)
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
@@ -28,8 +31,6 @@ header("Expires: 0");
  $error = '';
  $success = '';
  $twoFactorRequired = false;
- $debugMode = true; // Set to true for testing, false for production
- $useFallbackMethod = true; // Use fallback method when email fails
 
 // Initialize session variables
 if (!isset($_SESSION['login_attempts'])) {
@@ -48,9 +49,25 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true && isset($_
     exit();
 }
 
+// DEVELOPMENT MODE: Direct 2FA bypass
+if (DEV_MODE && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['dev_bypass_2fa'])) {
+    if (isset($_SESSION['temp_user_id']) && isset($_SESSION['temp_username']) && isset($_SESSION['temp_email'])) {
+        completeLoginProcess($_SESSION['temp_user_id'], $_SESSION['temp_username'], $_SESSION['temp_email']);
+        exit();
+    }
+}
+
 // Handle 2FA verification
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_2fa'])) {
     error_log("2FA verification process started");
+    
+    // DEVELOPMENT MODE: Auto-verify 2FA if enabled
+    if (DEV_MODE) {
+        if (isset($_SESSION['temp_user_id']) && isset($_SESSION['temp_username']) && isset($_SESSION['temp_email'])) {
+            completeLoginProcess($_SESSION['temp_user_id'], $_SESSION['temp_username'], $_SESSION['temp_email']);
+            exit();
+        }
+    }
     
     // Combine the 6 input fields into one code
     $verificationCode = '';
@@ -139,11 +156,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resend_2fa'])) {
             if ($verificationCode) {
                 $success = "A new verification code has been sent to your email.";
                 $twoFactorRequired = true;
-                
-                // For debugging, show the code on screen
-                if ($debugMode) {
-                    $success .= " (DEBUG MODE - Code: $verificationCode)";
-                }
             } else {
                 $error = "Failed to send verification code. Please try again.";
                 $twoFactorRequired = true;
@@ -213,18 +225,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                             
                             error_log("Password verified for user: $username, generating 2FA code");
                             
+                            // DEVELOPMENT MODE: Skip 2FA generation if enabled
+                            if (DEV_MODE) {
+                                completeLoginProcess($user['id'], $user['username'], $user['email']);
+                                exit();
+                            }
+                            
                             // Generate and send 2FA code
                             $verificationCode = generate2FACode($user['id'], $user['email']);
                             
                             if ($verificationCode) {
                                 $twoFactorRequired = true;
                                 $success = "Verification code sent to your email.";
-                                
-                                // For debugging, show the code on screen
-                                if ($debugMode) {
-                                    $success .= " (DEBUG MODE - Code: $verificationCode)";
-                                }
-                                
                                 error_log("2FA code generated successfully, setting twoFactorRequired to true");
                             } else {
                                 $error = "Failed to send verification code. Please try again.";
@@ -287,7 +299,7 @@ function completeLoginProcess($userId, $username, $email) {
     // Set secure session cookie parameters
     session_set_cookie_params([
         'lifetime' => 0,
-        'path' => '/',
+        'path' => '',
         'domain' => $_SERVER['HTTP_HOST'],
         'secure' => isset($_SERVER['HTTPS']),
         'httponly' => true,
@@ -348,7 +360,7 @@ function logAccessAttempt($userId, $username, $activity, $status) {
 
 // Function to generate and send 2FA code
 function generate2FACode($userId, $email) {
-    global $db, $debugMode, $useFallbackMethod;
+    global $db;
     
     try {
         // Generate a 6-digit verification code
@@ -381,31 +393,14 @@ function generate2FACode($userId, $email) {
             error_log("2FA code generated successfully for user ID: $userId");
             $stmt->close();
             
-            // Store the code in session for debugging
-            if ($debugMode) {
-                $_SESSION['debug_2fa_code'] = $verificationCode;
-            }
-            
-            // Try to send the code via email
-            $emailSent = send2FACodeEmail($email, $verificationCode);
-            
-            if ($emailSent) {
+            // Send the code via email
+            if (send2FACodeEmail($email, $verificationCode)) {
                 error_log("2FA code sent successfully to: $email");
                 return $verificationCode;
             } else {
                 error_log("Failed to send 2FA code via email to: $email");
-                
-                // If email fails and fallback is enabled, use alternative method
-                if ($useFallbackMethod) {
-                    error_log("Using fallback method for 2FA code delivery");
-                    // Store code in session for display on screen
-                    $_SESSION['fallback_2fa_code'] = $verificationCode;
-                    $_SESSION['use_fallback'] = true;
-                    return $verificationCode;
-                } else {
-                    // Even if email fails, we still generated the code
-                    return $verificationCode;
-                }
+                // Even if email fails, we still generated the code
+                return $verificationCode;
             }
         } else {
             throw new Exception("Failed to insert 2FA code: " . $stmt->error);
@@ -419,8 +414,6 @@ function generate2FACode($userId, $email) {
 
 // Function to send 2FA code via email
 function send2FACodeEmail($email, $verificationCode) {
-    global $debugMode;
-    
     try {
         // Validate email
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -435,207 +428,138 @@ function send2FACodeEmail($email, $verificationCode) {
         
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         
-        // Try multiple email services in order of preference
-        $emailServices = [
-            // Primary: Gmail with App Password
-            [
-                'host' => 'smtp.gmail.com',
-                'username' => 'joshuapastorpide10@gmail.com',
-                'password' => 'uuqxxzimitfvhqrz', // Your App Password
-                'port' => 587,
-                'encryption' => PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS
-            ],
-            // Fallback 1: SendGrid (if you have an API key)
-            [
-                'host' => 'smtp.sendgrid.net',
-                'username' => 'apikey', // This is literal 'apikey'
-                'password' => 'YOUR_SENDGRID_API_KEY', // Replace with your SendGrid API key
-                'port' => 587,
-                'encryption' => PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS
-            ],
-            // Fallback 2: Mailgun (if you have credentials)
-            [
-                'host' => 'smtp.mailgun.org',
-                'username' => 'postmaster@YOUR_DOMAIN', // Replace with your Mailgun username
-                'password' => 'YOUR_MAILGUN_PASSWORD', // Replace with your Mailgun password
-                'port' => 587,
-                'encryption' => PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS
-            ]
-        ];
+        // Server settings
+        $mail->isSMTP();
+        $mail->Host = 'smtp.gmail.com';
+        $mail->SMTPAuth = true;
+        $mail->Username = 'joshuapastorpide10@gmail.com';
+        $mail->Password = 'fsgtnanzpmnbrfga';
+        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = 587;
+        $mail->Timeout = 30;
         
-        // Try each email service until one works
-        foreach ($emailServices as $service) {
-            try {
-                // Reset PHPMailer instance for each attempt
-                $mail = new PHPMailer\PHPMailer\PHPMailer(true);
-                
-                // Server settings
-                $mail->isSMTP();
-                $mail->Host = $service['host'];
-                $mail->SMTPAuth = true;
-                $mail->Username = $service['username'];
-                $mail->Password = $service['password'];
-                $mail->SMTPSecure = $service['encryption'];
-                $mail->Port = $service['port'];
-                $mail->Timeout = 30;
-                // Debug level (0 for production, 2 for debugging)
-                $mail->SMTPDebug = 0;
-                
-                // SSL context options for better compatibility
-                $mail->SMTPOptions = array(
-                    'ssl' => array(
-                        'verify_peer' => false,
-                        'verify_peer_name' => false,
-                        'allow_self_signed' => true
-                    )
-                );
-                
-                // Character set
-                $mail->CharSet = 'UTF-8';
-                
-                // Remove X-Mailer header for security
-                $mail->XMailer = ' ';
-                
-                // Recipients
-                $mail->setFrom($service['username'], 'RFID GPMS Admin');
-                $mail->addAddress($email);
-                $mail->addReplyTo($service['username'], 'RFID GPMS Admin');
-                
-                // Content
-                $mail->isHTML(true);
-                $mail->Subject = 'Your Two-Factor Authentication Code - RFID GPMS';
-                
-                $mail->Body = "
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset='UTF-8'>
-                    <style>
-                        body { 
-                            font-family: Arial, sans-serif; 
-                            margin: 0; 
-                            padding: 20px; 
-                            background-color: #f4f4f4; 
-                            line-height: 1.6;
-                        }
-                        .container { 
-                            max-width: 600px; 
-                            margin: 0 auto; 
-                            background: white; 
-                            border-radius: 10px; 
-                            overflow: hidden; 
-                            box-shadow: 0 0 10px rgba(0,0,0,0.1); 
-                        }
-                        .header { 
-                            background: #4e73df; 
-                            color: white; 
-                            padding: 20px; 
-                            text-align: center; 
-                        }
-                        .content { 
-                            padding: 30px; 
-                        }
-                        .code { 
-                            background: #e1e7f0; 
-                            padding: 15px; 
-                            text-align: center; 
-                            font-size: 32px; 
-                            font-weight: bold; 
-                            letter-spacing: 5px; 
-                            margin: 20px 0; 
-                            border-radius: 5px; 
-                            font-family: monospace; 
-                            color: #2c3e50;
-                            border: 2px dashed #4e73df;
-                        }
-                        .footer { 
-                            padding: 20px; 
-                            text-align: center; 
-                            color: #6c757d; 
-                            font-size: 12px; 
-                            background: #f8f9fa; 
-                        }
-                        .warning {
-                            background: #fff3cd;
-                            border: 1px solid #ffeaa7;
-                            border-radius: 5px;
-                            padding: 10px;
-                            margin: 15px 0;
-                            color: #856404;
-                        }
-                        .info {
-                            background: #d1ecf1;
-                            border: 1px solid #bee5eb;
-                            border-radius: 5px;
-                            padding: 10px;
-                            margin: 15px 0;
-                            color: #0c5460;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class='container'>
-                        <div class='header'>
-                            <h2>🔒 Two-Factor Authentication</h2>
-                            <p>RFID Gate and Personnel Management System</p>
-                        </div>
-                        <div class='content'>
-                            <h3>Hello Admin,</h3>
-                            <p>You are attempting to log in to the RFID GPMS Admin Portal. To complete your login, please use the following verification code:</p>
-                            
-                            <div class='code'>$verificationCode</div>
-                            
-                            <div class='info'>
-                                <strong>📧 Sent to:</strong> $email<br>
-                                <strong>⏰ Expires in:</strong> 10 minutes
-                            </div>
-                            
-                            <div class='warning'>
-                                <strong>⚠️ Security Notice:</strong> 
-                                <ul>
-                                    <li>This code will expire in 10 minutes</li>
-                                    <li>Do not share this code with anyone</li>
-                                    <li>If you didn't request this code, please ignore this email</li>
-                                    <li>For security reasons, this code can only be used once</li>
-                                </ul>
-                            </div>
-                            
-                            <p>If you have any questions or concerns, please contact the system administrator immediately.</p>
-                            
-                            <p>Best regards,<br><strong>RFID GPMS Security Team</strong></p>
-                        </div>
-                        <div class='footer'>
-                            <p>This is an automated security message. Please do not reply to this email.</p>
-                            <p>&copy; " . date('Y') . " RFID Gate and Personnel Management System. All rights reserved.</p>
-                        </div>
-                    </div>
-                </body>
-                </html>
-                ";
-                
-                $mail->AltBody = "RFID GPMS - Two-Factor Authentication\n\nYour verification code is: $verificationCode\n\nThis code will expire in 10 minutes.\n\nEmail: $email\n\nDo not share this code with anyone.\n\nIf you did not request this code, please ignore this email or contact system administrator.\n\n© " . date('Y') . " RFID GPMS. All rights reserved.";
-                
-                // Add small delay to avoid rate limiting
-                usleep(500000);
-                
-                if ($mail->send()) {
-                    error_log("SUCCESS: 2FA code sent to: $email using " . $service['host']);
-                    return true;
-                } else {
-                    error_log("PHPMailer Error with " . $service['host'] . ": " . $mail->ErrorInfo);
-                    // Continue to next service
-                    continue;
+        // Enable verbose debugging for troubleshooting
+        $mail->SMTPDebug = 0; // Set to 2 for detailed debugging
+        
+        // SSL context options for better compatibility
+        $mail->SMTPOptions = array(
+            'ssl' => array(
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'allow_self_signed' => true
+            )
+        );
+        
+        // Character set
+        $mail->CharSet = 'UTF-8';
+        
+        // Recipients
+        $mail->setFrom('joshuapastorpide10@gmail.com', 'RFID GPMS Admin');
+        $mail->addAddress($email);
+        $mail->addReplyTo('joshuapastorpide10@gmail.com', 'RFID GPMS Admin');
+        
+        // Content
+        $mail->isHTML(true);
+        $mail->Subject = 'Two-Factor Authentication Code - RFID GPMS';
+        
+        // Remove X-Mailer header for security
+        $mail->XMailer = ' ';
+        
+        $mail->Body = "
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset='UTF-8'>
+            <style>
+                body { 
+                    font-family: Arial, sans-serif; 
+                    margin: 0; 
+                    padding: 20px; 
+                    background-color: #f4f4f4; 
+                    line-height: 1.6;
                 }
-            } catch (Exception $e) {
-                error_log("EXCEPTION with " . $service['host'] . ": " . $e->getMessage());
-                // Continue to next service
-                continue;
-            }
-        }
+                .container { 
+                    max-width: 600px; 
+                    margin: 0 auto; 
+                    background: white; 
+                    border-radius: 10px; 
+                    overflow: hidden; 
+                    box-shadow: 0 0 10px rgba(0,0,0,0.1); 
+                }
+                .header { 
+                    background: #4e73df; 
+                    color: white; 
+                    padding: 20px; 
+                    text-align: center; 
+                }
+                .content { 
+                    padding: 30px; 
+                }
+                .code { 
+                    background: #e1e7f0; 
+                    padding: 15px; 
+                    text-align: center; 
+                    font-size: 24px; 
+                    font-weight: bold; 
+                    letter-spacing: 5px; 
+                    margin: 20px 0; 
+                    border-radius: 5px; 
+                    font-family: monospace; 
+                    color: #2c3e50;
+                }
+                .footer { 
+                    padding: 20px; 
+                    text-align: center; 
+                    color: #6c757d; 
+                    font-size: 12px; 
+                    background: #f8f9fa; 
+                }
+                .warning {
+                    background: #fff3cd;
+                    border: 1px solid #ffeaa7;
+                    border-radius: 5px;
+                    padding: 10px;
+                    margin: 15px 0;
+                    color: #856404;
+                }
+            </style>
+        </head>
+        <body>
+            <div class='container'>
+                <div class='header'>
+                    <h2>RFID GPMS Admin Portal</h2>
+                </div>
+                <div class='content'>
+                    <h3>Two-Factor Authentication Required</h3>
+                    <p>Hello,</p>
+                    <p>Your verification code for the RFID GPMS Admin Portal is:</p>
+                    <div class='code'>$verificationCode</div>
+                    <div class='warning'>
+                        <strong>Security Notice:</strong> This code will expire in 10 minutes. Do not share this code with anyone.
+                    </div>
+                    <p>If you did not request this code, please ignore this email or contact system administrator.</p>
+                </div>
+                <div class='footer'>
+                    <p>This is an automated message. Please do not reply to this email.</p>
+                    <p>&copy; " . date('Y') . " RFID GPMS. All rights reserved.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        ";
         
-        // If we get here, all email services failed
-        error_log("All email services failed to send 2FA code to: $email");
-        return false;
+        $mail->AltBody = "RFID GPMS - Two-Factor Authentication\n\nYour verification code is: $verificationCode\n\nThis code will expire in 10 minutes.\n\nDo not share this code with anyone.\n\nIf you did not request this code, please ignore this email.";
+        
+        // Add small delay to avoid rate limiting
+        usleep(500000);
+        
+        if ($mail->send()) {
+            error_log("SUCCESS: 2FA code sent to: $email");
+            return true;
+        } else {
+            error_log("PHPMailer Error: " . $mail->ErrorInfo);
+            return false;
+        }
         
     } catch (Exception $e) {
         error_log("EXCEPTION in send2FACodeEmail: " . $e->getMessage());
@@ -1075,57 +999,33 @@ error_log("Final state - success: " . $success);
             display: block;
         }
         
-        .debug-info {
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
-            font-family: monospace;
-            font-size: 0.9rem;
-        }
-        
-        .fallback-info {
+        /* Development Mode Styles */
+        .dev-mode-notice {
             background-color: #fff3cd;
             border: 1px solid #ffeaa7;
             border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        
-        .fallback-code {
-            font-family: monospace;
-            font-size: 1.5rem;
-            font-weight: bold;
-            letter-spacing: 5px;
-            color: #2c3e50;
-            background: #e1e7f0;
             padding: 10px;
-            border-radius: 5px;
-            border: 2px dashed #f6c23e;
-            margin: 10px 0;
-        }
-        
-        .email-status {
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 15px;
             margin-bottom: 20px;
-            text-align: center;
+            color: #856404;
+            font-size: 0.9rem;
         }
         
-        .email-status-success {
-            background-color: #d4edda;
-            border: 1px solid #c3e6cb;
-            color: #155724;
+        .dev-bypass-btn {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            border: none;
+            color: white;
+            font-weight: 600;
+            padding: 10px;
+            border-radius: 8px;
+            width: 100%;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+            margin-bottom: 15px;
         }
         
-        .email-status-error {
-            background-color: #f8d7da;
-            border: 1px solid #f5c6cb;
-            color: #721c24;
+        .dev-bypass-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
         }
         
         @media (max-width: 576px) {
@@ -1182,6 +1082,14 @@ error_log("Final state - success: " . $success);
         </div>
         
         <div class="login-body">
+            <!-- Development Mode Notice -->
+            <?php if (DEV_MODE): ?>
+                <div class="dev-mode-notice">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Development Mode Active</strong> - 2FA is bypassed for testing purposes
+                </div>
+            <?php endif; ?>
+
             <!-- Error Message -->
             <?php if (!empty($error)): ?>
                 <div class="alert alert-danger">
@@ -1276,6 +1184,21 @@ error_log("Final state - success: " . $success);
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
+                    <!-- Development Mode Notice -->
+                    <?php if (DEV_MODE): ?>
+                        <div class="dev-mode-notice mb-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Development Mode Active</strong> - You can bypass 2FA for testing
+                        </div>
+                        
+                        <form method="POST" id="devBypassForm">
+                            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                            <button type="submit" name="dev_bypass_2fa" class="dev-bypass-btn">
+                                <i class="fas fa-rocket me-2"></i>Bypass 2FA (Development Only)
+                            </button>
+                        </form>
+                    <?php endif; ?>
+                    
                     <!-- Error Message -->
                     <div class="alert alert-danger <?php echo !empty($error) && $twoFactorRequired ? '' : 'd-none'; ?>" id="modalError">
                         <i class="fas fa-exclamation-triangle me-2"></i>
@@ -1287,35 +1210,6 @@ error_log("Final state - success: " . $success);
                         <i class="fas fa-check-circle me-2"></i>
                         <span id="modalSuccessText"><?php echo !empty($success) ? htmlspecialchars($success) : ''; ?></span>
                     </div>
-
-                    <!-- Debug Info (only shown in debug mode) -->
-                    <?php if ($debugMode && isset($_SESSION['debug_2fa_code'])): ?>
-                        <div class="debug-info">
-                            <strong>DEBUG MODE:</strong><br>
-                            Your verification code is: <strong><?php echo htmlspecialchars($_SESSION['debug_2fa_code']); ?></strong><br>
-                            <small>This is only shown in debug mode. In production, the code will only be sent via email.</small>
-                        </div>
-                    <?php endif; ?>
-
-                    <!-- Fallback Info (shown when email fails) -->
-                    <?php if (isset($_SESSION['use_fallback']) && $_SESSION['use_fallback'] && isset($_SESSION['fallback_2fa_code'])): ?>
-                        <div class="fallback-info">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <strong>Email delivery failed. Using fallback method:</strong><br>
-                            Your verification code is:
-                            <div class="fallback-code"><?php echo htmlspecialchars($_SESSION['fallback_2fa_code']); ?></div>
-                            <small>This fallback is only shown because email delivery failed. Please contact your administrator to fix the email service.</small>
-                        </div>
-                    <?php endif; ?>
-
-                    <!-- Email Status (shown when email is sent) -->
-                    <?php if (isset($_SESSION['email_sent']) && $_SESSION['email_sent'] && !isset($_SESSION['use_fallback'])): ?>
-                        <div class="email-status email-status-success">
-                            <i class="fas fa-check-circle me-2"></i>
-                            <strong>Email sent successfully</strong><br>
-                            <small>Please check your inbox for the verification code.</small>
-                        </div>
-                    <?php endif; ?>
 
                     <!-- Info Box -->
                     <div class="info-box">
@@ -1408,6 +1302,24 @@ error_log("Final state - success: " . $success);
             loginSpinner.classList.remove('d-none');
             loginBtn.disabled = true;
         });
+
+        // Development bypass form submission
+        <?php if (DEV_MODE): ?>
+            document.getElementById('devBypassForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Show loading state
+                const bypassBtn = this.querySelector('button[type="submit"]');
+                const originalText = bypassBtn.innerHTML;
+                bypassBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Bypassing...';
+                bypassBtn.disabled = true;
+                
+                // Submit the form after a short delay
+                setTimeout(() => {
+                    this.submit();
+                }, 500);
+            });
+        <?php endif; ?>
 
         // 2FA verification handling
         function setup2FAVerification() {
