@@ -6,6 +6,7 @@ ini_set('display_errors', 1);
 // Include required files
 include 'security-headers.php';
 include 'connection.php';
+include 'recaptcha.php';
 
 // Start session first
 session_start();
