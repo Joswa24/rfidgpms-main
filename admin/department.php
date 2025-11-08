@@ -526,131 +526,64 @@ include '../connection.php';
     <script src="lib/tempusdominus/js/moment.min.js"></script>
     <script src="lib/tempusdominus/js/moment-timezone.min.js"></script>
     <script src="lib/tempusdominus/js/tempusdominus-bootstrap-4.min.js"></script>
-    <script src="https://www.google.com/recaptcha/api.js?render=6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_"></script>
 
     <!-- Template Javascript -->
     <script src="js/main.js"></script>
-    // Replace your entire JavaScript section with this corrected version
+    <script>
+   $(document).ready(function() {
+    // Initialize DataTable
+    var dataTable = $('#myDataTable').DataTable({
+        order: [[0, 'desc']],
+        stateSave: true
+    });
 
-<script>
-    // Function to get reCAPTCHA token
-    function getRecaptchaToken() {
-        return new Promise((resolve, reject) => {
-            if (typeof grecaptcha === 'undefined') {
-                console.error('reCAPTCHA not loaded');
-                resolve(''); // Resolve with empty string to avoid blocking
-                return;
-            }
-            
-            grecaptcha.ready(function() {
-                grecaptcha.execute('6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_', {action: 'submit'}).then(function(token) {
-                    resolve(token);
-                }).catch(function(error) {
-                    console.error('reCAPTCHA error:', error);
-                    resolve(''); // Resolve with empty string to avoid blocking
-                });
-            });
-        });
-    }
-
-    // Function to make AJAX requests with reCAPTCHA token
-    async function makeAjaxRequest(url, data) {
-        try {
-            // Get reCAPTCHA token
-            const recaptchaToken = await getRecaptchaToken();
-            
-            // Add reCAPTCHA token to data
-            data['g-recaptcha-response'] = recaptchaToken;
-            
-            return $.ajax({
-                type: "POST",
-                url: url,
-                data: data,
-                dataType: 'json'
-            });
-        } catch (error) {
-            console.error('Error making AJAX request:', error);
-            // Return a rejected promise to handle the error in the calling code
-            return Promise.reject(error);
+    // Helper function to validate inputs
+    function validateInput(input, errorId, message) {
+        if (input.value === '') {
+            document.getElementById(errorId).innerHTML = message;
+            input.focus();
+            return false;
+        } else {
+            document.getElementById(errorId).innerHTML = '';
+            return true;
         }
     }
 
-    $(document).ready(function() {
-        // Initialize DataTable
-        var dataTable = $('#myDataTable').DataTable({
-            order: [[0, 'desc']],
-            stateSave: true
-        });
+    // Helper function to reset form
+    function resetForm() {
+        document.getElementById('deptname-error').innerHTML = '';
+        document.getElementById('deptname-desc').innerHTML = '';
+        document.getElementById('departmentForm').reset();
+    }
 
-        // Helper function to validate inputs
-        function validateInput(input, errorId, message) {
-            if (input.value === '') {
-                document.getElementById(errorId).innerHTML = message;
-                input.focus();
-                return false;
-            } else {
-                document.getElementById(errorId).innerHTML = '';
-                return true;
-            }
+    // ==============
+    // CREATE (ADD)
+    // ==============
+    $('#departmentForm').submit(function(e) {
+        e.preventDefault();
+        
+        var inputField = document.getElementById('department_name');
+        var inputField1 = document.getElementById('department_description');
+
+        // Validate inputs
+        if (!validateInput(inputField, 'deptname-error', 'Department name is required') || 
+            !validateInput(inputField1, 'deptname-desc', 'Description is required')) {
+            return;
         }
 
-        // Helper function to reset form
-        function resetForm() {
-            document.getElementById('deptname-error').innerHTML = '';
-            document.getElementById('deptname-desc').innerHTML = '';
-            document.getElementById('departmentForm').reset();
-        }
+        var dptname = $('#department_name').val();
+        var dptdesc = $('#department_description').val();
+        
+        // Show loading state
+        $('#btn-department').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
+        $('#btn-department').prop('disabled', true);
 
-        // Handle Edit button click
-        $(document).on('click', '.e_department_id', function() {
-            var id = $(this).data('id');
-            var name = $(this).attr('department_name');
-            var desc = $(this).attr('department_desc');
-            
-            $('#edit_departmentid').val(id);
-            $('#edit_departmentname').val(name);
-            $('#edit_departmentdescription').val(desc);
-            $('#editdepartment-modal').modal('show');
-        });
-
-        // Handle Delete button click
-        $(document).on('click', '.d_department_id', function() {
-            var id = $(this).data('id');
-            var name = $(this).attr('department_name');
-            
-            $('#delete_departmentid').val(id);
-            $('#delete_departmentname').val(name);
-            $('#deldepartment-modal').modal('show');
-        });
-
-        // ==============
-        // CREATE (ADD) - UPDATED
-        // ==============
-        $('#departmentForm').submit(async function(e) {
-            e.preventDefault();
-            
-            var inputField = document.getElementById('department_name');
-            var inputField1 = document.getElementById('department_description');
-
-            // Validate inputs
-            if (!validateInput(inputField, 'deptname-error', 'Department name is required') || 
-                !validateInput(inputField1, 'deptname-desc', 'Description is required')) {
-                return;
-            }
-
-            var dptname = $('#department_name').val();
-            var dptdesc = $('#department_description').val();
-            
-            // Show loading state
-            $('#btn-department').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
-            $('#btn-department').prop('disabled', true);
-
-            try {
-                const response = await makeAjaxRequest("transac.php?action=add_department", { 
-                    dptname: dptname, 
-                    dptdesc: dptdesc 
-                });
-
+        $.ajax({
+            type: "POST",
+            url: "transac.php?action=add_department",
+            data: { dptname: dptname, dptdesc: dptdesc },
+            dataType: 'json',
+            success: function(response) {
                 // Reset button state
                 $('#btn-department').html('Save');
                 $('#btn-department').prop('disabled', false);
@@ -673,50 +606,67 @@ include '../connection.php';
                         text: response.message
                     });
                 }
-            } catch (error) {
+            },
+            error: function(xhr, status, error) {
                 // Reset button state
                 $('#btn-department').html('Save');
                 $('#btn-department').prop('disabled', false);
                 
+                console.log('XHR Response:', xhr.responseText);
+                console.log('Status:', status);
                 console.log('Error:', error);
                 
                 Swal.fire({
                     icon: 'error',
                     title: 'Error!',
-                    text: 'An error occurred while processing your request. Please check your reCAPTCHA configuration.'
+                    text: 'An error occurred while processing your request'
                 });
             }
         });
+    });
 
-        // ==========
-        // UPDATE - UPDATED
-        // ==========
-        $('#btn-editdepartment').click(async function(e) {
-            e.preventDefault();
-            var inputField = document.getElementById('edit_departmentname');
-            var inputField1 = document.getElementById('edit_departmentdescription');
+    // ==========
+    // READ (EDIT)
+    // ==========
+    $(document).on('click', '.e_department_id', function() {
+        var id = $(this).data('id');
+        var name = $(this).attr('department_name');
+        var desc = $(this).attr('department_desc');
+        
+        $('#edit_departmentname').val(name);
+        $('#edit_departmentdescription').val(desc);
+        $('#edit_departmentid').val(id);
+        $('#editdepartment-modal').modal('show');
+    });
 
-            // Validate inputs
-            if (!validateInput(inputField, 'edeptname-error', 'Department name is required') || 
-                !validateInput(inputField1, 'edeptname-desc', 'Description is required')) {
-                return;
-            }
+    // ==========
+    // UPDATE
+    // ==========
+    $('#btn-editdepartment').click(function(e) {
+        e.preventDefault();
+        var inputField = document.getElementById('edit_departmentname');
+        var inputField1 = document.getElementById('edit_departmentdescription');
 
-            var id = $('#edit_departmentid').val();
-            var dptname = $('#edit_departmentname').val();
-            var dptdesc = $('#edit_departmentdescription').val();
-            
-            // Show loading state
-            $(this).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
-            $(this).prop('disabled', true);
+        // Validate inputs
+        if (!validateInput(inputField, 'edeptname-error', 'Department name is required') || 
+            !validateInput(inputField1, 'edeptname-desc', 'Description is required')) {
+            return;
+        }
 
-            try {
-                const response = await makeAjaxRequest("transac.php?action=update_department", { 
-                    id: id, 
-                    dptname: dptname, 
-                    dptdesc: dptdesc 
-                });
+        var id = $('#edit_departmentid').val();
+        var dptname = $('#edit_departmentname').val();
+        var dptdesc = $('#edit_departmentdescription').val();
+        
+        // Show loading state
+        $(this).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
+        $(this).prop('disabled', true);
 
+        $.ajax({
+            type: "POST",
+            url: "transac.php?action=update_department",
+            data: { id: id, dptname: dptname, dptdesc: dptdesc },
+            dataType: 'json',
+            success: function(response) {
                 // Reset button state
                 $('#btn-editdepartment').html('Update');
                 $('#btn-editdepartment').prop('disabled', false);
@@ -739,11 +689,14 @@ include '../connection.php';
                         text: response.message
                     });
                 }
-            } catch (error) {
+            },
+            error: function(xhr, status, error) {
                 // Reset button state
                 $('#btn-editdepartment').html('Update');
                 $('#btn-editdepartment').prop('disabled', false);
                 
+                console.log('XHR Response:', xhr.responseText);
+                console.log('Status:', status);
                 console.log('Error:', error);
                 
                 Swal.fire({
@@ -753,22 +706,34 @@ include '../connection.php';
                 });
             }
         });
+    });
 
-        // ==========
-        // DELETE - UPDATED
-        // ==========
-        $(document).on('click', '#btn-deldepartment', async function() {
-            var id = $('#delete_departmentid').val();
-            
-            // Show loading indicator
-            $('#btn-deldepartment').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...');
-            $('#btn-deldepartment').prop('disabled', true);
-            
-            try {
-                const response = await makeAjaxRequest("transac.php?action=delete_department", { 
-                    id: id 
-                });
+    // ==========
+    // DELETE
+    // ==========
+    $(document).on('click', '.d_department_id', function() {
+        var id = $(this).data('id');
+        var name = $(this).attr('department_name');
+        
+        $('#delete_departmentname').val(name);
+        $('#delete_departmentid').val(id);
+        $('#deldepartment-modal').modal('show');
+    });
 
+    // Handle the actual deletion when "Yes" is clicked in the modal
+    $(document).on('click', '#btn-deldepartment', function() {
+        var id = $('#delete_departmentid').val();
+        
+        // Show loading indicator
+        $('#btn-deldepartment').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...');
+        $('#btn-deldepartment').prop('disabled', true);
+        
+        $.ajax({
+            type: 'POST',
+            url: 'transac.php?action=delete_department',
+            data: { id: id },
+            dataType: 'json',
+            success: function(response) {
                 // Reset button state
                 $('#btn-deldepartment').html('Yes');
                 $('#btn-deldepartment').prop('disabled', false);
@@ -795,11 +760,14 @@ include '../connection.php';
                         icon: 'error'
                     });
                 }
-            } catch (error) {
+            },
+            error: function(xhr, status, error) {
                 // Reset button state
                 $('#btn-deldepartment').html('Yes');
                 $('#btn-deldepartment').prop('disabled', false);
                 
+                console.log('XHR Response:', xhr.responseText);
+                console.log('Status:', status);
                 console.log('Error:', error);
                 
                 Swal.fire({
@@ -809,12 +777,13 @@ include '../connection.php';
                 });
             }
         });
-
-        // Reset modal when closed
-        $('#departmentModal').on('hidden.bs.modal', function () {
-            resetForm();
-        });
     });
-</script>
+
+    // Reset modal when closed
+    $('#departmentModal').on('hidden.bs.modal', function () {
+        resetForm();
+    });
+    });
+    </script>
 </body>
 </html>

@@ -1,6 +1,4 @@
 <?php
-session_start();
-date_default_timezone_set('Asia/Manila');
 if (isset($_SESSION['success_message'])) {
     echo '<div class="alert alert-success">' . $_SESSION['success_message'] . '</div>';
     unset($_SESSION['success_message']);
@@ -18,90 +16,10 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true ||
 }
 // Include connection
 include '../connection.php';
+session_start();
+date_default_timezone_set('Asia/Manila');
+session_start();
 
-// Add this function to verify reCAPTCHA
-// Replace your reCAPTCHA verification section with this:
-
-// Add this function to verify reCAPTCHA
-function verifyRecaptcha($secretKey) {
-    $token = $_POST['g-recaptcha-response'] ?? '';
-    if (empty($token)) {
-        return ['success' => false, 'message' => 'reCAPTCHA token is missing'];
-    }
-
-    $url = 'https://www.google.com/recaptcha/api/siteverify';
-    $data = [
-        'secret' => $secretKey,
-        'response' => $token
-    ];
-
-    $options = [
-        'http' => [
-            'header' => "Content-type: application/x-www-form-urlencoded\r\n",
-            'method' => 'POST',
-            'content' => http_build_query($data)
-        ]
-    ];
-
-    $context = stream_context_create($options);
-    $result = file_get_contents($url, false, $context);
-    
-    if ($result === false) {
-        return ['success' => false, 'message' => 'Failed to verify reCAPTCHA with Google'];
-    }
-    
-    $response = json_decode($result);
-    
-    if (!$response->success) {
-        $errorCodes = $response->{'error-codes'} ?? [];
-        $errorMessage = 'reCAPTCHA verification failed';
-        
-        if (in_array('invalid-input-secret', $errorCodes)) {
-            $errorMessage = 'Invalid reCAPTCHA secret key';
-        } elseif (in_array('invalid-input-response', $errorCodes)) {
-            $errorMessage = 'Invalid reCAPTCHA response token';
-        } elseif (in_array('timeout-or-duplicate', $errorCodes)) {
-            $errorMessage = 'reCAPTCHA token has expired or already used';
-        }
-        
-        return ['success' => false, 'message' => $errorMessage];
-    }
-    
-    // Check score (for v3)
-    if (isset($response->score) && $response->score < 0.5) {
-        return ['success' => false, 'message' => 'reCAPTCHA score too low. Please try again.'];
-    }
-    
-    return ['success' => true];
-}
-
-// Verify reCAPTCHA for all POST requests
- $recaptchaSecret = '6Ld2w-QrAAAAAFeIvhKm5V6YBpIsiyHIyzHxeqm-';
-
-// Only skip reCAPTCHA for non-sensitive actions
- $skipRecaptchaActions = [
-    'add_department', 'update_department', 'delete_department', 
-    'add_room', 'update_room', 'delete_room',
-    'add_role', 'update_role', 'delete_role',
-    'add_personnel', 'update_personnel', 'delete_personnel',
-    'add_student', 'update_student', 'delete_student',
-    'add_instructor', 'update_instructor', 'delete_instructor',
-    'add_subject', 'update_subject', 'delete_subject',
-    'add_schedule', 'update_schedule', 'delete_schedule',
-    'add_visitor', 'update_visitor', 'delete_visitor',
-    // SIMPLIFIED SWAP SCHEDULE ACTIONS - Only these 6 are needed
-    'get_all_rooms', 'get_instructors_by_room', 'get_room_days',
-    'get_instructor_schedule', 'swap_time_schedule', 'get_active_swaps', 'revert_swap',
-    'find_all_schedules_for_swap'
-];
-
-// Verify reCAPTCHA for all POST requests except those in the skip list
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action']) && !in_array($_GET['action'], $skipRecaptchaActions)) {
-    $recaptchaResult = verifyRecaptcha($recaptchaSecret);
-    if (!$recaptchaResult['success']) {
-        jsonResponse('error', $recaptchaResult['message']);
-    }
-}
 // Function to send JSON response
 function jsonResponse($status, $message, $data = []) {
     // Clear any previous output
