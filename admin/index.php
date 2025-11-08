@@ -371,9 +371,9 @@ function send2FACodeEmail($email, $verificationCode) {
 
         // Load PHPMailer
         $base_path = __DIR__ . '/';
-        require_once $base_path . 'PHPMailer/src/PHPMailer.php';
-        require_once $base_path . 'PHPMailer/src/SMTP.php';
-        require_once $base_path . 'PHPMailer/src/Exception.php';
+        require_once $base_path . 'admin/PHPMailer/src/PHPMailer.php';
+        require_once $base_path . 'admin/PHPMailer/src/SMTP.php';
+        require_once $base_path . 'admin/PHPMailer/src/Exception.php';
         
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         
