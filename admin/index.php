@@ -479,7 +479,7 @@ function send2FACodeEmail($email, $verificationCode) {
                 $mail->Port = $service['port'];
                 $mail->Timeout = 30;
                 // Debug level (0 for production, 2 for debugging)
-                $mail->SMTPDebug =0;
+                $mail->SMTPDebug = 0;
                 
                 // SSL context options for better compatibility
                 $mail->SMTPOptions = array(
@@ -1107,6 +1107,27 @@ error_log("Final state - success: " . $success);
             margin: 10px 0;
         }
         
+        .email-status {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .email-status-success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .email-status-error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        
         @media (max-width: 576px) {
             .login-container {
                 max-width: 100%;
@@ -1284,6 +1305,15 @@ error_log("Final state - success: " . $success);
                             Your verification code is:
                             <div class="fallback-code"><?php echo htmlspecialchars($_SESSION['fallback_2fa_code']); ?></div>
                             <small>This fallback is only shown because email delivery failed. Please contact your administrator to fix the email service.</small>
+                        </div>
+                    <?php endif; ?>
+
+                    <!-- Email Status (shown when email is sent) -->
+                    <?php if (isset($_SESSION['email_sent']) && $_SESSION['email_sent'] && !isset($_SESSION['use_fallback'])): ?>
+                        <div class="email-status email-status-success">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>Email sent successfully</strong><br>
+                            <small>Please check your inbox for the verification code.</small>
                         </div>
                     <?php endif; ?>
 
