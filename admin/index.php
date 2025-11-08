@@ -405,7 +405,7 @@ function send2FACodeEmail($email, $verificationCode) {
         $mail->Timeout = 10;
         
         // Debug mode
-        $mail->SMTPDebug = 0;
+        $mail->SMTPDebug = 2;
         
         // Sender configuration
         $mail->setFrom('joshuapastorpide10@gmail.com', 'RFID GPMS Admin');
