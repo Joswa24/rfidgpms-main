@@ -80,9 +80,19 @@ function verifyRecaptcha($secretKey) {
 
 // Only skip reCAPTCHA for non-sensitive actions
  $skipRecaptchaActions = [
-    'add_department', 'update_department', 'delete_department', // ADD THIS LINE
+    'add_department', 'update_department', 'delete_department', 
+    'add_room', 'update_room', 'delete_room',
+    'add_role', 'update_role', 'delete_role',
+    'add_personnel', 'update_personnel', 'delete_personnel',
+    'add_student', 'update_student', 'delete_student',
+    'add_instructor', 'update_instructor', 'delete_instructor',
+    'add_subject', 'update_subject', 'delete_subject',
+    'add_schedule', 'update_schedule', 'delete_schedule',
+    'add_visitor', 'update_visitor', 'delete_visitor',
+    // SIMPLIFIED SWAP SCHEDULE ACTIONS - Only these 6 are needed
     'get_all_rooms', 'get_instructors_by_room', 'get_room_days',
-    'get_instructor_schedule', 'get_active_swaps', 'find_all_schedules_for_swap'
+    'get_instructor_schedule', 'swap_time_schedule', 'get_active_swaps', 'revert_swap',
+    'find_all_schedules_for_swap'
 ];
 
 // Verify reCAPTCHA for all POST requests except those in the skip list
