@@ -43,6 +43,7 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true && isset($_
 }
 
 // Handle 2FA verification
+// Handle 2FA verification
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_2fa'])) {
     // Combine the 6 input fields into one code
     $verificationCode = '';
@@ -358,8 +359,8 @@ function generate2FACode($userId, $email) {
     }
 }
 
-// Function to send 2FA code via email
-// Function to send 2FA code via email
+// UPDATED Function to send 2FA code via email
+// UPDATED Function to send 2FA code via email
 function send2FACodeEmail($email, $verificationCode) {
     try {
         // Validate email
@@ -369,72 +370,81 @@ function send2FACodeEmail($email, $verificationCode) {
         }
 
         // Load PHPMailer
-        require_once '../PHPMailer/src/PHPMailer.php';
-        require_once '../PHPMailer/src/SMTP.php';
-        require_once '../PHPMailer/src/Exception.php';
+        $base_path = __DIR__ . '/';
+        require_once $base_path . 'PHPMailer/src/PHPMailer.php';
+        require_once $base_path . 'PHPMailer/src/SMTP.php';
+        require_once $base_path . 'PHPMailer/src/Exception.php';
         
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         
-        // Server settings
+        // Server settings with improved configuration
         $mail->isSMTP();
         $mail->Host = 'smtp.gmail.com';
         $mail->SMTPAuth = true;
         $mail->Username = 'joshuapastorpide10@gmail.com';
-        $mail->Password = 'cqpngtkshsqmzlus'; // USE APP PASSWORD HERE
-        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
-        $mail->Port = 587; // Use 465 for SSL instead of 587 for TLS
+        $mail->Password = 'tzogwzhaecctdzdr';//'bmnvognbjqcpxcyf'; // REPLACE WITH APP PASSWORD
+        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = 587;
+        $mail->Timeout = 30;
         
-        // Debug mode
-        $mail->SMTPDebug = 0; // Set to 2 for detailed debug output
-        $mail->Debugoutput = 'error_log';
-        
-        // Improved SSL settings
+        // Important settings for Gmail
         $mail->SMTPOptions = array(
             'ssl' => array(
-                'verify_peer' => true,
-                'verify_peer_name' => true,
-                'allow_self_signed' => false,
-                'cafile' => '/etc/ssl/certs/ca-certificates.crt', // Path to CA certificates
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'allow_self_signed' => true
             )
         );
         
-        // Character set
-        $mail->CharSet = 'UTF-8';
+        // Set the SMTP sender to match the username
+        $mail->Sender = 'joshuapastorpide10@gmail.com';
         
         // Recipients
-        $mail->setFrom('joshuapastorpide10@gmail.com', 'RFID GPMS Admin');
+        $mail->setFrom('joshuapastorpide10@gmail.com', 'RFID GPMS Admin', false);
         $mail->addAddress($email);
         $mail->addReplyTo('joshuapastorpide10@gmail.com', 'RFID GPMS Admin');
         
         // Content
         $mail->isHTML(true);
         $mail->Subject = 'Two-Factor Authentication Code - RFID GPMS';
+        $mail->XMailer = ' '; // Remove X-Mailer header
         
-        // Simple email template without complex HTML
         $mail->Body = "
-            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
-                <div style='background: #4e73df; color: white; padding: 20px; text-align: center;'>
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; }
+                .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+                .header { background: #4e73df; color: white; padding: 20px; text-align: center; }
+                .content { padding: 30px; }
+                .code { background: #e1e7f0; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; margin: 20px 0; border-radius: 5px; font-family: monospace; }
+                .footer { padding: 20px; text-align: center; color: #6c757d; font-size: 12px; background: #f8f9fa; }
+            </style>
+        </head>
+        <body>
+            <div class='container'>
+                <div class='header'>
                     <h2>RFID GPMS Admin Portal</h2>
                 </div>
-                <div style='padding: 30px; background: #f8f9fa;'>
-                    <h3 style='color: #333;'>Two-Factor Authentication Required</h3>
+                <div class='content'>
+                    <h3>Two-Factor Authentication Required</h3>
                     <p>Your verification code is:</p>
-                    <div style='background: #e1e7f0; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; margin: 20px 0; border-radius: 5px; font-family: monospace;'>
-                        $verificationCode
-                    </div>
-                    <p><strong>This code will expire in 10 minutes.</strong></p>
-                    <p style='color: #dc3545;'><strong>Do not share this code with anyone.</strong></p>
+                    <div class='code'>$verificationCode</div>
+                    <p>This code will expire in 10 minutes.</p>
+                    <p><strong>Do not share this code with anyone.</strong></p>
                 </div>
-                <div style='padding: 20px; text-align: center; color: #6c757d; font-size: 12px; background: white;'>
+                <div class='footer'>
                     <p>This is an automated message. Please do not reply.</p>
                 </div>
             </div>
+        </body>
+        </html>
         ";
         
-        $mail->AltBody = "Your RFID GPMS verification code is: $verificationCode\n\nThis code will expire in 10 minutes.\n\nDo not share this code with anyone.";
+        $mail->AltBody = "Your verification code is: $verificationCode\n\nThis code will expire in 10 minutes.\n\nDo not share this code with anyone.";
         
-        // Add delay to avoid rate limiting
-        usleep(1000000); // 1 second delay
+        // Add some delay to avoid rate limiting
+        usleep(500000); // 0.5 second delay
         
         if ($mail->send()) {
             error_log("SUCCESS: 2FA code sent to: $email");
@@ -1012,81 +1022,79 @@ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lock
                 </a>
             </div>
         </div>
+    </div>
 
-        <div class="modal fade" id="twoFactorModal" tabindex="-1" aria-labelledby="twoFactorModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="twoFactorModalLabel">
-                            <i class="fas fa-shield-alt me-2"></i>Two-Factor Authentication
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <!-- 2FA Verification Modal -->
+    <div class="modal fade" id="twoFactorModal" tabindex="-1" aria-labelledby="twoFactorModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="twoFactorModalLabel">
+                        <i class="fas fa-shield-alt me-2"></i>Two-Factor Authentication
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Error Message -->
+                    <div class="alert alert-danger d-none" id="modalError">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <span id="modalErrorText"></span>
                     </div>
-                    <div class="modal-body">
-                        <!-- Error Message -->
-                        <div class="alert alert-danger d-none" id="modalError">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <span id="modalErrorText"></span>
-                        </div>
-                        
-                        <!-- Success Message -->
-                        <div class="alert alert-success d-none" id="modalSuccess">
-                            <i class="fas fa-check-circle me-2"></i>
-                            <span id="modalSuccessText"></span>
-                        </div>
+                    
+                    <!-- Success Message -->
+                    <div class="alert alert-success d-none" id="modalSuccess">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <span id="modalSuccessText"></span>
+                    </div>
 
-                        <!-- Info Box -->
-                        <div class="info-box">
-                            <i class="fas fa-envelope"></i>
-                            <p>A verification code has been sent to your email address: <strong><?php echo isset($_SESSION['temp_email']) ? htmlspecialchars($_SESSION['temp_email']) : ''; ?></strong></p>
-                            <p class="mb-0">The code will expire in 10 minutes.</p>
-                        </div>
+                    <!-- Info Box -->
+                    <div class="info-box">
+                        <i class="fas fa-envelope"></i>
+                        <p>A verification code has been sent to your email address: <strong><?php echo isset($_SESSION['temp_email']) ? htmlspecialchars($_SESSION['temp_email']) : ''; ?></strong></p>
+                        <p class="mb-0">The code will expire in 10 minutes.</p>
+                    </div>
 
-                        <form method="POST" id="twoFactorForm">
-                            <div class="form-group">
-                                <label for="verification_code" class="form-label"><i class="fas fa-key"></i>Verification Code</label>
-                                <div class="verification-code-container">
-                                    <input type="text" class="form-control verification-code-input" id="code_1" name="code_1" 
-                                        maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
-                                    <input type="text" class="form-control verification-code-input" id="code_2" name="code_2" 
-                                        maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
-                                    <input type="text" class="form-control verification-code-input" id="code_3" name="code_3" 
-                                        maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
-                                    <input type="text" class="form-control verification-code-input" id="code_4" name="code_4" 
-                                        maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
-                                    <input type="text" class="form-control verification-code-input" id="code_5" name="code_5" 
-                                        maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
-                                    <input type="text" class="form-control verification-code-input" id="code_6" name="code_6" 
-                                        maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
-                                </div>
-                                <div class="validation-message" id="codeValidationMessage">
-                                    Please enter a complete 6-digit verification code.
-                                </div>
+                    <form method="POST" id="twoFactorForm">
+                        <div class="form-group">
+                            <label for="verification_code" class="form-label"><i class="fas fa-key"></i>Verification Code</label>
+                            <div class="verification-code-container">
+                                <input type="text" class="form-control verification-code-input" id="code_1" name="code_1" 
+                                    maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
+                                <input type="text" class="form-control verification-code-input" id="code_2" name="code_2" 
+                                    maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
+                                <input type="text" class="form-control verification-code-input" id="code_3" name="code_3" 
+                                    maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
+                                <input type="text" class="form-control verification-code-input" id="code_4" name="code_4" 
+                                    maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
+                                <input type="text" class="form-control verification-code-input" id="code_5" name="code_5" 
+                                    maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
+                                <input type="text" class="form-control verification-code-input" id="code_6" name="code_6" 
+                                    maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
                             </div>
+                            <div class="validation-message" id="codeValidationMessage">
+                                Please enter a complete 6-digit verification code.
+                            </div>
+                        </div>
 
-                            <button type="submit" name="verify_2fa" class="btn btn-verify mb-3" id="verifyBtn">
-                                <i class="fas fa-check-circle me-2"></i>
-                                <span id="verifyText">Verify Code</span>
-                                <span id="verifySpinner" class="spinner-border spinner-border-sm d-none ms-2" role="status"></span>
-                            </button>
-                        </form>
+                        <button type="submit" name="verify_2fa" class="btn btn-verify mb-3" id="verifyBtn">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <span id="verifyText">Verify Code</span>
+                            <span id="verifySpinner" class="spinner-border spinner-border-sm d-none ms-2" role="status"></span>
+                        </button>
+                    </form>
 
-                        <!-- Resend Code Form -->
-                        <form method="POST" id="resendForm" class="mb-3">
-                            <button type="submit" name="resend_2fa" class="btn btn-resend" id="resendBtn">
-                                <i class="fas fa-redo me-2"></i>
-                                <span id="resendText">Resend Code</span>
-                                <span id="resendSpinner" class="spinner-border spinner-border-sm d-none ms-2" role="status"></span>
-                            </button>
-                        </form>
-                    </div>
+                    <!-- Resend Code Form -->
+                    <form method="POST" id="resendForm" class="mb-3">
+                        <button type="submit" name="resend_2fa" class="btn btn-resend" id="resendBtn">
+                            <i class="fas fa-redo me-2"></i>
+                            <span id="resendText">Resend Code</span>
+                            <span id="resendSpinner" class="spinner-border spinner-border-sm d-none ms-2" role="status"></span>
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
-
-    
-    
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -1581,44 +1589,6 @@ function reset2FAForm() {
                 }
             <?php endif; ?>
         });
-        // Add this JavaScript code to handle the modal display after form submission
-document.addEventListener('DOMContentLoaded', function() {
-    // Check if we should show the 2FA modal
-    const shouldShow2FAModal = <?php echo $twoFactorRequired ? 'true' : 'false'; ?>;
-    
-    if (shouldShow2FAModal) {
-        console.log('Showing 2FA modal');
-        const twoFactorModal = new bootstrap.Modal(document.getElementById('twoFactorModal'));
-        twoFactorModal.show();
-        
-        // Auto-focus on first verification code input
-        setTimeout(() => {
-            const firstCodeInput = document.getElementById('code_1');
-            if (firstCodeInput) {
-                firstCodeInput.focus();
-            }
-        }, 500);
-        
-        // Show error message in modal if exists
-        <?php if (!empty($error)): ?>
-            showModalError('<?php echo addslashes($error); ?>');
-        <?php endif; ?>
-        
-        // Show success message in modal if exists
-        <?php if (!empty($success)): ?>
-            showModalSuccess('<?php echo addslashes($success); ?>');
-        <?php endif; ?>
-    }
-    
-    // Setup 2FA verification functionality
-    setup2FAVerification();
-    
-    // Initialize lockout if needed
-    <?php if ($isLockedOut): ?>
-        const remainingTime = <?php echo $remainingLockoutTime; ?>;
-        startCountdown(remainingTime);
-    <?php endif; ?>
-});
     </script>
 </body>
 </html>
