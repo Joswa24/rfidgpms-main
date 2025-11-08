@@ -37,115 +37,114 @@ if (empty($_SESSION['csrf_token'])) {
 }
 
 // Redirect if already logged in
-if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true && isset($_SESSION['2fa_verified']) && $_SESSION['2fa_verified'] === true) {
-    header('Location: dashboard.php');
-    exit();
-}
+// if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true && isset($_SESSION['2fa_verified']) && $_SESSION['2fa_verified'] === true) {
+//     header('Location: dashboard.php');
+//     exit();
+// }
 
-// Handle 2FA verification
-// Handle 2FA verification
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_2fa'])) {
-    // Combine the 6 input fields into one code
-    $verificationCode = '';
-    for ($i = 1; $i <= 6; $i++) {
-        $fieldName = "code_$i";
-        $verificationCode .= isset($_POST[$fieldName]) ? trim($_POST[$fieldName]) : '';
-    }
+// // Handle 2FA verification
+// if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_2fa'])) {
+//     // Combine the 6 input fields into one code
+//     $verificationCode = '';
+//     for ($i = 1; $i <= 6; $i++) {
+//         $fieldName = "code_$i";
+//         $verificationCode .= isset($_POST[$fieldName]) ? trim($_POST[$fieldName]) : '';
+//     }
     
-    error_log("2FA Verification Attempt - Code: " . str_repeat('*', strlen($verificationCode)));
+//     error_log("2FA Verification Attempt - Code: " . str_repeat('*', strlen($verificationCode)));
     
-    if (empty($verificationCode) || strlen($verificationCode) !== 6) {
-        $error = "Please enter the complete 6-digit verification code.";
-        $twoFactorRequired = true;
-    } elseif (!ctype_digit($verificationCode)) {
-        $error = "Invalid verification code format. Please enter only numbers.";
-        $twoFactorRequired = true;
-    } else {
-        try {
-            // Check if session variables exist
-            if (!isset($_SESSION['temp_user_id']) || !isset($_SESSION['temp_username']) || !isset($_SESSION['temp_email'])) {
-                $error = "Session expired. Please login again.";
-                $twoFactorRequired = false;
-                // Clear any existing session data
-                unset($_SESSION['temp_user_id'], $_SESSION['temp_username'], $_SESSION['temp_email'], $_SESSION['password_verified']);
-            } else {
-                $userId = $_SESSION['temp_user_id'];
-                $username = $_SESSION['temp_username'];
-                $email = $_SESSION['temp_email'];
+//     if (empty($verificationCode) || strlen($verificationCode) !== 6) {
+//         $error = "Please enter the complete 6-digit verification code.";
+//         $twoFactorRequired = true;
+//     } elseif (!ctype_digit($verificationCode)) {
+//         $error = "Invalid verification code format. Please enter only numbers.";
+//         $twoFactorRequired = true;
+//     } else {
+//         try {
+//             // Check if session variables exist
+//             if (!isset($_SESSION['temp_user_id']) || !isset($_SESSION['temp_username']) || !isset($_SESSION['temp_email'])) {
+//                 $error = "Session expired. Please login again.";
+//                 $twoFactorRequired = false;
+//                 // Clear any existing session data
+//                 unset($_SESSION['temp_user_id'], $_SESSION['temp_username'], $_SESSION['temp_email'], $_SESSION['password_verified']);
+//             } else {
+//                 $userId = $_SESSION['temp_user_id'];
+//                 $username = $_SESSION['temp_username'];
+//                 $email = $_SESSION['temp_email'];
                 
-                // Debug logging
-                error_log("Verifying 2FA for user ID: $userId");
+//                 // Debug logging
+//                 error_log("Verifying 2FA for user ID: $userId");
                 
-                // Check if verification code is valid
-                $stmt = $db->prepare("SELECT id, admin_id, verification_code, expires_at FROM admin_2fa_codes WHERE admin_id = ? AND verification_code = ? AND is_used = 0 AND expires_at > NOW()");
-                $stmt->bind_param("is", $userId, $verificationCode);
-                $stmt->execute();
-                $result = $stmt->get_result();
+//                 // Check if verification code is valid
+//                 $stmt = $db->prepare("SELECT id, admin_id, verification_code, expires_at FROM admin_2fa_codes WHERE admin_id = ? AND verification_code = ? AND is_used = 0 AND expires_at > NOW()");
+//                 $stmt->bind_param("is", $userId, $verificationCode);
+//                 $stmt->execute();
+//                 $result = $stmt->get_result();
                 
-                if ($result->num_rows > 0) {
-                    $codeData = $result->fetch_assoc();
-                    $codeId = $codeData['id'];
+//                 if ($result->num_rows > 0) {
+//                     $codeData = $result->fetch_assoc();
+//                     $codeId = $codeData['id'];
                     
-                    // Mark code as used
-                    $stmt = $db->prepare("UPDATE admin_2fa_codes SET is_used = 1, used_at = NOW() WHERE id = ?");
-                    $stmt->bind_param("i", $codeId);
+//                     // Mark code as used
+//                     $stmt = $db->prepare("UPDATE admin_2fa_codes SET is_used = 1, used_at = NOW() WHERE id = ?");
+//                     $stmt->bind_param("i", $codeId);
                     
-                    if ($stmt->execute()) {
-                        // Log successful 2FA verification
-                        logAccessAttempt($userId, $username, '2FA Verification', 'success');
+//                     if ($stmt->execute()) {
+//                         // Log successful 2FA verification
+//                         logAccessAttempt($userId, $username, '2FA Verification', 'success');
                         
-                        // Set success message before redirect
-                        $_SESSION['login_success'] = "Two-factor authentication successful! Welcome, " . htmlspecialchars($username);
+//                         // Set success message before redirect
+//                         $_SESSION['login_success'] = "Two-factor authentication successful! Welcome, " . htmlspecialchars($username);
                         
-                        // Complete login process - THIS WILL REDIRECT TO DASHBOARD
-                        completeLoginProcess($userId, $username, $email);
-                        exit(); // Ensure script stops after redirect
-                    } else {
-                        throw new Exception("Failed to mark 2FA code as used");
-                    }
+//                         // Complete login process - THIS WILL REDIRECT TO DASHBOARD
+//                         completeLoginProcess($userId, $username, $email);
+//                         exit(); // Ensure script stops after redirect
+//                     } else {
+//                         throw new Exception("Failed to mark 2FA code as used");
+//                     }
                     
-                } else {
-                    $error = "Invalid verification code. Please try again.";
-                    $twoFactorRequired = true;
+//                 } else {
+//                     $error = "Invalid verification code. Please try again.";
+//                     $twoFactorRequired = true;
                     
-                    // Log failed 2FA attempt
-                    logAccessAttempt($userId, $username, 'Failed 2FA - Invalid Code', 'failed');
-                }
-            }
-        } catch (Exception $e) {
-            error_log("2FA verification error: " . $e->getMessage());
-            $error = "Database error. Please try again.";
-            $twoFactorRequired = true;
-        }
-    }
-}
+//                     // Log failed 2FA attempt
+//                     logAccessAttempt($userId, $username, 'Failed 2FA - Invalid Code', 'failed');
+//                 }
+//             }
+//         } catch (Exception $e) {
+//             error_log("2FA verification error: " . $e->getMessage());
+//             $error = "Database error. Please try again.";
+//             $twoFactorRequired = true;
+//         }
+//     }
+// }
 
-// Handle resend 2FA code
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resend_2fa'])) {
-    try {
-        if (!isset($_SESSION['temp_user_id']) || !isset($_SESSION['temp_email'])) {
-            $error = "Session expired. Please login again.";
-        } else {
-            $userId = $_SESSION['temp_user_id'];
-            $email = $_SESSION['temp_email'];
+// // Handle resend 2FA code
+// if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resend_2fa'])) {
+//     try {
+//         if (!isset($_SESSION['temp_user_id']) || !isset($_SESSION['temp_email'])) {
+//             $error = "Session expired. Please login again.";
+//         } else {
+//             $userId = $_SESSION['temp_user_id'];
+//             $email = $_SESSION['temp_email'];
             
-            // Generate and send new 2FA code
-            $verificationCode = generate2FACode($userId, $email);
+//             // Generate and send new 2FA code
+//             $verificationCode = generate2FACode($userId, $email);
             
-            if ($verificationCode) {
-                $success = "A new verification code has been sent to your email.";
-                $twoFactorRequired = true;
-            } else {
-                $error = "Failed to send verification code. Please try again.";
-                $twoFactorRequired = true;
-            }
-        }
-    } catch (Exception $e) {
-        error_log("Error resending 2FA code: " . $e->getMessage());
-        $error = "Error sending verification code. Please try again.";
-        $twoFactorRequired = true;
-    }
-}
+//             if ($verificationCode) {
+//                 $success = "A new verification code has been sent to your email.";
+//                 $twoFactorRequired = true;
+//             } else {
+//                 $error = "Failed to send verification code. Please try again.";
+//                 $twoFactorRequired = true;
+//             }
+//         }
+//     } catch (Exception $e) {
+//         error_log("Error resending 2FA code: " . $e->getMessage());
+//         $error = "Error sending verification code. Please try again.";
+//         $twoFactorRequired = true;
+//     }
+// }
 
 // Handle login form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
@@ -252,7 +251,7 @@ function completeLoginProcess($userId, $username, $email) {
     $_SESSION['username'] = $username;
     $_SESSION['email'] = $email;
     $_SESSION['logged_in'] = true;
-    $_SESSION['2fa_verified'] = true;
+    //$_SESSION['2fa_verified'] = true;
     $_SESSION['login_time'] = time();
     
     // Clear temporary session variables
