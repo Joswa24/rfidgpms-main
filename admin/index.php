@@ -1404,4 +1404,4 @@ if ($redirectRequired) {
         });
     </script>
 </body>
-</html>
+</html>.
