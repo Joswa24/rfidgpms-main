@@ -46,8 +46,10 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true && isset($_
     exit();
 }
 
-// Handle 2FA verification - USING THE WORKING REDIRECT LOGIC
+// Handle 2FA verification
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_2fa'])) {
+    error_log("2FA verification process started");
+    
     // Combine the 6 input fields into one code
     $verificationCode = '';
     for ($i = 1; $i <= 6; $i++) {
@@ -55,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_2fa'])) {
         $verificationCode .= isset($_POST[$fieldName]) ? trim($_POST[$fieldName]) : '';
     }
     
-    error_log("2FA Verification Attempt - Code: " . str_repeat('*', strlen($verificationCode)));
+    error_log("2FA Verification Attempt - Code length: " . strlen($verificationCode));
     
     if (empty($verificationCode) || strlen($verificationCode) !== 6) {
         $error = "Please enter the complete 6-digit verification code.";
@@ -97,12 +99,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_2fa'])) {
                         // Log successful 2FA verification
                         logAccessAttempt($userId, $username, '2FA Verification', 'success');
                         
-                        // Set success message before redirect
-                        $_SESSION['login_success'] = "Two-factor authentication successful! Welcome, " . htmlspecialchars($username);
-                        
-                        // Complete login process - THIS WILL REDIRECT TO DASHBOARD
+                        // Complete login process
                         completeLoginProcess($userId, $username, $email);
-                        exit(); // Ensure script stops after redirect
+                        exit();
                     } else {
                         throw new Exception("Failed to mark 2FA code as used");
                     }
@@ -253,7 +252,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     }
 }
 
-// Function to complete login process - UPDATED FOR PROPER REDIRECTION (FROM WORKING CODE)
+// Function to complete login process
 function completeLoginProcess($userId, $username, $email) {
     // Set session variables
     $_SESSION['user_id'] = $userId;
@@ -292,7 +291,7 @@ function completeLoginProcess($userId, $username, $email) {
         ob_clean();
     }
     
-    // Redirect to dashboard - THIS IS THE KEY REDIRECTION
+    // Redirect to dashboard
     header('Location: dashboard.php');
     exit();
 }
@@ -388,7 +387,7 @@ function generate2FACode($userId, $email) {
     }
 }
 
-// Function to send 2FA code via email - CORRECT PHPMailer PATH
+// Function to send 2FA code via email
 function send2FACodeEmail($email, $verificationCode) {
     try {
         // Validate email
@@ -397,7 +396,7 @@ function send2FACodeEmail($email, $verificationCode) {
             return false;
         }
 
-        // Load PHPMailer with correct relative paths - CORRECT PATH
+        // Load PHPMailer with correct relative paths
         require_once __DIR__ . '/PHPMailer/src/PHPMailer.php';
         require_once __DIR__ . '/PHPMailer/src/SMTP.php';
         require_once __DIR__ . '/PHPMailer/src/Exception.php';
@@ -1404,4 +1403,4 @@ error_log("Final state - success: " . $success);
         });
     </script>
 </body>
-</html>
+</html> 
