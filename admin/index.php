@@ -292,7 +292,7 @@ function completeLoginProcess($userId, $username, $email) {
     }
     
     // Redirect to dashboard
-    header('Location: dashboard.php');
+    header('Location: dashboard');
     exit();
 }
 
