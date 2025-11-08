@@ -359,6 +359,7 @@ function generate2FACode($userId, $email) {
 }
 
 // Function to send 2FA code via email
+// Function to send 2FA code via email
 function send2FACodeEmail($email, $verificationCode) {
     try {
         // Validate email
@@ -374,74 +375,66 @@ function send2FACodeEmail($email, $verificationCode) {
         
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         
-        // Server settings with improved configuration
+        // Server settings
         $mail->isSMTP();
         $mail->Host = 'smtp.gmail.com';
         $mail->SMTPAuth = true;
         $mail->Username = 'joshuapastorpide10@gmail.com';
-        $mail->Password = 'lgzdxfggnpihqhvp';
-        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port = 587;
-        $mail->Timeout = 30;
+        $mail->Password = 'cqpngtkshsqmzlus'; // USE APP PASSWORD HERE
+        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
+        $mail->Port = 465; // Use 465 for SSL instead of 587 for TLS
         
-        // Important settings for Gmail
+        // Debug mode
+        $mail->SMTPDebug = 0; // Set to 2 for detailed debug output
+        $mail->Debugoutput = 'error_log';
+        
+        // Improved SSL settings
         $mail->SMTPOptions = array(
             'ssl' => array(
-                'verify_peer' => false,
-                'verify_peer_name' => false,
-                'allow_self_signed' => true
+                'verify_peer' => true,
+                'verify_peer_name' => true,
+                'allow_self_signed' => false,
+                'cafile' => '/etc/ssl/certs/ca-certificates.crt', // Path to CA certificates
             )
         );
         
-        // Set the SMTP sender to match the username
-        $mail->Sender = 'joshuapastorpide10@gmail.com';
+        // Character set
+        $mail->CharSet = 'UTF-8';
         
         // Recipients
-        $mail->setFrom('joshuapastorpide10@gmail.com', 'RFID GPMS Admin', false);
+        $mail->setFrom('joshuapastorpide10@gmail.com', 'RFID GPMS Admin');
         $mail->addAddress($email);
         $mail->addReplyTo('joshuapastorpide10@gmail.com', 'RFID GPMS Admin');
         
         // Content
         $mail->isHTML(true);
         $mail->Subject = 'Two-Factor Authentication Code - RFID GPMS';
-        $mail->XMailer = ' '; // Remove X-Mailer header
         
+        // Simple email template without complex HTML
         $mail->Body = "
-        <html>
-        <head>
-            <style>
-                body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; }
-                .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-                .header { background: #4e73df; color: white; padding: 20px; text-align: center; }
-                .content { padding: 30px; }
-                .code { background: #e1e7f0; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; margin: 20px 0; border-radius: 5px; font-family: monospace; }
-                .footer { padding: 20px; text-align: center; color: #6c757d; font-size: 12px; background: #f8f9fa; }
-            </style>
-        </head>
-        <body>
-            <div class='container'>
-                <div class='header'>
+            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+                <div style='background: #4e73df; color: white; padding: 20px; text-align: center;'>
                     <h2>RFID GPMS Admin Portal</h2>
                 </div>
-                <div class='content'>
-                    <h3>Two-Factor Authentication Required</h3>
+                <div style='padding: 30px; background: #f8f9fa;'>
+                    <h3 style='color: #333;'>Two-Factor Authentication Required</h3>
                     <p>Your verification code is:</p>
-                    <div class='code'>$verificationCode</div>
-                    <p>This code will expire in 10 minutes.</p>
-                    <p><strong>Do not share this code with anyone.</strong></p>
+                    <div style='background: #e1e7f0; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; margin: 20px 0; border-radius: 5px; font-family: monospace;'>
+                        $verificationCode
+                    </div>
+                    <p><strong>This code will expire in 10 minutes.</strong></p>
+                    <p style='color: #dc3545;'><strong>Do not share this code with anyone.</strong></p>
                 </div>
-                <div class='footer'>
+                <div style='padding: 20px; text-align: center; color: #6c757d; font-size: 12px; background: white;'>
                     <p>This is an automated message. Please do not reply.</p>
                 </div>
             </div>
-        </body>
-        </html>
         ";
         
-        $mail->AltBody = "Your verification code is: $verificationCode\n\nThis code will expire in 10 minutes.\n\nDo not share this code with anyone.";
+        $mail->AltBody = "Your RFID GPMS verification code is: $verificationCode\n\nThis code will expire in 10 minutes.\n\nDo not share this code with anyone.";
         
-        // Add some delay to avoid rate limiting
-        usleep(500000); // 0.5 second delay
+        // Add delay to avoid rate limiting
+        usleep(1000000); // 1 second delay
         
         if ($mail->send()) {
             error_log("SUCCESS: 2FA code sent to: $email");
