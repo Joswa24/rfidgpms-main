@@ -1022,10 +1022,8 @@ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lock
                 </a>
             </div>
         </div>
-    </div>
 
-    <!-- 2FA Verification Modal -->
-    <div class="modal fade" id="twoFactorModal" tabindex="-1" aria-labelledby="twoFactorModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal fade" id="twoFactorModal" tabindex="-1" aria-labelledby="twoFactorModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
@@ -1095,6 +1093,10 @@ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lock
             </div>
         </div>
     </div>
+    </div>
+
+    
+    
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
