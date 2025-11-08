@@ -1244,7 +1244,7 @@ $overall_attendance_rate = $total_students > 0 ? round(($total_present / $total_
             </div>
         </div>
     </div><!-- /.main-content -->
-
+     <script src="https://www.google.com/recaptcha/api.js?render=6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_"></script>                                   
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script type="text/javascript">
     // Load Google Charts
