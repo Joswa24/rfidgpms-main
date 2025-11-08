@@ -80,6 +80,7 @@ function verifyRecaptcha($secretKey) {
 
 // Only skip reCAPTCHA for non-sensitive actions
  $skipRecaptchaActions = [
+    'add_department', 'update_department', 'delete_department', // ADD THIS LINE
     'get_all_rooms', 'get_instructors_by_room', 'get_room_days',
     'get_instructor_schedule', 'get_active_swaps', 'find_all_schedules_for_swap'
 ];
