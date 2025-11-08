@@ -2,25 +2,6 @@
 // admin/index.php
 include '../connection.php';
 include '../security-headers.php';
-
-// Set secure session cookie parameters BEFORE starting the session
- $secure = isset($_SERVER['HTTPS']);
- $httponly = true;
- $samesite = 'Strict';
-
-if (PHP_VERSION_ID >= 70300) {
-    session_set_cookie_params([
-        'lifetime' => 0,
-        'path' => '/',
-        'domain' => $_SERVER['HTTP_HOST'],
-        'secure' => $secure,
-        'httponly' => $httponly,
-        'samesite' => $samesite
-    ]);
-} else {
-    session_set_cookie_params(0, '/', $_SERVER['HTTP_HOST'], $secure, $httponly);
-}
-
 session_start();
 
 // Enable error reporting for debugging (remove in production)
@@ -42,12 +23,11 @@ header("Pragma: no-cache");
 header("Expires: 0");
 
 // Initialize variables
- $maxAttempts = 3;
- $lockoutTime = 30;
- $error = '';
- $success = '';
- $twoFactorRequired = false;
- $redirectRequired = false;
+$maxAttempts = 3;
+$lockoutTime = 30;
+$error = '';
+$success = '';
+$twoFactorRequired = false;
 
 // Initialize session variables
 if (!isset($_SESSION['login_attempts'])) {
@@ -119,30 +99,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_2fa'])) {
                         // Log successful 2FA verification
                         logAccessAttempt($userId, $username, '2FA Verification', 'success');
                         
-                        // Set a flag to redirect after output
-                        $redirectRequired = true;
-                        
-                        // Set session variables for the redirect
-                        $_SESSION['user_id'] = $userId;
-                        $_SESSION['username'] = $username;
-                        $_SESSION['email'] = $email;
-                        $_SESSION['logged_in'] = true;
-                        $_SESSION['2fa_verified'] = true;
-                        $_SESSION['login_time'] = time();
-                        
-                        // Clear temporary session variables
-                        unset($_SESSION['temp_user_id']);
-                        unset($_SESSION['temp_username']);
-                        unset($_SESSION['temp_email']);
-                        unset($_SESSION['password_verified']);
-                        
-                        // Regenerate session ID to prevent session fixation
-                        session_regenerate_id(true);
-                        
-                        // Set success message for dashboard
-                        $_SESSION['success_message'] = "Login successful! Welcome, " . htmlspecialchars($username);
-                        
-                        error_log("2FA successful - Will redirect to dashboard for user: $username");
+                        // Complete login process
+                        completeLoginProcess($userId, $username, $email);
+                        exit();
                     } else {
                         throw new Exception("Failed to mark 2FA code as used");
                     }
@@ -291,6 +250,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             }
         }
     }
+}
+
+// Function to complete login process
+function completeLoginProcess($userId, $username, $email) {
+    // Set session variables
+    $_SESSION['user_id'] = $userId;
+    $_SESSION['username'] = $username;
+    $_SESSION['email'] = $email;
+    $_SESSION['logged_in'] = true;
+    $_SESSION['2fa_verified'] = true;
+    $_SESSION['login_time'] = time();
+    
+    // Clear temporary session variables
+    unset($_SESSION['temp_user_id']);
+    unset($_SESSION['temp_username']);
+    unset($_SESSION['temp_email']);
+    unset($_SESSION['password_verified']);
+    
+    // Regenerate session ID to prevent session fixation
+    session_regenerate_id(true);
+    
+    // Set secure session cookie parameters
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '',
+        'domain' => $_SERVER['HTTP_HOST'],
+        'secure' => isset($_SERVER['HTTPS']),
+        'httponly' => true,
+        'samesite' => 'Strict'
+    ]);
+    
+    // Set success message for dashboard
+    $_SESSION['success_message'] = "Login successful! Welcome, " . htmlspecialchars($username);
+    
+    error_log("2FA successful - Redirecting to dashboard for user: $username");
+    
+    // Ensure no output before header redirect
+    if (ob_get_length()) {
+        ob_clean();
+    }
+    
+    // Redirect to dashboard
+    header('Location: dashboard.php');
+    exit();
 }
 
 // Function to log access attempts
@@ -540,20 +543,13 @@ function send2FACodeEmail($email, $verificationCode) {
 }
 
 // Check if user is currently locked out
- $isLockedOut = ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime);
- $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lockout_time'])) : 0;
+$isLockedOut = ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime);
+$remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lockout_time'])) : 0;
 
 // Debug logging
 error_log("Final state - twoFactorRequired: " . ($twoFactorRequired ? 'true' : 'false'));
 error_log("Final state - error: " . $error);
 error_log("Final state - success: " . $success);
-error_log("Final state - redirectRequired: " . ($redirectRequired ? 'true' : 'false'));
-
-// If redirect is required, do it now before any output
-if ($redirectRequired) {
-    header('Location: dashboard.php');
-    exit();
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -1262,13 +1258,20 @@ if ($redirectRequired) {
                 });
             });
             
-            // Form submission - Let the form submit normally without preventing default
+            // Form submission
             twoFactorForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const codeInputs = document.querySelectorAll('.verification-code-input');
+                const verifyBtn = document.getElementById('verifyBtn');
+                const verifyText = document.getElementById('verifyText');
+                const verifySpinner = document.getElementById('verifySpinner');
+                const validationMessage = document.getElementById('codeValidationMessage');
+                
                 // Check if all fields are filled
                 const allFilled = Array.from(codeInputs).every(input => input.value.length === 1);
                 
                 if (!allFilled) {
-                    e.preventDefault(); // Only prevent default if validation fails
                     validationMessage.classList.add('show');
                     codeInputs.forEach(input => {
                         if (input.value.length === 0) {
@@ -1279,16 +1282,12 @@ if ($redirectRequired) {
                 }
                 
                 // Show loading state
-                const verifyBtn = document.getElementById('verifyBtn');
-                const verifyText = document.getElementById('verifyText');
-                const verifySpinner = document.getElementById('verifySpinner');
-                
                 verifyText.textContent = 'Verifying...';
                 verifySpinner.classList.remove('d-none');
                 verifyBtn.disabled = true;
                 
-                // Let the form submit normally
-                // No need to call this.submit() since we're not preventing default
+                // Submit the form
+                this.submit();
             });
         }
 
@@ -1377,7 +1376,7 @@ if ($redirectRequired) {
                 startCountdown(remainingTime);
             <?php endif; ?>
 
-            // Show 2FA modal if required
+            // Show 2FA modal if required - THIS IS THE CRITICAL PART
             <?php if ($twoFactorRequired): ?>
                 console.log("JavaScript: Showing 2FA modal - twoFactorRequired is true");
                 const twoFactorModal = new bootstrap.Modal(document.getElementById('twoFactorModal'));
@@ -1404,4 +1403,4 @@ if ($redirectRequired) {
         });
     </script>
 </body>
-</html>.
+</html>
