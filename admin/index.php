@@ -29,6 +29,7 @@ header("Expires: 0");
  $success = '';
  $twoFactorRequired = false;
  $debugMode = true; // Set to true for testing, false for production
+ $useFallbackMethod = true; // Use fallback method when email fails
 
 // Initialize session variables
 if (!isset($_SESSION['login_attempts'])) {
@@ -347,7 +348,7 @@ function logAccessAttempt($userId, $username, $activity, $status) {
 
 // Function to generate and send 2FA code
 function generate2FACode($userId, $email) {
-    global $db, $debugMode;
+    global $db, $debugMode, $useFallbackMethod;
     
     try {
         // Generate a 6-digit verification code
@@ -385,14 +386,26 @@ function generate2FACode($userId, $email) {
                 $_SESSION['debug_2fa_code'] = $verificationCode;
             }
             
-            // Send the code via email
-            if (send2FACodeEmail($email, $verificationCode)) {
+            // Try to send the code via email
+            $emailSent = send2FACodeEmail($email, $verificationCode);
+            
+            if ($emailSent) {
                 error_log("2FA code sent successfully to: $email");
                 return $verificationCode;
             } else {
                 error_log("Failed to send 2FA code via email to: $email");
-                // Even if email fails, we still generated the code
-                return $verificationCode;
+                
+                // If email fails and fallback is enabled, use alternative method
+                if ($useFallbackMethod) {
+                    error_log("Using fallback method for 2FA code delivery");
+                    // Store code in session for display on screen
+                    $_SESSION['fallback_2fa_code'] = $verificationCode;
+                    $_SESSION['use_fallback'] = true;
+                    return $verificationCode;
+                } else {
+                    // Even if email fails, we still generated the code
+                    return $verificationCode;
+                }
             }
         } else {
             throw new Exception("Failed to insert 2FA code: " . $stmt->error);
@@ -422,163 +435,207 @@ function send2FACodeEmail($email, $verificationCode) {
         
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         
-        // Server settings - Using Gmail with App Password
-        $mail->isSMTP();
-        $mail->Host = 'smtp.gmail.com';
-        $mail->SMTPAuth = true;
-        $mail->Username = 'joshuapastorpide10@gmail.com';
-        $mail->Password = 'uuqxxzimitfvhqrz'; // Replace with your actual App Password
+        // Try multiple email services in order of preference
+        $emailServices = [
+            // Primary: Gmail with App Password
+            [
+                'host' => 'smtp.gmail.com',
+                'username' => 'joshuapastorpide10@gmail.com',
+                'password' => 'uuqxxzimitfvhqrz', // Your App Password
+                'port' => 587,
+                'encryption' => PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS
+            ],
+            // Fallback 1: SendGrid (if you have an API key)
+            [
+                'host' => 'smtp.sendgrid.net',
+                'username' => 'apikey', // This is literal 'apikey'
+                'password' => 'YOUR_SENDGRID_API_KEY', // Replace with your SendGrid API key
+                'port' => 587,
+                'encryption' => PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS
+            ],
+            // Fallback 2: Mailgun (if you have credentials)
+            [
+                'host' => 'smtp.mailgun.org',
+                'username' => 'postmaster@YOUR_DOMAIN', // Replace with your Mailgun username
+                'password' => 'YOUR_MAILGUN_PASSWORD', // Replace with your Mailgun password
+                'port' => 587,
+                'encryption' => PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS
+            ]
+        ];
         
-        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port = 587;
-        
-        // Debug level (0 for production, 2 for debugging)
-        $mail->SMTPDebug = $debugMode ? 2 : 0;
-        
-        // SSL context options for better compatibility
-        $mail->SMTPOptions = array(
-            'ssl' => array(
-                'verify_peer' => false,
-                'verify_peer_name' => false,
-                'allow_self_signed' => true
-            )
-        );
-        
-        // Character set
-        $mail->CharSet = 'UTF-8';
-        
-        // Remove X-Mailer header for security
-        $mail->XMailer = ' ';
-        
-        // Recipients
-        $mail->setFrom('joshuapastorpide10@gmail.com', 'RFID GPMS Admin');
-        $mail->addAddress($email);
-        $mail->addReplyTo('joshuapastorpide10@gmail.com', 'RFID GPMS Admin');
-        
-        // Content
-        $mail->isHTML(true);
-        $mail->Subject = 'Your Two-Factor Authentication Code - RFID GPMS';
-        
-        $mail->Body = "
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset='UTF-8'>
-            <style>
-                body { 
-                    font-family: Arial, sans-serif; 
-                    margin: 0; 
-                    padding: 20px; 
-                    background-color: #f4f4f4; 
-                    line-height: 1.6;
-                }
-                .container { 
-                    max-width: 600px; 
-                    margin: 0 auto; 
-                    background: white; 
-                    border-radius: 10px; 
-                    overflow: hidden; 
-                    box-shadow: 0 0 10px rgba(0,0,0,0.1); 
-                }
-                .header { 
-                    background: #4e73df; 
-                    color: white; 
-                    padding: 20px; 
-                    text-align: center; 
-                }
-                .content { 
-                    padding: 30px; 
-                }
-                .code { 
-                    background: #e1e7f0; 
-                    padding: 15px; 
-                    text-align: center; 
-                    font-size: 32px; 
-                    font-weight: bold; 
-                    letter-spacing: 5px; 
-                    margin: 20px 0; 
-                    border-radius: 5px; 
-                    font-family: monospace; 
-                    color: #2c3e50;
-                    border: 2px dashed #4e73df;
-                }
-                .footer { 
-                    padding: 20px; 
-                    text-align: center; 
-                    color: #6c757d; 
-                    font-size: 12px; 
-                    background: #f8f9fa; 
-                }
-                .warning {
-                    background: #fff3cd;
-                    border: 1px solid #ffeaa7;
-                    border-radius: 5px;
-                    padding: 10px;
-                    margin: 15px 0;
-                    color: #856404;
-                }
-                .info {
-                    background: #d1ecf1;
-                    border: 1px solid #bee5eb;
-                    border-radius: 5px;
-                    padding: 10px;
-                    margin: 15px 0;
-                    color: #0c5460;
-                }
-            </style>
-        </head>
-        <body>
-            <div class='container'>
-                <div class='header'>
-                    <h2>🔒 Two-Factor Authentication</h2>
-                    <p>RFID Gate and Personnel Management System</p>
-                </div>
-                <div class='content'>
-                    <h3>Hello Admin,</h3>
-                    <p>You are attempting to log in to the RFID GPMS Admin Portal. To complete your login, please use the following verification code:</p>
-                    
-                    <div class='code'>$verificationCode</div>
-                    
-                    <div class='info'>
-                        <strong>📧 Sent to:</strong> $email<br>
-                        <strong>⏰ Expires in:</strong> 10 minutes
+        // Try each email service until one works
+        foreach ($emailServices as $service) {
+            try {
+                // Reset PHPMailer instance for each attempt
+                $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+                
+                // Server settings
+                $mail->isSMTP();
+                $mail->Host = $service['host'];
+                $mail->SMTPAuth = true;
+                $mail->Username = $service['username'];
+                $mail->Password = $service['password'];
+                $mail->SMTPSecure = $service['encryption'];
+                $mail->Port = $service['port'];
+                
+                // Debug level (0 for production, 2 for debugging)
+                $mail->SMTPDebug = $debugMode ? 2 : 0;
+                
+                // SSL context options for better compatibility
+                $mail->SMTPOptions = array(
+                    'ssl' => array(
+                        'verify_peer' => false,
+                        'verify_peer_name' => false,
+                        'allow_self_signed' => true
+                    )
+                );
+                
+                // Character set
+                $mail->CharSet = 'UTF-8';
+                
+                // Remove X-Mailer header for security
+                $mail->XMailer = ' ';
+                
+                // Recipients
+                $mail->setFrom($service['username'], 'RFID GPMS Admin');
+                $mail->addAddress($email);
+                $mail->addReplyTo($service['username'], 'RFID GPMS Admin');
+                
+                // Content
+                $mail->isHTML(true);
+                $mail->Subject = 'Your Two-Factor Authentication Code - RFID GPMS';
+                
+                $mail->Body = "
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset='UTF-8'>
+                    <style>
+                        body { 
+                            font-family: Arial, sans-serif; 
+                            margin: 0; 
+                            padding: 20px; 
+                            background-color: #f4f4f4; 
+                            line-height: 1.6;
+                        }
+                        .container { 
+                            max-width: 600px; 
+                            margin: 0 auto; 
+                            background: white; 
+                            border-radius: 10px; 
+                            overflow: hidden; 
+                            box-shadow: 0 0 10px rgba(0,0,0,0.1); 
+                        }
+                        .header { 
+                            background: #4e73df; 
+                            color: white; 
+                            padding: 20px; 
+                            text-align: center; 
+                        }
+                        .content { 
+                            padding: 30px; 
+                        }
+                        .code { 
+                            background: #e1e7f0; 
+                            padding: 15px; 
+                            text-align: center; 
+                            font-size: 32px; 
+                            font-weight: bold; 
+                            letter-spacing: 5px; 
+                            margin: 20px 0; 
+                            border-radius: 5px; 
+                            font-family: monospace; 
+                            color: #2c3e50;
+                            border: 2px dashed #4e73df;
+                        }
+                        .footer { 
+                            padding: 20px; 
+                            text-align: center; 
+                            color: #6c757d; 
+                            font-size: 12px; 
+                            background: #f8f9fa; 
+                        }
+                        .warning {
+                            background: #fff3cd;
+                            border: 1px solid #ffeaa7;
+                            border-radius: 5px;
+                            padding: 10px;
+                            margin: 15px 0;
+                            color: #856404;
+                        }
+                        .info {
+                            background: #d1ecf1;
+                            border: 1px solid #bee5eb;
+                            border-radius: 5px;
+                            padding: 10px;
+                            margin: 15px 0;
+                            color: #0c5460;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class='container'>
+                        <div class='header'>
+                            <h2>🔒 Two-Factor Authentication</h2>
+                            <p>RFID Gate and Personnel Management System</p>
+                        </div>
+                        <div class='content'>
+                            <h3>Hello Admin,</h3>
+                            <p>You are attempting to log in to the RFID GPMS Admin Portal. To complete your login, please use the following verification code:</p>
+                            
+                            <div class='code'>$verificationCode</div>
+                            
+                            <div class='info'>
+                                <strong>📧 Sent to:</strong> $email<br>
+                                <strong>⏰ Expires in:</strong> 10 minutes
+                            </div>
+                            
+                            <div class='warning'>
+                                <strong>⚠️ Security Notice:</strong> 
+                                <ul>
+                                    <li>This code will expire in 10 minutes</li>
+                                    <li>Do not share this code with anyone</li>
+                                    <li>If you didn't request this code, please ignore this email</li>
+                                    <li>For security reasons, this code can only be used once</li>
+                                </ul>
+                            </div>
+                            
+                            <p>If you have any questions or concerns, please contact the system administrator immediately.</p>
+                            
+                            <p>Best regards,<br><strong>RFID GPMS Security Team</strong></p>
+                        </div>
+                        <div class='footer'>
+                            <p>This is an automated security message. Please do not reply to this email.</p>
+                            <p>&copy; " . date('Y') . " RFID Gate and Personnel Management System. All rights reserved.</p>
+                        </div>
                     </div>
-                    
-                    <div class='warning'>
-                        <strong>⚠️ Security Notice:</strong> 
-                        <ul>
-                            <li>This code will expire in 10 minutes</li>
-                            <li>Do not share this code with anyone</li>
-                            <li>If you didn't request this code, please ignore this email</li>
-                            <li>For security reasons, this code can only be used once</li>
-                        </ul>
-                    </div>
-                    
-                    <p>If you have any questions or concerns, please contact the system administrator immediately.</p>
-                    
-                    <p>Best regards,<br><strong>RFID GPMS Security Team</strong></p>
-                </div>
-                <div class='footer'>
-                    <p>This is an automated security message. Please do not reply to this email.</p>
-                    <p>&copy; " . date('Y') . " RFID Gate and Personnel Management System. All rights reserved.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        ";
-        
-        $mail->AltBody = "RFID GPMS - Two-Factor Authentication\n\nYour verification code is: $verificationCode\n\nThis code will expire in 10 minutes.\n\nEmail: $email\n\nDo not share this code with anyone.\n\nIf you did not request this code, please ignore this email or contact system administrator.\n\n© " . date('Y') . " RFID GPMS. All rights reserved.";
-        
-        // Add small delay to avoid rate limiting
-        usleep(500000);
-        
-        if ($mail->send()) {
-            error_log("SUCCESS: 2FA code sent to: $email");
-            return true;
-        } else {
-            error_log("PHPMailer Error: " . $mail->ErrorInfo);
-            return false;
+                </body>
+                </html>
+                ";
+                
+                $mail->AltBody = "RFID GPMS - Two-Factor Authentication\n\nYour verification code is: $verificationCode\n\nThis code will expire in 10 minutes.\n\nEmail: $email\n\nDo not share this code with anyone.\n\nIf you did not request this code, please ignore this email or contact system administrator.\n\n© " . date('Y') . " RFID GPMS. All rights reserved.";
+                
+                // Add small delay to avoid rate limiting
+                usleep(500000);
+                
+                if ($mail->send()) {
+                    error_log("SUCCESS: 2FA code sent to: $email using " . $service['host']);
+                    return true;
+                } else {
+                    error_log("PHPMailer Error with " . $service['host'] . ": " . $mail->ErrorInfo);
+                    // Continue to next service
+                    continue;
+                }
+            } catch (Exception $e) {
+                error_log("EXCEPTION with " . $service['host'] . ": " . $e->getMessage());
+                // Continue to next service
+                continue;
+            }
         }
+        
+        // If we get here, all email services failed
+        error_log("All email services failed to send 2FA code to: $email");
+        return false;
         
     } catch (Exception $e) {
         error_log("EXCEPTION in send2FACodeEmail: " . $e->getMessage());
@@ -1028,6 +1085,28 @@ error_log("Final state - success: " . $success);
             font-size: 0.9rem;
         }
         
+        .fallback-info {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .fallback-code {
+            font-family: monospace;
+            font-size: 1.5rem;
+            font-weight: bold;
+            letter-spacing: 5px;
+            color: #2c3e50;
+            background: #e1e7f0;
+            padding: 10px;
+            border-radius: 5px;
+            border: 2px dashed #f6c23e;
+            margin: 10px 0;
+        }
+        
         @media (max-width: 576px) {
             .login-container {
                 max-width: 100%;
@@ -1194,6 +1273,17 @@ error_log("Final state - success: " . $success);
                             <strong>DEBUG MODE:</strong><br>
                             Your verification code is: <strong><?php echo htmlspecialchars($_SESSION['debug_2fa_code']); ?></strong><br>
                             <small>This is only shown in debug mode. In production, the code will only be sent via email.</small>
+                        </div>
+                    <?php endif; ?>
+
+                    <!-- Fallback Info (shown when email fails) -->
+                    <?php if (isset($_SESSION['use_fallback']) && $_SESSION['use_fallback'] && isset($_SESSION['fallback_2fa_code'])): ?>
+                        <div class="fallback-info">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Email delivery failed. Using fallback method:</strong><br>
+                            Your verification code is:
+                            <div class="fallback-code"><?php echo htmlspecialchars($_SESSION['fallback_2fa_code']); ?></div>
+                            <small>This fallback is only shown because email delivery failed. Please contact your administrator to fix the email service.</small>
                         </div>
                     <?php endif; ?>
 
