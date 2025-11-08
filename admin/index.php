@@ -1,8 +1,4 @@
 <?php
-// Enable error reporting for debugging
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
 // admin/index.php
 include '../connection.php';
 include '../security-headers.php';
@@ -46,6 +42,7 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true && isset($_
     exit();
 }
 
+// Handle 2FA verification
 // Handle 2FA verification
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_2fa'])) {
     // Combine the 6 input fields into one code
@@ -330,7 +327,6 @@ function logAccessAttempt($userId, $username, $activity, $status) {
 }
 
 // Function to generate and send 2FA code
-// UPDATED Function to generate and send 2FA code
 function generate2FACode($userId, $email) {
     global $db;
     
@@ -341,38 +337,22 @@ function generate2FACode($userId, $email) {
         
         // Delete any existing codes for this user
         $stmt = $db->prepare("DELETE FROM admin_2fa_codes WHERE admin_id = ?");
-        if (!$stmt) {
-            throw new Exception("Failed to prepare DELETE statement: " . $db->error);
-        }
         $stmt->bind_param("i", $userId);
-        if (!$stmt->execute()) {
-            throw new Exception("Failed to delete old 2FA codes: " . $stmt->error);
-        }
+        $stmt->execute();
         
         // Insert new verification code
         $stmt = $db->prepare("INSERT INTO admin_2fa_codes (admin_id, verification_code, expires_at) VALUES (?, ?, ?)");
-        if (!$stmt) {
-            throw new Exception("Failed to prepare INSERT statement: " . $db->error);
-        }
         $stmt->bind_param("iss", $userId, $verificationCode, $expiresAt);
         
         if ($stmt->execute()) {
             // Send the code via email
             if (send2FACodeEmail($email, $verificationCode)) {
-                error_log("SUCCESS: 2FA code generated and sent for user ID: $userId to email: $email");
+                error_log("2FA code generated and sent for user ID: $userId");
                 return $verificationCode;
-            } else {
-                error_log("FAILED: Could not send 2FA code via email for user ID: $userId");
-                // Delete the code if email failed to send
-                $stmt = $db->prepare("DELETE FROM admin_2fa_codes WHERE admin_id = ? AND verification_code = ?");
-                $stmt->bind_param("is", $userId, $verificationCode);
-                $stmt->execute();
-                return false;
             }
-        } else {
-            throw new Exception("Failed to insert 2FA code: " . $stmt->error);
         }
         
+        return false;
     } catch (Exception $e) {
         error_log("Error generating 2FA code: " . $e->getMessage());
         return false;
@@ -380,76 +360,102 @@ function generate2FACode($userId, $email) {
 }
 
 // UPDATED Function to send 2FA code via email
-// UPDATED Function to send 2FA code via email (Diagnostic Version)
+// UPDATED Function to send 2FA code via email
 function send2FACodeEmail($email, $verificationCode) {
     try {
-        error_log("=== Starting 2FA Email Send Test ===");
-
-        // 1. Validate email
+        // Validate email
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            error_log("ERROR: Invalid email address: $email");
+            error_log("Invalid email address: $email");
             return false;
         }
-        error_log("SUCCESS: Email address is valid.");
 
-        // 2. CRITICAL: Check if the autoloader exists
-        $autoloaderPath = __DIR__ . '/../vendor/autoload.php';
-        if (!file_exists($autoloaderPath)) {
-            error_log("FATAL ERROR: PHPMailer autoloader NOT FOUND at '$autoloaderPath'.");
-            error_log("SOLUTION: You MUST run 'composer require phpmailer/phpmailer' in your project's root directory.");
-            return false;
-        }
-        error_log("SUCCESS: Autoloader found at '$autoloaderPath'.");
+        // Load PHPMailer
+        $base_path = __DIR__ . '/';
+        require_once $base_path . 'PHPMailer/src/PHPMailer.php';
+        require_once $base_path . 'PHPMailer/src/SMTP.php';
+        require_once $base_path . 'PHPMailer/src/Exception.php';
         
-        // 3. Load PHPMailer
-        require_once $autoloaderPath;
-        error_log("SUCCESS: Autoloader loaded.");
-
-        // 4. Instantiate PHPMailer
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
-        error_log("SUCCESS: PHPMailer object created.");
         
-        // === SERVER SETTINGS ===
+        // Server settings with improved configuration
         $mail->isSMTP();
-        $mail->Host       = 'smtp.gmail.com';
-        $mail->SMTPAuth   = true;
-        $mail->Username   = 'joshuapastorpide10@gmail.com';
+        $mail->Host = 'smtp.gmail.com';
+        $mail->SMTPAuth = true;
+        $mail->Username = 'joshuapastorpide10@gmail.com';
+        $mail->Password = 'tzogwzhaecctdzdr';//'bmnvognbjqcpxcyf'; // REPLACE WITH APP PASSWORD
+        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = 465;
+        $mail->Timeout = 30;
         
-        // IMPORTANT: Use an App Password, NOT your regular Gmail password
-        $mail->Password   = 'eiuwzkxzxnrhhkoi'; // <-- REPLACE THIS
+        // Important settings for Gmail
+        $mail->SMTPOptions = array(
+            'ssl' => array(
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'allow_self_signed' => true
+            )
+        );
         
-        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS; // Use SSL for port 465
-        $mail->Port       = 465;
+        // Set the SMTP sender to match the username
+        $mail->Sender = 'joshuapastorpide10@gmail.com';
         
-        // Enable verbose debugging ONLY for this test. Check your error log!
-        $mail->SMTPDebug = 3; // 3 = connection and client/server messages
-        $mail->Debugoutput = 'error_log'; // Send debug output to the error log
-        
-        error_log("INFO: Attempting to connect to Gmail with username '{$mail->Username}' and password '" . str_repeat('*', strlen($mail->Password)) . "'");
-
-        // Sender configuration
-        $mail->setFrom('joshuapastorpide10@gmail.com', 'RFID GPMS Admin');
+        // Recipients
+        $mail->setFrom('joshuapastorpide10@gmail.com', 'RFID GPMS Admin', false);
         $mail->addAddress($email);
+        $mail->addReplyTo('joshuapastorpide10@gmail.com', 'RFID GPMS Admin');
         
         // Content
         $mail->isHTML(true);
         $mail->Subject = 'Two-Factor Authentication Code - RFID GPMS';
-        $mail->Body    = "Your verification code is: <h1>$verificationCode</h1>";
-        $mail->AltBody = "Your verification code is: $verificationCode";
+        $mail->XMailer = ' '; // Remove X-Mailer header
         
-        error_log("INFO: Sending email...");
+        $mail->Body = "
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; }
+                .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+                .header { background: #4e73df; color: white; padding: 20px; text-align: center; }
+                .content { padding: 30px; }
+                .code { background: #e1e7f0; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; margin: 20px 0; border-radius: 5px; font-family: monospace; }
+                .footer { padding: 20px; text-align: center; color: #6c757d; font-size: 12px; background: #f8f9fa; }
+            </style>
+        </head>
+        <body>
+            <div class='container'>
+                <div class='header'>
+                    <h2>RFID GPMS Admin Portal</h2>
+                </div>
+                <div class='content'>
+                    <h3>Two-Factor Authentication Required</h3>
+                    <p>Your verification code is:</p>
+                    <div class='code'>$verificationCode</div>
+                    <p>This code will expire in 10 minutes.</p>
+                    <p><strong>Do not share this code with anyone.</strong></p>
+                </div>
+                <div class='footer'>
+                    <p>This is an automated message. Please do not reply.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        ";
+        
+        $mail->AltBody = "Your verification code is: $verificationCode\n\nThis code will expire in 10 minutes.\n\nDo not share this code with anyone.";
+        
+        // Add some delay to avoid rate limiting
+        usleep(500000); // 0.5 second delay
         
         if ($mail->send()) {
-            error_log("=== SUCCESS: 2FA code sent to: $email ===");
+            error_log("SUCCESS: 2FA code sent to: $email");
             return true;
         } else {
-            error_log("=== PHPMailer SEND FAILED: " . $mail->ErrorInfo . " ===");
+            error_log("PHPMailer Error: " . $mail->ErrorInfo);
             return false;
         }
         
     } catch (Exception $e) {
-        error_log("=== EXCEPTION in send2FACodeEmail: " . $e->getMessage() . " ===");
-        error_log("Trace: " . $e->getTraceAsString());
+        error_log("EXCEPTION in send2FACodeEmail: " . $e->getMessage());
         return false;
     }
 }
