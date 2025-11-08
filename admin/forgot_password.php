@@ -94,9 +94,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 function sendPasswordResetEmail($email, $token, $username) {
     try {
         // Load PHPMailer classes
-        require_once 'PHPMailer/src/PHPMailer.php';
-        require_once 'PHPMailer/src/SMTP.php';
-        require_once 'PHPMailer/src/Exception.php';
+        require_once __DIR__ . '/PHPMailer/src/PHPMailer.php';
+        require_once __DIR__ . '/PHPMailer/src/SMTP.php';
+        require_once __DIR__ . '/PHPMailer/src/Exception.php';
         
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         
@@ -104,10 +104,11 @@ function sendPasswordResetEmail($email, $token, $username) {
         $mail->isSMTP();
         $mail->Host = 'smtp.gmail.com';
         $mail->SMTPAuth = true;
-        $mail->Username = 'joshuapastorpide10@gmail.com'; // Your Gmail
-        $mail->Password = 'ydadaipirzhyhzae'; // Your App Password
+        $mail->Username = 'joshuapastorpide10@gmail.com';
+        $mail->Password = 'ydadaipirzhyhzae';
         $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port = 587;
+        $mail->Timeout = 30;
         
         // Enable verbose debug output
         $mail->SMTPDebug = 0; // Set to 2 for detailed debug output
