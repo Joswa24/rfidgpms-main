@@ -47,7 +47,6 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true && isset($_
 }
 
 // Handle 2FA verification
-// Handle 2FA verification
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_2fa'])) {
     // Combine the 6 input fields into one code
     $verificationCode = '';
@@ -402,7 +401,7 @@ function send2FACodeEmail($email, $verificationCode) {
         $mail->Username = 'joshuapastorpide10@gmail.com';
         $mail->Password = 'ldqwzdnxeejpqmbs';//'bxqzmbfnxplkslkg';
         $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port = 587;
+        $mail->Port = 465;
         $mail->Timeout = 10;
         
         // Debug mode
