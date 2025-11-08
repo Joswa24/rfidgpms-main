@@ -396,12 +396,145 @@ function send2FACodeEmail($email, $verificationCode) {
             return false;
         }
 
-        // For now, just log the code instead of sending email
-        error_log("2FA CODE for $email: $verificationCode");
+        // Load PHPMailer with correct relative paths
+        require_once __DIR__ . '/../PHPMailer/src/PHPMailer.php';
+        require_once __DIR__ . '/../PHPMailer/src/SMTP.php';
+        require_once __DIR__ . '/../PHPMailer/src/Exception.php';
         
-        // In a real implementation, you would send the email here
-        // For testing purposes, we'll just return true
-        return true;
+        $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+        
+        // Server settings
+        $mail->isSMTP();
+        $mail->Host = 'smtp.gmail.com';
+        $mail->SMTPAuth = true;
+        $mail->Username = 'joshuapastorpide10@gmail.com';
+        $mail->Password = 'ycplfxcclifaxxf';
+        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = 587;
+        $mail->Timeout = 30;
+        
+        // Enable verbose debugging for troubleshooting
+        $mail->SMTPDebug = 0; // Set to 2 for detailed debugging
+        
+        // SSL context options for better compatibility
+        $mail->SMTPOptions = array(
+            'ssl' => array(
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'allow_self_signed' => true
+            )
+        );
+        
+        // Character set
+        $mail->CharSet = 'UTF-8';
+        
+        // Recipients
+        $mail->setFrom('joshuapastorpide10@gmail.com', 'RFID GPMS Admin');
+        $mail->addAddress($email);
+        $mail->addReplyTo('joshuapastorpide10@gmail.com', 'RFID GPMS Admin');
+        
+        // Content
+        $mail->isHTML(true);
+        $mail->Subject = 'Two-Factor Authentication Code - RFID GPMS';
+        
+        // Remove X-Mailer header for security
+        $mail->XMailer = ' ';
+        
+        $mail->Body = "
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset='UTF-8'>
+            <style>
+                body { 
+                    font-family: Arial, sans-serif; 
+                    margin: 0; 
+                    padding: 20px; 
+                    background-color: #f4f4f4; 
+                    line-height: 1.6;
+                }
+                .container { 
+                    max-width: 600px; 
+                    margin: 0 auto; 
+                    background: white; 
+                    border-radius: 10px; 
+                    overflow: hidden; 
+                    box-shadow: 0 0 10px rgba(0,0,0,0.1); 
+                }
+                .header { 
+                    background: #4e73df; 
+                    color: white; 
+                    padding: 20px; 
+                    text-align: center; 
+                }
+                .content { 
+                    padding: 30px; 
+                }
+                .code { 
+                    background: #e1e7f0; 
+                    padding: 15px; 
+                    text-align: center; 
+                    font-size: 24px; 
+                    font-weight: bold; 
+                    letter-spacing: 5px; 
+                    margin: 20px 0; 
+                    border-radius: 5px; 
+                    font-family: monospace; 
+                    color: #2c3e50;
+                }
+                .footer { 
+                    padding: 20px; 
+                    text-align: center; 
+                    color: #6c757d; 
+                    font-size: 12px; 
+                    background: #f8f9fa; 
+                }
+                .warning {
+                    background: #fff3cd;
+                    border: 1px solid #ffeaa7;
+                    border-radius: 5px;
+                    padding: 10px;
+                    margin: 15px 0;
+                    color: #856404;
+                }
+            </style>
+        </head>
+        <body>
+            <div class='container'>
+                <div class='header'>
+                    <h2>RFID GPMS Admin Portal</h2>
+                </div>
+                <div class='content'>
+                    <h3>Two-Factor Authentication Required</h3>
+                    <p>Hello,</p>
+                    <p>Your verification code for the RFID GPMS Admin Portal is:</p>
+                    <div class='code'>$verificationCode</div>
+                    <div class='warning'>
+                        <strong>Security Notice:</strong> This code will expire in 10 minutes. Do not share this code with anyone.
+                    </div>
+                    <p>If you did not request this code, please ignore this email or contact system administrator.</p>
+                </div>
+                <div class='footer'>
+                    <p>This is an automated message. Please do not reply to this email.</p>
+                    <p>&copy; " . date('Y') . " RFID GPMS. All rights reserved.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        ";
+        
+        $mail->AltBody = "RFID GPMS - Two-Factor Authentication\n\nYour verification code is: $verificationCode\n\nThis code will expire in 10 minutes.\n\nDo not share this code with anyone.\n\nIf you did not request this code, please ignore this email.";
+        
+        // Add small delay to avoid rate limiting
+        usleep(500000);
+        
+        if ($mail->send()) {
+            error_log("SUCCESS: 2FA code sent to: $email");
+            return true;
+        } else {
+            error_log("PHPMailer Error: " . $mail->ErrorInfo);
+            return false;
+        }
         
     } catch (Exception $e) {
         error_log("EXCEPTION in send2FACodeEmail: " . $e->getMessage());
@@ -1243,16 +1376,21 @@ error_log("Final state - success: " . $success);
                 startCountdown(remainingTime);
             <?php endif; ?>
 
-            // Show 2FA modal if required - THIS IS THE KEY FIX
+            // Show 2FA modal if required - THIS IS THE CRITICAL PART
             <?php if ($twoFactorRequired): ?>
-                error_log("JavaScript: Showing 2FA modal");
+                console.log("JavaScript: Showing 2FA modal - twoFactorRequired is true");
                 const twoFactorModal = new bootstrap.Modal(document.getElementById('twoFactorModal'));
                 twoFactorModal.show();
                 
                 // Auto-focus on first verification code input
                 setTimeout(() => {
-                    document.getElementById('code_1').focus();
+                    const firstInput = document.getElementById('code_1');
+                    if (firstInput) {
+                        firstInput.focus();
+                    }
                 }, 500);
+            <?php else: ?>
+                console.log("JavaScript: twoFactorRequired is false - modal will not show");
             <?php endif; ?>
 
             // Auto-focus on username field if not locked out and not showing 2FA
