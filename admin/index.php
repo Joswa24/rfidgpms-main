@@ -388,6 +388,7 @@ function generate2FACode($userId, $email) {
 }
 
 // Function to send 2FA code via email
+// Function to send 2FA code via email
 function send2FACodeEmail($email, $verificationCode) {
     try {
         // Validate email
@@ -412,8 +413,8 @@ function send2FACodeEmail($email, $verificationCode) {
         $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port = 587;
         
-        // Enable verbose debugging for troubleshooting
-        $mail->SMTPDebug = 0; // Set to 2 for detailed debugging
+        // Debug level (0 for production, 2 for debugging)
+        $mail->SMTPDebug = 0;
         
         // SSL context options for better compatibility
         $mail->SMTPOptions = array(
@@ -427,6 +428,9 @@ function send2FACodeEmail($email, $verificationCode) {
         // Character set
         $mail->CharSet = 'UTF-8';
         
+        // Remove X-Mailer header for security
+        $mail->XMailer = ' ';
+        
         // Recipients
         $mail->setFrom('joshuapastorpide10@gmail.com', 'RFID GPMS Admin');
         $mail->addAddress($email);
@@ -434,10 +438,7 @@ function send2FACodeEmail($email, $verificationCode) {
         
         // Content
         $mail->isHTML(true);
-        $mail->Subject = 'Two-Factor Authentication Code - RFID GPMS';
-        
-        // Remove X-Mailer header for security
-        $mail->XMailer = ' ';
+        $mail->Subject = 'Your Two-Factor Authentication Code - RFID GPMS';
         
         $mail->Body = "
         <!DOCTYPE html>
@@ -473,13 +474,14 @@ function send2FACodeEmail($email, $verificationCode) {
                     background: #e1e7f0; 
                     padding: 15px; 
                     text-align: center; 
-                    font-size: 24px; 
+                    font-size: 32px; 
                     font-weight: bold; 
                     letter-spacing: 5px; 
                     margin: 20px 0; 
                     border-radius: 5px; 
                     font-family: monospace; 
                     color: #2c3e50;
+                    border: 2px dashed #4e73df;
                 }
                 .footer { 
                     padding: 20px; 
@@ -496,33 +498,57 @@ function send2FACodeEmail($email, $verificationCode) {
                     margin: 15px 0;
                     color: #856404;
                 }
+                .info {
+                    background: #d1ecf1;
+                    border: 1px solid #bee5eb;
+                    border-radius: 5px;
+                    padding: 10px;
+                    margin: 15px 0;
+                    color: #0c5460;
+                }
             </style>
         </head>
         <body>
             <div class='container'>
                 <div class='header'>
-                    <h2>RFID GPMS Admin Portal</h2>
+                    <h2>🔒 Two-Factor Authentication</h2>
+                    <p>RFID Gate and Personnel Management System</p>
                 </div>
                 <div class='content'>
-                    <h3>Two-Factor Authentication Required</h3>
-                    <p>Hello,</p>
-                    <p>Your verification code for the RFID GPMS Admin Portal is:</p>
+                    <h3>Hello Admin,</h3>
+                    <p>You are attempting to log in to the RFID GPMS Admin Portal. To complete your login, please use the following verification code:</p>
+                    
                     <div class='code'>$verificationCode</div>
-                    <div class='warning'>
-                        <strong>Security Notice:</strong> This code will expire in 10 minutes. Do not share this code with anyone.
+                    
+                    <div class='info'>
+                        <strong>📧 Sent to:</strong> $email<br>
+                        <strong>⏰ Expires in:</strong> 10 minutes
                     </div>
-                    <p>If you did not request this code, please ignore this email or contact system administrator.</p>
+                    
+                    <div class='warning'>
+                        <strong>⚠️ Security Notice:</strong> 
+                        <ul>
+                            <li>This code will expire in 10 minutes</li>
+                            <li>Do not share this code with anyone</li>
+                            <li>If you didn't request this code, please ignore this email</li>
+                            <li>For security reasons, this code can only be used once</li>
+                        </ul>
+                    </div>
+                    
+                    <p>If you have any questions or concerns, please contact the system administrator immediately.</p>
+                    
+                    <p>Best regards,<br><strong>RFID GPMS Security Team</strong></p>
                 </div>
                 <div class='footer'>
-                    <p>This is an automated message. Please do not reply to this email.</p>
-                    <p>&copy; " . date('Y') . " RFID GPMS. All rights reserved.</p>
+                    <p>This is an automated security message. Please do not reply to this email.</p>
+                    <p>&copy; " . date('Y') . " RFID Gate and Personnel Management System. All rights reserved.</p>
                 </div>
             </div>
         </body>
         </html>
         ";
         
-        $mail->AltBody = "RFID GPMS - Two-Factor Authentication\n\nYour verification code is: $verificationCode\n\nThis code will expire in 10 minutes.\n\nDo not share this code with anyone.\n\nIf you did not request this code, please ignore this email.";
+        $mail->AltBody = "RFID GPMS - Two-Factor Authentication\n\nYour verification code is: $verificationCode\n\nThis code will expire in 10 minutes.\n\nEmail: $email\n\nDo not share this code with anyone.\n\nIf you did not request this code, please ignore this email or contact system administrator.\n\n© " . date('Y') . " RFID GPMS. All rights reserved.";
         
         // Add small delay to avoid rate limiting
         usleep(500000);
