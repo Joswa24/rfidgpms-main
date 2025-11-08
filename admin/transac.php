@@ -76,7 +76,7 @@ function verifyRecaptcha($secretKey) {
 }
 
 // Verify reCAPTCHA for all POST requests
- $recaptchaSecret = '6Ld2w-QrAAAAAFeIvhKm5V6YBpIsiyHIyzHxeqm-'; 
+ $recaptchaSecret = '6Ld2w-QrAAAAAFeIvhKm5V6YBpIsiyHIyzHxeqm-';
 
 // Only skip reCAPTCHA for non-sensitive actions
  $skipRecaptchaActions = [
