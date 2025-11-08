@@ -23,11 +23,12 @@ header("Pragma: no-cache");
 header("Expires: 0");
 
 // Initialize variables
-$maxAttempts = 3;
-$lockoutTime = 30;
-$error = '';
-$success = '';
-$twoFactorRequired = false;
+ $maxAttempts = 3;
+ $lockoutTime = 30;
+ $error = '';
+ $success = '';
+ $twoFactorRequired = false;
+ $debugMode = true; // Set to true for testing, false for production
 
 // Initialize session variables
 if (!isset($_SESSION['login_attempts'])) {
@@ -137,6 +138,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resend_2fa'])) {
             if ($verificationCode) {
                 $success = "A new verification code has been sent to your email.";
                 $twoFactorRequired = true;
+                
+                // For debugging, show the code on screen
+                if ($debugMode) {
+                    $success .= " (DEBUG MODE - Code: $verificationCode)";
+                }
             } else {
                 $error = "Failed to send verification code. Please try again.";
                 $twoFactorRequired = true;
@@ -212,6 +218,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                             if ($verificationCode) {
                                 $twoFactorRequired = true;
                                 $success = "Verification code sent to your email.";
+                                
+                                // For debugging, show the code on screen
+                                if ($debugMode) {
+                                    $success .= " (DEBUG MODE - Code: $verificationCode)";
+                                }
+                                
                                 error_log("2FA code generated successfully, setting twoFactorRequired to true");
                             } else {
                                 $error = "Failed to send verification code. Please try again.";
@@ -335,7 +347,7 @@ function logAccessAttempt($userId, $username, $activity, $status) {
 
 // Function to generate and send 2FA code
 function generate2FACode($userId, $email) {
-    global $db;
+    global $db, $debugMode;
     
     try {
         // Generate a 6-digit verification code
@@ -368,6 +380,11 @@ function generate2FACode($userId, $email) {
             error_log("2FA code generated successfully for user ID: $userId");
             $stmt->close();
             
+            // Store the code in session for debugging
+            if ($debugMode) {
+                $_SESSION['debug_2fa_code'] = $verificationCode;
+            }
+            
             // Send the code via email
             if (send2FACodeEmail($email, $verificationCode)) {
                 error_log("2FA code sent successfully to: $email");
@@ -388,8 +405,9 @@ function generate2FACode($userId, $email) {
 }
 
 // Function to send 2FA code via email
-// Function to send 2FA code via email
 function send2FACodeEmail($email, $verificationCode) {
+    global $debugMode;
+    
     try {
         // Validate email
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -404,17 +422,18 @@ function send2FACodeEmail($email, $verificationCode) {
         
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         
-        // Server settings
+        // Server settings - Using Gmail with App Password
         $mail->isSMTP();
         $mail->Host = 'smtp.gmail.com';
         $mail->SMTPAuth = true;
         $mail->Username = 'joshuapastorpide10@gmail.com';
-        $mail->Password = 'fsgtnanzpmnbrfga';
+        $mail->Password = 'uuqxxzimitfvhqrz'; // Replace with your actual App Password
+        
         $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port = 587;
         
         // Debug level (0 for production, 2 for debugging)
-        $mail->SMTPDebug = 0;
+        $mail->SMTPDebug = $debugMode ? 2 : 0;
         
         // SSL context options for better compatibility
         $mail->SMTPOptions = array(
@@ -568,8 +587,8 @@ function send2FACodeEmail($email, $verificationCode) {
 }
 
 // Check if user is currently locked out
-$isLockedOut = ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime);
-$remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lockout_time'])) : 0;
+ $isLockedOut = ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime);
+ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lockout_time'])) : 0;
 
 // Debug logging
 error_log("Final state - twoFactorRequired: " . ($twoFactorRequired ? 'true' : 'false'));
@@ -999,6 +1018,16 @@ error_log("Final state - success: " . $success);
             display: block;
         }
         
+        .debug-info {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        
         @media (max-width: 576px) {
             .login-container {
                 max-width: 100%;
@@ -1158,6 +1187,15 @@ error_log("Final state - success: " . $success);
                         <i class="fas fa-check-circle me-2"></i>
                         <span id="modalSuccessText"><?php echo !empty($success) ? htmlspecialchars($success) : ''; ?></span>
                     </div>
+
+                    <!-- Debug Info (only shown in debug mode) -->
+                    <?php if ($debugMode && isset($_SESSION['debug_2fa_code'])): ?>
+                        <div class="debug-info">
+                            <strong>DEBUG MODE:</strong><br>
+                            Your verification code is: <strong><?php echo htmlspecialchars($_SESSION['debug_2fa_code']); ?></strong><br>
+                            <small>This is only shown in debug mode. In production, the code will only be sent via email.</small>
+                        </div>
+                    <?php endif; ?>
 
                     <!-- Info Box -->
                     <div class="info-box">
@@ -1428,4 +1466,4 @@ error_log("Final state - success: " . $success);
         });
     </script>
 </body>
-</html> 
+</html>
