@@ -23,7 +23,8 @@ function verifyRecaptcha($recaptchaResponse) {
     
     $data = [
         'secret' => $secret_key,
-        'response' => $recaptchaResponse
+        'response' => $recaptchaResponse,
+        'remoteip' => $_SERVER['REMOTE_ADDR'] // Add IP for better verification
     ];
     
     // Use cURL instead of file_get_contents (more reliable)
@@ -45,19 +46,24 @@ function verifyRecaptcha($recaptchaResponse) {
     
     if ($result === false) {
         error_log("reCAPTCHA cURL failed: " . $curlError);
-        return (object)['success' => false, 'score' => 0];
+        return (object)['success' => false, 'score' => 0, 'error-codes' => ['curl-failed']];
     }
     
     if ($httpCode !== 200) {
         error_log("reCAPTCHA HTTP Error: $httpCode");
-        return (object)['success' => false, 'score' => 0];
+        return (object)['success' => false, 'score' => 0, 'error-codes' => ['http-error']];
     }
     
     $response = json_decode($result);
     
     if (json_last_error() !== JSON_ERROR_NONE) {
         error_log("reCAPTCHA JSON parse error: " . json_last_error_msg());
-        return (object)['success' => false, 'score' => 0];
+        return (object)['success' => false, 'score' => 0, 'error-codes' => ['json-parse-error']];
+    }
+    
+    // Log error codes if present
+    if (isset($response->{'error-codes'}) && !empty($response->{'error-codes'})) {
+        error_log("reCAPTCHA Error Codes: " . json_encode($response->{'error-codes'}));
     }
     
     return $response;
@@ -276,22 +282,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     
     $recaptchaResult = verifyRecaptcha($recaptchaResponse);
     
-    if (!$recaptchaResult->success || $recaptchaResult->score < 0.3) {
-        // DEBUG: Log detailed information
-        error_log("reCAPTCHA DEBUG - Success: " . ($recaptchaResult->success ? 'true' : 'false') . 
-                " - Score: " . ($recaptchaResult->score ?? 'unknown') . 
-                " - Errors: " . json_encode($recaptchaResult->{'error-codes'} ?? []) . 
-                " - IP: " . $_SERVER['REMOTE_ADDR']);
-        
-        // Temporary: Show detailed error for debugging
-        http_response_code(400);
-        header('Content-Type: application/json');
-        die(json_encode([
-            'status' => 'error', 
-            'message' => "Security check failed. Score: " . ($recaptchaResult->score ?? 'unknown') . 
-                        " - Success: " . ($recaptchaResult->success ? 'true' : 'false')
-        ]));
-    }
+    if (!$recaptchaResult->success || $recaptchaResult->score < 0.1) { // Changed from 0.3 to 0.1
+    // DEBUG: Log detailed information
+    error_log("reCAPTCHA DEBUG - Success: " . ($recaptchaResult->success ? 'true' : 'false') . 
+            " - Score: " . ($recaptchaResult->score ?? 'unknown') . 
+            " - Errors: " . json_encode($recaptchaResult->{'error-codes'} ?? []) . 
+            " - IP: " . $_SERVER['REMOTE_ADDR']);
+    
+    // Temporary: Show detailed error for debugging
+    http_response_code(400);
+    header('Content-Type: application/json');
+    die(json_encode([
+        'status' => 'error', 
+        'message' => "Security check failed. Score: " . ($recaptchaResult->score ?? 'unknown') . 
+                    " - Success: " . ($recaptchaResult->success ? 'true' : 'false') .
+                    " - Errors: " . json_encode($recaptchaResult->{'error-codes'} ?? [])
+    ]));
+}
     
     // Sanitize inputs
     $department = sanitizeInput($_POST['roomdpt'] ?? '');
