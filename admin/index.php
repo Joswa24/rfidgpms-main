@@ -43,91 +43,79 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true && isset($_
 }
 
 // Handle 2FA verification
-// Handle 2FA verification - FIXED VERSION
+// Handle 2FA verification
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_2fa'])) {
-    // Validate CSRF token first
-    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
-        $error = "Security token invalid. Please refresh the page.";
+    // Combine the 6 input fields into one code
+    $verificationCode = '';
+    for ($i = 1; $i <= 6; $i++) {
+        $fieldName = "code_$i";
+        $verificationCode .= isset($_POST[$fieldName]) ? trim($_POST[$fieldName]) : '';
+    }
+    
+    error_log("2FA Verification Attempt - Code: " . str_repeat('*', strlen($verificationCode)));
+    
+    if (empty($verificationCode) || strlen($verificationCode) !== 6) {
+        $error = "Please enter the complete 6-digit verification code.";
+        $twoFactorRequired = true;
+    } elseif (!ctype_digit($verificationCode)) {
+        $error = "Invalid verification code format. Please enter only numbers.";
         $twoFactorRequired = true;
     } else {
-        // Combine the 6 input fields into one code
-        $verificationCode = '';
-        for ($i = 1; $i <= 6; $i++) {
-            $fieldName = "code_$i";
-            $verificationCode .= isset($_POST[$fieldName]) ? trim($_POST[$fieldName]) : '';
-        }
-        
-        error_log("2FA Verification Attempt - Code: " . str_repeat('*', strlen($verificationCode)));
-        
-        if (empty($verificationCode) || strlen($verificationCode) !== 6) {
-            $error = "Please enter the complete 6-digit verification code.";
-            $twoFactorRequired = true;
-        } elseif (!ctype_digit($verificationCode)) {
-            $error = "Invalid verification code format. Please enter only numbers.";
-            $twoFactorRequired = true;
-        } else {
-            try {
-                // Check if session variables exist
-                if (!isset($_SESSION['temp_user_id']) || !isset($_SESSION['temp_username']) || !isset($_SESSION['temp_email']) || !isset($_SESSION['password_verified'])) {
-                    $error = "Session expired. Please login again.";
-                    $twoFactorRequired = false;
-                    // Clear any existing session data
-                    unset($_SESSION['temp_user_id'], $_SESSION['temp_username'], $_SESSION['temp_email'], $_SESSION['password_verified']);
-                } else {
-                    $userId = $_SESSION['temp_user_id'];
-                    $username = $_SESSION['temp_username'];
-                    $email = $_SESSION['temp_email'];
+        try {
+            // Check if session variables exist
+            if (!isset($_SESSION['temp_user_id']) || !isset($_SESSION['temp_username']) || !isset($_SESSION['temp_email'])) {
+                $error = "Session expired. Please login again.";
+                $twoFactorRequired = false;
+                // Clear any existing session data
+                unset($_SESSION['temp_user_id'], $_SESSION['temp_username'], $_SESSION['temp_email'], $_SESSION['password_verified']);
+            } else {
+                $userId = $_SESSION['temp_user_id'];
+                $username = $_SESSION['temp_username'];
+                $email = $_SESSION['temp_email'];
+                
+                // Debug logging
+                error_log("Verifying 2FA for user ID: $userId");
+                
+                // Check if verification code is valid
+                $stmt = $db->prepare("SELECT id, admin_id, verification_code, expires_at FROM admin_2fa_codes WHERE admin_id = ? AND verification_code = ? AND is_used = 0 AND expires_at > NOW()");
+                $stmt->bind_param("is", $userId, $verificationCode);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                
+                if ($result->num_rows > 0) {
+                    $codeData = $result->fetch_assoc();
+                    $codeId = $codeData['id'];
                     
-                    // Debug logging
-                    error_log("Verifying 2FA for user ID: $userId, Username: $username");
+                    // Mark code as used
+                    $stmt = $db->prepare("UPDATE admin_2fa_codes SET is_used = 1, used_at = NOW() WHERE id = ?");
+                    $stmt->bind_param("i", $codeId);
                     
-                    // Check if verification code is valid and not expired
-                    $stmt = $db->prepare("SELECT id, admin_id, verification_code, expires_at, created_at FROM admin_2fa_codes WHERE admin_id = ? AND verification_code = ? AND is_used = 0 AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1");
-                    $stmt->bind_param("is", $userId, $verificationCode);
-                    $stmt->execute();
-                    $result = $stmt->get_result();
-                    
-                    if ($result->num_rows > 0) {
-                        $codeData = $result->fetch_assoc();
-                        $codeId = $codeData['id'];
+                    if ($stmt->execute()) {
+                        // Log successful 2FA verification
+                        logAccessAttempt($userId, $username, '2FA Verification', 'success');
                         
-                        // Mark code as used
-                        $updateStmt = $db->prepare("UPDATE admin_2fa_codes SET is_used = 1, used_at = NOW() WHERE id = ?");
-                        $updateStmt->bind_param("i", $codeId);
+                        // Set success message before redirect
+                        $_SESSION['login_success'] = "Two-factor authentication successful! Welcome, " . htmlspecialchars($username);
                         
-                        if ($updateStmt->execute()) {
-                            // Log successful 2FA verification
-                            logAccessAttempt($userId, $username, '2FA Verification', 'success');
-                            
-                            // Complete login process
-                            completeLoginProcess($userId, $username, $email);
-                            exit();
-                        } else {
-                            throw new Exception("Failed to mark 2FA code as used");
-                        }
+                        // Complete login process - THIS WILL REDIRECT TO DASHBOARD
+                        completeLoginProcess($userId, $username, $email);
+                        exit(); // Ensure script stops after redirect
                     } else {
-                        $error = "Invalid or expired verification code. Please try again.";
-                        $twoFactorRequired = true;
-                        
-                        // Log failed 2FA attempt
-                        logAccessAttempt($userId, $username, 'Failed 2FA - Invalid Code', 'failed');
-                        
-                        // Check if code exists but is expired
-                        $stmt = $db->prepare("SELECT id FROM admin_2fa_codes WHERE admin_id = ? AND verification_code = ? AND is_used = 0");
-                        $stmt->bind_param("is", $userId, $verificationCode);
-                        $stmt->execute();
-                        $expiredResult = $stmt->get_result();
-                        
-                        if ($expiredResult->num_rows > 0) {
-                            $error = "Verification code has expired. Please request a new code.";
-                        }
+                        throw new Exception("Failed to mark 2FA code as used");
                     }
+                    
+                } else {
+                    $error = "Invalid verification code. Please try again.";
+                    $twoFactorRequired = true;
+                    
+                    // Log failed 2FA attempt
+                    logAccessAttempt($userId, $username, 'Failed 2FA - Invalid Code', 'failed');
                 }
-            } catch (Exception $e) {
-                error_log("2FA verification error: " . $e->getMessage());
-                $error = "Database error. Please try again.";
-                $twoFactorRequired = true;
             }
+        } catch (Exception $e) {
+            error_log("2FA verification error: " . $e->getMessage());
+            $error = "Database error. Please try again.";
+            $twoFactorRequired = true;
         }
     }
 }
@@ -257,7 +245,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     }
 }
 
-// Function to complete login process - IMPROVED VERSION
+// Function to complete login process - UPDATED FOR PROPER REDIRECTION
 function completeLoginProcess($userId, $username, $email) {
     // Set session variables
     $_SESSION['user_id'] = $userId;
@@ -296,7 +284,7 @@ function completeLoginProcess($userId, $username, $email) {
         ob_clean();
     }
     
-    // Redirect to dashboard
+    // Redirect to dashboard - THIS IS THE KEY REDIRECTION
     header('Location: dashboard.php');
     exit();
 }
@@ -338,52 +326,61 @@ function logAccessAttempt($userId, $username, $activity, $status) {
     }
 }
 
-// Function to generate and send 2FA code
+// UPDATED Function to generate and send 2FA code with better error handling
 function generate2FACode($userId, $email) {
     global $db;
     
     try {
         // Generate a 6-digit verification code
-        $verificationCode = sprintf('%06d', random_int(0, 999999));
-        $expiresAt = date('Y-m-d H:i:s', time() + 600); // 10 minutes from now
-        $createdAt = date('Y-m-d H:i:s');
+        $verificationCode = sprintf('%06d', mt_rand(0, 999999));
+        $expiresAt = date('Y-m-d H:i:s', strtotime('+10 minutes'));
         
-        // Clean up expired codes first
-        $cleanupStmt = $db->prepare("DELETE FROM admin_2fa_codes WHERE expires_at <= NOW() OR created_at < DATE_SUB(NOW(), INTERVAL 1 HOUR)");
-        $cleanupStmt->execute();
+        error_log("Attempting to generate 2FA code for user ID: $userId, email: $email");
         
-        // Delete any existing unused codes for this user
-        $deleteStmt = $db->prepare("DELETE FROM admin_2fa_codes WHERE admin_id = ? AND is_used = 0");
-        $deleteStmt->bind_param("i", $userId);
-        $deleteStmt->execute();
-        
-        // Insert new verification code
-        $insertStmt = $db->prepare("INSERT INTO admin_2fa_codes (admin_id, verification_code, expires_at, created_at) VALUES (?, ?, ?, ?)");
-        $insertStmt->bind_param("isss", $userId, $verificationCode, $expiresAt, $createdAt);
-        
-        if ($insertStmt->execute()) {
-            // Send the code via email
-            if (send2FACodeEmail($email, $verificationCode)) {
-                error_log("2FA code generated and sent for user ID: $userId to email: $email");
-                return $verificationCode;
-            } else {
-                // If email fails, delete the code
-                $deleteStmt = $db->prepare("DELETE FROM admin_2fa_codes WHERE admin_id = ? AND verification_code = ?");
-                $deleteStmt->bind_param("is", $userId, $verificationCode);
-                $deleteStmt->execute();
-                return false;
-            }
+        // Delete any existing codes for this user
+        $stmt = $db->prepare("DELETE FROM admin_2fa_codes WHERE admin_id = ?");
+        if (!$stmt) {
+            throw new Exception("Failed to prepare DELETE statement: " . $db->error);
         }
         
-        return false;
+        $stmt->bind_param("i", $userId);
+        if (!$stmt->execute()) {
+            throw new Exception("Failed to delete old 2FA codes: " . $stmt->error);
+        }
+        $stmt->close();
+        
+        // Insert new verification code
+        $stmt = $db->prepare("INSERT INTO admin_2fa_codes (admin_id, verification_code, expires_at) VALUES (?, ?, ?)");
+        if (!$stmt) {
+            throw new Exception("Failed to prepare INSERT statement: " . $db->error);
+        }
+        
+        $stmt->bind_param("iss", $userId, $verificationCode, $expiresAt);
+        
+        if ($stmt->execute()) {
+            error_log("2FA code generated successfully for user ID: $userId");
+            $stmt->close();
+            
+            // Send the code via email
+            if (send2FACodeEmail($email, $verificationCode)) {
+                error_log("2FA code sent successfully to: $email");
+                return $verificationCode;
+            } else {
+                error_log("Failed to send 2FA code via email to: $email");
+                // Even if email fails, we still generated the code
+                return $verificationCode;
+            }
+        } else {
+            throw new Exception("Failed to insert 2FA code: " . $stmt->error);
+        }
+        
     } catch (Exception $e) {
         error_log("Error generating 2FA code: " . $e->getMessage());
         return false;
     }
 }
 
-// UPDATED Function to send 2FA code via email
-// UPDATED Function to send 2FA code via email
+// CORRECTED Function to send 2FA code via email
 function send2FACodeEmail($email, $verificationCode) {
     try {
         // Validate email
@@ -392,25 +389,27 @@ function send2FACodeEmail($email, $verificationCode) {
             return false;
         }
 
-        // Load PHPMailer
-        $base_path = __DIR__ . '/';
-        require_once $base_path . 'PHPMailer/src/PHPMailer.php';
-        require_once $base_path . 'PHPMailer/src/SMTP.php';
-        require_once $base_path . 'PHPMailer/src/Exception.php';
+        // Load PHPMailer with correct relative paths
+        require_once __DIR__ . '/../PHPMailer/src/PHPMailer.php';
+        require_once __DIR__ . '/../PHPMailer/src/SMTP.php';
+        require_once __DIR__ . '/../PHPMailer/src/Exception.php';
         
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         
-        // Server settings with improved configuration
+        // Server settings
         $mail->isSMTP();
         $mail->Host = 'smtp.gmail.com';
         $mail->SMTPAuth = true;
         $mail->Username = 'joshuapastorpide10@gmail.com';
-        $mail->Password = 'ycplfxcclifaxxf';//'bmnvognbjqcpxcyf'; // REPLACE WITH APP PASSWORD
+        $mail->Password = 'ycplfxcclifaxxf';//'tzogwzhaecctdzdr'; // Your app password
         $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port = 587;
         $mail->Timeout = 30;
         
-        // Important settings for Gmail
+        // Enable verbose debugging for troubleshooting
+        $mail->SMTPDebug = 0; // Set to 2 for detailed debugging
+        
+        // SSL context options for better compatibility
         $mail->SMTPOptions = array(
             'ssl' => array(
                 'verify_peer' => false,
@@ -419,29 +418,78 @@ function send2FACodeEmail($email, $verificationCode) {
             )
         );
         
-        // Set the SMTP sender to match the username
-        $mail->Sender = 'joshuapastorpide10@gmail.com';
+        // Character set
+        $mail->CharSet = 'UTF-8';
         
         // Recipients
-        $mail->setFrom('joshuapastorpide10@gmail.com', 'RFID GPMS Admin', false);
+        $mail->setFrom('joshuapastorpide10@gmail.com', 'RFID GPMS Admin');
         $mail->addAddress($email);
         $mail->addReplyTo('joshuapastorpide10@gmail.com', 'RFID GPMS Admin');
         
         // Content
         $mail->isHTML(true);
         $mail->Subject = 'Two-Factor Authentication Code - RFID GPMS';
-        $mail->XMailer = ' '; // Remove X-Mailer header
+        
+        // Remove X-Mailer header for security
+        $mail->XMailer = ' ';
         
         $mail->Body = "
+        <!DOCTYPE html>
         <html>
         <head>
+            <meta charset='UTF-8'>
             <style>
-                body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; }
-                .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-                .header { background: #4e73df; color: white; padding: 20px; text-align: center; }
-                .content { padding: 30px; }
-                .code { background: #e1e7f0; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; margin: 20px 0; border-radius: 5px; font-family: monospace; }
-                .footer { padding: 20px; text-align: center; color: #6c757d; font-size: 12px; background: #f8f9fa; }
+                body { 
+                    font-family: Arial, sans-serif; 
+                    margin: 0; 
+                    padding: 20px; 
+                    background-color: #f4f4f4; 
+                    line-height: 1.6;
+                }
+                .container { 
+                    max-width: 600px; 
+                    margin: 0 auto; 
+                    background: white; 
+                    border-radius: 10px; 
+                    overflow: hidden; 
+                    box-shadow: 0 0 10px rgba(0,0,0,0.1); 
+                }
+                .header { 
+                    background: #4e73df; 
+                    color: white; 
+                    padding: 20px; 
+                    text-align: center; 
+                }
+                .content { 
+                    padding: 30px; 
+                }
+                .code { 
+                    background: #e1e7f0; 
+                    padding: 15px; 
+                    text-align: center; 
+                    font-size: 24px; 
+                    font-weight: bold; 
+                    letter-spacing: 5px; 
+                    margin: 20px 0; 
+                    border-radius: 5px; 
+                    font-family: monospace; 
+                    color: #2c3e50;
+                }
+                .footer { 
+                    padding: 20px; 
+                    text-align: center; 
+                    color: #6c757d; 
+                    font-size: 12px; 
+                    background: #f8f9fa; 
+                }
+                .warning {
+                    background: #fff3cd;
+                    border: 1px solid #ffeaa7;
+                    border-radius: 5px;
+                    padding: 10px;
+                    margin: 15px 0;
+                    color: #856404;
+                }
             </style>
         </head>
         <body>
@@ -451,23 +499,27 @@ function send2FACodeEmail($email, $verificationCode) {
                 </div>
                 <div class='content'>
                     <h3>Two-Factor Authentication Required</h3>
-                    <p>Your verification code is:</p>
+                    <p>Hello,</p>
+                    <p>Your verification code for the RFID GPMS Admin Portal is:</p>
                     <div class='code'>$verificationCode</div>
-                    <p>This code will expire in 10 minutes.</p>
-                    <p><strong>Do not share this code with anyone.</strong></p>
+                    <div class='warning'>
+                        <strong>Security Notice:</strong> This code will expire in 10 minutes. Do not share this code with anyone.
+                    </div>
+                    <p>If you did not request this code, please ignore this email or contact system administrator.</p>
                 </div>
                 <div class='footer'>
-                    <p>This is an automated message. Please do not reply.</p>
+                    <p>This is an automated message. Please do not reply to this email.</p>
+                    <p>&copy; " . date('Y') . " RFID GPMS. All rights reserved.</p>
                 </div>
             </div>
         </body>
         </html>
         ";
         
-        $mail->AltBody = "Your verification code is: $verificationCode\n\nThis code will expire in 10 minutes.\n\nDo not share this code with anyone.";
+        $mail->AltBody = "RFID GPMS - Two-Factor Authentication\n\nYour verification code is: $verificationCode\n\nThis code will expire in 10 minutes.\n\nDo not share this code with anyone.\n\nIf you did not request this code, please ignore this email.";
         
-        // Add some delay to avoid rate limiting
-        usleep(500000); // 0.5 second delay
+        // Add small delay to avoid rate limiting
+        usleep(500000);
         
         if ($mail->send()) {
             error_log("SUCCESS: 2FA code sent to: $email");
@@ -482,7 +534,22 @@ function send2FACodeEmail($email, $verificationCode) {
         return false;
     }
 }
-
+// Add this function for debugging
+function debug2FASetup() {
+    global $db;
+    
+    // Check if PHPMailer files exist
+    $phpmailerPath = __DIR__ . '/../PHPMailer/src/PHPMailer.php';
+    error_log("PHPMailer path: " . $phpmailerPath);
+    error_log("PHPMailer exists: " . (file_exists($phpmailerPath) ? 'YES' : 'NO'));
+    
+    // Check database connection
+    error_log("Database connected: " . ($db ? 'YES' : 'NO'));
+    
+    // Check if admin_2fa_codes table exists
+    $result = $db->query("SHOW TABLES LIKE 'admin_2fa_codes'");
+    error_log("2FA table exists: " . ($result->num_rows > 0 ? 'YES' : 'NO'));
+}
 // Check if user is currently locked out
 $isLockedOut = ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime);
 $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lockout_time'])) : 0;
@@ -1234,6 +1301,12 @@ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lock
         }
 
         /**
+         * Submit 2FA Form with Enhanced Validation
+         */
+        /**
+ * Submit 2FA Form with Enhanced Validation
+ */
+/**
  * Submit 2FA Form with Enhanced Validation
  */
 function submit2FAForm() {
@@ -1247,6 +1320,7 @@ function submit2FAForm() {
     const allFilled = Array.from(codeInputs).every(input => input.value.length === 1);
     
     if (!allFilled) {
+        // Show validation error
         validationMessage.classList.add('show');
         codeInputs.forEach(input => {
             if (input.value.length === 0) {
@@ -1254,27 +1328,38 @@ function submit2FAForm() {
             }
         });
         
+        // Focus on first empty field
         const firstEmpty = Array.from(codeInputs).find(input => input.value.length === 0);
         if (firstEmpty) firstEmpty.focus();
+        
         return;
     }
     
+    // Hide validation message
     validationMessage.classList.remove('show');
+    
+    // Show loading state
     verifyText.textContent = 'Verifying...';
     verifySpinner.classList.remove('d-none');
     verifyBtn.disabled = true;
+    
+    // Hide any existing alerts
     hideModalAlerts();
     
+    // Get the complete verification code
     const verificationCode = Array.from(codeInputs).map(input => input.value).join('');
     
+    // Validate it's a 6-digit number
     if (!/^\d{6}$/.test(verificationCode)) {
         showModalError('Please enter a valid 6-digit code.');
-        reset2FAForm();
+        verifyText.textContent = 'Verify Code';
+        verifySpinner.classList.add('d-none');
+        verifyBtn.disabled = false;
         return;
     }
     
-    // Submit the form normally (not via AJAX) for better reliability
-    document.getElementById('twoFactorForm').submit();
+    // Submit the form via AJAX to handle response better
+    submit2FAViaAJAX(verificationCode);
 }
 
 /**
