@@ -43,7 +43,6 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true && isset($_
 }
 
 // Handle 2FA verification
-// Handle 2FA verification
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_2fa'])) {
     // Combine the 6 input fields into one code
     $verificationCode = '';
@@ -359,8 +358,7 @@ function generate2FACode($userId, $email) {
     }
 }
 
-// UPDATED Function to send 2FA code via email
-// UPDATED Function to send 2FA code via email
+// Function to send 2FA code via email
 function send2FACodeEmail($email, $verificationCode) {
     try {
         // Validate email
@@ -370,10 +368,9 @@ function send2FACodeEmail($email, $verificationCode) {
         }
 
         // Load PHPMailer
-        $base_path = __DIR__ . '/';
-        require_once $base_path . 'admin/PHPMailer/src/PHPMailer.php';
-        require_once $base_path . 'admin/PHPMailer/src/SMTP.php';
-        require_once $base_path . 'admin/PHPMailer/src/Exception.php';
+        require_once '../PHPMailer/src/PHPMailer.php';
+        require_once '../PHPMailer/src/SMTP.php';
+        require_once '../PHPMailer/src/Exception.php';
         
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         
@@ -382,7 +379,7 @@ function send2FACodeEmail($email, $verificationCode) {
         $mail->Host = 'smtp.gmail.com';
         $mail->SMTPAuth = true;
         $mail->Username = 'joshuapastorpide10@gmail.com';
-        $mail->Password = 'lgzdxfggnpihqhvp';//'bmnvognbjqcpxcyf'; // REPLACE WITH APP PASSWORD 'tzogwzhaecctdzdr';
+        $mail->Password = 'lgzdxfggnpihqhvp';
         $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port = 587;
         $mail->Timeout = 30;
@@ -1591,6 +1588,44 @@ function reset2FAForm() {
                 }
             <?php endif; ?>
         });
+        // Add this JavaScript code to handle the modal display after form submission
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if we should show the 2FA modal
+    const shouldShow2FAModal = <?php echo $twoFactorRequired ? 'true' : 'false'; ?>;
+    
+    if (shouldShow2FAModal) {
+        console.log('Showing 2FA modal');
+        const twoFactorModal = new bootstrap.Modal(document.getElementById('twoFactorModal'));
+        twoFactorModal.show();
+        
+        // Auto-focus on first verification code input
+        setTimeout(() => {
+            const firstCodeInput = document.getElementById('code_1');
+            if (firstCodeInput) {
+                firstCodeInput.focus();
+            }
+        }, 500);
+        
+        // Show error message in modal if exists
+        <?php if (!empty($error)): ?>
+            showModalError('<?php echo addslashes($error); ?>');
+        <?php endif; ?>
+        
+        // Show success message in modal if exists
+        <?php if (!empty($success)): ?>
+            showModalSuccess('<?php echo addslashes($success); ?>');
+        <?php endif; ?>
+    }
+    
+    // Setup 2FA verification functionality
+    setup2FAVerification();
+    
+    // Initialize lockout if needed
+    <?php if ($isLockedOut): ?>
+        const remainingTime = <?php echo $remainingLockoutTime; ?>;
+        startCountdown(remainingTime);
+    <?php endif; ?>
+});
     </script>
 </body>
 </html>
