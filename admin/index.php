@@ -327,6 +327,7 @@ function logAccessAttempt($userId, $username, $activity, $status) {
 }
 
 // Function to generate and send 2FA code
+// UPDATED Function to generate and send 2FA code
 function generate2FACode($userId, $email) {
     global $db;
     
@@ -337,22 +338,38 @@ function generate2FACode($userId, $email) {
         
         // Delete any existing codes for this user
         $stmt = $db->prepare("DELETE FROM admin_2fa_codes WHERE admin_id = ?");
+        if (!$stmt) {
+            throw new Exception("Failed to prepare DELETE statement: " . $db->error);
+        }
         $stmt->bind_param("i", $userId);
-        $stmt->execute();
+        if (!$stmt->execute()) {
+            throw new Exception("Failed to delete old 2FA codes: " . $stmt->error);
+        }
         
         // Insert new verification code
         $stmt = $db->prepare("INSERT INTO admin_2fa_codes (admin_id, verification_code, expires_at) VALUES (?, ?, ?)");
+        if (!$stmt) {
+            throw new Exception("Failed to prepare INSERT statement: " . $db->error);
+        }
         $stmt->bind_param("iss", $userId, $verificationCode, $expiresAt);
         
         if ($stmt->execute()) {
             // Send the code via email
             if (send2FACodeEmail($email, $verificationCode)) {
-                error_log("2FA code generated and sent for user ID: $userId");
+                error_log("SUCCESS: 2FA code generated and sent for user ID: $userId to email: $email");
                 return $verificationCode;
+            } else {
+                error_log("FAILED: Could not send 2FA code via email for user ID: $userId");
+                // Delete the code if email failed to send
+                $stmt = $db->prepare("DELETE FROM admin_2fa_codes WHERE admin_id = ? AND verification_code = ?");
+                $stmt->bind_param("is", $userId, $verificationCode);
+                $stmt->execute();
+                return false;
             }
+        } else {
+            throw new Exception("Failed to insert 2FA code: " . $stmt->error);
         }
         
-        return false;
     } catch (Exception $e) {
         error_log("Error generating 2FA code: " . $e->getMessage());
         return false;
@@ -360,7 +377,7 @@ function generate2FACode($userId, $email) {
 }
 
 // UPDATED Function to send 2FA code via email
-// UPDATED Function to send 2FA code via email
+// CORRECTED Function to send 2FA code via email
 function send2FACodeEmail($email, $verificationCode) {
     try {
         // Validate email
@@ -369,25 +386,28 @@ function send2FACodeEmail($email, $verificationCode) {
             return false;
         }
 
-        // Load PHPMailer
-        $base_path = __DIR__ . '/';
-        require_once $base_path . 'PHPMailer/src/PHPMailer.php';
-        require_once $base_path . 'PHPMailer/src/SMTP.php';
-        require_once $base_path . 'PHPMailer/src/Exception.php';
+        // Load PHPMailer with correct paths
+        require_once __DIR__ . '/../PHPMailer/src/PHPMailer.php';
+        require_once __DIR__ . '/../PHPMailer/src/SMTP.php';
+        require_once __DIR__ . '/../PHPMailer/src/Exception.php';
         
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         
-        // Server settings with improved configuration
+        // Server settings
         $mail->isSMTP();
         $mail->Host = 'smtp.gmail.com';
         $mail->SMTPAuth = true;
         $mail->Username = 'joshuapastorpide10@gmail.com';
-        $mail->Password = 'bmnvognbjqcpxcyf';//'outspuijkotwsdmu';//'tzogwzhaecctdzdr';'bmnvognbjqcpxcyf'; // REPLACE WITH APP PASSWORD
+        $mail->Password = 'bmnvognbjqcpxcyf'; // Your app password
         $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port = 587;
         $mail->Timeout = 30;
         
-        // Important settings for Gmail
+        // Debug mode (remove in production)
+        $mail->SMTPDebug = 0; // Set to 2 for detailed debug output
+        $mail->Debugoutput = 'error_log';
+        
+        // SSL/TLS configuration
         $mail->SMTPOptions = array(
             'ssl' => array(
                 'verify_peer' => false,
@@ -396,18 +416,17 @@ function send2FACodeEmail($email, $verificationCode) {
             )
         );
         
-        // Set the SMTP sender to match the username
-        $mail->Sender = 'joshuapastorpide10@gmail.com';
-        
-        // Recipients
-        $mail->setFrom('joshuapastorpide10@gmail.com', 'RFID GPMS Admin', false);
+        // Sender configuration
+        $mail->setFrom('joshuapastorpide10@gmail.com', 'RFID GPMS Admin');
         $mail->addAddress($email);
         $mail->addReplyTo('joshuapastorpide10@gmail.com', 'RFID GPMS Admin');
         
         // Content
         $mail->isHTML(true);
         $mail->Subject = 'Two-Factor Authentication Code - RFID GPMS';
-        $mail->XMailer = ' '; // Remove X-Mailer header
+        
+        // Remove X-Mailer header for security
+        $mail->XMailer = ' ';
         
         $mail->Body = "
         <html>
@@ -443,8 +462,8 @@ function send2FACodeEmail($email, $verificationCode) {
         
         $mail->AltBody = "Your verification code is: $verificationCode\n\nThis code will expire in 10 minutes.\n\nDo not share this code with anyone.";
         
-        // Add some delay to avoid rate limiting
-        usleep(500000); // 0.5 second delay
+        // Add small delay to avoid rate limiting
+        usleep(500000);
         
         if ($mail->send()) {
             error_log("SUCCESS: 2FA code sent to: $email");
