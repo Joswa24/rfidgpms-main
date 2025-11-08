@@ -380,33 +380,53 @@ function generate2FACode($userId, $email) {
 }
 
 // UPDATED Function to send 2FA code via email
-/// UPDATED Function to send 2FA code via email
+// UPDATED Function to send 2FA code via email (Diagnostic Version)
 function send2FACodeEmail($email, $verificationCode) {
     try {
-        // Validate email
+        error_log("=== Starting 2FA Email Send Test ===");
+
+        // 1. Validate email
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            error_log("Invalid email address: $email");
+            error_log("ERROR: Invalid email address: $email");
             return false;
         }
+        error_log("SUCCESS: Email address is valid.");
 
-        // Load PHPMailer from Composer
-        require_once __DIR__ . '/../vendor/autoload.php';
+        // 2. CRITICAL: Check if the autoloader exists
+        $autoloaderPath = __DIR__ . '/../vendor/autoload.php';
+        if (!file_exists($autoloaderPath)) {
+            error_log("FATAL ERROR: PHPMailer autoloader NOT FOUND at '$autoloaderPath'.");
+            error_log("SOLUTION: You MUST run 'composer require phpmailer/phpmailer' in your project's root directory.");
+            return false;
+        }
+        error_log("SUCCESS: Autoloader found at '$autoloaderPath'.");
         
+        // 3. Load PHPMailer
+        require_once $autoloaderPath;
+        error_log("SUCCESS: Autoloader loaded.");
+
+        // 4. Instantiate PHPMailer
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+        error_log("SUCCESS: PHPMailer object created.");
         
-        // Server settings
+        // === SERVER SETTINGS ===
         $mail->isSMTP();
-        $mail->Host = 'smtp.gmail.com';
-        $mail->SMTPAuth = true;
-        $mail->Username = 'joshuapastorpide10@gmail.com';
-        $mail->Password = 'ldqwzdnxeejpqmbs';//'bxqzmbfnxplkslkg';
-        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port = 465;
-        $mail->Timeout = 10;
+        $mail->Host       = 'smtp.gmail.com';
+        $mail->SMTPAuth   = true;
+        $mail->Username   = 'joshuapastorpide10@gmail.com';
         
-        // Debug mode
-        $mail->SMTPDebug = 2;
+        // IMPORTANT: Use an App Password, NOT your regular Gmail password
+        $mail->Password   = 'your_16_character_app_password'; // <-- REPLACE THIS
         
+        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS; // Use SSL for port 465
+        $mail->Port       = 465;
+        
+        // Enable verbose debugging ONLY for this test. Check your error log!
+        $mail->SMTPDebug = 3; // 3 = connection and client/server messages
+        $mail->Debugoutput = 'error_log'; // Send debug output to the error log
+        
+        error_log("INFO: Attempting to connect to Gmail with username '{$mail->Username}' and password '" . str_repeat('*', strlen($mail->Password)) . "'");
+
         // Sender configuration
         $mail->setFrom('joshuapastorpide10@gmail.com', 'RFID GPMS Admin');
         $mail->addAddress($email);
@@ -414,32 +434,22 @@ function send2FACodeEmail($email, $verificationCode) {
         // Content
         $mail->isHTML(true);
         $mail->Subject = 'Two-Factor Authentication Code - RFID GPMS';
+        $mail->Body    = "Your verification code is: <h1>$verificationCode</h1>";
+        $mail->AltBody = "Your verification code is: $verificationCode";
         
-        $mail->Body = "
-        <html>
-        <body>
-            <h2>RFID GPMS Admin Portal</h2>
-            <h3>Two-Factor Authentication Required</h3>
-            <p>Your verification code is:</p>
-            <div style='font-size: 24px; font-weight: bold; letter-spacing: 5px; margin: 20px 0;'>$verificationCode</div>
-            <p>This code will expire in 10 minutes.</p>
-            <p><strong>Do not share this code with anyone.</strong></p>
-        </body>
-        </html>
-        ";
-        
-        $mail->AltBody = "Your verification code is: $verificationCode\n\nThis code will expire in 10 minutes.";
+        error_log("INFO: Sending email...");
         
         if ($mail->send()) {
-            error_log("SUCCESS: 2FA code sent to: $email");
+            error_log("=== SUCCESS: 2FA code sent to: $email ===");
             return true;
         } else {
-            error_log("PHPMailer Error: " . $mail->ErrorInfo);
+            error_log("=== PHPMailer SEND FAILED: " . $mail->ErrorInfo . " ===");
             return false;
         }
         
     } catch (Exception $e) {
-        error_log("EXCEPTION in send2FACodeEmail: " . $e->getMessage());
+        error_log("=== EXCEPTION in send2FACodeEmail: " . $e->getMessage() . " ===");
+        error_log("Trace: " . $e->getTraceAsString());
         return false;
     }
 }
