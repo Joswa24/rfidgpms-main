@@ -416,7 +416,7 @@ function send2FACodeEmail($email, $verificationCode) {
         $mail->Username   = 'joshuapastorpide10@gmail.com';
         
         // IMPORTANT: Use an App Password, NOT your regular Gmail password
-        $mail->Password   = 'your_16_character_app_password'; // <-- REPLACE THIS
+        $mail->Password   = 'eiuwzkxzxnrhhkoi'; // <-- REPLACE THIS
         
         $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS; // Use SSL for port 465
         $mail->Port       = 465;
