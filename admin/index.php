@@ -274,7 +274,7 @@ function completeLoginProcess($userId, $username, $email) {
     // Set secure session cookie parameters
     session_set_cookie_params([
         'lifetime' => 0,
-        'path' => '/',
+        'path' => '',
         'domain' => $_SERVER['HTTP_HOST'],
         'secure' => isset($_SERVER['HTTPS']),
         'httponly' => true,
