@@ -19,6 +19,7 @@ if (ob_get_level() > 0) {
 // reCAPTCHA VERIFICATION FUNCTION - UPDATED
 // =====================================================================
 function verifyRecaptcha($recaptchaResponse) {
+    // Make sure this matches your site key in the HTML
     $secret_key = '6Ld2w-QrAAAAAFeIvhKm5V6YBpIsiyHIyzHxeqm-';
     $url = 'https://www.google.com/recaptcha/api/siteverify';
     
@@ -255,48 +256,53 @@ function getSubjectDetails($db, $subject, $room) {
 // MAIN LOGIN PROCESSING - UPDATED
 // =====================================================================
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Verify reCAPTCHA first
-    $recaptchaResponse = $_POST['recaptcha_response'] ?? '';
+    // Check if this is just a password validation request
+    $validateOnly = isset($_POST['validate_only']) && $_POST['validate_only'] === 'true';
     
-    if (empty($recaptchaResponse)) {
-        http_response_code(400);
-        header('Content-Type: application/json');
-        die(json_encode(['status' => 'error', 'message' => "Security verification failed. Please refresh and try again."]));
-    }
-    
-    $recaptchaResult = verifyRecaptcha($recaptchaResponse);
-    
-    // More lenient scoring for development/testing
-    $minScore = 0.1; // Lowered from 0.3 to 0.1
-    
-    if (!$recaptchaResult->success) {
-        // Log detailed error information
-        error_log("reCAPTCHA Failed - Errors: " . json_encode($recaptchaResult->{'error-codes'} ?? []));
+    // Verify reCAPTCHA first (skip for validate_only requests)
+    if (!$validateOnly) {
+        $recaptchaResponse = $_POST['recaptcha_response'] ?? '';
         
-        // For specific errors, we might want to proceed anyway in development
-        $blockingErrors = ['missing-input-secret', 'invalid-input-secret', 'bad-request'];
-        $recaptchaErrors = $recaptchaResult->{'error-codes'} ?? [];
-        $hasBlockingError = !empty(array_intersect($blockingErrors, $recaptchaErrors));
-        
-        if ($hasBlockingError) {
+        if (empty($recaptchaResponse)) {
             http_response_code(400);
             header('Content-Type: application/json');
-            die(json_encode([
-                'status' => 'error', 
-                'message' => "Security configuration error. Please contact administrator."
-            ]));
+            die(json_encode(['status' => 'error', 'message' => "Security verification failed. Please refresh and try again."]));
         }
         
-        // For non-blocking errors, we can proceed with a warning
-        error_log("reCAPTCHA had non-blocking errors, but proceeding with login");
-    }
-    
-    // Check score if available (v3 only)
-    if (isset($recaptchaResult->score) && $recaptchaResult->score < $minScore) {
-        error_log("reCAPTCHA Score too low: " . $recaptchaResult->score);
-        // You might want to implement additional verification here
-        // For now, we'll log but proceed
-        error_log("Low reCAPTCHA score detected, but proceeding with login for testing");
+        $recaptchaResult = verifyRecaptcha($recaptchaResponse);
+        
+        // More lenient scoring for development/testing
+        $minScore = 0.1; // Lowered from 0.3 to 0.1
+        
+        if (!$recaptchaResult->success) {
+            // Log detailed error information
+            error_log("reCAPTCHA Failed - Errors: " . json_encode($recaptchaResult->{'error-codes'} ?? []));
+            
+            // For specific errors, we might want to proceed anyway in development
+            $blockingErrors = ['missing-input-secret', 'invalid-input-secret', 'bad-request'];
+            $recaptchaErrors = $recaptchaResult->{'error-codes'} ?? [];
+            $hasBlockingError = !empty(array_intersect($blockingErrors, $recaptchaErrors));
+            
+            if ($hasBlockingError) {
+                http_response_code(400);
+                header('Content-Type: application/json');
+                die(json_encode([
+                    'status' => 'error', 
+                    'message' => "Security configuration error. Please contact administrator."
+                ]));
+            }
+            
+            // For non-blocking errors, we can proceed with a warning
+            error_log("reCAPTCHA had non-blocking errors, but proceeding with login");
+        }
+        
+        // Check score if available (v3 only)
+        if (isset($recaptchaResult->score) && $recaptchaResult->score < $minScore) {
+            error_log("reCAPTCHA Score too low: " . $recaptchaResult->score);
+            // You might want to implement additional verification here
+            // For now, we'll log but proceed
+            error_log("Low reCAPTCHA score detected, but proceeding with login for testing");
+        }
     }
     
     // Sanitize inputs
@@ -331,6 +337,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             'status' => 'error', 
             'message' => implode("<br>", $validationResult['errors'])
         ]));
+    }
+
+    // If this is just a password validation request, return success
+    if ($validateOnly) {
+        http_response_code(200);
+        header('Content-Type: application/json');
+        die(json_encode(['status' => 'success', 'message' => 'Password validated successfully']));
     }
 
     // Login successful - set session data based on user type
@@ -431,7 +444,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     frame-src https://www.google.com; 
     frame-ancestors 'none';">
     
-    <!-- reCAPTCHA API -->
+    <!-- reCAPTCHA API - Make sure this key matches your secret key in PHP -->
     <script src="https://www.google.com/recaptcha/api.js?render=6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_"></script>
     
     <!-- Security Meta Tags -->
