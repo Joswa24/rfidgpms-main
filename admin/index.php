@@ -382,7 +382,7 @@ function send2FACodeEmail($email, $verificationCode) {
         $mail->Host = 'smtp.gmail.com';
         $mail->SMTPAuth = true;
         $mail->Username = 'joshuapastorpide10@gmail.com';
-        $mail->Password = 'olkzbzfibtsxbhba';//'bmnvognbjqcpxcyf'; // REPLACE WITH APP PASSWORD 'tzogwzhaecctdzdr';
+        $mail->Password = 'lgzdxfggnpihqhvp';//'bmnvognbjqcpxcyf'; // REPLACE WITH APP PASSWORD 'tzogwzhaecctdzdr';
         $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port = 587;
         $mail->Timeout = 30;
