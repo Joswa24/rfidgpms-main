@@ -1,20 +1,17 @@
 <?php
-// Enable error reporting for debugging (remove in production)
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
-// Start session only once at the beginning
-session_start();
-date_default_timezone_set('Asia/Manila');
-
-// Check if user is logged in and 2FA verified
-if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true || 
-    !isset($_SESSION['2fa_verified']) || $_SESSION['2fa_verified'] !== true) {
-    jsonResponse('error', 'Authentication required');
+if (isset($_SESSION['success_message'])) {
+    echo '<div class="alert alert-success">' . $_SESSION['success_message'] . '</div>';
+    unset($_SESSION['success_message']);
 }
-
+if (isset($_SESSION['error_message'])) {
+    echo '<div class="alert alert-danger">' . $_SESSION['error_message'] . '</div>';
+    unset($_SESSION['error_message']);
+}
 // Include connection
 include '../connection.php';
+session_start();
+date_default_timezone_set('Asia/Manila');
+session_start();
 
 // Function to send JSON response
 function jsonResponse($status, $message, $data = []) {
@@ -29,7 +26,107 @@ function jsonResponse($status, $message, $data = []) {
     ]);
     exit;
 }
+// Get the action from the request
+ $action = isset($_GET['action']) ? $_GET['action'] : '';
 
+// Function to find schedules for swapping
+if ($action == 'find_schedules_for_swap') {
+    $instructor1 = $_POST['instructor1'];
+    $instructor2 = $_POST['instructor2'];
+    $room = $_POST['room'];
+    $day = $_POST['day'];
+    
+    // Find schedule for first instructor
+    $stmt1 = $db->prepare("SELECT * FROM room_schedules WHERE instructor = ? AND room_name = ? AND day = ?");
+    $stmt1->bind_param("sss", $instructor1, $room, $day);
+    $stmt1->execute();
+    $result1 = $stmt1->get_result();
+    $schedule1 = $result1->fetch_assoc();
+    
+    // Find schedule for second instructor
+    $stmt2 = $db->prepare("SELECT * FROM room_schedules WHERE instructor = ? AND room_name = ? AND day = ?");
+    $stmt2->bind_param("sss", $instructor2, $room, $day);
+    $stmt2->execute();
+    $result2 = $stmt2->get_result();
+    $schedule2 = $result2->fetch_assoc();
+    
+    if ($schedule1 && $schedule2) {
+        echo json_encode([
+            'status' => 'success',
+            'schedule1' => $schedule1,
+            'schedule2' => $schedule2
+        ]);
+    } else {
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Could not find schedules for both instructors in the specified room and day.'
+        ]);
+    }
+}
+
+// Function to swap schedules
+if ($action == 'swap_schedules') {
+    $schedule1_id = $_POST['schedule1_id'];
+    $schedule2_id = $_POST['schedule2_id'];
+    
+    // Get the schedules
+    $stmt1 = $db->prepare("SELECT * FROM room_schedules WHERE id = ?");
+    $stmt1->bind_param("i", $schedule1_id);
+    $stmt1->execute();
+    $result1 = $stmt1->get_result();
+    $schedule1 = $result1->fetch_assoc();
+    
+    $stmt2 = $db->prepare("SELECT * FROM room_schedules WHERE id = ?");
+    $stmt2->bind_param("i", $schedule2_id);
+    $stmt2->execute();
+    $result2 = $stmt2->get_result();
+    $schedule2 = $result2->fetch_assoc();
+    
+    if (!$schedule1 || !$schedule2) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'One or both schedules not found.'
+        ]);
+        exit;
+    }
+    
+    // Store the original times
+    $schedule1_start_time = $schedule1['start_time'];
+    $schedule1_end_time = $schedule1['end_time'];
+    $schedule2_start_time = $schedule2['start_time'];
+    $schedule2_end_time = $schedule2['end_time'];
+    
+    // Begin transaction
+    $db->begin_transaction();
+    
+    try {
+        // Update schedule 1 with schedule 2's time
+        $stmt = $db->prepare("UPDATE room_schedules SET start_time = ?, end_time = ? WHERE id = ?");
+        $stmt->bind_param("ssi", $schedule2_start_time, $schedule2_end_time, $schedule1_id);
+        $stmt->execute();
+        
+        // Update schedule 2 with schedule 1's time
+        $stmt = $db->prepare("UPDATE room_schedules SET start_time = ?, end_time = ? WHERE id = ?");
+        $stmt->bind_param("ssi", $schedule1_start_time, $schedule1_end_time, $schedule2_id);
+        $stmt->execute();
+        
+        // Commit the transaction
+        $db->commit();
+        
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Schedules swapped successfully!'
+        ]);
+    } catch (Exception $e) {
+        // Rollback the transaction if something went wrong
+        $db->rollback();
+        
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Failed to swap schedules: ' . $e->getMessage()
+        ]);
+    }
+}
 // Function to validate and sanitize input
 function sanitizeInput($db, $input) {
     return mysqli_real_escape_string($db, trim($input));
@@ -37,10 +134,6 @@ function sanitizeInput($db, $input) {
 
 // Function to handle file uploads
 function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'], $maxSize = 2 * 1024 * 1024) {
-    if (!isset($_FILES[$fileInput]) || $_FILES[$fileInput]['error'] !== UPLOAD_ERR_OK) {
-        return ['success' => false, 'message' => 'No file uploaded or upload error'];
-    }
-
     $file = $_FILES[$fileInput];
 
     // Check file type
@@ -74,11 +167,8 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
     }
 }
 
-// Get the action from the request
- $action = isset($_GET['action']) ? $_GET['action'] : '';
-
 // Check if this is an AJAX request for specific operations
- $validAjaxActions = [
+$validAjaxActions = [
     'add_department', 'update_department', 'delete_department', 
     'add_room', 'update_room', 'delete_room',
     'add_role', 'update_role', 'delete_role',
@@ -94,7 +184,7 @@ function handleFileUpload($fileInput, $targetDir, $allowedTypes = ['image/jpeg',
     'find_all_schedules_for_swap'
 ];
 
- $isAjaxRequest = isset($_GET['action']) && in_array($_GET['action'], $validAjaxActions);
+$isAjaxRequest = isset($_GET['action']) && in_array($_GET['action'], $validAjaxActions);
 
 if ($isAjaxRequest) {
     // For AJAX requests, handle specific actions
@@ -695,155 +785,155 @@ if ($isAjaxRequest) {
             break;
 
         case 'update_personnel':
-            error_log("=== UPDATE PERSONNEL STARTED ===");
-            
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                jsonResponse('error', 'Invalid request method');
-            }
+        error_log("=== UPDATE PERSONNEL STARTED ===");
+        
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            jsonResponse('error', 'Invalid request method');
+        }
 
-            // Log all received data for debugging
-            error_log("POST data: " . print_r($_POST, true));
-            error_log("FILES data: " . print_r($_FILES, true));
+        // Log all received data for debugging
+        error_log("POST data: " . print_r($_POST, true));
+        error_log("FILES data: " . print_r($_FILES, true));
 
-            // Validate required fields
-            if (empty($_POST['id'])) {
-                jsonResponse('error', 'Personnel ID is required');
-            }
+        // Validate required fields
+        if (empty($_POST['id'])) {
+            jsonResponse('error', 'Personnel ID is required');
+        }
 
-            $required = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department', 'status'];
-            $missing_fields = [];
-            foreach ($required as $field) {
-                if (empty($_POST[$field])) {
-                    $missing_fields[] = $field;
-                }
+        $required = ['last_name', 'first_name', 'date_of_birth', 'id_number', 'role', 'category', 'department', 'status'];
+        $missing_fields = [];
+        foreach ($required as $field) {
+            if (empty($_POST[$field])) {
+                $missing_fields[] = $field;
             }
-            
-            if (!empty($missing_fields)) {
-                error_log("Missing fields: " . implode(', ', $missing_fields));
-                jsonResponse('error', "Missing required fields: " . implode(', ', $missing_fields));
-            }
+        }
+        
+        if (!empty($missing_fields)) {
+            error_log("Missing fields: " . implode(', ', $missing_fields));
+            jsonResponse('error', "Missing required fields: " . implode(', ', $missing_fields));
+        }
 
-            // Sanitize inputs
-            $id = intval($_POST['id']);
-            $last_name = sanitizeInput($db, $_POST['last_name']);
-            $first_name = sanitizeInput($db, $_POST['first_name']);
-            $date_of_birth = sanitizeInput($db, $_POST['date_of_birth']);
-            $id_number = sanitizeInput($db, $_POST['id_number']); // Store with 0000-0000 format
-            $role = sanitizeInput($db, $_POST['role']);
-            $category = sanitizeInput($db, $_POST['category']);
-            $department = sanitizeInput($db, $_POST['department']);
-            $status = sanitizeInput($db, $_POST['status']);
+        // Sanitize inputs
+        $id = intval($_POST['id']);
+        $last_name = sanitizeInput($db, $_POST['last_name']);
+        $first_name = sanitizeInput($db, $_POST['first_name']);
+        $date_of_birth = sanitizeInput($db, $_POST['date_of_birth']);
+        $id_number = sanitizeInput($db, $_POST['id_number']); // Store with 0000-0000 format
+        $role = sanitizeInput($db, $_POST['role']);
+        $category = sanitizeInput($db, $_POST['category']);
+        $department = sanitizeInput($db, $_POST['department']);
+        $status = sanitizeInput($db, $_POST['status']);
 
-            // Validate ID
-            if ($id <= 0) {
-                jsonResponse('error', 'Invalid personnel ID');
-            }
+        // Validate ID
+        if ($id <= 0) {
+            jsonResponse('error', 'Invalid personnel ID');
+        }
 
-            // Validate ID Number format - accept and require 0000-0000 format
-            if (!preg_match('/^\d{4}-\d{4}$/', $id_number)) {
-                error_log("Invalid ID format: $id_number");
-                jsonResponse('error', 'ID Number must be in 0000-0000 format. Received: ' . $id_number);
-            }
+        // Validate ID Number format - accept and require 0000-0000 format
+        if (!preg_match('/^\d{4}-\d{4}$/', $id_number)) {
+            error_log("Invalid ID format: $id_number");
+            jsonResponse('error', 'ID Number must be in 0000-0000 format. Received: ' . $id_number);
+        }
 
-            // Check if ID Number exists for other personnel (exact match with 0000-0000 format)
-            $check_id = $db->prepare("SELECT id FROM personell WHERE id_number = ? AND id != ? AND deleted = 0");
-            if (!$check_id) {
-                error_log("Prepare failed for ID check: " . $db->error);
-                jsonResponse('error', 'Database prepare error: ' . $db->error);
-            }
-            
-            $check_id->bind_param("si", $id_number, $id); // Use exact 0000-0000 format
-            if (!$check_id->execute()) {
-                error_log("Execute failed for ID check: " . $check_id->error);
-                jsonResponse('error', 'Database execute error: ' . $check_id->error);
-            }
-            
-            $check_id->store_result();
-            
-            if ($check_id->num_rows > 0) {
-                error_log("ID already exists for another personnel: $id_number");
-                jsonResponse('error', 'ID Number already assigned to another personnel');
-            }
-            $check_id->close();
+        // Check if ID Number exists for other personnel (exact match with 0000-0000 format)
+        $check_id = $db->prepare("SELECT id FROM personell WHERE id_number = ? AND id != ? AND deleted = 0");
+        if (!$check_id) {
+            error_log("Prepare failed for ID check: " . $db->error);
+            jsonResponse('error', 'Database prepare error: ' . $db->error);
+        }
+        
+        $check_id->bind_param("si", $id_number, $id); // Use exact 0000-0000 format
+        if (!$check_id->execute()) {
+            error_log("Execute failed for ID check: " . $check_id->error);
+            jsonResponse('error', 'Database execute error: ' . $check_id->error);
+        }
+        
+        $check_id->store_result();
+        
+        if ($check_id->num_rows > 0) {
+            error_log("ID already exists for another personnel: $id_number");
+            jsonResponse('error', 'ID Number already assigned to another personnel');
+        }
+        $check_id->close();
 
-            // Handle file upload
-            $photo_update = '';
-            $new_photo = '';
-            $update_params = [];
-            
-            if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
-                error_log("New photo uploaded, processing...");
-                $uploadResult = handleFileUpload('photo', '../uploads/personell/');
-                if ($uploadResult['success']) {
-                    $new_photo = $uploadResult['filename'];
-                    $photo_update = ", photo = ?";
-                    $update_params[] = $new_photo;
-                    error_log("New photo will be set to: $new_photo");
-                } else {
-                    error_log("Photo upload failed: " . $uploadResult['message']);
-                    // Don't fail the entire update if photo upload fails
-                    // jsonResponse('error', $uploadResult['message']);
-                }
+        // Handle file upload
+        $photo_update = '';
+        $new_photo = '';
+        $update_params = [];
+        
+        if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+            error_log("New photo uploaded, processing...");
+            $uploadResult = handleFileUpload('photo', '../uploads/personell/');
+            if ($uploadResult['success']) {
+                $new_photo = $uploadResult['filename'];
+                $photo_update = ", photo = ?";
+                $update_params[] = $new_photo;
+                error_log("New photo will be set to: $new_photo");
             } else {
-                error_log("No new photo uploaded, keeping existing photo");
-                // Check if we have capturedImage from the form
-                if (isset($_POST['capturedImage']) && !empty($_POST['capturedImage'])) {
-                    $existing_photo = basename($_POST['capturedImage']); // Get just the filename
-                    error_log("Keeping existing photo: $existing_photo");
-                } else {
-                    error_log("No capturedImage found, using default.png");
-                    $existing_photo = 'default.png';
-                }
+                error_log("Photo upload failed: " . $uploadResult['message']);
+                // Don't fail the entire update if photo upload fails
+                // jsonResponse('error', $uploadResult['message']);
             }
-
-            // Build the update query
-            $query = "UPDATE personell SET 
-                id_number = ?, last_name = ?, first_name = ?, date_of_birth = ?,
-                role = ?, category = ?, department = ?, status = ?";
-            
-            // Add photo update if needed
-            if (!empty($photo_update)) {
-                $query .= $photo_update;
-            }
-            
-            $query .= " WHERE id = ?";
-            
-            error_log("Final update query: $query");
-            error_log("Parameters: id_number=$id_number, last_name=$last_name, first_name=$first_name, date_of_birth=$date_of_birth, role=$role, category=$category, department=$department, status=$status, id=$id");
-
-            // Prepare the statement
-            $stmt = $db->prepare($query);
-            if (!$stmt) {
-                $error = $db->error;
-                error_log("Prepare failed: " . $error);
-                jsonResponse('error', 'Database prepare failed: ' . $error);
-            }
-
-            // Bind parameters based on whether we're updating photo or not
-            if (!empty($photo_update)) {
-                // With photo update
-                $stmt->bind_param("sssssssssi", 
-                    $id_number, $last_name, $first_name, $date_of_birth,
-                    $role, $category, $department, $status, $new_photo, $id
-                );
+        } else {
+            error_log("No new photo uploaded, keeping existing photo");
+            // Check if we have capturedImage from the form
+            if (isset($_POST['capturedImage']) && !empty($_POST['capturedImage'])) {
+                $existing_photo = basename($_POST['capturedImage']); // Get just the filename
+                error_log("Keeping existing photo: $existing_photo");
             } else {
-                // Without photo update
-                $stmt->bind_param("ssssssssi", 
-                    $id_number, $last_name, $first_name, $date_of_birth,
-                    $role, $category, $department, $status, $id
-                );
+                error_log("No capturedImage found, using default.png");
+                $existing_photo = 'default.png';
             }
+        }
 
-            if ($stmt->execute()) {
-                $affected_rows = $stmt->affected_rows;
-                error_log("Personnel updated successfully. Affected rows: $affected_rows");
-                jsonResponse('success', 'Personnel updated successfully');
-            } else {
-                $error = $stmt->error;
-                error_log("Execute failed: " . $error);
-                jsonResponse('error', 'Failed to update personnel: ' . $error);
-            }
-            break;
+        // Build the update query
+        $query = "UPDATE personell SET 
+            id_number = ?, last_name = ?, first_name = ?, date_of_birth = ?,
+            role = ?, category = ?, department = ?, status = ?";
+        
+        // Add photo update if needed
+        if (!empty($photo_update)) {
+            $query .= $photo_update;
+        }
+        
+        $query .= " WHERE id = ?";
+        
+        error_log("Final update query: $query");
+        error_log("Parameters: id_number=$id_number, last_name=$last_name, first_name=$first_name, date_of_birth=$date_of_birth, role=$role, category=$category, department=$department, status=$status, id=$id");
+
+        // Prepare the statement
+        $stmt = $db->prepare($query);
+        if (!$stmt) {
+            $error = $db->error;
+            error_log("Prepare failed: " . $error);
+            jsonResponse('error', 'Database prepare failed: ' . $error);
+        }
+
+        // Bind parameters based on whether we're updating photo or not
+        if (!empty($photo_update)) {
+            // With photo update
+            $stmt->bind_param("sssssssssi", 
+                $id_number, $last_name, $first_name, $date_of_birth,
+                $role, $category, $department, $status, $new_photo, $id
+            );
+        } else {
+            // Without photo update
+            $stmt->bind_param("ssssssssi", 
+                $id_number, $last_name, $first_name, $date_of_birth,
+                $role, $category, $department, $status, $id
+            );
+        }
+
+        if ($stmt->execute()) {
+            $affected_rows = $stmt->affected_rows;
+            error_log("Personnel updated successfully. Affected rows: $affected_rows");
+            jsonResponse('success', 'Personnel updated successfully');
+        } else {
+            $error = $stmt->error;
+            error_log("Execute failed: " . $error);
+            jsonResponse('error', 'Failed to update personnel: ' . $error);
+        }
+        break;
 
         case 'delete_personnel':
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -899,11 +989,10 @@ if ($isAjaxRequest) {
                 jsonResponse('error', 'Failed to delete personnel: ' . $stmt->error);
             }
             break;
-
-        // ========================
-        // STUDENT CRUD OPERATIONS
-        // ========================
-        case 'add_student':
+            // ========================
+            // STUDENT CRUD OPERATIONS
+            // ========================
+            case 'add_student':
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
                 jsonResponse('error', 'Invalid request method');
             }
@@ -1114,10 +1203,46 @@ if ($isAjaxRequest) {
             }
             break;
 
-        // ========================
-        // INSTRUCTOR CRUD OPERATIONS
-        // ========================
-        case 'add_instructor':
+            // Add this helper function if not already present
+            function handleFileUpload($fieldName, $uploadPath) {
+                if (!isset($_FILES[$fieldName]) || $_FILES[$fieldName]['error'] !== UPLOAD_ERR_OK) {
+                    return ['success' => false, 'message' => 'No file uploaded or upload error'];
+                }
+
+                $file = $_FILES[$fieldName];
+                $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+                $maxSize = 2 * 1024 * 1024; // 2MB
+
+                // Validate file type
+                if (!in_array($file['type'], $allowedTypes)) {
+                    return ['success' => false, 'message' => 'Only JPG, JPEG and PNG files are allowed'];
+                }
+
+                // Validate file size
+                if ($file['size'] > $maxSize) {
+                    return ['success' => false, 'message' => 'File size must be less than 2MB'];
+                }
+
+                // Create upload directory if it doesn't exist
+                if (!file_exists($uploadPath)) {
+                    mkdir($uploadPath, 0777, true);
+                }
+
+                // Generate unique filename
+                $fileExtension = pathinfo($file['name'], PATHINFO_EXTENSION);
+                $filename = uniqid() . '_' . time() . '.' . $fileExtension;
+
+                // Move uploaded file
+                if (move_uploaded_file($file['tmp_name'], $uploadPath . $filename)) {
+                    return ['success' => true, 'filename' => $filename];
+                } else {
+                    return ['success' => false, 'message' => 'Failed to move uploaded file'];
+                }
+            }
+
+// Add these cases to your existing switch statement in transac.php:
+
+            case 'add_instructor':
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
                 jsonResponse('error', 'Invalid request method');
             }
@@ -1187,668 +1312,682 @@ if ($isAjaxRequest) {
             break;
 
         case 'update_instructor':
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                jsonResponse('error', 'Invalid request method');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            jsonResponse('error', 'Invalid request method');
+        }
+
+        // Validate required fields
+        if (empty($_POST['instructor_id'])) {
+            jsonResponse('error', 'Instructor ID is required');
+        }
+
+        $required = ['department_id', 'id_number', 'fullname'];
+        foreach ($required as $field) {
+            if (empty($_POST[$field])) {
+                jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
             }
+        }
 
-            // Validate required fields
-            if (empty($_POST['instructor_id'])) {
-                jsonResponse('error', 'Instructor ID is required');
+        // Sanitize inputs
+        $id = intval($_POST['instructor_id']);
+        $department_id = intval($_POST['department_id']);
+        $id_number = sanitizeInput($db, trim($_POST['id_number']));
+        $fullname = sanitizeInput($db, trim($_POST['fullname']));
+
+        // Validate IDs
+        if ($id <= 0) {
+            jsonResponse('error', 'Invalid instructor ID');
+        }
+        if ($department_id <= 0) {
+            jsonResponse('error', 'Invalid department');
+        }
+
+        // Validate ID Number format
+        if (!preg_match('/^\d{4}-\d{4}$/', $id_number)) {
+            jsonResponse('error', 'Invalid ID Number format. Must be in 0000-0000 format.');
+        }
+
+        // Check if ID Number exists for other instructors
+        $check_id = $db->prepare("SELECT id FROM instructor WHERE id_number = ? AND id != ?");
+        $check_id->bind_param("si", $id_number, $id);
+        $check_id->execute();
+        $check_id->store_result();
+        
+        if ($check_id->num_rows > 0) {
+            jsonResponse('error', 'ID Number already assigned to another instructor');
+        }
+        $check_id->close();
+
+        // SIMPLIFIED PHOTO UPLOAD - Same as students
+        $photo = '';
+        if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+            $uploadResult = handleFileUpload('photo', '../uploads/instructors/');
+            if (!$uploadResult['success']) {
+                jsonResponse('error', $uploadResult['message']);
             }
+            $photo = $uploadResult['filename'];
+        } else {
+            // Keep existing photo if no new upload - SIMPLIFIED
+            $photo = sanitizeInput($db, $_POST['existing_photo'] ?? 'img\2601828.png');
+        }
 
-            $required = ['department_id', 'id_number', 'fullname'];
-            foreach ($required as $field) {
-                if (empty($_POST[$field])) {
-                    jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
-                }
-            }
-
-            // Sanitize inputs
-            $id = intval($_POST['instructor_id']);
-            $department_id = intval($_POST['department_id']);
-            $id_number = sanitizeInput($db, trim($_POST['id_number']));
-            $fullname = sanitizeInput($db, trim($_POST['fullname']));
-
-            // Validate IDs
-            if ($id <= 0) {
-                jsonResponse('error', 'Invalid instructor ID');
-            }
-            if ($department_id <= 0) {
-                jsonResponse('error', 'Invalid department');
-            }
-
-            // Validate ID Number format
-            if (!preg_match('/^\d{4}-\d{4}$/', $id_number)) {
-                jsonResponse('error', 'Invalid ID Number format. Must be in 0000-0000 format.');
-            }
-
-            // Check if ID Number exists for other instructors
-            $check_id = $db->prepare("SELECT id FROM instructor WHERE id_number = ? AND id != ?");
-            $check_id->bind_param("si", $id_number, $id);
-            $check_id->execute();
-            $check_id->store_result();
-            
-            if ($check_id->num_rows > 0) {
-                jsonResponse('error', 'ID Number already assigned to another instructor');
-            }
-            $check_id->close();
-
-            // SIMPLIFIED PHOTO UPLOAD - Same as students
-            $photo = '';
-            if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
-                $uploadResult = handleFileUpload('photo', '../uploads/instructors/');
-                if (!$uploadResult['success']) {
-                    jsonResponse('error', $uploadResult['message']);
-                }
-                $photo = $uploadResult['filename'];
-            } else {
-                // Keep existing photo if no new upload - SIMPLIFIED
-                $photo = sanitizeInput($db, $_POST['existing_photo'] ?? 'img\2601828.png');
-            }
-
-            // Update instructor record
-            if (!empty($photo)) {
-                $query = "UPDATE instructor SET 
-                    department_id = ?, id_number = ?, fullname = ?, photo = ?
-                    WHERE id = ?";
-                $stmt = $db->prepare($query);
-                $stmt->bind_param("isssi", $department_id, $id_number, $fullname, $photo, $id);
-            } else {
-                $query = "UPDATE instructor SET 
-                    department_id = ?, id_number = ?, fullname = ?
-                    WHERE id = ?";
-                $stmt = $db->prepare($query);
-                $stmt->bind_param("issi", $department_id, $id_number, $fullname, $id);
-            }
-
-            if ($stmt->execute()) {
-                jsonResponse('success', 'Instructor updated successfully');
-            } else {
-                jsonResponse('error', 'Failed to update instructor: ' . $stmt->error);
-            }
-            break;
-
-        case 'delete_instructor':
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                jsonResponse('error', 'Invalid request method');
-            }
-
-            // Validate required field
-            if (empty($_POST['id'])) {
-                jsonResponse('error', 'Instructor ID is required');
-            }
-
-            // Sanitize input
-            $id = intval($_POST['id']);
-
-            if ($id <= 0) {
-                jsonResponse('error', 'Invalid instructor ID');
-            }
-
-            // Check if instructor exists
-            $checkInstructor = $db->prepare("SELECT id FROM instructor WHERE id = ?");
-            $checkInstructor->bind_param("i", $id);
-            $checkInstructor->execute();
-            $checkInstructor->store_result();
-            
-            if ($checkInstructor->num_rows === 0) {
-                jsonResponse('error', 'Instructor not found');
-            }
-            $checkInstructor->close();
-
-            // Check for instructor dependencies (courses, classes, etc.)
-            // Example: Check if instructor has class assignments
-            $checkClasses = $db->prepare("SELECT COUNT(*) FROM room_schedules WHERE instructor_id = ?");
-            $checkClasses->bind_param("i", $id);
-            $checkClasses->execute();
-            $checkClasses->bind_result($classCount);
-            $checkClasses->fetch();
-            $checkClasses->close();
-
-            if ($classCount > 0) {
-                jsonResponse('error', 'Cannot delete instructor with class assignments');
-            }
-
-            // Delete instructor
-            $stmt = $db->prepare("DELETE FROM instructor WHERE id = ?");
-            $stmt->bind_param("i", $id);
-            
-            if ($stmt->execute()) {
-                jsonResponse('success', 'Instructor deleted successfully');
-            } else {
-                jsonResponse('error', 'Failed to delete instructor: ' . $stmt->error);
-            }
-            break;
-
-        // ========================
-        // SUBJECT CRUD OPERATIONS
-        // ========================
-        case 'add_subject':
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                jsonResponse('error', 'Invalid request method');
-            }
-
-            // Validate required fields
-            $required = ['subject_code', 'subject_name', 'year_level'];
-            foreach ($required as $field) {
-                if (empty($_POST[$field])) {
-                    jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
-                }
-            }
-
-            // Sanitize inputs
-            $subject_code = sanitizeInput($db, trim($_POST['subject_code']));
-            $subject_name = sanitizeInput($db, trim($_POST['subject_name']));
-            $year_level = sanitizeInput($db, $_POST['year_level']);
-
-            // Validate lengths
-            if (strlen($subject_code) > 50) {
-                jsonResponse('error', 'Subject code must be less than 50 characters');
-            }
-
-            if (strlen($subject_name) > 255) {
-                jsonResponse('error', 'Subject name must be less than 255 characters');
-            }
-
-            // Check if subject code already exists
-            $check_code = $db->prepare("SELECT id FROM subjects WHERE subject_code = ?");
-            $check_code->bind_param("s", $subject_code);
-            $check_code->execute();
-            $check_code->store_result();
-            
-            if ($check_code->num_rows > 0) {
-                jsonResponse('error', 'Subject code already exists');
-            }
-            $check_code->close();
-
-            // Insert subject record
-            $query = "INSERT INTO subjects (subject_code, subject_name, year_level) 
-                    VALUES (?, ?, ?)";
-            
-            $stmt = $db->prepare($query);
-            if (!$stmt) {
-                jsonResponse('error', 'Database error: ' . $db->error);
-            }
-
-            $stmt->bind_param("sss", $subject_code, $subject_name, $year_level);
-
-            if ($stmt->execute()) {
-                jsonResponse('success', 'Subject added successfully', [
-                    'id' => $stmt->insert_id
-                ]);
-            } else {
-                jsonResponse('error', 'Failed to add subject: ' . $stmt->error);
-            }
-            break;
-
-        case 'update_subject':
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                jsonResponse('error', 'Invalid request method');
-            }
-
-            // Validate required fields
-            if (empty($_POST['id'])) {
-                jsonResponse('error', 'Subject ID is required');
-            }
-
-            $required = ['subject_code', 'subject_name', 'year_level'];
-            foreach ($required as $field) {
-                if (empty($_POST[$field])) {
-                    jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
-                }
-            }
-
-            // Sanitize inputs
-            $id = intval($_POST['id']);
-            $subject_code = sanitizeInput($db, trim($_POST['subject_code']));
-            $subject_name = sanitizeInput($db, trim($_POST['subject_name']));
-            $year_level = sanitizeInput($db, $_POST['year_level']);
-
-            // Validate ID
-            if ($id <= 0) {
-                jsonResponse('error', 'Invalid subject ID');
-            }
-
-            // Validate lengths
-            if (strlen($subject_code) > 50) {
-                jsonResponse('error', 'Subject code must be less than 50 characters');
-            }
-
-            if (strlen($subject_name) > 255) {
-                jsonResponse('error', 'Subject name must be less than 255 characters');
-            }
-
-            // Check if subject code exists for other subjects
-            $check_code = $db->prepare("SELECT id FROM subjects WHERE subject_code = ? AND id != ?");
-            $check_code->bind_param("si", $subject_code, $id);
-            $check_code->execute();
-            $check_code->store_result();
-            
-            if ($check_code->num_rows > 0) {
-                jsonResponse('error', 'Subject code already assigned to another subject');
-            }
-            $check_code->close();
-
-            // Check if subject name exists for same year level (excluding current subject)
-            $check_name = $db->prepare("SELECT id FROM subjects WHERE subject_name = ? AND year_level = ? AND id != ?");
-            $check_name->bind_param("ssi", $subject_name, $year_level, $id);
-            $check_name->execute();
-            $check_name->store_result();
-            
-            if ($check_name->num_rows > 0) {
-                jsonResponse('error', 'Subject name already exists for this year level');
-            }
-            $check_name->close();
-
-            // Update subject record
-            $query = "UPDATE subjects SET 
-                subject_code = ?, subject_name = ?, year_level = ?
+        // Update instructor record
+        if (!empty($photo)) {
+            $query = "UPDATE instructor SET 
+                department_id = ?, id_number = ?, fullname = ?, photo = ?
                 WHERE id = ?";
             $stmt = $db->prepare($query);
-            $stmt->bind_param("sssi", $subject_code, $subject_name, $year_level, $id);
-
-            if ($stmt->execute()) {
-                jsonResponse('success', 'Subject updated successfully');
-            } else {
-                jsonResponse('error', 'Failed to update subject: ' . $stmt->error);
-            }
-            break;
-
-        case 'delete_subject':
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                jsonResponse('error', 'Invalid request method');
-            }
-
-            // Validate required field
-            if (empty($_POST['id'])) {
-                jsonResponse('error', 'Subject ID is required');
-            }
-
-            // Sanitize input
-            $id = intval($_POST['id']);
-
-            if ($id <= 0) {
-                jsonResponse('error', 'Invalid subject ID');
-            }
-
-            // Check if subject exists
-            $checkSubject = $db->prepare("SELECT id FROM subjects WHERE id = ?");
-            $checkSubject->bind_param("i", $id);
-            $checkSubject->execute();
-            $checkSubject->store_result();
-            
-            if ($checkSubject->num_rows === 0) {
-                jsonResponse('error', 'Subject not found');
-            }
-            $checkSubject->close();
-
-            // Check for subject dependencies (classes, schedules, etc.)
-            // Example: Check if subject has assigned classes
-            $checkClasses = $db->prepare("SELECT COUNT(*) FROM room_schedules WHERE subject = ?");
-            $checkClasses->bind_param("i", $id);
-            $checkClasses->execute();
-            $checkClasses->bind_result($classCount);
-            $checkClasses->fetch();
-            $checkClasses->close();
-
-            if ($classCount > 0) {
-                jsonResponse('error', 'Cannot delete subject with assigned classes');
-            }
-
-            // Delete subject
-            $stmt = $db->prepare("DELETE FROM subjects WHERE id = ?");
-            $stmt->bind_param("i", $id);
-            
-            if ($stmt->execute()) {
-                jsonResponse('success', 'Subject deleted successfully');
-            } else {
-                jsonResponse('error', 'Failed to delete subject: ' . $stmt->error);
-            }
-            break;
-
-        // ========================
-        // ROOM SCHEDULE CRUD OPERATIONS
-        // ========================
-        case 'add_schedule':
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                jsonResponse('error', 'Invalid request method');
-            }
-
-            // Validate required fields
-            $required = ['department', 'room_name', 'year_level', 'subject', 'section', 'day', 'instructor', 'start_time', 'end_time'];
-            foreach ($required as $field) {
-                if (empty($_POST[$field])) {
-                    jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
-                }
-            }
-
-            // Sanitize inputs
-            $department = sanitizeInput($db, trim($_POST['department']));
-            $room_name = sanitizeInput($db, trim($_POST['room_name']));
-            $year_level = sanitizeInput($db, $_POST['year_level']);
-            $subject = sanitizeInput($db, trim($_POST['subject']));
-            $section = sanitizeInput($db, trim($_POST['section']));
-            $day = sanitizeInput($db, $_POST['day']);
-            $instructor = sanitizeInput($db, trim($_POST['instructor']));
-            $start_time = sanitizeInput($db, $_POST['start_time']);
-            $end_time = sanitizeInput($db, $_POST['end_time']);
-
-            // Validate time logic
-            if ($start_time >= $end_time) {
-                jsonResponse('error', 'End time must be after start time');
-            }
-
-            // Check for schedule conflicts (same room, same day, overlapping time)
-            $check_conflict = $db->prepare("SELECT id FROM room_schedules 
-                WHERE room_name = ? AND day = ? 
-                AND ((start_time <= ? AND end_time > ?) OR (start_time < ? AND end_time >= ?) OR (start_time >= ? AND end_time <= ?))");
-            $check_conflict->bind_param("ssssssss", $room_name, $day, $start_time, $start_time, $end_time, $end_time, $start_time, $end_time);
-            $check_conflict->execute();
-            $check_conflict->store_result();
-            
-            if ($check_conflict->num_rows > 0) {
-                jsonResponse('error', 'Schedule conflict: Room is already booked during this time slot');
-            }
-            $check_conflict->close();
-
-            // Check if instructor has schedule conflict
-            $check_instructor_conflict = $db->prepare("SELECT id FROM room_schedules 
-                WHERE instructor = ? AND day = ? 
-                AND ((start_time <= ? AND end_time > ?) OR (start_time < ? AND end_time >= ?) OR (start_time >= ? AND end_time <= ?))");
-            $check_instructor_conflict->bind_param("ssssssss", $instructor, $day, $start_time, $start_time, $end_time, $end_time, $start_time, $end_time);
-            $check_instructor_conflict->execute();
-            $check_instructor_conflict->store_result();
-            
-            if ($check_instructor_conflict->num_rows > 0) {
-                jsonResponse('error', 'Schedule conflict: Instructor already has a class during this time slot');
-            }
-            $check_instructor_conflict->close();
-
-            // Insert schedule 
-            $query = "INSERT INTO room_schedules (department, room_name, year_level, subject, section, day, instructor, start_time, end_time) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            
-            $stmt = $db->prepare($query);
-            if (!$stmt) {
-                jsonResponse('error', 'Database error: ' . $db->error);
-            }
-
-            $stmt->bind_param("sssssssss", $department, $room_name, $year_level, $subject, $section, $day, $instructor, $start_time, $end_time);
-
-            if ($stmt->execute()) {
-                jsonResponse('success', 'Room schedule added successfully', [
-                    'id' => $stmt->insert_id
-                ]);
-            } else {
-                jsonResponse('error', 'Failed to add room schedule: ' . $stmt->error);
-            }
-            break;
-
-        case 'update_schedule':
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                jsonResponse('error', 'Invalid request method');
-            }
-
-            // Validate required fields
-            if (empty($_POST['id'])) {
-                jsonResponse('error', 'Schedule ID is required');
-            }
-
-            $required = ['department', 'room_name', 'year_level', 'subject', 'section', 'day', 'instructor', 'start_time', 'end_time'];
-            foreach ($required as $field) {
-                if (empty($_POST[$field])) {
-                    jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
-                }
-            }
-
-            // Sanitize inputs
-            $id = intval($_POST['id']);
-            $department = sanitizeInput($db, trim($_POST['department']));
-            $room_name = sanitizeInput($db, trim($_POST['room_name']));
-            $year_level = sanitizeInput($db, $_POST['year_level']);
-            $subject = sanitizeInput($db, trim($_POST['subject']));
-            $section = sanitizeInput($db, trim($_POST['section']));
-            $day = sanitizeInput($db, $_POST['day']);
-            $instructor = sanitizeInput($db, trim($_POST['instructor']));
-            $start_time = sanitizeInput($db, $_POST['start_time']);
-            $end_time = sanitizeInput($db, $_POST['end_time']);
-
-            // Validate ID
-            if ($id <= 0) {
-                jsonResponse('error', 'Invalid schedule ID');
-            }
-
-            // Validate time logic
-            if ($start_time >= $end_time) {
-                jsonResponse('error', 'End time must be after start time');
-            }
-
-            // Check for schedule conflicts (excluding current schedule)
-            $check_conflict = $db->prepare("SELECT id FROM room_schedules 
-                WHERE room_name = ? AND day = ? AND id != ?
-                AND ((start_time <= ? AND end_time > ?) OR (start_time < ? AND end_time >= ?) OR (start_time >= ? AND end_time <= ?))");
-            $check_conflict->bind_param("ssissssss", $room_name, $day, $id, $start_time, $start_time, $end_time, $end_time, $start_time, $end_time);
-            $check_conflict->execute();
-            $check_conflict->store_result();
-            
-            if ($check_conflict->num_rows > 0) {
-                jsonResponse('error', 'Schedule conflict: Room is already booked during this time slot');
-            }
-            $check_conflict->close();
-
-            // Check if instructor has schedule conflict (excluding current schedule)
-            $check_instructor_conflict = $db->prepare("SELECT id FROM room_schedules 
-                WHERE instructor = ? AND day = ? AND id != ?
-                AND ((start_time <= ? AND end_time > ?) OR (start_time < ? AND end_time >= ?) OR (start_time >= ? AND end_time <= ?))");
-            $check_instructor_conflict->bind_param("ssissssss", $instructor, $day, $id, $start_time, $start_time, $end_time, $end_time, $start_time, $end_time);
-            $check_instructor_conflict->execute();
-            $check_instructor_conflict->store_result();
-            
-            if ($check_instructor_conflict->num_rows > 0) {
-                jsonResponse('error', 'Schedule conflict: Instructor already has a class during this time slot');
-            }
-            $check_instructor_conflict->close();
-
-            // Update schedule record
-            $query = "UPDATE room_schedules SET 
-                department = ?, room_name = ?, year_level = ?, subject = ?, section = ?, 
-                day = ?, instructor = ?, start_time = ?, end_time = ?
+            $stmt->bind_param("isssi", $department_id, $id_number, $fullname, $photo, $id);
+        } else {
+            $query = "UPDATE instructor SET 
+                department_id = ?, id_number = ?, fullname = ?
                 WHERE id = ?";
             $stmt = $db->prepare($query);
-            $stmt->bind_param("sssssssssi", $department, $room_name, $year_level, $subject, $section, $day, $instructor, $start_time, $end_time, $id);
+            $stmt->bind_param("issi", $department_id, $id_number, $fullname, $id);
+        }
 
-            if ($stmt->execute()) {
-                jsonResponse('success', 'Room schedule updated successfully');
-            } else {
-                jsonResponse('error', 'Failed to update room schedule: ' . $stmt->error);
-            }
-            break;
+        if ($stmt->execute()) {
+            jsonResponse('success', 'Instructor updated successfully');
+        } else {
+            jsonResponse('error', 'Failed to update instructor: ' . $stmt->error);
+        }
+        break;
 
-        case 'delete_schedule':
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                jsonResponse('error', 'Invalid request method');
-            }
+    case 'delete_instructor':
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            jsonResponse('error', 'Invalid request method');
+        }
 
-            // Validate required field
-            if (empty($_POST['id'])) {
-                jsonResponse('error', 'Schedule ID is required');
-            }
+        // Validate required field
+        if (empty($_POST['id'])) {
+            jsonResponse('error', 'Instructor ID is required');
+        }
 
-            // Sanitize input
-            $id = intval($_POST['id']);
+        // Sanitize input
+        $id = intval($_POST['id']);
 
-            if ($id <= 0) {
-                jsonResponse('error', 'Invalid schedule ID');
-            }
+        if ($id <= 0) {
+            jsonResponse('error', 'Invalid instructor ID');
+        }
 
-            // Check if schedule exists
-            $checkSchedule = $db->prepare("SELECT id FROM room_schedules WHERE id = ?");
-            $checkSchedule->bind_param("i", $id);
-            $checkSchedule->execute();
-            $checkSchedule->store_result();
-            
-            if ($checkSchedule->num_rows === 0) {
-                jsonResponse('error', 'Schedule not found');
-            }
-            $checkSchedule->close();
+        // Check if instructor exists
+        $checkInstructor = $db->prepare("SELECT id FROM instructor WHERE id = ?");
+        $checkInstructor->bind_param("i", $id);
+        $checkInstructor->execute();
+        $checkInstructor->store_result();
+        
+        if ($checkInstructor->num_rows === 0) {
+            jsonResponse('error', 'Instructor not found');
+        }
+        $checkInstructor->close();
 
-            // Delete schedule
-            $stmt = $db->prepare("DELETE FROM room_schedules WHERE id = ?");
-            $stmt->bind_param("i", $id);
-            
-            if ($stmt->execute()) {
-                jsonResponse('success', 'Room schedule deleted successfully');
-            } else {
-                jsonResponse('error', 'Failed to delete room schedule: ' . $stmt->error);
-            }
-            break;
+        // Check for instructor dependencies (courses, classes, etc.)
+        // Example: Check if instructor has assigned courses
+        // $checkCourses = $db->prepare("SELECT COUNT(*) FROM courses WHERE instructor_id = ?");
+        // $checkCourses->bind_param("i", $id);
+        // $checkCourses->execute();
+        // $checkCourses->bind_result($courseCount);
+        // $checkCourses->fetch();
+        // $checkCourses->close();
 
-        // ========================
-        // VISITOR CRUD OPERATIONS
-        // ========================
-        case 'add_visitor':
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                jsonResponse('error', 'Invalid request method');
-            }
+        // if ($courseCount > 0) {
+        //     jsonResponse('error', 'Cannot delete instructor with assigned courses');
+        // }
 
-            // Validate required field
-            if (!isset($_POST['rfid_number']) || empty(trim($_POST['rfid_number']))) {
-                jsonResponse('error', 'ID number is required');
-            }
+        // Example: Check if instructor has class assignments
+        $checkClasses = $db->prepare("SELECT COUNT(*) FROM room_schedules WHERE instructor_id = ?");
+        $checkClasses->bind_param("i", $id);
+        $checkClasses->execute();
+        $checkClasses->bind_result($classCount);
+        $checkClasses->fetch();
+        $checkClasses->close();
 
-            // Sanitize input
-            $rfid_number = sanitizeInput($db, trim($_POST['rfid_number']));
+        if ($classCount > 0) {
+            jsonResponse('error', 'Cannot delete instructor with class assignments');
+        }
 
-            // Validate ID number format (0000-0000)
-            if (!preg_match('/^\d{4}-\d{4}$/', $rfid_number)) {
-                jsonResponse('error', 'ID number must be in format: 0000-0000');
-            }
+        // Delete instructor
+        $stmt = $db->prepare("DELETE FROM instructor WHERE id = ?");
+        $stmt->bind_param("i", $id);
+        
+        if ($stmt->execute()) {
+            jsonResponse('success', 'Instructor deleted successfully');
+        } else {
+            jsonResponse('error', 'Failed to delete instructor: ' . $stmt->error);
+        }
+        break;
 
-            // Check if visitor ID already exists
-            $check = $db->prepare("SELECT COUNT(*) FROM visitor WHERE rfid_number = ?");
-            $check->bind_param("s", $rfid_number);
-            $check->execute();
-            $check->bind_result($count);
-            $check->fetch();
-            $check->close();
+                // ========================
+                // SUBJECT CRUD OPERATIONS
+                // ========================
+                case 'add_subject':
+                    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                        jsonResponse('error', 'Invalid request method');
+                    }
 
-            if ($count > 0) {
-                jsonResponse('error', 'Visitor ID number already exists');
-            }
+                    // Validate required fields
+                    $required = ['subject_code', 'subject_name', 'year_level'];
+                    foreach ($required as $field) {
+                        if (empty($_POST[$field])) {
+                            jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
+                        }
+                    }
 
-            // Insert new visitor
-            $stmt = $db->prepare("INSERT INTO visitor (rfid_number) VALUES (?)");
-            $stmt->bind_param("s", $rfid_number);
+                    // Sanitize inputs
+                    $subject_code = sanitizeInput($db, trim($_POST['subject_code']));
+                    $subject_name = sanitizeInput($db, trim($_POST['subject_name']));
+                    $year_level = sanitizeInput($db, $_POST['year_level']);
 
-            if ($stmt->execute()) {
-                jsonResponse('success', 'Visitor card added successfully');
-            } else {
-                jsonResponse('error', 'Failed to add visitor card: ' . $db->error);
-            }
-            break;
+                    // Validate lengths
+                    if (strlen($subject_code) > 50) {
+                        jsonResponse('error', 'Subject code must be less than 50 characters');
+                    }
 
-        case 'update_visitor':
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                jsonResponse('error', 'Invalid request method');
-            }
+                    if (strlen($subject_name) > 255) {
+                        jsonResponse('error', 'Subject name must be less than 255 characters');
+                    }
 
-            // Validate required fields
-            if (!isset($_POST['id']) || empty($_POST['id'])) {
-                jsonResponse('error', 'Visitor ID is required');
-            }
-            if (!isset($_POST['rfid_number']) || empty(trim($_POST['rfid_number']))) {
-                jsonResponse('error', 'ID number is required');
-            }
+                    // Check if subject code already exists
+                    $check_code = $db->prepare("SELECT id FROM subjects WHERE subject_code = ?");
+                    $check_code->bind_param("s", $subject_code);
+                    $check_code->execute();
+                    $check_code->store_result();
+                    
+                    if ($check_code->num_rows > 0) {
+                        jsonResponse('error', 'Subject code already exists');
+                    }
+                    $check_code->close();
 
-            // Sanitize inputs
-            $id = intval($_POST['id']);
-            $rfid_number = sanitizeInput($db, trim($_POST['rfid_number']));
+                    // Insert subject record
+                    $query = "INSERT INTO subjects (subject_code, subject_name, year_level) 
+                            VALUES (?, ?, ?)";
+                    
+                    $stmt = $db->prepare($query);
+                    if (!$stmt) {
+                        jsonResponse('error', 'Database error: ' . $db->error);
+                    }
 
-            // Validate ID
-            if ($id <= 0) {
-                jsonResponse('error', 'Invalid visitor ID');
-            }
+                    $stmt->bind_param("sss", $subject_code, $subject_name, $year_level);
 
-            // Validate ID number format (0000-0000)
-            if (!preg_match('/^\d{4}-\d{4}$/', $rfid_number)) {
-                jsonResponse('error', 'ID number must be in format: 0000-0000');
-            }
+                    if ($stmt->execute()) {
+                        jsonResponse('success', 'Subject added successfully', [
+                            'id' => $stmt->insert_id
+                        ]);
+                    } else {
+                        jsonResponse('error', 'Failed to add subject: ' . $stmt->error);
+                    }
+                    break;
 
-            // Check if visitor ID exists for other visitors
-            $check = $db->prepare("SELECT COUNT(*) FROM visitor WHERE rfid_number = ? AND id != ?");
-            $check->bind_param("si", $rfid_number, $id);
-            $check->execute();
-            $check->bind_result($count);
-            $check->fetch();
-            $check->close();
+                case 'update_subject':
+                    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                        jsonResponse('error', 'Invalid request method');
+                    }
 
-            if ($count > 0) {
-                jsonResponse('error', 'ID number already assigned to another visitor');
-            }
+                    // Validate required fields
+                    if (empty($_POST['id'])) {
+                        jsonResponse('error', 'Subject ID is required');
+                    }
 
-            // Update visitor
-            $stmt = $db->prepare("UPDATE visitor SET rfid_number = ? WHERE id = ?");
-            $stmt->bind_param("si", $rfid_number, $id);
+                    $required = ['subject_code', 'subject_name', 'year_level'];
+                    foreach ($required as $field) {
+                        if (empty($_POST[$field])) {
+                            jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
+                        }
+                    }
 
-            if ($stmt->execute()) {
-                jsonResponse('success', 'Visitor card updated successfully');
-            } else {
-                jsonResponse('error', 'Failed to update visitor card: ' . $db->error);
-            }
-            break;
+                    // Sanitize inputs
+                    $id = intval($_POST['id']);
+                    $subject_code = sanitizeInput($db, trim($_POST['subject_code']));
+                    $subject_name = sanitizeInput($db, trim($_POST['subject_name']));
+                    $year_level = sanitizeInput($db, $_POST['year_level']);
 
-        case 'delete_visitor':
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                jsonResponse('error', 'Invalid request method');
-            }
+                    // Validate ID
+                    if ($id <= 0) {
+                        jsonResponse('error', 'Invalid subject ID');
+                    }
 
-            // Validate required field
-            if (!isset($_POST['id']) || empty($_POST['id'])) {
-                jsonResponse('error', 'Visitor ID is required');
-            }
+                    // Validate lengths
+                    if (strlen($subject_code) > 50) {
+                        jsonResponse('error', 'Subject code must be less than 50 characters');
+                    }
 
-            // Sanitize input
-            $id = intval($_POST['id']);
+                    if (strlen($subject_name) > 255) {
+                        jsonResponse('error', 'Subject name must be less than 255 characters');
+                    }
 
-            if ($id <= 0) {
-                jsonResponse('error', 'Invalid visitor ID');
-            }
+                    // Check if subject code exists for other subjects
+                    $check_code = $db->prepare("SELECT id FROM subjects WHERE subject_code = ? AND id != ?");
+                    $check_code->bind_param("si", $subject_code, $id);
+                    $check_code->execute();
+                    $check_code->store_result();
+                    
+                    if ($check_code->num_rows > 0) {
+                        jsonResponse('error', 'Subject code already assigned to another subject');
+                    }
+                    $check_code->close();
 
-            // Check if visitor exists
-            $checkVisitor = $db->prepare("SELECT id FROM visitor WHERE id = ?");
-            $checkVisitor->bind_param("i", $id);
-            $checkVisitor->execute();
-            $checkVisitor->store_result();
-            
-            if ($checkVisitor->num_rows === 0) {
-                jsonResponse('error', 'Visitor not found');
-            }
-            $checkVisitor->close();
+                    // Check if subject name exists for same year level (excluding current subject)
+                    $check_name = $db->prepare("SELECT id FROM subjects WHERE subject_name = ? AND year_level = ? AND id != ?");
+                    $check_name->bind_param("ssi", $subject_name, $year_level, $id);
+                    $check_name->execute();
+                    $check_name->store_result();
+                    
+                    if ($check_name->num_rows > 0) {
+                        jsonResponse('error', 'Subject name already exists for this year level');
+                    }
+                    $check_name->close();
 
-            // Check for visitor dependencies (gate logs, etc.)
-            $checkGateLogs = $db->prepare("SELECT COUNT(*) FROM gate_logs WHERE person_type = 'visitor' AND person_id = ?");
-            $checkGateLogs->bind_param("i", $id);
-            $checkGateLogs->execute();
-            $checkGateLogs->bind_result($gateLogsCount);
-            $checkGateLogs->fetch();
-            $checkGateLogs->close();
+                    // Update subject record
+                    $query = "UPDATE subjects SET 
+                        subject_code = ?, subject_name = ?, year_level = ?
+                        WHERE id = ?";
+                    $stmt = $db->prepare($query);
+                    $stmt->bind_param("sssi", $subject_code, $subject_name, $year_level, $id);
 
-            if ($gateLogsCount > 0) {
-                jsonResponse('error', 'Cannot delete visitor with gate access records');
-            }
+                    if ($stmt->execute()) {
+                        jsonResponse('success', 'Subject updated successfully');
+                    } else {
+                        jsonResponse('error', 'Failed to update subject: ' . $stmt->error);
+                    }
+                    break;
 
-            // Delete visitor
-            $stmt = $db->prepare("DELETE FROM visitor WHERE id = ?");
-            $stmt->bind_param("i", $id);
-            
-            if ($stmt->execute()) {
-                jsonResponse('success', 'Visitor card deleted successfully');
-            } else {
-                jsonResponse('error', 'Failed to delete visitor card: ' . $stmt->error);
-            }
-            break;
+                case 'delete_subject':
+                    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                        jsonResponse('error', 'Invalid request method');
+                    }
 
-        // ===================================
+                    // Validate required field
+                    if (empty($_POST['id'])) {
+                        jsonResponse('error', 'Subject ID is required');
+                    }
+
+                    // Sanitize input
+                    $id = intval($_POST['id']);
+
+                    if ($id <= 0) {
+                        jsonResponse('error', 'Invalid subject ID');
+                    }
+
+                    // Check if subject exists
+                    $checkSubject = $db->prepare("SELECT id FROM subjects WHERE id = ?");
+                    $checkSubject->bind_param("i", $id);
+                    $checkSubject->execute();
+                    $checkSubject->store_result();
+                    
+                    if ($checkSubject->num_rows === 0) {
+                        jsonResponse('error', 'Subject not found');
+                    }
+                    $checkSubject->close();
+
+                    // Check for subject dependencies (classes, schedules, etc.)
+                    // Add dependency checks based on your database schema
+                    
+                    
+                    // Example: Check if subject has assigned classes
+                    $checkClasses = $db->prepare("SELECT COUNT(*) FROM room_schedules WHERE subject = ?");
+                    $checkClasses->bind_param("i", $id);
+                    $checkClasses->execute();
+                    $checkClasses->bind_result($classCount);
+                    $checkClasses->fetch();
+                    $checkClasses->close();
+
+                    if ($classCount > 0) {
+                        jsonResponse('error', 'Cannot delete subject with assigned classes');
+                    }
+                    
+
+                    // Delete subject
+                    $stmt = $db->prepare("DELETE FROM subjects WHERE id = ?");
+                    $stmt->bind_param("i", $id);
+                    
+                    if ($stmt->execute()) {
+                        jsonResponse('success', 'Subject deleted successfully');
+                    } else {
+                        jsonResponse('error', 'Failed to delete subject: ' . $stmt->error);
+                    }
+                    break;
+                    // ========================
+                    // ROOM SCHEDULE CRUD OPERATIONS
+                    // ========================
+                    case 'add_schedule':
+                        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                            jsonResponse('error', 'Invalid request method');
+                        }
+
+                        // Validate required fields
+                        $required = ['department', 'room_name', 'year_level', 'subject', 'section', 'day', 'instructor', 'start_time', 'end_time'];
+                        foreach ($required as $field) {
+                            if (empty($_POST[$field])) {
+                                jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
+                            }
+                        }
+
+                        // Sanitize inputs
+                        $department = sanitizeInput($db, trim($_POST['department']));
+                        $room_name = sanitizeInput($db, trim($_POST['room_name']));
+                        $year_level = sanitizeInput($db, $_POST['year_level']);
+                        $subject = sanitizeInput($db, trim($_POST['subject']));
+                        $section = sanitizeInput($db, trim($_POST['section']));
+                        $day = sanitizeInput($db, $_POST['day']);
+                        $instructor = sanitizeInput($db, trim($_POST['instructor']));
+                        $start_time = sanitizeInput($db, $_POST['start_time']);
+                        $end_time = sanitizeInput($db, $_POST['end_time']);
+
+                        // Validate time logic
+                        if ($start_time >= $end_time) {
+                            jsonResponse('error', 'End time must be after start time');
+                        }
+
+                        // Check for schedule conflicts (same room, same day, overlapping time)
+                        $check_conflict = $db->prepare("SELECT id FROM room_schedules 
+                            WHERE room_name = ? AND day = ? 
+                            AND ((start_time <= ? AND end_time > ?) OR (start_time < ? AND end_time >= ?) OR (start_time >= ? AND end_time <= ?))");
+                        $check_conflict->bind_param("ssssssss", $room_name, $day, $start_time, $start_time, $end_time, $end_time, $start_time, $end_time);
+                        $check_conflict->execute();
+                        $check_conflict->store_result();
+                        
+                        if ($check_conflict->num_rows > 0) {
+                            jsonResponse('error', 'Schedule conflict: Room is already booked during this time slot');
+                        }
+                        $check_conflict->close();
+
+                        // Check if instructor has schedule conflict
+                        $check_instructor_conflict = $db->prepare("SELECT id FROM room_schedules 
+                            WHERE instructor = ? AND day = ? 
+                            AND ((start_time <= ? AND end_time > ?) OR (start_time < ? AND end_time >= ?) OR (start_time >= ? AND end_time <= ?))");
+                        $check_instructor_conflict->bind_param("ssssssss", $instructor, $day, $start_time, $start_time, $end_time, $end_time, $start_time, $end_time);
+                        $check_instructor_conflict->execute();
+                        $check_instructor_conflict->store_result();
+                        
+                        if ($check_instructor_conflict->num_rows > 0) {
+                            jsonResponse('error', 'Schedule conflict: Instructor already has a class during this time slot');
+                        }
+                        $check_instructor_conflict->close();
+
+                        // Insert schedule 
+                        $query = "INSERT INTO room_schedules (department, room_name, year_level, subject, section, day, instructor, start_time, end_time) 
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                        
+                        $stmt = $db->prepare($query);
+                        if (!$stmt) {
+                            jsonResponse('error', 'Database error: ' . $db->error);
+                        }
+
+                        $stmt->bind_param("sssssssss", $department, $room_name, $year_level, $subject, $section, $day, $instructor, $start_time, $end_time);
+
+                        if ($stmt->execute()) {
+                            jsonResponse('success', 'Room schedule added successfully', [
+                                'id' => $stmt->insert_id
+                            ]);
+                        } else {
+                            jsonResponse('error', 'Failed to add room schedule: ' . $stmt->error);
+                        }
+                        break;
+
+                    case 'update_schedule':
+                        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                            jsonResponse('error', 'Invalid request method');
+                        }
+
+                        // Validate required fields
+                        if (empty($_POST['id'])) {
+                            jsonResponse('error', 'Schedule ID is required');
+                        }
+
+                        $required = ['department', 'room_name', 'year_level', 'subject', 'section', 'day', 'instructor', 'start_time', 'end_time'];
+                        foreach ($required as $field) {
+                            if (empty($_POST[$field])) {
+                                jsonResponse('error', "Missing required field: " . str_replace('_', ' ', $field));
+                            }
+                        }
+
+                        // Sanitize inputs
+                        $id = intval($_POST['id']);
+                        $department = sanitizeInput($db, trim($_POST['department']));
+                        $room_name = sanitizeInput($db, trim($_POST['room_name']));
+                        $year_level = sanitizeInput($db, $_POST['year_level']);
+                        $subject = sanitizeInput($db, trim($_POST['subject']));
+                        $section = sanitizeInput($db, trim($_POST['section']));
+                        $day = sanitizeInput($db, $_POST['day']);
+                        $instructor = sanitizeInput($db, trim($_POST['instructor']));
+                        $start_time = sanitizeInput($db, $_POST['start_time']);
+                        $end_time = sanitizeInput($db, $_POST['end_time']);
+
+                        // Validate ID
+                        if ($id <= 0) {
+                            jsonResponse('error', 'Invalid schedule ID');
+                        }
+
+                        // Validate time logic
+                        if ($start_time >= $end_time) {
+                            jsonResponse('error', 'End time must be after start time');
+                        }
+
+                        // Check for schedule conflicts (excluding current schedule)
+                        $check_conflict = $db->prepare("SELECT id FROM room_schedules 
+                            WHERE room_name = ? AND day = ? AND id != ?
+                            AND ((start_time <= ? AND end_time > ?) OR (start_time < ? AND end_time >= ?) OR (start_time >= ? AND end_time <= ?))");
+                        $check_conflict->bind_param("ssissssss", $room_name, $day, $id, $start_time, $start_time, $end_time, $end_time, $start_time, $end_time);
+                        $check_conflict->execute();
+                        $check_conflict->store_result();
+                        
+                        if ($check_conflict->num_rows > 0) {
+                            jsonResponse('error', 'Schedule conflict: Room is already booked during this time slot');
+                        }
+                        $check_conflict->close();
+
+                        // Check if instructor has schedule conflict (excluding current schedule)
+                        $check_instructor_conflict = $db->prepare("SELECT id FROM room_schedules 
+                            WHERE instructor = ? AND day = ? AND id != ?
+                            AND ((start_time <= ? AND end_time > ?) OR (start_time < ? AND end_time >= ?) OR (start_time >= ? AND end_time <= ?))");
+                        $check_instructor_conflict->bind_param("ssissssss", $instructor, $day, $id, $start_time, $start_time, $end_time, $end_time, $start_time, $end_time);
+                        $check_instructor_conflict->execute();
+                        $check_instructor_conflict->store_result();
+                        
+                        if ($check_instructor_conflict->num_rows > 0) {
+                            jsonResponse('error', 'Schedule conflict: Instructor already has a class during this time slot');
+                        }
+                        $check_instructor_conflict->close();
+
+                        // Update schedule record
+                        $query = "UPDATE room_schedules SET 
+                            department = ?, room_name = ?, year_level = ?, subject = ?, section = ?, 
+                            day = ?, instructor = ?, start_time = ?, end_time = ?
+                            WHERE id = ?";
+                        $stmt = $db->prepare($query);
+                        $stmt->bind_param("sssssssssi", $department, $room_name, $year_level, $subject, $section, $day, $instructor, $start_time, $end_time, $id);
+
+                        if ($stmt->execute()) {
+                            jsonResponse('success', 'Room schedule updated successfully');
+                        } else {
+                            jsonResponse('error', 'Failed to update room schedule: ' . $stmt->error);
+                        }
+                        break;
+
+                    case 'delete_schedule':
+                        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                            jsonResponse('error', 'Invalid request method');
+                        }
+
+                        // Validate required field
+                        if (empty($_POST['id'])) {
+                            jsonResponse('error', 'Schedule ID is required');
+                        }
+
+                        // Sanitize input
+                        $id = intval($_POST['id']);
+
+                        if ($id <= 0) {
+                            jsonResponse('error', 'Invalid schedule ID');
+                        }
+
+                        // Check if schedule exists
+                        $checkSchedule = $db->prepare("SELECT id FROM room_schedules WHERE id = ?");
+                        $checkSchedule->bind_param("i", $id);
+                        $checkSchedule->execute();
+                        $checkSchedule->store_result();
+                        
+                        if ($checkSchedule->num_rows === 0) {
+                            jsonResponse('error', 'Schedule not found');
+                        }
+                        $checkSchedule->close();
+
+                        // Delete schedule
+                        $stmt = $db->prepare("DELETE FROM room_schedules WHERE id = ?");
+                        $stmt->bind_param("i", $id);
+                        
+                        if ($stmt->execute()) {
+                            jsonResponse('success', 'Room schedule deleted successfully');
+                        } else {
+                            jsonResponse('error', 'Failed to delete room schedule: ' . $stmt->error);
+                        }
+                        break;
+                        // ========================
+                        // VISITOR CRUD OPERATIONS
+                        // ========================
+                    case 'add_visitor':
+                        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                            jsonResponse('error', 'Invalid request method');
+                        }
+
+                        // Validate required field
+                        if (!isset($_POST['rfid_number']) || empty(trim($_POST['rfid_number']))) {
+                            jsonResponse('error', 'ID number is required');
+                        }
+
+                        // Sanitize input
+                        $rfid_number = sanitizeInput($db, trim($_POST['rfid_number']));
+
+                        // Validate ID number format (0000-0000)
+                        if (!preg_match('/^\d{4}-\d{4}$/', $rfid_number)) {
+                            jsonResponse('error', 'ID number must be in format: 0000-0000');
+                        }
+
+                        // Check if visitor ID already exists
+                        $check = $db->prepare("SELECT COUNT(*) FROM visitor WHERE rfid_number = ?");
+                        $check->bind_param("s", $rfid_number);
+                        $check->execute();
+                        $check->bind_result($count);
+                        $check->fetch();
+                        $check->close();
+
+                        if ($count > 0) {
+                            jsonResponse('error', 'Visitor ID number already exists');
+                        }
+
+                        // Insert new visitor
+                        $stmt = $db->prepare("INSERT INTO visitor (rfid_number) VALUES (?)");
+                        $stmt->bind_param("s", $rfid_number);
+
+                        if ($stmt->execute()) {
+                            jsonResponse('success', 'Visitor card added successfully');
+                        } else {
+                            jsonResponse('error', 'Failed to add visitor card: ' . $db->error);
+                        }
+                        break;
+
+                    case 'update_visitor':
+                        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                            jsonResponse('error', 'Invalid request method');
+                        }
+
+                        // Validate required fields
+                        if (!isset($_POST['id']) || empty($_POST['id'])) {
+                            jsonResponse('error', 'Visitor ID is required');
+                        }
+                        if (!isset($_POST['rfid_number']) || empty(trim($_POST['rfid_number']))) {
+                            jsonResponse('error', 'ID number is required');
+                        }
+
+                        // Sanitize inputs
+                        $id = intval($_POST['id']);
+                        $rfid_number = sanitizeInput($db, trim($_POST['rfid_number']));
+
+                        // Validate ID
+                        if ($id <= 0) {
+                            jsonResponse('error', 'Invalid visitor ID');
+                        }
+
+                        // Validate ID number format (0000-0000)
+                        if (!preg_match('/^\d{4}-\d{4}$/', $rfid_number)) {
+                            jsonResponse('error', 'ID number must be in format: 0000-0000');
+                        }
+
+                        // Check if visitor ID exists for other visitors
+                        $check = $db->prepare("SELECT COUNT(*) FROM visitor WHERE rfid_number = ? AND id != ?");
+                        $check->bind_param("si", $rfid_number, $id);
+                        $check->execute();
+                        $check->bind_result($count);
+                        $check->fetch();
+                        $check->close();
+
+                        if ($count > 0) {
+                            jsonResponse('error', 'ID number already assigned to another visitor');
+                        }
+
+                        // Update visitor
+                        $stmt = $db->prepare("UPDATE visitor SET rfid_number = ? WHERE id = ?");
+                        $stmt->bind_param("si", $rfid_number, $id);
+
+                        if ($stmt->execute()) {
+                            jsonResponse('success', 'Visitor card updated successfully');
+                        } else {
+                            jsonResponse('error', 'Failed to update visitor card: ' . $db->error);
+                        }
+                        break;
+
+                    case 'delete_visitor':
+                        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                            jsonResponse('error', 'Invalid request method');
+                        }
+
+                        // Validate required field
+                        if (!isset($_POST['id']) || empty($_POST['id'])) {
+                            jsonResponse('error', 'Visitor ID is required');
+                        }
+
+                        // Sanitize input
+                        $id = intval($_POST['id']);
+
+                        if ($id <= 0) {
+                            jsonResponse('error', 'Invalid visitor ID');
+                        }
+
+                        // Check if visitor exists
+                        $checkVisitor = $db->prepare("SELECT id FROM visitor WHERE id = ?");
+                        $checkVisitor->bind_param("i", $id);
+                        $checkVisitor->execute();
+                        $checkVisitor->store_result();
+                        
+                        if ($checkVisitor->num_rows === 0) {
+                            jsonResponse('error', 'Visitor not found');
+                        }
+                        $checkVisitor->close();
+
+                        // Check for visitor dependencies (gate logs, etc.)
+                        $checkGateLogs = $db->prepare("SELECT COUNT(*) FROM gate_logs WHERE person_type = 'visitor' AND person_id = ?");
+                        $checkGateLogs->bind_param("i", $id);
+                        $checkGateLogs->execute();
+                        $checkGateLogs->bind_result($gateLogsCount);
+                        $checkGateLogs->fetch();
+                        $checkGateLogs->close();
+
+                        if ($gateLogsCount > 0) {
+                            jsonResponse('error', 'Cannot delete visitor with gate access records');
+                        }
+
+                        // Delete visitor
+                        $stmt = $db->prepare("DELETE FROM visitor WHERE id = ?");
+                        $stmt->bind_param("i", $id);
+                        
+                        if ($stmt->execute()) {
+                            jsonResponse('success', 'Visitor card deleted successfully');
+                        } else {
+                            jsonResponse('error', 'Failed to delete visitor card: ' . $stmt->error);
+                        }
+                        break;
+
+                // ===================================
         // SWAP SCHEDULE OPERATIONS - SIMPLIFIED
         // ===================================
         case 'get_all_rooms':
@@ -2113,8 +2252,7 @@ if ($isAjaxRequest) {
         case 'quick_swap_schedule':
             jsonResponse('error', 'This function is deprecated. Please use the new time swap functionality.');
             break;
-
-        // Add this new case to your transac.php file
+            // Add this new case to your transac.php file
         case 'find_all_schedules_for_swap':
             $instructor1 = $_POST['instructor1'];
             $instructor2 = $_POST['instructor2'];
@@ -2165,5 +2303,5 @@ if ($isAjaxRequest) {
     }
 }
 
- $db->close();
+$db->close();
 ?>
