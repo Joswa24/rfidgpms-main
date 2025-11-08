@@ -411,10 +411,9 @@ function send2FACodeEmail($email, $verificationCode) {
         $mail->Password = 'zrotbjjfzspkxvur';
         $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port = 587;
-        $mail->Timeout = 30;
         
         // Enable verbose debugging for troubleshooting
-        $mail->SMTPDebug = 0; // Set to 2 for detailed debugging
+        $mail->SMTPDebug = 2; // Set to 2 for detailed debugging
         
         // SSL context options for better compatibility
         $mail->SMTPOptions = array(
