@@ -382,7 +382,7 @@ function send2FACodeEmail($email, $verificationCode) {
         $mail->Username = 'joshuapastorpide10@gmail.com';
         $mail->Password = 'cqpngtkshsqmzlus'; // USE APP PASSWORD HERE
         $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
-        $mail->Port = 465; // Use 465 for SSL instead of 587 for TLS
+        $mail->Port = 587; // Use 465 for SSL instead of 587 for TLS
         
         // Debug mode
         $mail->SMTPDebug = 0; // Set to 2 for detailed debug output
