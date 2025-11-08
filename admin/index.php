@@ -274,7 +274,7 @@ function completeLoginProcess($userId, $username, $email) {
     // Set secure session cookie parameters
     session_set_cookie_params([
         'lifetime' => 0,
-        'path' => '',
+        'path' => '/',
         'domain' => $_SERVER['HTTP_HOST'],
         'secure' => isset($_SERVER['HTTPS']),
         'httponly' => true,
@@ -408,7 +408,7 @@ function send2FACodeEmail($email, $verificationCode) {
         $mail->Host = 'smtp.gmail.com';
         $mail->SMTPAuth = true;
         $mail->Username = 'joshuapastorpide10@gmail.com';
-        $mail->Password = 'ydadaipirzhyhzae';
+        $mail->Password = 'ycplfxcclifaxxf';
         $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port = 587;
         $mail->Timeout = 30;
