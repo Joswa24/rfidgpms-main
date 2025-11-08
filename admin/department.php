@@ -1,14 +1,5 @@
 <?php
 session_start();
-// Display success/error messages
-if (isset($_SESSION['success_message'])) {
-    echo '<div class="alert alert-success">' . $_SESSION['success_message'] . '</div>';
-    unset($_SESSION['success_message']);
-}
-if (isset($_SESSION['error_message'])) {
-    echo '<div class="alert alert-danger">' . $_SESSION['error_message'] . '</div>';
-    unset($_SESSION['error_message']);
-}
 
 // Check if user is logged in and 2FA verified
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true || 
@@ -16,13 +7,13 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true ||
     header('Location: index.php');
     exit();
 }
-// Include connection
+
+// Include connection only once
 include '../connection.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <?php include 'header.php'; ?>
-<?php include '../connection.php'; ?>
 
 <head>
     <meta charset="UTF-8">
