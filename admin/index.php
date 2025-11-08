@@ -1014,75 +1014,75 @@ $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lock
         </div>
 
         <div class="modal fade" id="twoFactorModal" tabindex="-1" aria-labelledby="twoFactorModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="twoFactorModalLabel">
-                        <i class="fas fa-shield-alt me-2"></i>Two-Factor Authentication
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <!-- Error Message -->
-                    <div class="alert alert-danger d-none" id="modalError">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <span id="modalErrorText"></span>
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="twoFactorModalLabel">
+                            <i class="fas fa-shield-alt me-2"></i>Two-Factor Authentication
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                    
-                    <!-- Success Message -->
-                    <div class="alert alert-success d-none" id="modalSuccess">
-                        <i class="fas fa-check-circle me-2"></i>
-                        <span id="modalSuccessText"></span>
-                    </div>
-
-                    <!-- Info Box -->
-                    <div class="info-box">
-                        <i class="fas fa-envelope"></i>
-                        <p>A verification code has been sent to your email address: <strong><?php echo isset($_SESSION['temp_email']) ? htmlspecialchars($_SESSION['temp_email']) : ''; ?></strong></p>
-                        <p class="mb-0">The code will expire in 10 minutes.</p>
-                    </div>
-
-                    <form method="POST" id="twoFactorForm">
-                        <div class="form-group">
-                            <label for="verification_code" class="form-label"><i class="fas fa-key"></i>Verification Code</label>
-                            <div class="verification-code-container">
-                                <input type="text" class="form-control verification-code-input" id="code_1" name="code_1" 
-                                    maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
-                                <input type="text" class="form-control verification-code-input" id="code_2" name="code_2" 
-                                    maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
-                                <input type="text" class="form-control verification-code-input" id="code_3" name="code_3" 
-                                    maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
-                                <input type="text" class="form-control verification-code-input" id="code_4" name="code_4" 
-                                    maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
-                                <input type="text" class="form-control verification-code-input" id="code_5" name="code_5" 
-                                    maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
-                                <input type="text" class="form-control verification-code-input" id="code_6" name="code_6" 
-                                    maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
-                            </div>
-                            <div class="validation-message" id="codeValidationMessage">
-                                Please enter a complete 6-digit verification code.
-                            </div>
+                    <div class="modal-body">
+                        <!-- Error Message -->
+                        <div class="alert alert-danger d-none" id="modalError">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <span id="modalErrorText"></span>
+                        </div>
+                        
+                        <!-- Success Message -->
+                        <div class="alert alert-success d-none" id="modalSuccess">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <span id="modalSuccessText"></span>
                         </div>
 
-                        <button type="submit" name="verify_2fa" class="btn btn-verify mb-3" id="verifyBtn">
-                            <i class="fas fa-check-circle me-2"></i>
-                            <span id="verifyText">Verify Code</span>
-                            <span id="verifySpinner" class="spinner-border spinner-border-sm d-none ms-2" role="status"></span>
-                        </button>
-                    </form>
+                        <!-- Info Box -->
+                        <div class="info-box">
+                            <i class="fas fa-envelope"></i>
+                            <p>A verification code has been sent to your email address: <strong><?php echo isset($_SESSION['temp_email']) ? htmlspecialchars($_SESSION['temp_email']) : ''; ?></strong></p>
+                            <p class="mb-0">The code will expire in 10 minutes.</p>
+                        </div>
 
-                    <!-- Resend Code Form -->
-                    <form method="POST" id="resendForm" class="mb-3">
-                        <button type="submit" name="resend_2fa" class="btn btn-resend" id="resendBtn">
-                            <i class="fas fa-redo me-2"></i>
-                            <span id="resendText">Resend Code</span>
-                            <span id="resendSpinner" class="spinner-border spinner-border-sm d-none ms-2" role="status"></span>
-                        </button>
-                    </form>
+                        <form method="POST" id="twoFactorForm">
+                            <div class="form-group">
+                                <label for="verification_code" class="form-label"><i class="fas fa-key"></i>Verification Code</label>
+                                <div class="verification-code-container">
+                                    <input type="text" class="form-control verification-code-input" id="code_1" name="code_1" 
+                                        maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
+                                    <input type="text" class="form-control verification-code-input" id="code_2" name="code_2" 
+                                        maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
+                                    <input type="text" class="form-control verification-code-input" id="code_3" name="code_3" 
+                                        maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
+                                    <input type="text" class="form-control verification-code-input" id="code_4" name="code_4" 
+                                        maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
+                                    <input type="text" class="form-control verification-code-input" id="code_5" name="code_5" 
+                                        maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
+                                    <input type="text" class="form-control verification-code-input" id="code_6" name="code_6" 
+                                        maxlength="1" pattern="[0-9]" autocomplete="one-time-code" required>
+                                </div>
+                                <div class="validation-message" id="codeValidationMessage">
+                                    Please enter a complete 6-digit verification code.
+                                </div>
+                            </div>
+
+                            <button type="submit" name="verify_2fa" class="btn btn-verify mb-3" id="verifyBtn">
+                                <i class="fas fa-check-circle me-2"></i>
+                                <span id="verifyText">Verify Code</span>
+                                <span id="verifySpinner" class="spinner-border spinner-border-sm d-none ms-2" role="status"></span>
+                            </button>
+                        </form>
+
+                        <!-- Resend Code Form -->
+                        <form method="POST" id="resendForm" class="mb-3">
+                            <button type="submit" name="resend_2fa" class="btn btn-resend" id="resendBtn">
+                                <i class="fas fa-redo me-2"></i>
+                                <span id="resendText">Resend Code</span>
+                                <span id="resendSpinner" class="spinner-border spinner-border-sm d-none ms-2" role="status"></span>
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
     </div>
 
     
