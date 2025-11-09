@@ -147,13 +147,13 @@ setSecurityHeaders();
     </style>
 </head>
 <script>
-function executeRecaptcha() {
-    grecaptcha.ready(function() {
-        grecaptcha.execute('6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_', {action: 'submit'}).then(function(token) {
-            document.getElementById('g-recaptcha-response').value = token;
-        });
-    });
-}
+// function executeRecaptcha() {
+//     grecaptcha.ready(function() {
+//         grecaptcha.execute('6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_', {action: 'submit'}).then(function(token) {
+//             document.getElementById('g-recaptcha-response').value = token;
+//         });
+//     });
+// }
 
 // Execute reCAPTCHA when form is about to be submitted
 document.addEventListener('DOMContentLoaded', function() {
