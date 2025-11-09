@@ -1,4 +1,5 @@
 <?php
+// Include connection
 session_start();
 include '../connection.php';
 date_default_timezone_set('Asia/Manila');
@@ -199,8 +200,8 @@ if ($isAjaxRequest) {
                 jsonResponse('error', 'Department name is required');
             }
 
-            $department_name = trim($_POST['dptname']);
-            $department_desc = isset($_POST['dptdesc']) ? trim($_POST['dptdesc']) : '';
+            $department_name = sanitizeInput($db, trim($_POST['dptname']));
+            $department_desc = isset($_POST['dptdesc']) ? sanitizeInput($db, trim($_POST['dptdesc'])) : '';
 
             if (strlen($department_name) > 100) {
                 jsonResponse('error', 'Department name must be less than 100 characters');
@@ -246,8 +247,8 @@ if ($isAjaxRequest) {
             }
 
             $department_id = intval($_POST['id']);
-            $department_name = trim($_POST['dptname']);
-            $department_desc = isset($_POST['dptdesc']) ? trim($_POST['dptdesc']) : '';
+            $department_name = sanitizeInput($db, trim($_POST['dptname']));
+            $department_desc = isset($_POST['dptdesc']) ? sanitizeInput($db, trim($_POST['dptdesc'])) : '';
 
             if ($department_id <= 0) {
                 jsonResponse('error', 'Invalid department ID');
@@ -291,7 +292,6 @@ if ($isAjaxRequest) {
                 jsonResponse('error', 'Invalid department ID');
             }
 
-            // Check if department has assigned rooms
             $checkRooms = $db->prepare("SELECT COUNT(*) FROM rooms WHERE department = (SELECT department_name FROM department WHERE department_id = ?)");
             $checkRooms->bind_param("i", $department_id);
             $checkRooms->execute();
@@ -313,7 +313,6 @@ if ($isAjaxRequest) {
                 jsonResponse('error', 'Failed to delete department: ' . $stmt->error);
             }
             break;
-
 
         // ========================
         // ROOM CRUD OPERATIONS

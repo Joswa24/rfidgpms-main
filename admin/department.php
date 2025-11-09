@@ -23,6 +23,7 @@ include '../connection.php';
 <html lang="en">
 <?php include 'header.php'; ?>
 
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -618,7 +619,7 @@ include '../connection.php';
                 Swal.fire({
                     icon: 'error',
                     title: 'Error!',
-                    text: 'An error occurred while processing your request. Check console for details.'
+                    text: 'An error occurred while processing your request'
                 });
             }
         });
@@ -701,7 +702,7 @@ include '../connection.php';
                 Swal.fire({
                     icon: 'error',
                     title: 'Error!',
-                    text: 'An error occurred while processing your request. Check console for details.'
+                    text: 'An error occurred while processing your request'
                 });
             }
         });
