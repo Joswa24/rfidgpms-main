@@ -23,6 +23,7 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true ||
 <!DOCTYPE html>
 <html lang="en">
     <?php include 'header.php'; ?>
+    <?php include '../connection.php'; ?>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
