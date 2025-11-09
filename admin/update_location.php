@@ -1,4 +1,7 @@
 <?php
+// Include connection
+include '../connection.php';
+session_start();
 if (isset($_SESSION['success_message'])) {
     echo '<div class="alert alert-success">' . $_SESSION['success_message'] . '</div>';
     unset($_SESSION['success_message']);
@@ -9,9 +12,7 @@ if (isset($_SESSION['error_message'])) {
 }
 
 
-// Include connection
-include '../connection.php';
-session_start();
+
 
 // Function to get geolocation data from IP address
 function getGeolocation($ip) {

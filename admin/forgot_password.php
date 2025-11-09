@@ -1,6 +1,4 @@
 <?php
-// forgot_password.php - FIXED VERSION
-
 // Start session
 if (session_status() === PHP_SESSION_NONE) {
     session_start();

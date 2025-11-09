@@ -1,4 +1,6 @@
 <?php
+// Include connection
+include '../connection.php';
 if (isset($_SESSION['success_message'])) {
     echo '<div class="alert alert-success">' . $_SESSION['success_message'] . '</div>';
     unset($_SESSION['success_message']);
@@ -14,8 +16,7 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true ||
     header('Location: index.php');
     exit();
 }
-// Include connection
-include '../connection.php';
+
 
 // Create the instructor_holidays table if it doesn't exist
  $sql = "CREATE TABLE IF NOT EXISTS instructor_holidays (
