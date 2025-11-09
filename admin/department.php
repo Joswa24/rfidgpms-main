@@ -22,7 +22,6 @@ include '../connection.php';
 <!DOCTYPE html>
 <html lang="en">
 <?php include 'header.php'; ?>
-<?php include '../connection.php'; ?>
 
 <head>
     <meta charset="UTF-8">
