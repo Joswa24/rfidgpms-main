@@ -103,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_holiday'])) {
 <!DOCTYPE html>
 <html lang="en">
 <?php include 'header.php'; ?>
-
+<?php include '../connection.php'; ?>
 <body>
     <div class="container-fluid position-relative bg-white d-flex p-0">
         <?php include 'sidebar.php'; ?>
