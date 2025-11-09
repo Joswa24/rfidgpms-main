@@ -1,16 +1,7 @@
 <?php
-// Include connection
-session_start();
-include '../connection.php';
+include('../connection.php');
 date_default_timezone_set('Asia/Manila');
-if (isset($_SESSION['success_message'])) {
-    echo '<div class="alert alert-success">' . $_SESSION['success_message'] . '</div>';
-    unset($_SESSION['success_message']);
-}
-if (isset($_SESSION['error_message'])) {
-    echo '<div class="alert alert-danger">' . $_SESSION['error_message'] . '</div>';
-    unset($_SESSION['error_message']);
-}
+session_start();
 
 // Function to send JSON response
 function jsonResponse($status, $message, $data = []) {
