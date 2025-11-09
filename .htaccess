@@ -28,6 +28,12 @@ RewriteRule ^admin/student_logs/?$ admin/student_logs.php [NC,L]
 RewriteRule ^admin/attendance_log/?$ admin/attendance_log.php [NC,L]
 RewriteRule ^admin/room_schedule/?$ admin/room_schedule.php [NC,L]
 RewriteRule ^admin/settings/?$ admin/settings.php [NC,L]
+RewriteRule ^instructor/dashboard/?$ instructor/dashboard.php [NC,L]
+RewriteRule ^instructor/attendance/?$ instructor/attendance.php [NC,L]
+RewriteRule ^instructor/index/?$ instructor/index.php [NC,L]
+RewriteRule ^instructor/forgot_password/?$ instructor/forgot_password.php [NC,L]
+RewriteRule ^instructor/schedule/?$ instructor/schedule.php [NC,L]
+
 
 # 3. Redirect requests for index.php to the root
 RewriteRule ^index\.php$ / [R=301,L]

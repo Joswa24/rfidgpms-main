@@ -82,7 +82,7 @@ if ($stmt) {
         // Instructor not found in database - logout user
         session_unset();
         session_destroy();
-        header("Location: index.php?error=instructor_not_found");
+        header("Location: index?error=instructor_not_found");
         exit();
     }
     $stmt->close();
@@ -850,19 +850,19 @@ $overall_attendance_rate = $total_students > 0 ? round(($total_present / $total_
         <div class="sidebar-nav">
             <ul class="nav">
                 <li class="nav-item">
-                    <a href="dashboard.php" class="nav-link active">
+                    <a href="dashboard" class="nav-link active">
                         <i class="fas fa-tachometer-alt"></i>
                         <span>Dashboard</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="attendance.php" class="nav-link">
+                    <a href="attendance" class="nav-link">
                         <i class="fas fa-clipboard-check"></i>
                         <span>Attendance</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="schedule.php" class="nav-link">
+                    <a href="schedule" class="nav-link">
                         <i class="fas fa-calendar-alt"></i>
                         <span>Schedule</span>
                     </a>
@@ -887,9 +887,7 @@ $overall_attendance_rate = $total_students > 0 ? round(($total_present / $total_
                             <?php echo htmlspecialchars($_SESSION['fullname'] ?? 'Instructor'); ?>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="profile.php"><i class="fas fa-user me-2"></i>Profile</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="logout.php"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                            <li><a class="dropdown-item" href="logout"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
                         </ul>
                     </li>
                 </ul>
@@ -1152,7 +1150,7 @@ $overall_attendance_rate = $total_students > 0 ? round(($total_present / $total_
                                                     <?php endif; ?>
 
                                                     <div class="mt-3">
-                                                        <a href="attendance.php?year=<?php echo urlencode($class['year_level']); ?>&section=<?php echo urlencode($class['section']); ?>&subject=<?php echo urlencode($class['subject']); ?>&date=<?php echo urlencode($today_date); ?>" 
+                                                        <a href="attendance?year=<?php echo urlencode($class['year_level']); ?>&section=<?php echo urlencode($class['section']); ?>&subject=<?php echo urlencode($class['subject']); ?>&date=<?php echo urlencode($today_date); ?>" 
                                                            class="btn btn-sm btn-outline-primary view-attendance-btn w-100">
                                                             <i class="fas fa-chart-bar me-1"></i>
                                                             <?php echo $attendance_data ? 'View Detailed Attendance' : 'View Attendance Records'; ?>
@@ -1166,7 +1164,7 @@ $overall_attendance_rate = $total_students > 0 ? round(($total_present / $total_
                                             <i class="fas fa-calendar-times text-muted mb-3" style="font-size: 3rem;"></i>
                                             <h5 class="text-muted">No Classes Today</h5>
                                             <p class="text-muted">Enjoy your day off! No classes scheduled for today.</p>
-                                            <a href="schedule.php" class="btn btn-outline-primary">
+                                            <a href="schedule" class="btn btn-outline-primary">
                                                 <i class="fas fa-calendar-alt me-2"></i>View Full Schedule
                                             </a>
                                         </div>
@@ -1216,7 +1214,7 @@ $overall_attendance_rate = $total_students > 0 ? round(($total_present / $total_
                                                             <td><?php echo isset($class['year_level']) ? htmlspecialchars($class['year_level']) : '-'; ?></td>
                                                             <td><?php echo htmlspecialchars($class['section']); ?></td>
                                                             <td>
-                                                                <a href="attendance.php?year=<?php echo urlencode($class['year_level']); ?>&section=<?php echo urlencode($class['section']); ?>&subject=<?php echo urlencode($class['subject']); ?>" 
+                                                                <a href="attendance?year=<?php echo urlencode($class['year_level']); ?>&section=<?php echo urlencode($class['section']); ?>&subject=<?php echo urlencode($class['subject']); ?>" 
                                                                    class="btn btn-sm btn-outline-primary">
                                                                    <i class="fas fa-eye me-1"></i> View Records
                                                                 </a>
@@ -1231,7 +1229,7 @@ $overall_attendance_rate = $total_students > 0 ? round(($total_present / $total_
                                             <i class="fas fa-calendar-plus text-muted mb-3" style="font-size: 3rem;"></i>
                                             <h5 class="text-muted">No Upcoming Classes</h5>
                                             <p class="text-muted">No classes scheduled for the rest of the week.</p>
-                                            <a href="schedule.php" class="btn btn-primary">
+                                            <a href="schedule" class="btn btn-primary">
                                                 <i class="fas fa-calendar-alt me-2"></i>View Full Schedule
                                             </a>
                                         </div>
