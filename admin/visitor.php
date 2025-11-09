@@ -350,6 +350,22 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true ||
             font-weight: 600;
             color: var(--dark-text);
         }
+        .back-to-top {
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color)) !important;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--box-shadow);
+            transition: var(--transition);
+        }
+
+        .back-to-top:hover {
+            transform: translateY(-3px);
+        }
     </style>
 </head>
 
@@ -485,7 +501,7 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true ||
             <?php include 'footer.php'; ?>
         </div>
 
-         <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top"><i class="bi bi-arrow-up"></i></a>
+         <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top"><i class="fas fa-arrow-up"></i></a>
     </div>
 
     <!-- JavaScript Libraries -->
