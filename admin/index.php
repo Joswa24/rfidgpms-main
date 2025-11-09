@@ -4,13 +4,6 @@ include '../connection.php';
 include '../security-headers.php';
 session_start();
 
-// DEVELOPMENT MODE - SET TO false IN PRODUCTION
-define('DEV_MODE', true); // Change to false when deploying to production
-
-// Enable error reporting for debugging (remove in production)
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
 // Additional security headers
 header("X-Frame-Options: DENY");
 header("X-Content-Type-Options: nosniff");
@@ -26,11 +19,11 @@ header("Pragma: no-cache");
 header("Expires: 0");
 
 // Initialize variables
- $maxAttempts = 3;
- $lockoutTime = 30;
- $error = '';
- $success = '';
- $twoFactorRequired = false;
+$maxAttempts = 3;
+$lockoutTime = 30;
+$error = '';
+$success = '';
+$twoFactorRequired = false;
 
 // Initialize session variables
 if (!isset($_SESSION['login_attempts'])) {
@@ -49,26 +42,9 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true && isset($_
     exit();
 }
 
-// DEVELOPMENT MODE: Direct 2FA bypass
-if (DEV_MODE && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['dev_bypass_2fa'])) {
-    if (isset($_SESSION['temp_user_id']) && isset($_SESSION['temp_username']) && isset($_SESSION['temp_email'])) {
-        completeLoginProcess($_SESSION['temp_user_id'], $_SESSION['temp_username'], $_SESSION['temp_email']);
-        exit();
-    }
-}
-
+// Handle 2FA verification
 // Handle 2FA verification
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_2fa'])) {
-    error_log("2FA verification process started");
-    
-    // DEVELOPMENT MODE: Auto-verify 2FA if enabled
-    if (DEV_MODE) {
-        if (isset($_SESSION['temp_user_id']) && isset($_SESSION['temp_username']) && isset($_SESSION['temp_email'])) {
-            completeLoginProcess($_SESSION['temp_user_id'], $_SESSION['temp_username'], $_SESSION['temp_email']);
-            exit();
-        }
-    }
-    
     // Combine the 6 input fields into one code
     $verificationCode = '';
     for ($i = 1; $i <= 6; $i++) {
@@ -76,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_2fa'])) {
         $verificationCode .= isset($_POST[$fieldName]) ? trim($_POST[$fieldName]) : '';
     }
     
-    error_log("2FA Verification Attempt - Code length: " . strlen($verificationCode));
+    error_log("2FA Verification Attempt - Code: " . str_repeat('*', strlen($verificationCode)));
     
     if (empty($verificationCode) || strlen($verificationCode) !== 6) {
         $error = "Please enter the complete 6-digit verification code.";
@@ -118,9 +94,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_2fa'])) {
                         // Log successful 2FA verification
                         logAccessAttempt($userId, $username, '2FA Verification', 'success');
                         
-                        // Complete login process
+                        // Set success message before redirect
+                        $_SESSION['login_success'] = "Two-factor authentication successful! Welcome, " . htmlspecialchars($username);
+                        
+                        // Complete login process - THIS WILL REDIRECT TO DASHBOARD
                         completeLoginProcess($userId, $username, $email);
-                        exit();
+                        exit(); // Ensure script stops after redirect
                     } else {
                         throw new Exception("Failed to mark 2FA code as used");
                     }
@@ -170,7 +149,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resend_2fa'])) {
 
 // Handle login form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
-    error_log("Login form submitted");
     
     // Validate CSRF token
     if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
@@ -199,7 +177,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                 try {
                     $stmt = $db->prepare("SELECT * FROM user WHERE username = ?");
                     if (!$stmt) {
-                        throw new Exception("Database error: " . $db->error);
+                        throw new Exception("Database error");
                     }
                     
                     $stmt->bind_param("s", $username);
@@ -223,24 +201,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                             $_SESSION['temp_email'] = $user['email'];
                             $_SESSION['password_verified'] = true;
                             
-                            error_log("Password verified for user: $username, generating 2FA code");
-                            
-                            // DEVELOPMENT MODE: Skip 2FA generation if enabled
-                            if (DEV_MODE) {
-                                completeLoginProcess($user['id'], $user['username'], $user['email']);
-                                exit();
-                            }
-                            
                             // Generate and send 2FA code
                             $verificationCode = generate2FACode($user['id'], $user['email']);
                             
                             if ($verificationCode) {
                                 $twoFactorRequired = true;
                                 $success = "Verification code sent to your email.";
-                                error_log("2FA code generated successfully, setting twoFactorRequired to true");
                             } else {
                                 $error = "Failed to send verification code. Please try again.";
-                                error_log("Failed to generate 2FA code");
                             }
                         } else {
                             // Log failed login attempt
@@ -277,7 +245,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     }
 }
 
-// Function to complete login process
+// Function to complete login process - UPDATED FOR PROPER REDIRECTION
 function completeLoginProcess($userId, $username, $email) {
     // Set session variables
     $_SESSION['user_id'] = $userId;
@@ -299,7 +267,7 @@ function completeLoginProcess($userId, $username, $email) {
     // Set secure session cookie parameters
     session_set_cookie_params([
         'lifetime' => 0,
-        'path' => '',
+        'path' => '/',
         'domain' => $_SERVER['HTTP_HOST'],
         'secure' => isset($_SERVER['HTTPS']),
         'httponly' => true,
@@ -316,7 +284,7 @@ function completeLoginProcess($userId, $username, $email) {
         ob_clean();
     }
     
-    // Redirect to dashboard
+    // Redirect to dashboard - THIS IS THE KEY REDIRECTION
     header('Location: dashboard.php');
     exit();
 }
@@ -367,52 +335,32 @@ function generate2FACode($userId, $email) {
         $verificationCode = sprintf('%06d', mt_rand(0, 999999));
         $expiresAt = date('Y-m-d H:i:s', strtotime('+10 minutes'));
         
-        error_log("Generating 2FA code for user ID: $userId, email: $email");
-        
         // Delete any existing codes for this user
         $stmt = $db->prepare("DELETE FROM admin_2fa_codes WHERE admin_id = ?");
-        if (!$stmt) {
-            throw new Exception("Failed to prepare DELETE statement: " . $db->error);
-        }
-        
         $stmt->bind_param("i", $userId);
-        if (!$stmt->execute()) {
-            throw new Exception("Failed to delete old 2FA codes: " . $stmt->error);
-        }
-        $stmt->close();
+        $stmt->execute();
         
         // Insert new verification code
         $stmt = $db->prepare("INSERT INTO admin_2fa_codes (admin_id, verification_code, expires_at) VALUES (?, ?, ?)");
-        if (!$stmt) {
-            throw new Exception("Failed to prepare INSERT statement: " . $db->error);
-        }
-        
         $stmt->bind_param("iss", $userId, $verificationCode, $expiresAt);
         
         if ($stmt->execute()) {
-            error_log("2FA code generated successfully for user ID: $userId");
-            $stmt->close();
-            
             // Send the code via email
             if (send2FACodeEmail($email, $verificationCode)) {
-                error_log("2FA code sent successfully to: $email");
-                return $verificationCode;
-            } else {
-                error_log("Failed to send 2FA code via email to: $email");
-                // Even if email fails, we still generated the code
+                error_log("2FA code generated and sent for user ID: $userId");
                 return $verificationCode;
             }
-        } else {
-            throw new Exception("Failed to insert 2FA code: " . $stmt->error);
         }
         
+        return false;
     } catch (Exception $e) {
         error_log("Error generating 2FA code: " . $e->getMessage());
         return false;
     }
 }
 
-// Function to send 2FA code via email
+// UPDATED Function to send 2FA code via email
+// UPDATED Function to send 2FA code via email
 function send2FACodeEmail($email, $verificationCode) {
     try {
         // Validate email
@@ -421,27 +369,25 @@ function send2FACodeEmail($email, $verificationCode) {
             return false;
         }
 
-        // Load PHPMailer with correct relative paths
-        require_once __DIR__ . '/PHPMailer/src/PHPMailer.php';
-        require_once __DIR__ . '/PHPMailer/src/SMTP.php';
-        require_once __DIR__ . '/PHPMailer/src/Exception.php';
+        // Load PHPMailer
+        $base_path = __DIR__ . '/';
+        require_once $base_path . 'PHPMailer/src/PHPMailer.php';
+        require_once $base_path . 'PHPMailer/src/SMTP.php';
+        require_once $base_path . 'PHPMailer/src/Exception.php';
         
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         
-        // Server settings
+        // Server settings with improved configuration
         $mail->isSMTP();
         $mail->Host = 'smtp.gmail.com';
         $mail->SMTPAuth = true;
         $mail->Username = 'joshuapastorpide10@gmail.com';
-        $mail->Password = 'fsgtnanzpmnbrfga';
+        $mail->Password = 'fxfmndfripoqdote';//'bmnvognbjqcpxcyf'; // REPLACE WITH APP PASSWORD
         $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port = 587;
         $mail->Timeout = 30;
         
-        // Enable verbose debugging for troubleshooting
-        $mail->SMTPDebug = 0; // Set to 2 for detailed debugging
-        
-        // SSL context options for better compatibility
+        // Important settings for Gmail
         $mail->SMTPOptions = array(
             'ssl' => array(
                 'verify_peer' => false,
@@ -450,78 +396,29 @@ function send2FACodeEmail($email, $verificationCode) {
             )
         );
         
-        // Character set
-        $mail->CharSet = 'UTF-8';
+        // Set the SMTP sender to match the username
+        $mail->Sender = 'joshuapastorpide10@gmail.com';
         
         // Recipients
-        $mail->setFrom('joshuapastorpide10@gmail.com', 'RFID GPMS Admin');
+        $mail->setFrom('joshuapastorpide10@gmail.com', 'RFID GPMS Admin', false);
         $mail->addAddress($email);
         $mail->addReplyTo('joshuapastorpide10@gmail.com', 'RFID GPMS Admin');
         
         // Content
         $mail->isHTML(true);
         $mail->Subject = 'Two-Factor Authentication Code - RFID GPMS';
-        
-        // Remove X-Mailer header for security
-        $mail->XMailer = ' ';
+        $mail->XMailer = ' '; // Remove X-Mailer header
         
         $mail->Body = "
-        <!DOCTYPE html>
         <html>
         <head>
-            <meta charset='UTF-8'>
             <style>
-                body { 
-                    font-family: Arial, sans-serif; 
-                    margin: 0; 
-                    padding: 20px; 
-                    background-color: #f4f4f4; 
-                    line-height: 1.6;
-                }
-                .container { 
-                    max-width: 600px; 
-                    margin: 0 auto; 
-                    background: white; 
-                    border-radius: 10px; 
-                    overflow: hidden; 
-                    box-shadow: 0 0 10px rgba(0,0,0,0.1); 
-                }
-                .header { 
-                    background: #4e73df; 
-                    color: white; 
-                    padding: 20px; 
-                    text-align: center; 
-                }
-                .content { 
-                    padding: 30px; 
-                }
-                .code { 
-                    background: #e1e7f0; 
-                    padding: 15px; 
-                    text-align: center; 
-                    font-size: 24px; 
-                    font-weight: bold; 
-                    letter-spacing: 5px; 
-                    margin: 20px 0; 
-                    border-radius: 5px; 
-                    font-family: monospace; 
-                    color: #2c3e50;
-                }
-                .footer { 
-                    padding: 20px; 
-                    text-align: center; 
-                    color: #6c757d; 
-                    font-size: 12px; 
-                    background: #f8f9fa; 
-                }
-                .warning {
-                    background: #fff3cd;
-                    border: 1px solid #ffeaa7;
-                    border-radius: 5px;
-                    padding: 10px;
-                    margin: 15px 0;
-                    color: #856404;
-                }
+                body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; }
+                .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+                .header { background: #4e73df; color: white; padding: 20px; text-align: center; }
+                .content { padding: 30px; }
+                .code { background: #e1e7f0; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; margin: 20px 0; border-radius: 5px; font-family: monospace; }
+                .footer { padding: 20px; text-align: center; color: #6c757d; font-size: 12px; background: #f8f9fa; }
             </style>
         </head>
         <body>
@@ -531,27 +428,23 @@ function send2FACodeEmail($email, $verificationCode) {
                 </div>
                 <div class='content'>
                     <h3>Two-Factor Authentication Required</h3>
-                    <p>Hello,</p>
-                    <p>Your verification code for the RFID GPMS Admin Portal is:</p>
+                    <p>Your verification code is:</p>
                     <div class='code'>$verificationCode</div>
-                    <div class='warning'>
-                        <strong>Security Notice:</strong> This code will expire in 10 minutes. Do not share this code with anyone.
-                    </div>
-                    <p>If you did not request this code, please ignore this email or contact system administrator.</p>
+                    <p>This code will expire in 10 minutes.</p>
+                    <p><strong>Do not share this code with anyone.</strong></p>
                 </div>
                 <div class='footer'>
-                    <p>This is an automated message. Please do not reply to this email.</p>
-                    <p>&copy; " . date('Y') . " RFID GPMS. All rights reserved.</p>
+                    <p>This is an automated message. Please do not reply.</p>
                 </div>
             </div>
         </body>
         </html>
         ";
         
-        $mail->AltBody = "RFID GPMS - Two-Factor Authentication\n\nYour verification code is: $verificationCode\n\nThis code will expire in 10 minutes.\n\nDo not share this code with anyone.\n\nIf you did not request this code, please ignore this email.";
+        $mail->AltBody = "Your verification code is: $verificationCode\n\nThis code will expire in 10 minutes.\n\nDo not share this code with anyone.";
         
-        // Add small delay to avoid rate limiting
-        usleep(500000);
+        // Add some delay to avoid rate limiting
+        usleep(500000); // 0.5 second delay
         
         if ($mail->send()) {
             error_log("SUCCESS: 2FA code sent to: $email");
@@ -568,13 +461,8 @@ function send2FACodeEmail($email, $verificationCode) {
 }
 
 // Check if user is currently locked out
- $isLockedOut = ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime);
- $remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lockout_time'])) : 0;
-
-// Debug logging
-error_log("Final state - twoFactorRequired: " . ($twoFactorRequired ? 'true' : 'false'));
-error_log("Final state - error: " . $error);
-error_log("Final state - success: " . $success);
+$isLockedOut = ($_SESSION['login_attempts'] >= $maxAttempts && (time() - $_SESSION['lockout_time']) < $lockoutTime);
+$remainingLockoutTime = $isLockedOut ? ($lockoutTime - (time() - $_SESSION['lockout_time'])) : 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -999,35 +887,6 @@ error_log("Final state - success: " . $success);
             display: block;
         }
         
-        /* Development Mode Styles */
-        .dev-mode-notice {
-            background-color: #fff3cd;
-            border: 1px solid #ffeaa7;
-            border-radius: 8px;
-            padding: 10px;
-            margin-bottom: 20px;
-            color: #856404;
-            font-size: 0.9rem;
-        }
-        
-        .dev-bypass-btn {
-            background: linear-gradient(135deg, #28a745, #20c997);
-            border: none;
-            color: white;
-            font-weight: 600;
-            padding: 10px;
-            border-radius: 8px;
-            width: 100%;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
-            margin-bottom: 15px;
-        }
-        
-        .dev-bypass-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
-        }
-        
         @media (max-width: 576px) {
             .login-container {
                 max-width: 100%;
@@ -1082,14 +941,6 @@ error_log("Final state - success: " . $success);
         </div>
         
         <div class="login-body">
-            <!-- Development Mode Notice -->
-            <?php if (DEV_MODE): ?>
-                <div class="dev-mode-notice">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>Development Mode Active</strong> - 2FA is bypassed for testing purposes
-                </div>
-            <?php endif; ?>
-
             <!-- Error Message -->
             <?php if (!empty($error)): ?>
                 <div class="alert alert-danger">
@@ -1184,31 +1035,16 @@ error_log("Final state - success: " . $success);
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <!-- Development Mode Notice -->
-                    <?php if (DEV_MODE): ?>
-                        <div class="dev-mode-notice mb-3">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <strong>Development Mode Active</strong> - You can bypass 2FA for testing
-                        </div>
-                        
-                        <form method="POST" id="devBypassForm">
-                            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-                            <button type="submit" name="dev_bypass_2fa" class="dev-bypass-btn">
-                                <i class="fas fa-rocket me-2"></i>Bypass 2FA (Development Only)
-                            </button>
-                        </form>
-                    <?php endif; ?>
-                    
                     <!-- Error Message -->
-                    <div class="alert alert-danger <?php echo !empty($error) && $twoFactorRequired ? '' : 'd-none'; ?>" id="modalError">
+                    <div class="alert alert-danger d-none" id="modalError">
                         <i class="fas fa-exclamation-triangle me-2"></i>
-                        <span id="modalErrorText"><?php echo !empty($error) ? htmlspecialchars($error) : ''; ?></span>
+                        <span id="modalErrorText"></span>
                     </div>
                     
                     <!-- Success Message -->
-                    <div class="alert alert-success <?php echo !empty($success) && $twoFactorRequired ? '' : 'd-none'; ?>" id="modalSuccess">
+                    <div class="alert alert-success d-none" id="modalSuccess">
                         <i class="fas fa-check-circle me-2"></i>
-                        <span id="modalSuccessText"><?php echo !empty($success) ? htmlspecialchars($success) : ''; ?></span>
+                        <span id="modalSuccessText"></span>
                     </div>
 
                     <!-- Info Box -->
@@ -1219,8 +1055,6 @@ error_log("Final state - success: " . $success);
                     </div>
 
                     <form method="POST" id="twoFactorForm">
-                        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-                        
                         <div class="form-group">
                             <label for="verification_code" class="form-label"><i class="fas fa-key"></i>Verification Code</label>
                             <div class="verification-code-container">
@@ -1251,7 +1085,6 @@ error_log("Final state - success: " . $success);
 
                     <!-- Resend Code Form -->
                     <form method="POST" id="resendForm" class="mb-3">
-                        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                         <button type="submit" name="resend_2fa" class="btn btn-resend" id="resendBtn">
                             <i class="fas fa-redo me-2"></i>
                             <span id="resendText">Resend Code</span>
@@ -1303,39 +1136,25 @@ error_log("Final state - success: " . $success);
             loginBtn.disabled = true;
         });
 
-        // Development bypass form submission
-        <?php if (DEV_MODE): ?>
-            document.getElementById('devBypassForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                // Show loading state
-                const bypassBtn = this.querySelector('button[type="submit"]');
-                const originalText = bypassBtn.innerHTML;
-                bypassBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Bypassing...';
-                bypassBtn.disabled = true;
-                
-                // Submit the form after a short delay
-                setTimeout(() => {
-                    this.submit();
-                }, 500);
-            });
-        <?php endif; ?>
-
-        // 2FA verification handling
+        // Enhanced 2FA verification handling
         function setup2FAVerification() {
             const codeInputs = document.querySelectorAll('.verification-code-input');
             const twoFactorForm = document.getElementById('twoFactorForm');
             const validationMessage = document.getElementById('codeValidationMessage');
             
-            // Auto-advance to next input
-            codeInputs.forEach((input, index) => {
+            // Clear any existing errors when user starts typing
+            codeInputs.forEach(input => {
                 input.addEventListener('input', function() {
                     hideModalAlerts();
                     validationMessage.classList.remove('show');
                     this.classList.remove('error');
                     
-                    if (this.value.length === 1 && index < codeInputs.length - 1) {
-                        codeInputs[index + 1].focus();
+                    // Auto-advance to next input
+                    if (this.value.length === 1) {
+                        const nextIndex = Array.from(codeInputs).indexOf(this) + 1;
+                        if (nextIndex < codeInputs.length) {
+                            codeInputs[nextIndex].focus();
+                        }
                     }
                 });
                 
@@ -1347,43 +1166,221 @@ error_log("Final state - success: " . $success);
                     }
                     
                     // Handle backspace
-                    if (e.key === 'Backspace' && this.value === '' && index > 0) {
-                        codeInputs[index - 1].focus();
+                    if (e.key === 'Backspace' && this.value === '') {
+                        const prevIndex = Array.from(codeInputs).indexOf(this) - 1;
+                        if (prevIndex >= 0) {
+                            codeInputs[prevIndex].focus();
+                        }
+                    }
+                });
+                
+                // Handle paste event
+                input.addEventListener('paste', function(e) {
+                    e.preventDefault();
+                    const pastedData = e.clipboardData.getData('text').trim();
+                    
+                    // Only process if pasted data is 6 digits
+                    if (/^\d{6}$/.test(pastedData)) {
+                        // Fill all inputs with pasted data
+                        for (let i = 0; i < 6; i++) {
+                            codeInputs[i].value = pastedData.charAt(i);
+                            codeInputs[i].classList.remove('error');
+                        }
+                        
+                        validationMessage.classList.remove('show');
+                        
+                        // Focus on the last input
+                        codeInputs[5].focus();
+                        
+                        // Auto-submit the form
+                        setTimeout(() => {
+                            submit2FAForm();
+                        }, 100);
+                    } else {
+                        showModalError('Please paste a valid 6-digit code.');
+                        codeInputs.forEach(input => input.classList.add('error'));
                     }
                 });
             });
             
-            // Form submission
+            // Enhanced form submission
             twoFactorForm.addEventListener('submit', function(e) {
                 e.preventDefault();
-                
-                const codeInputs = document.querySelectorAll('.verification-code-input');
-                const verifyBtn = document.getElementById('verifyBtn');
-                const verifyText = document.getElementById('verifyText');
-                const verifySpinner = document.getElementById('verifySpinner');
-                const validationMessage = document.getElementById('codeValidationMessage');
-                
-                // Check if all fields are filled
-                const allFilled = Array.from(codeInputs).every(input => input.value.length === 1);
-                
-                if (!allFilled) {
-                    validationMessage.classList.add('show');
-                    codeInputs.forEach(input => {
-                        if (input.value.length === 0) {
-                            input.classList.add('error');
-                        }
-                    });
-                    return;
-                }
-                
-                // Show loading state
-                verifyText.textContent = 'Verifying...';
-                verifySpinner.classList.remove('d-none');
-                verifyBtn.disabled = true;
-                
-                // Submit the form
-                this.submit();
+                submit2FAForm();
             });
+        }
+
+        /**
+         * Submit 2FA Form with Enhanced Validation
+         */
+        /**
+ * Submit 2FA Form with Enhanced Validation
+ */
+/**
+ * Submit 2FA Form with Enhanced Validation
+ */
+function submit2FAForm() {
+    const codeInputs = document.querySelectorAll('.verification-code-input');
+    const verifyBtn = document.getElementById('verifyBtn');
+    const verifyText = document.getElementById('verifyText');
+    const verifySpinner = document.getElementById('verifySpinner');
+    const validationMessage = document.getElementById('codeValidationMessage');
+    
+    // Check if all fields are filled
+    const allFilled = Array.from(codeInputs).every(input => input.value.length === 1);
+    
+    if (!allFilled) {
+        // Show validation error
+        validationMessage.classList.add('show');
+        codeInputs.forEach(input => {
+            if (input.value.length === 0) {
+                input.classList.add('error');
+            }
+        });
+        
+        // Focus on first empty field
+        const firstEmpty = Array.from(codeInputs).find(input => input.value.length === 0);
+        if (firstEmpty) firstEmpty.focus();
+        
+        return;
+    }
+    
+    // Hide validation message
+    validationMessage.classList.remove('show');
+    
+    // Show loading state
+    verifyText.textContent = 'Verifying...';
+    verifySpinner.classList.remove('d-none');
+    verifyBtn.disabled = true;
+    
+    // Hide any existing alerts
+    hideModalAlerts();
+    
+    // Get the complete verification code
+    const verificationCode = Array.from(codeInputs).map(input => input.value).join('');
+    
+    // Validate it's a 6-digit number
+    if (!/^\d{6}$/.test(verificationCode)) {
+        showModalError('Please enter a valid 6-digit code.');
+        verifyText.textContent = 'Verify Code';
+        verifySpinner.classList.add('d-none');
+        verifyBtn.disabled = false;
+        return;
+    }
+    
+    // Submit the form via AJAX to handle response better
+    submit2FAViaAJAX(verificationCode);
+}
+
+/**
+ * Submit 2FA via AJAX for better user experience
+ */
+function submit2FAViaAJAX(verificationCode) {
+    const formData = new FormData();
+    formData.append('verify_2fa', '1');
+    formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+    
+    // Add individual code fields
+    for (let i = 0; i < 6; i++) {
+        formData.append(`code_${i + 1}`, verificationCode[i]);
+    }
+    
+    fetch('', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.text())
+    .then(data => {
+        // Check if response contains success indicators
+        if (data.includes('dashboard.php') || data.includes('login_success')) {
+            // Success - redirect to dashboard
+            showModalSuccess('Verification successful! Redirecting to dashboard...');
+            
+            setTimeout(() => {
+                window.location.href = 'dashboard.php';
+            }, 1500);
+        } else if (data.includes('Invalid verification code') || data.includes('error')) {
+            // Failed verification
+            showModalError('Invalid verification code. Please try again.');
+            reset2FAForm();
+        } else {
+            // Generic error
+            showModalError('Verification failed. Please try again.');
+            reset2FAForm();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showModalError('Network error. Please try again.');
+        reset2FAForm();
+    });
+}
+
+/**
+ * Reset 2FA form state
+ */
+function reset2FAForm() {
+    const verifyBtn = document.getElementById('verifyBtn');
+    const verifyText = document.getElementById('verifyText');
+    const verifySpinner = document.getElementById('verifySpinner');
+    const codeInputs = document.querySelectorAll('.verification-code-input');
+    
+    // Reset button state
+    verifyText.textContent = 'Verify Code';
+    verifySpinner.classList.add('d-none');
+    verifyBtn.disabled = false;
+    
+    // Clear and focus on first input
+    codeInputs.forEach(input => {
+        input.value = '';
+        input.classList.add('error');
+    });
+    
+    // Focus on first input
+    document.getElementById('code_1').focus();
+    
+    // Remove error class after a delay
+    setTimeout(() => {
+        codeInputs.forEach(input => input.classList.remove('error'));
+    }, 2000);
+}
+
+        /**
+         * Show Error in Modal
+         */
+        function showModalError(message) {
+            const modalError = document.getElementById('modalError');
+            const modalErrorText = document.getElementById('modalErrorText');
+            
+            modalErrorText.textContent = message;
+            modalError.classList.remove('d-none');
+            
+            // Auto-hide error after 5 seconds
+            setTimeout(() => {
+                modalError.classList.add('d-none');
+            }, 5000);
+        }
+
+        /**
+         * Show Success in Modal
+         */
+        function showModalSuccess(message) {
+            const modalSuccess = document.getElementById('modalSuccess');
+            const modalSuccessText = document.getElementById('modalSuccessText');
+            
+            modalSuccessText.textContent = message;
+            modalSuccess.classList.remove('d-none');
+        }
+
+        /**
+         * Hide all modal alerts
+         */
+        function hideModalAlerts() {
+            document.getElementById('modalError').classList.add('d-none');
+            document.getElementById('modalSuccess').classList.add('d-none');
         }
 
         // Resend Code Form submission
@@ -1399,33 +1396,14 @@ error_log("Final state - success: " . $success);
             resendSpinner.classList.remove('d-none');
             resendBtn.disabled = true;
             
+            // Hide any existing alerts
+            hideModalAlerts();
+            
             // Submit the form
             setTimeout(() => {
                 this.submit();
             }, 500);
         });
-
-        // Show/hide modal alerts
-        function showModalError(message) {
-            const modalError = document.getElementById('modalError');
-            const modalErrorText = document.getElementById('modalErrorText');
-            
-            modalErrorText.textContent = message;
-            modalError.classList.remove('d-none');
-        }
-
-        function showModalSuccess(message) {
-            const modalSuccess = document.getElementById('modalSuccess');
-            const modalSuccessText = document.getElementById('modalSuccessText');
-            
-            modalSuccessText.textContent = message;
-            modalSuccess.classList.remove('d-none');
-        }
-
-        function hideModalAlerts() {
-            document.getElementById('modalError').classList.add('d-none');
-            document.getElementById('modalSuccess').classList.add('d-none');
-        }
 
         // Countdown timer for lockout
         function startCountdown(duration) {
@@ -1435,6 +1413,19 @@ error_log("Final state - success: " . $success);
             const lockoutAlert = document.getElementById('lockoutAlert');
             const loginBtn = document.getElementById('loginBtn');
             const loginText = document.getElementById('loginText');
+            
+            // Show lockout alert
+            lockoutAlert.classList.remove('d-none');
+            
+            // Disable form elements
+            inputs.forEach(input => {
+                if (input.type !== 'hidden') {
+                    input.disabled = true;
+                }
+            });
+            
+            loginBtn.disabled = true;
+            loginText.textContent = 'Account Locked';
             
             let timer = duration;
             
@@ -1457,11 +1448,40 @@ error_log("Final state - success: " . $success);
                     
                     // Reset attempts counter display
                     document.getElementById('attemptsCount').textContent = '0';
+                    
+                    // Show success message
+                    Swal.fire({
+                        title: 'Ready to Try Again',
+                        text: 'You can now attempt to login again.',
+                        icon: 'success',
+                        timer: 3000,
+                        showConfirmButton: false
+                    });
                 }
             }, 1000);
         }
 
-        // Initialize when page loads
+        // Security: Disable right-click and developer tools
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+            
+        document.onkeydown = function(e) {
+            if (e.keyCode === 123 || // F12
+                (e.ctrlKey && e.shiftKey && e.keyCode === 73) || // Ctrl+Shift+I
+                (e.ctrlKey && e.shiftKey && e.keyCode === 74) || // Ctrl+Shift+J
+                (e.ctrlKey && e.shiftKey && e.keyCode === 67) || // Ctrl+Shift+C
+                (e.ctrlKey && e.keyCode === 85)) { // Ctrl+U
+                e.preventDefault();
+                Swal.fire({
+                    title: 'Restricted Action',
+                    text: 'This action is not allowed.',
+                    icon: 'warning',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            }
+        };
+
+        // Initialize 2FA verification when modal is shown
         document.addEventListener('DOMContentLoaded', function() {
             setup2FAVerification();
             
@@ -1471,30 +1491,103 @@ error_log("Final state - success: " . $success);
                 startCountdown(remainingTime);
             <?php endif; ?>
 
-            // Show 2FA modal if required - THIS IS THE CRITICAL PART
+            // Show 2FA modal if required
             <?php if ($twoFactorRequired): ?>
-                console.log("JavaScript: Showing 2FA modal - twoFactorRequired is true");
                 const twoFactorModal = new bootstrap.Modal(document.getElementById('twoFactorModal'));
                 twoFactorModal.show();
                 
                 // Auto-focus on first verification code input
                 setTimeout(() => {
-                    const firstInput = document.getElementById('code_1');
-                    if (firstInput) {
-                        firstInput.focus();
-                    }
+                    document.getElementById('code_1').focus();
                 }, 500);
-            <?php else: ?>
-                console.log("JavaScript: twoFactorRequired is false - modal will not show");
+                
+                // Show error message in modal if exists
+                <?php if (!empty($error)): ?>
+                    showModalError('<?php echo addslashes($error); ?>');
+                    
+                    // Reset verify button state
+                    const verifyBtn = document.getElementById('verifyBtn');
+                    const verifyText = document.getElementById('verifyText');
+                    const verifySpinner = document.getElementById('verifySpinner');
+                    
+                    verifyText.textContent = 'Verify Code';
+                    verifySpinner.classList.add('d-none');
+                    verifyBtn.disabled = false;
+                    
+                    // Clear verification code inputs
+                    document.querySelectorAll('.verification-code-input').forEach(input => {
+                        input.value = '';
+                        input.classList.add('error');
+                    });
+                    
+                    // Focus on first input
+                    document.getElementById('code_1').focus();
+                <?php endif; ?>
+                
+                // Show success message in modal if exists
+                <?php if (!empty($success)): ?>
+                    showModalSuccess('<?php echo addslashes($success); ?>');
+                    
+                    // Reset resend button state
+                    const resendBtn = document.getElementById('resendBtn');
+                    const resendText = document.getElementById('resendText');
+                    const resendSpinner = document.getElementById('resendSpinner');
+                    
+                    resendText.textContent = 'Resend Code';
+                    resendSpinner.classList.add('d-none');
+                    resendBtn.disabled = false;
+                <?php endif; ?>
             <?php endif; ?>
 
-            // Auto-focus on username field if not locked out and not showing 2FA
+            // Auto-focus on username field if not locked out
             const isLockedOut = <?php echo $isLockedOut ? 'true' : 'false'; ?>;
-            const show2FA = <?php echo $twoFactorRequired ? 'true' : 'false'; ?>;
-            
-            if (!isLockedOut && !show2FA) {
+            if (!isLockedOut && !<?php echo $twoFactorRequired ? 'true' : 'false'; ?>) {
                 document.getElementById('username').focus();
             }
+        });
+
+        // Forgot password link confirmation
+        document.querySelector('.forgot-password-link').addEventListener('click', function(e) {
+            e.preventDefault();
+            const href = this.href;
+            
+            Swal.fire({
+                title: 'Forgot Password?',
+                text: 'You will be redirected to the password recovery page.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#4e73df',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Continue',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = href;
+                }
+            });
+        });
+
+        // Show warning when reaching last attempt
+        <?php if ($_SESSION['login_attempts'] == $maxAttempts - 1 && !$isLockedOut): ?>
+        document.addEventListener('DOMContentLoaded', function() {
+            Swal.fire({
+                title: 'Warning: Last Attempt',
+                text: 'This is your last login attempt. After this, your account will be locked for 30 seconds.',
+                icon: 'warning',
+                confirmButtonColor: '#f6c23e',
+                confirmButtonText: 'I Understand'
+            });
+        });
+        <?php endif; ?>
+
+        // Handle modal close - redirect to login if 2FA is required
+        document.getElementById('twoFactorModal').addEventListener('hidden.bs.modal', function (e) {
+            <?php if ($twoFactorRequired): ?>
+                // Only redirect if there's no active verification process
+                if (document.getElementById('modalError').classList.contains('d-none')) {
+                    window.location.href = 'index.php';
+                }
+            <?php endif; ?>
         });
     </script>
 </body>
