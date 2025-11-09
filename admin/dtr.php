@@ -255,6 +255,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_holiday'])) {
                         <hr>
                         <div class="table-responsive">
                             <style>
+                                .back-to-top {
+                                    background: linear-gradient(135deg, var(--accent-color), var(--secondary-color)) !important;
+                                    border: none;
+                                    border-radius: 50%;
+                                    width: 50px;
+                                    height: 50px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    box-shadow: var(--box-shadow);
+                                    transition: var(--transition);
+                                }
+
+                                .back-to-top:hover {
+                                    transform: translateY(-3px);
+                                }
                                 .container {
                                     width: 100%;
                                     max-width: 800px;
@@ -733,7 +749,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_holiday'])) {
             });
         </script>
 
-        <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top"><i class="bi bi-arrow-up"></i></a>
+        <a href="#" class="btn btn-lg btn-warning btn-lg-square back-to-top"><i class="fas fa-arrow-up"></i></a>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="lib/chart/chart.min.js"></script>
