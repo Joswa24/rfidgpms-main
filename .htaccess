@@ -36,7 +36,6 @@ RewriteRule ^instructor/index/?$ instructor/index.php [NC,L]
 RewriteRule ^instructor/forgot_password/?$ instructor/forgot_password.php [NC,L]
 RewriteRule ^instructor/schedule/?$ instructor/schedule.php [NC,L]
 
-
 # 3. Redirect requests for index.php to the root
 RewriteRule ^index\.php$ / [R=301,L]
 
@@ -63,6 +62,9 @@ Header always set X-Frame-Options "SAMEORIGIN"
 Header always set X-XSS-Protection "1; mode=block"
 Header always set Referrer-Policy "strict-origin-when-cross-origin"
 Header always set Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()"
+
+# REMOVED CSP HEADER - Let PHP handle CSP via meta tag
+# Header always set Content-Security-Policy "..."
 
 # Disable server signature
 ServerSignature Off

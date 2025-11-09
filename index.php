@@ -434,17 +434,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta name="description" content="Gate and Personnel Management System">
     <meta name="robots" content="noindex, nofollow">
     
-    <!-- CORRECTED Content Security Policy -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; 
-    script-src 'self' https://www.google.com https://www.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://ajax.googleapis.com https://fonts.googleapis.com 'unsafe-inline' 'unsafe-eval'; 
-    style-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.googleapis.com 'unsafe-inline'; 
-    font-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.gstatic.com; 
-    img-src 'self' data: https:; 
-    connect-src 'self' https://www.google.com https://recaptcha.google.com; 
-    frame-src https://www.google.com; 
-    frame-ancestors 'none';">
+    <!-- FIXED Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' https://www.google.com https://www.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://ajax.googleapis.com 'unsafe-inline' 'unsafe-eval';
+        style-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.googleapis.com 'unsafe-inline';
+        font-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.gstatic.com;
+        img-src 'self' data: https:;
+        connect-src 'self' https://www.google.com https://recaptcha.google.com https://cdn.jsdelivr.net;
+        frame-src https://www.google.com;
+    ">
     
-    <!-- reCAPTCHA API - Make sure this key matches your secret key in PHP -->
+    <!-- reCAPTCHA API -->
     <script src="https://www.google.com/recaptcha/api.js?render=6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_"></script>
     
     <!-- Security Meta Tags -->
@@ -456,10 +457,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <!-- CSS -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="admin/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css">
     <!-- SweetAlert CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-    
     <style>
         :root {
             --primary-color: #e1e7f0ff;
@@ -1233,8 +1233,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </div>
     </div>
 
+        <!-- Scripts - FIXED -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <script src="admin/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- SweetAlert JS -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
