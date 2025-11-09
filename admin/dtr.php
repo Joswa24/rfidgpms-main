@@ -23,11 +23,7 @@ if (isset($_SESSION['reload_flag'])) {
     unset($_SESSION['name']);
     unset($_SESSION['id']);
 } 
-
  $id = 0;
-
-?>
-<?php
 include 'header.php';
 
 // Check if there's a search query
