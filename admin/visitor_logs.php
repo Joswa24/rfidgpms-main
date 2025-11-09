@@ -1,6 +1,7 @@
 <?php
 session_start();
-include 'header.php';
+// Include connection
+include '../connection.php';
 if (isset($_SESSION['success_message'])) {
     echo '<div class="alert alert-success">' . $_SESSION['success_message'] . '</div>';
     unset($_SESSION['success_message']);
@@ -16,13 +17,12 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true ||
     header('Location: index.php');
     exit();
 }
-// Include connection
-include '../connection.php';
-session_start();
+
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
+    <?php include 'header.php'; ?>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
