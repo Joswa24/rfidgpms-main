@@ -82,7 +82,7 @@ if ($stmt) {
         // Instructor not found in database - logout user
         session_unset();
         session_destroy();
-        header("Location: index?error=instructor_not_found");
+        header("Location: index.php?error=instructor_not_found");
         exit();
     }
     $stmt->close();
@@ -793,6 +793,62 @@ $overall_attendance_rate = $total_students > 0 ? round(($total_present / $total_
         .activity-badge.in { background-color: var(--success-color); }
         .activity-badge.out { background-color: var(--warning-color); }
 
+        /* Enhanced class schedule cards */
+        .class-card {
+            border-left: 4px solid var(--icon-color);
+            transition: all 0.3s ease;
+        }
+
+        .class-card:hover {
+            border-left-color: var(--success-color);
+            transform: translateX(5px);
+        }
+
+        .class-time {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+
+        .class-details {
+            font-size: 0.85rem;
+            color: #495057;
+        }
+
+        .class-status-badge {
+            font-size: 0.75rem;
+            padding: 4px 8px;
+        }
+
+        /* Improved table styling for upcoming classes */
+        .upcoming-classes-table {
+            font-size: 0.9rem;
+        }
+
+        .upcoming-classes-table th {
+            font-size: 0.85rem;
+            padding: 12px 8px;
+        }
+
+        .upcoming-classes-table td {
+            padding: 10px 8px;
+            vertical-align: middle;
+        }
+
+        .day-highlight {
+            background-color: rgba(92, 149, 233, 0.1);
+            border-radius: 6px;
+            padding: 2px 6px;
+            font-weight: 600;
+        }
+
+        .today-highlight {
+            background-color: rgba(40, 167, 69, 0.15);
+            color: #155724;
+            border-radius: 6px;
+            padding: 2px 6px;
+            font-weight: 600;
+        }
+
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
@@ -825,6 +881,15 @@ $overall_attendance_rate = $total_students > 0 ? round(($total_present / $total_
                 height: 60px;
                 font-size: 1.5rem;
             }
+
+            .upcoming-classes-table {
+                font-size: 0.8rem;
+            }
+
+            .upcoming-classes-table th,
+            .upcoming-classes-table td {
+                padding: 8px 4px;
+            }
         }
     </style>
 </head>
@@ -850,19 +915,19 @@ $overall_attendance_rate = $total_students > 0 ? round(($total_present / $total_
         <div class="sidebar-nav">
             <ul class="nav">
                 <li class="nav-item">
-                    <a href="dashboard" class="nav-link active">
+                    <a href="dashboard.php" class="nav-link active">
                         <i class="fas fa-tachometer-alt"></i>
                         <span>Dashboard</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="attendance" class="nav-link">
+                    <a href="attendance.php" class="nav-link">
                         <i class="fas fa-clipboard-check"></i>
                         <span>Attendance</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="schedule" class="nav-link">
+                    <a href="schedule.php" class="nav-link">
                         <i class="fas fa-calendar-alt"></i>
                         <span>Schedule</span>
                     </a>
@@ -887,7 +952,9 @@ $overall_attendance_rate = $total_students > 0 ? round(($total_present / $total_
                             <?php echo htmlspecialchars($_SESSION['fullname'] ?? 'Instructor'); ?>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="logout"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                            <li><a class="dropdown-item" href="profile.php"><i class="fas fa-user me-2"></i>Profile</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="logout.php"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
                         </ul>
                     </li>
                 </ul>
@@ -1036,38 +1103,30 @@ $overall_attendance_rate = $total_students > 0 ? round(($total_present / $total_
                         </div>
                     </div>
 
-                    <!-- Enhanced Charts Section -->
+                    <!-- Today's Classes Section -->
                     <div class="row g-4 mb-4">
-                        <!-- Weekly Attendance Trend -->
-                        <div class="col-lg-7">
-                            <div class="chart-container">
-                                <h5 class="chart-title"><i class="fas fa-chart-line me-2"></i>Weekly Attendance Trend</h5>
-                                <div id="weeklyAttendanceChart" style="height: 100%;"></div>
-                            </div>
-                        </div>
-
-                        <!-- Today's Attendance by Class -->
-                        <div class="col-lg-5">
-                            <div class="chart-container">
-                                <h5 class="chart-title"><i class="fas fa-chart-pie me-2"></i>Today's Attendance by Class</h5>
-                                <div id="attendanceByClassChart" style="height: 100%;"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Today's Classes & Upcoming Classes -->
-                    <div class="row g-4">
-                        <!-- Today's Classes -->
-                        <div class="col-lg-6">
+                        <div class="col-12">
                             <div class="card">
                                 <div class="card-header bg-primary-custom d-flex justify-content-between align-items-center">
-                                    <h5 class="card-title mb-0"><i class="fas fa-calendar-day me-2"></i>Today's Classes</h5>
+                                    <h5 class="card-title mb-0 text-white">
+                                        <i class="fas fa-calendar-day me-2"></i>Today's Classes - <?php echo date('l, F j, Y'); ?>
+                                    </h5>
                                     <span class="badge bg-light text-dark"><?php echo $today_classes ? $today_classes->num_rows : 0; ?> classes</span>
                                 </div>
                                 <div class="card-body">
                                     <?php if ($today_classes && $today_classes->num_rows > 0): ?>
-                                        <div class="list-group">
-                                            <?php while ($class = $today_classes->fetch_assoc()): 
+                                        <div class="row g-3">
+                                            <?php 
+                                            $today_classes_data = [];
+                                            if ($today_classes) {
+                                                while ($class = $today_classes->fetch_assoc()) {
+                                                    $today_classes_data[] = $class;
+                                                }
+                                                // Reset pointer for future use
+                                                $today_classes->data_seek(0);
+                                            }
+                                            
+                                            foreach ($today_classes_data as $class): 
                                                 $start_time = date("g:i A", strtotime($class['start_time']));
                                                 $end_time = date("g:i A", strtotime($class['end_time']));
                                                 $current_time = time();
@@ -1100,71 +1159,78 @@ $overall_attendance_rate = $total_students > 0 ? round(($total_present / $total_
                                                     }
                                                 }
                                             ?>
-                                                <div class="list-group-item list-group-item-action">
-                                                    <div class="d-flex justify-content-between align-items-start mb-2">
-                                                        <h6 class="mb-1">
-                                                            <span class="class-status-indicator <?php echo $status_class; ?>"></span>
-                                                            <?php echo htmlspecialchars($class['subject']); ?>
-                                                        </h6>
-                                                        <span class="badge <?php echo $badge_class; ?>"><?php echo $status; ?></span>
-                                                    </div>
-                                                    
-                                                    <p class="mb-1">
-                                                        <i class="fas fa-door-open me-1 text-muted"></i>
-                                                        Room: <?php echo htmlspecialchars($class['room_name']); ?>
-                                                    </p>
-                                                    
-                                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                                        <small class="text-muted">
-                                                            <i class="fas fa-users me-1"></i>
-                                                            Section: <?php echo htmlspecialchars($class['section']); ?> | 
-                                                            Year: <?php echo htmlspecialchars($class['year_level'] ?? 'N/A'); ?>
-                                                        </small>
-                                                        <span class="time-badge">
-                                                            <i class="fas fa-clock me-1"></i>
-                                                            <?php echo $start_time . ' - ' . $end_time; ?>
-                                                        </span>
-                                                    </div>
+                                                <div class="col-md-6 col-lg-4">
+                                                    <div class="card class-card h-100">
+                                                        <div class="card-body">
+                                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                                <h6 class="card-title mb-1">
+                                                                    <span class="class-status-indicator <?php echo $status_class; ?>"></span>
+                                                                    <?php echo htmlspecialchars($class['subject']); ?>
+                                                                </h6>
+                                                                <span class="badge <?php echo $badge_class; ?> class-status-badge"><?php echo $status; ?></span>
+                                                            </div>
+                                                            
+                                                            <p class="class-time mb-2">
+                                                                <i class="fas fa-clock me-1 text-muted"></i>
+                                                                <?php echo $start_time . ' - ' . $end_time; ?>
+                                                            </p>
+                                                            
+                                                            <div class="class-details mb-3">
+                                                                <div class="mb-1">
+                                                                    <i class="fas fa-door-open me-1 text-muted"></i>
+                                                                    <strong>Room:</strong> <?php echo htmlspecialchars($class['room_name']); ?>
+                                                                </div>
+                                                                <div class="mb-1">
+                                                                    <i class="fas fa-users me-1 text-muted"></i>
+                                                                    <strong>Section:</strong> <?php echo htmlspecialchars($class['section']); ?>
+                                                                </div>
+                                                                <div>
+                                                                    <i class="fas fa-graduation-cap me-1 text-muted"></i>
+                                                                    <strong>Year:</strong> <?php echo htmlspecialchars($class['year_level'] ?? 'N/A'); ?>
+                                                                </div>
+                                                            </div>
 
-                                                    <!-- Attendance Summary -->
-                                                    <?php if ($attendance_data): ?>
-                                                    <div class="attendance-summary mt-2 p-2 bg-light rounded">
-                                                        <div class="row text-center">
-                                                            <div class="col-4">
-                                                                <small class="text-success fw-bold"><?php echo $attendance_data['present_count']; ?></small>
-                                                                <br><small class="text-muted">Present</small>
+                                                            <!-- Attendance Summary -->
+                                                            <?php if ($attendance_data): ?>
+                                                            <div class="attendance-summary mt-2 p-2 bg-light rounded">
+                                                                <div class="row text-center">
+                                                                    <div class="col-4">
+                                                                        <small class="text-success fw-bold"><?php echo $attendance_data['present_count']; ?></small>
+                                                                        <br><small class="text-muted">Present</small>
+                                                                    </div>
+                                                                    <div class="col-4">
+                                                                        <small class="text-danger fw-bold"><?php echo $attendance_data['absent_count']; ?></small>
+                                                                        <br><small class="text-muted">Absent</small>
+                                                                    </div>
+                                                                    <div class="col-4">
+                                                                        <small class="text-primary fw-bold"><?php echo $attendance_data['attendance_rate']; ?>%</small>
+                                                                        <br><small class="text-muted">Rate</small>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="progress attendance-progress mt-1">
+                                                                    <div class="progress-bar bg-success" style="width: <?php echo $attendance_data['attendance_rate']; ?>%"></div>
+                                                                </div>
                                                             </div>
-                                                            <div class="col-4">
-                                                                <small class="text-danger fw-bold"><?php echo $attendance_data['absent_count']; ?></small>
-                                                                <br><small class="text-muted">Absent</small>
-                                                            </div>
-                                                            <div class="col-4">
-                                                                <small class="text-primary fw-bold"><?php echo $attendance_data['attendance_rate']; ?>%</small>
-                                                                <br><small class="text-muted">Rate</small>
+                                                            <?php endif; ?>
+
+                                                            <div class="mt-3">
+                                                                <a href="attendance.php?year=<?php echo urlencode($class['year_level']); ?>&section=<?php echo urlencode($class['section']); ?>&subject=<?php echo urlencode($class['subject']); ?>&date=<?php echo urlencode($today_date); ?>" 
+                                                                   class="btn btn-sm btn-outline-primary view-attendance-btn w-100">
+                                                                    <i class="fas fa-chart-bar me-1"></i>
+                                                                    <?php echo $attendance_data ? 'View Details' : 'View Records'; ?>
+                                                                </a>
                                                             </div>
                                                         </div>
-                                                        <div class="progress attendance-progress mt-1">
-                                                            <div class="progress-bar bg-success" style="width: <?php echo $attendance_data['attendance_rate']; ?>%"></div>
-                                                        </div>
-                                                    </div>
-                                                    <?php endif; ?>
-
-                                                    <div class="mt-3">
-                                                        <a href="attendance?year=<?php echo urlencode($class['year_level']); ?>&section=<?php echo urlencode($class['section']); ?>&subject=<?php echo urlencode($class['subject']); ?>&date=<?php echo urlencode($today_date); ?>" 
-                                                           class="btn btn-sm btn-outline-primary view-attendance-btn w-100">
-                                                            <i class="fas fa-chart-bar me-1"></i>
-                                                            <?php echo $attendance_data ? 'View Detailed Attendance' : 'View Attendance Records'; ?>
-                                                        </a>
                                                     </div>
                                                 </div>
-                                            <?php endwhile; ?>
+                                            <?php endforeach; ?>
                                         </div>
                                     <?php else: ?>
                                         <div class="text-center py-4">
                                             <i class="fas fa-calendar-times text-muted mb-3" style="font-size: 3rem;"></i>
                                             <h5 class="text-muted">No Classes Today</h5>
                                             <p class="text-muted">Enjoy your day off! No classes scheduled for today.</p>
-                                            <a href="schedule" class="btn btn-outline-primary">
+                                            <a href="schedule.php" class="btn btn-outline-primary">
                                                 <i class="fas fa-calendar-alt me-2"></i>View Full Schedule
                                             </a>
                                         </div>
@@ -1172,55 +1238,83 @@ $overall_attendance_rate = $total_students > 0 ? round(($total_present / $total_
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Upcoming Classes -->
-                        <div class="col-lg-6">
+                    <!-- Upcoming Classes Section -->
+                    <div class="row g-4">
+                        <div class="col-12">
                             <div class="card">
                                 <div class="card-header bg-primary-custom d-flex justify-content-between align-items-center">
-                                    <h5 class="card-title mb-0"><i class="fas fa-calendar-week me-2"></i>Upcoming Classes This Week</h5>
-                                    <span class="badge bg-light text-dark"><?php echo $upcoming_classes ? $upcoming_classes->num_rows : 0; ?> total</span>
+                                    <h5 class="card-title mb-0 text-white">
+                                        <i class="fas fa-calendar-week me-2"></i>Upcoming Classes This Week
+                                    </h5>
+                                    <span class="badge bg-light text-dark"><?php echo $upcoming_classes ? $upcoming_classes->num_rows : 0; ?> total classes</span>
                                 </div>
                                 <div class="card-body">
                                     <?php if ($upcoming_classes && $upcoming_classes->num_rows > 0): ?>
                                         <div class="table-responsive">
-                                            <table class="table table-hover">
+                                            <table class="table table-hover upcoming-classes-table">
                                                 <thead>
                                                     <tr>
                                                         <th>Day</th>
                                                         <th>Time</th>
                                                         <th>Subject</th>
                                                         <th>Room</th>
-                                                        <th>Year Level</th>
                                                         <th>Section</th>
+                                                        <th>Year Level</th>
                                                         <th>Action</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    <?php while ($class = $upcoming_classes->fetch_assoc()): ?>
+                                                    <?php 
+                                                    $upcoming_classes_data = [];
+                                                    if ($upcoming_classes) {
+                                                        while ($class = $upcoming_classes->fetch_assoc()) {
+                                                            $upcoming_classes_data[] = $class;
+                                                        }
+                                                    }
+                                                    
+                                                    foreach ($upcoming_classes_data as $class): 
+                                                        $is_today = $class['day'] === $today_day;
+                                                    ?>
                                                         <tr>
                                                             <td>
-                                                                <strong><?php echo htmlspecialchars($class['day']); ?></strong>
-                                                                <?php if ($class['day'] === $today_day): ?>
-                                                                    <span class="badge bg-success ms-1">Today</span>
+                                                                <?php if ($is_today): ?>
+                                                                    <span class="today-highlight">
+                                                                        <i class="fas fa-star me-1"></i><?php echo htmlspecialchars($class['day']); ?>
+                                                                    </span>
+                                                                <?php else: ?>
+                                                                    <span class="day-highlight"><?php echo htmlspecialchars($class['day']); ?></span>
                                                                 <?php endif; ?>
                                                             </td>
                                                             <td>
                                                                 <span class="time-badge">
+                                                                    <i class="fas fa-clock me-1"></i>
                                                                     <?php echo date("g:i A", strtotime($class['start_time'])) . ' - ' . date("g:i A", strtotime($class['end_time'])); ?>
                                                                 </span>
                                                             </td>
-                                                            <td><?php echo htmlspecialchars($class['subject']); ?></td>
-                                                            <td><?php echo htmlspecialchars($class['room_name']); ?></td>                                       
-                                                            <td><?php echo isset($class['year_level']) ? htmlspecialchars($class['year_level']) : '-'; ?></td>
+                                                            <td>
+                                                                <strong><?php echo htmlspecialchars($class['subject']); ?></strong>
+                                                            </td>
+                                                            <td>
+                                                                <span class="badge bg-light text-dark">
+                                                                    <i class="fas fa-door-open me-1"></i><?php echo htmlspecialchars($class['room_name']); ?>
+                                                                </span>
+                                                            </td>
                                                             <td><?php echo htmlspecialchars($class['section']); ?></td>
                                                             <td>
-                                                                <a href="attendance?year=<?php echo urlencode($class['year_level']); ?>&section=<?php echo urlencode($class['section']); ?>&subject=<?php echo urlencode($class['subject']); ?>" 
+                                                                <span class="badge bg-info text-white">
+                                                                    <?php echo isset($class['year_level']) ? htmlspecialchars($class['year_level']) : '-'; ?>
+                                                                </span>
+                                                            </td>
+                                                            <td>
+                                                                <a href="attendance.php?year=<?php echo urlencode($class['year_level']); ?>&section=<?php echo urlencode($class['section']); ?>&subject=<?php echo urlencode($class['subject']); ?>" 
                                                                    class="btn btn-sm btn-outline-primary">
-                                                                   <i class="fas fa-eye me-1"></i> View Records
+                                                                   <i class="fas fa-eye me-1"></i> View
                                                                 </a>
                                                             </td>
                                                         </tr>
-                                                    <?php endwhile; ?>
+                                                    <?php endforeach; ?>
                                                 </tbody>
                                             </table>
                                         </div>
@@ -1229,7 +1323,7 @@ $overall_attendance_rate = $total_students > 0 ? round(($total_present / $total_
                                             <i class="fas fa-calendar-plus text-muted mb-3" style="font-size: 3rem;"></i>
                                             <h5 class="text-muted">No Upcoming Classes</h5>
                                             <p class="text-muted">No classes scheduled for the rest of the week.</p>
-                                            <a href="schedule" class="btn btn-primary">
+                                            <a href="schedule.php" class="btn btn-primary">
                                                 <i class="fas fa-calendar-alt me-2"></i>View Full Schedule
                                             </a>
                                         </div>
@@ -1244,159 +1338,6 @@ $overall_attendance_rate = $total_students > 0 ? round(($total_present / $total_
     </div><!-- /.main-content -->
      <script src="https://www.google.com/recaptcha/api.js?render=6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_"></script>                                   
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script type="text/javascript">
-    // Load Google Charts
-    google.charts.load('current', {'packages':['corechart']});
-    google.charts.setOnLoadCallback(drawCharts);
-
-    function drawCharts() {
-        drawWeeklyAttendanceChart();
-        drawAttendanceByClassChart();
-    }
-
-    function drawWeeklyAttendanceChart() {
-        // Weekly attendance data from PHP
-        const weeklyData = <?php echo json_encode($weekly_attendance_data); ?>;
-        
-        const data = new google.visualization.DataTable();
-        data.addColumn('string', 'Day');
-        data.addColumn('number', 'Attendance Rate (%)');
-        data.addColumn('number', 'Present');
-        data.addColumn('number', 'Absent');
-        
-        weeklyData.forEach(day => {
-            data.addRow([
-                day.day, 
-                parseFloat(day.rate),
-                parseInt(day.present),
-                parseInt(day.absent)
-            ]);
-        });
-
-        const options = {
-            title: '',
-            curveType: 'function',
-            legend: { position: 'bottom' },
-            colors: ['#5c95e9', '#1cc88a', '#e74a3b'],
-            backgroundColor: 'transparent',
-            chartArea: {width: '85%', height: '70%', top: 20, bottom: 80},
-            hAxis: {
-                textStyle: {color: '#5a5c69', fontSize: 12},
-                gridlines: { color: 'transparent' },
-                baselineColor: '#5a5c69',
-                showTextEvery: 1,
-                slantedText: false
-            },
-            vAxis: {
-                title: 'Attendance Rate (%)',
-                titleTextStyle: {color: '#5a5c69', bold: true, fontSize: 12},
-                minValue: 0,
-                maxValue: 100,
-                gridlines: { 
-                    color: '#f0f0f0',
-                    count: 5
-                },
-                baseline: 0,
-                baselineColor: '#5a5c69',
-                format: '0',
-                viewWindow: {
-                    min: 0,
-                    max: 100
-                },
-                textStyle: {color: '#5a5c69', fontSize: 11}
-            },
-            titleTextStyle: {
-                color: '#5a5c69',
-                fontSize: 16,
-                bold: true
-            },
-            lineWidth: 3,
-            pointSize: 5,
-            animation: {
-                startup: true,
-                duration: 1000,
-                easing: 'out'
-            },
-            series: {
-                0: { type: 'line', pointSize: 6 },
-                1: { type: 'bars' },
-                2: { type: 'bars' }
-            }
-        };
-
-        const chart = new google.visualization.ComboChart(document.getElementById('weeklyAttendanceChart'));
-        chart.draw(data, options);
-    }
-
-    function drawAttendanceByClassChart() {
-        // Today's attendance by class data from PHP
-        const attendanceData = <?php 
-            $attendance_by_class = [];
-            foreach ($today_attendance_summary as $summary) {
-                $attendance_by_class[] = [
-                    'class' => $summary['subject'] . ' (' . $summary['year'] . '-' . $summary['section'] . ')',
-                    'present' => $summary['present_count'],
-                    'absent' => $summary['absent_count'],
-                    'rate' => $summary['attendance_rate']
-                ];
-            }
-            echo json_encode($attendance_by_class);
-        ?>;
-        
-        const data = new google.visualization.DataTable();
-        data.addColumn('string', 'Class');
-        data.addColumn('number', 'Present');
-        data.addColumn('number', 'Absent');
-        
-        attendanceData.forEach(item => {
-            data.addRow([
-                item.class, 
-                parseInt(item.present),
-                parseInt(item.absent)
-            ]);
-        });
-
-        const options = {
-            title: '',
-            pieHole: 0.3,
-            backgroundColor: 'transparent',
-            chartArea: {
-                width: '95%', 
-                height: '80%',
-                top: 10, 
-                left: 0,
-                right: 0,
-                bottom: 10
-            },
-            legend: {
-                position: 'bottom'
-            },
-            pieSliceText: 'percentage',
-            colors: ['#1cc88a', '#e74a3b'],
-            pieSliceBorderColor: 'white',
-            pieSliceBorderWidth: 2,
-            is3D: false,
-            pieStartAngle: 0,
-            sliceVisibilityThreshold: 0,
-            enableInteractivity: true,
-            tooltip: { 
-                trigger: 'focus',
-                showColorCode: true,
-                text: 'both',
-                isHtml: true
-            }
-        };
-
-        const chart = new google.visualization.PieChart(document.getElementById('attendanceByClassChart'));
-        chart.draw(data, options);
-    }
-
-    // Redraw charts on window resize
-    window.addEventListener('resize', function() {
-        drawCharts();
-    });
-</script>
-
     <script>
         // Update current time every second
         function updateCurrentTime() {

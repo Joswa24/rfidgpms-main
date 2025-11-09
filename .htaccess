@@ -9,6 +9,8 @@ RewriteRule ^ /%1 [R=301,L]
 
 RewriteCond %{THE_REQUEST} \s/admin/([^/]+)\.php[\s?] [NC]
 RewriteRule ^ admin/%1 [R=301,L]
+RewriteCond %{THE_REQUEST} \s/instructor/([^/]+)\.php[\s?] [NC]
+RewriteRule ^ instructor/%1 [R=301,L]
 
 # 2. Specific rules for admin pages (based on your sidebar navigation)
 RewriteRule ^admin/dashboard/?$ admin/dashboard.php [NC,L]
