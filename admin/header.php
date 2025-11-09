@@ -146,7 +146,7 @@ setSecurityHeaders();
         }
     </style>
 </head>
-<script>
+<!-- <script>
 // function executeRecaptcha() {
 //     grecaptcha.ready(function() {
 //         grecaptcha.execute('6Ld2w-QrAAAAAKcWH94dgQumTQ6nQ3EiyQKHUw4_', {action: 'submit'}).then(function(token) {
@@ -164,4 +164,4 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
-</script>
+</script> -->
