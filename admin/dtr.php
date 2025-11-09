@@ -1,13 +1,6 @@
 <?php
+session_start();
 include '../connection.php';
-if (isset($_SESSION['reload_flag'])) {
-    // Unset specific session variables
-    unset($_SESSION['month']); 
-    unset($_SESSION['name']);
-    unset($_SESSION['id']);
-} 
-
- $id = 0;
 if (isset($_SESSION['success_message'])) {
     echo '<div class="alert alert-success">' . $_SESSION['success_message'] . '</div>';
     unset($_SESSION['success_message']);
@@ -23,6 +16,16 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true ||
     header('Location: index.php');
     exit();
 }
+
+if (isset($_SESSION['reload_flag'])) {
+    // Unset specific session variables
+    unset($_SESSION['month']); 
+    unset($_SESSION['name']);
+    unset($_SESSION['id']);
+} 
+
+ $id = 0;
+
 ?>
 <?php
 include 'header.php';
