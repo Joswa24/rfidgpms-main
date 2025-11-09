@@ -1,4 +1,11 @@
 <?php
+session_start();
+include '../connection.php';
+
+// Check if connection is successful
+if (!$db) {
+    die("Database connection failed: " . mysqli_connect_error());
+}
 if (isset($_SESSION['success_message'])) {
     echo '<div class="alert alert-success">' . $_SESSION['success_message'] . '</div>';
     unset($_SESSION['success_message']);
@@ -14,13 +21,7 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true ||
     header('Location: index.php');
     exit();
 }
-// Include connection
-include '../connection.php';
 
-// Check if connection is successful
-if (!$db) {
-    die("Database connection failed: " . mysqli_connect_error());
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">
