@@ -1,5 +1,6 @@
 <?php
 session_start();
+include '../connection.php';
 if (isset($_SESSION['reload_flag'])) {
     // Unset specific session variables
     unset($_SESSION['month']); 
@@ -23,8 +24,7 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true ||
     header('Location: index.php');
     exit();
 }
-// Include connection
-include '../connection.php';
+
 ?>
 <?php
 include 'header.php';
